@@ -35,7 +35,15 @@ No live tax/registry API, legal consent standard, or claim of real verification 
 
 ## Implementation record
 
-Not started. Record date, commands/results, and deviations when implemented.
+In progress — industry catalog/search slice implemented October 7, 2026. Business/tax simulations, encrypted identifiers, tax authorization and enrichment fact confirmation remain unfinished.
+
+### Industry catalog and picker — October 7, 2026
+
+- Replaced the temporary industry select with a shadcn/Base UI searchable popup. The complete Census 2022 U.S. six-digit catalog contains 1,012 entries. Local code/title/synonym/fuzzy search includes “dentistry office,” “dentstry ofice,” everyday descriptions and exact numeric codes. See [source evaluation, licensing, checksums and maintenance policy](../naics-source.md).
+- Search text and selected value are separate. Only an explicit catalog selection saves a code plus `2022`; schema validation is shared with the backend. Paired null skip remains optional. Historical demo answers remain readable but require a valid selection or skip when edited.
+- The popup preserves query/selection on failure, has a retry action, announces loading/results/no-match states, and ignores cancelled or out-of-order searches. The local index needs no provider credentials or external search requests.
+- Validation: focused catalog/search and application-contract tests passed (30); `@keycade/contracts`, `@keycade/ui` and `@keycade/borrower` typechecks passed. `pnpm test:e2e tests/e2e/industry.spec.ts`: **4 passed**, desktop/mobile keyboard selection, persistence, Escape focus return, popup width, optional skip, failed-search retry and out-of-order response fencing; run `.local/e2e-MMQMvr` used disposable PostgreSQL. Additional direct domain validation is included in the setup integration suite.
+- No identifier or business/tax verification claims are introduced. T15 remains in progress until its remaining backend and simulation acceptance criteria pass.
 
 ### Intake feedback — October 7, 2026
 

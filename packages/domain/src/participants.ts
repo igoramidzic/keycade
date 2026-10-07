@@ -30,6 +30,7 @@ import {
   canDelegateParticipantGrant,
   requireApplicantPortalAccess,
 } from "./authorization.js";
+import { validateDocumentGrants } from "./documents.js";
 import { DomainError, deny } from "./errors.js";
 import { hashIdentityCredential } from "./identity.js";
 import { reconcileTasks, unassignParticipantTasks, validateTaskGrants } from "./tasks.js";
@@ -168,6 +169,15 @@ export function createParticipantsService(
       invitation.bankId,
       invitation.applicationId,
       invitation.taskIds,
+      invitation.email,
+    );
+    await validateDocumentGrants(
+      tx,
+      { kind: "user", userId: invitation.inviterUserId },
+      access,
+      invitation.bankId,
+      invitation.applicationId,
+      invitation.documentIds,
       invitation.email,
     );
   }
@@ -585,8 +595,6 @@ export function createParticipantsService(
     const parsed = parse(createInvitationSchema, input);
     parsed.taskIds = [...new Set(parsed.taskIds)].sort();
     parsed.documentIds = [...new Set(parsed.documentIds)].sort();
-    if (parsed.documentIds.length)
-      throw new DomainError("INVALID_INPUT", 400, "Document assignments are not available yet.");
     return db.transaction(async (tx) => {
       const { application, userId, access } = await manager(tx, actor, bankId, applicationId);
       if (!canDelegateParticipantGrant(access, parsed)) return deny();
@@ -597,6 +605,15 @@ export function createParticipantsService(
         bankId,
         applicationId,
         parsed.taskIds,
+        parsed.email,
+      );
+      await validateDocumentGrants(
+        tx,
+        actor,
+        access,
+        bankId,
+        applicationId,
+        parsed.documentIds,
         parsed.email,
       );
       const { idempotencyKey: _key, ...payload } = parsed;
@@ -697,6 +714,15 @@ export function createParticipantsService(
             bankId,
             applicationId,
             invitation.taskIds,
+            invitation.email,
+          );
+          await validateDocumentGrants(
+            tx,
+            actor,
+            access,
+            bankId,
+            applicationId,
+            invitation.documentIds,
             invitation.email,
           );
           if (invitation.status === "revoked")

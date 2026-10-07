@@ -231,12 +231,13 @@ describe("participant task grants and owner facts on PostgreSQL", () => {
 
   it("reconciles owner removal and restoration under the same relationship without restoring a waiver", async () => {
     const { service } = harness();
+    const name = `Synthetic owner ${randomUUID()}`;
     const workspace = await service.addRelationship(
       officer,
       ids.bankA,
       ids.applicationSmall,
       {
-        displayName: `Synthetic owner ${randomUUID()}`,
+        displayName: name,
         kind: "owner",
         ownershipPercent: "30.00",
         userId: ids.borrower,
@@ -244,7 +245,8 @@ describe("participant task grants and owner facts on PostgreSQL", () => {
       },
       randomUUID(),
     );
-    const relationship = workspace.relationships.at(-1);
+    // Frozen clocks give several owners the same timestamp; UUID sorting is not creation order.
+    const relationship = workspace.relationships.find((row) => row.displayName === name);
     if (!relationship) throw new Error("Expected relationship.");
     const related = await database.db
       .select()

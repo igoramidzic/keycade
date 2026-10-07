@@ -783,6 +783,28 @@ describe("real PostgreSQL authenticated creation and setup", () => {
     );
     expect(skipped.skippedSteps).toContain("industry");
     expect(skipped.industryCode).toBeNull();
+    for (const answers of [
+      { industryCode: "999999", industryTaxonomyVersion: "2022" },
+      { industryCode: "621210", industryTaxonomyVersion: "2017" },
+      { industryCode: "dentistry office", industryTaxonomyVersion: "2022" },
+      { industryCode: "621210" },
+    ]) {
+      await expect(
+        service().saveSetup(
+          actor,
+          ids.bankA,
+          draft.id,
+          {
+            expectedRevision: skipped.revision,
+            answers,
+            step: "industry",
+            currentStep: "review",
+          },
+          randomUUID(),
+        ),
+      ).rejects.toMatchObject({ code: "INVALID_INPUT" });
+    }
+    expect(await service().readSetup(actor, ids.bankA, draft.id)).toEqual(skipped);
     const answered = await service().saveSetup(
       actor,
       ids.bankA,

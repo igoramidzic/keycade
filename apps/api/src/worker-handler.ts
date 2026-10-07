@@ -11,6 +11,7 @@ import {
   assignTaskSchema,
   authSessionSchema,
   bankParamsSchema,
+  beginDocumentBatchSchema,
   claimApplicationSchema,
   consumeAccessLinkResponseSchema,
   consumeAccessLinkSchema,
@@ -19,6 +20,8 @@ import {
   createManualTaskSchema,
   demoSignInResponseSchema,
   demoSignInSchema,
+  documentsViewSchema,
+  documentUploadResultSchema,
   errorSchema,
   finishApplicationSetupSchema,
   invitationViewSchema,
@@ -73,6 +76,7 @@ import {
   updateApplicationPurpose,
   updateStaffNote,
 } from "@keycade/domain";
+import { webByteSource } from "@keycade/integrations/documents";
 import { z } from "zod";
 import {
   type Authentication,
@@ -83,6 +87,7 @@ import {
   publicSession,
   readStaffSession,
 } from "./auth.js";
+import { createDocumentTransport, type DocumentTransportOptions } from "./documents.js";
 import {
   configuredRequestOrigin,
   isAllowedOrigin,
@@ -92,7 +97,7 @@ import {
 } from "./security.js";
 import { isServiceUnavailable, serviceUnavailableMessage } from "./service-errors.js";
 
-export interface WorkerDependencies extends IdentityTransportOptions {
+export interface WorkerDependencies extends IdentityTransportOptions, DocumentTransportOptions {
   db: Database;
   allowedOrigins: readonly string[];
   rateLimiter: { limit(input: { key: string }): Promise<{ success: boolean }> };
@@ -187,6 +192,16 @@ export async function handleWorkerRequest(
         openapi: "3.1.0",
         info: { title: "Keycade simulation API", version: "0.1.0" },
         paths: {
+          "/api/v1/banks/{bankId}/applications/{applicationId}/documents": {
+            get: { parameters, responses: applicationResponses(documentsViewSchema) },
+          },
+          "/api/v1/banks/{bankId}/applications/{applicationId}/documents/uploads": {
+            post: {
+              parameters,
+              requestBody: requestBody(beginDocumentBatchSchema),
+              responses: applicationResponses(documentUploadResultSchema),
+            },
+          },
           "/api/health": {
             get: {
               responses: {
@@ -611,6 +626,71 @@ export async function handleWorkerRequest(
       !validCsrfToken(request.headers.get("x-csrf-token"), authentication.csrfToken)
     ) {
       return failure(403, "FORBIDDEN", "Invalid request verification.");
+    }
+    const documentsMatch =
+      /^\/api\/v1\/banks\/([^/]+)\/applications\/([^/]+)\/documents(?:\/(uploads)(?:\/([^/]+)(\/content)?)?|\/(versions)\/([^/]+)\/(content|retry-scan))?$/.exec(
+        path,
+      );
+    if (documentsMatch) {
+      const { bankId, applicationId } = applicationParamsSchema.parse({
+        bankId: documentsMatch[1],
+        applicationId: documentsMatch[2],
+      });
+      assertSessionBank(authentication, bankId);
+      const documentTransport = createDocumentTransport(deps.db, deps);
+      const actor = authentication.actor;
+      if (!documentsMatch[3] && !documentsMatch[6] && get)
+        return json(
+          documentsViewSchema.parse(await documentTransport.list(actor, bankId, applicationId)),
+        );
+      if (documentsMatch[3] && !documentsMatch[4] && request.method === "POST")
+        return json(
+          await documentTransport.begin(
+            actor,
+            bankId,
+            applicationId,
+            await readJsonBody(request),
+            requestId,
+          ),
+        );
+      if (documentsMatch[4]) {
+        const uploadId = z.string().uuid().parse(documentsMatch[4]);
+        if (documentsMatch[5] && request.method === "PUT") {
+          if (request.headers.get("content-type") !== "application/octet-stream")
+            return failure(400, "INVALID_INPUT", "Send file bytes as application/octet-stream.");
+          return json(
+            await documentTransport.put(
+              actor,
+              bankId,
+              applicationId,
+              uploadId,
+              webByteSource(request.body),
+              requestId,
+            ),
+          );
+        }
+        if (!documentsMatch[5] && request.method === "DELETE")
+          return json(
+            await documentTransport.cancel(actor, bankId, applicationId, uploadId, requestId),
+          );
+      }
+      if (documentsMatch[7]) {
+        const versionId = z.string().uuid().parse(documentsMatch[7]);
+        if (documentsMatch[8] === "content" && get) {
+          const content = await documentTransport.download(actor, bankId, applicationId, versionId);
+          if (request.method === "HEAD") await content.body.cancel();
+          return new Response(request.method === "HEAD" ? null : content.body, {
+            headers: { ...headers, ...content.headers },
+          });
+        }
+        if (documentsMatch[8] === "retry-scan" && request.method === "POST") {
+          z.strictObject({}).parse(await readJsonBody(request));
+          return json(
+            await documentTransport.retry(actor, bankId, applicationId, versionId, requestId),
+          );
+        }
+      }
+      return failure(404, "NOT_FOUND", "Resource not found.");
     }
     if (get && path === "/api/v1/auth/session")
       return json(authSessionSchema.parse(publicSession(authentication, deps.demoSignInEnabled)));

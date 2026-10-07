@@ -4,7 +4,11 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./operations": "./src/operations.ts"
+    "./operations": "./src/operations.ts",
+    "./document-storage-local": "./src/document-storage-local.ts",
+    "./documents": "./src/document-content.ts",
+    "./document-scan": "./src/document-scan.ts",
+    "./document-fixtures": "./src/document-fixtures.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",

@@ -13,7 +13,7 @@ export async function request<T>(
   path: string,
   schema: { parse(input: unknown): T },
   options: {
-    method?: "GET" | "POST" | "PATCH";
+    method?: "GET" | "POST" | "PATCH" | "DELETE";
     body?: object;
     signal?: AbortSignal;
     bankId?: string;

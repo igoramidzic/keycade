@@ -4,6 +4,8 @@ import { applicationStatusSchema, usdAmountSchema } from "./common.js";
 export * from "./applications.js";
 // Browser-safe wire contracts. Never import database or server configuration here.
 export { applicationStatusSchema, usdAmountSchema } from "./common.js";
+export * from "./documents.js";
+export * from "./industry.js";
 export * from "./intake.js";
 export * from "./participants.js";
 export * from "./staff.js";

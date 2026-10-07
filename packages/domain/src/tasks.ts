@@ -17,6 +17,8 @@ import {
   businessRelationships,
   type Database,
   type DatabaseTransaction,
+  documents,
+  documentVersions,
   loanProducts,
   productRequirementRules,
   taskAnswers,
@@ -42,6 +44,23 @@ import {
   settledTaskStates,
   taskTransitionAllowed,
 } from "./task-rules.js";
+
+async function taskDocumentsReady(db: QueryDatabase, taskId: string) {
+  const rows = await db
+    .select({ uploadState: documentVersions.uploadState, scanState: documentVersions.scanState })
+    .from(documents)
+    .innerJoin(
+      documentVersions,
+      and(
+        eq(documentVersions.documentId, documents.id),
+        eq(documentVersions.version, documents.currentVersion),
+      ),
+    )
+    .where(eq(documents.taskId, taskId));
+  return rows.every(
+    (version) => version.uploadState === "uploaded" && version.scanState === "clean",
+  );
+}
 
 type Tx = DatabaseTransaction;
 type Task = typeof applicationTasks.$inferSelect;
@@ -450,6 +469,7 @@ export function createTasksService(db: Database, options: { clock?: () => Date }
         own &&
         evidenceEditable(status, task.stage) &&
         task.evidenceRevision > 0 &&
+        (await taskDocumentsReady(tx, task.id)) &&
         taskTransitionAllowed(task.state, "submit"),
       canReview: mutable && access.kind === "staff",
     };
@@ -749,7 +769,9 @@ export function createTasksService(db: Database, options: { clock?: () => Date }
         });
         fields = ["evidenceRevision", "state"];
       } else if (operation === "submit") {
-        if (task.evidenceRevision === 0) invalid("Save an answer before submitting this task.");
+        if (task.evidenceRevision === 0) invalid("Save evidence before submitting this task.");
+        if (!(await taskDocumentsReady(tx, task.id)))
+          invalid("Linked documents must finish a clean simulated scan before submission.");
         update.state = "submitted";
         fields = ["state"];
       } else {
@@ -757,6 +779,8 @@ export function createTasksService(db: Database, options: { clock?: () => Date }
           operation === "review"
             ? parse(reviewTaskSchema, input)
             : { ...parse(waiveTaskSchema, input), decision: "waived" as const };
+        if (data.decision === "completed" && !(await taskDocumentsReady(tx, task.id)))
+          invalid("Linked documents must finish a clean simulated scan before review.");
         update.state = data.decision;
         update.reviewedEvidenceRevision = task.evidenceRevision;
         await tx.insert(taskReviews).values({

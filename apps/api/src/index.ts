@@ -2,12 +2,18 @@ import { loadServerEnv } from "@keycade/config/server";
 import { createDatabase } from "@keycade/db";
 import { assertSchemaReady } from "@keycade/db/migrate";
 import { workerHealth } from "@keycade/integrations";
+import { createLocalDocumentStorage } from "@keycade/integrations/document-storage-local";
 import { buildServer } from "./server.js";
 
 const env = loadServerEnv();
 const { db, pool } = createDatabase(env.DATABASE_URL);
 const app = await buildServer({
   db,
+  documentStorage: createLocalDocumentStorage(env.PRIVATE_STORAGE_PATH),
+  documentLimits: {
+    maxFileBytes: env.DOCUMENT_MAX_FILE_BYTES,
+    maxBatchFiles: env.DOCUMENT_MAX_BATCH_FILES,
+  },
   allowedOrigins: env.ALLOWED_ORIGINS,
   nodeEnv: env.NODE_ENV,
   authDeliveryEnabled: true,

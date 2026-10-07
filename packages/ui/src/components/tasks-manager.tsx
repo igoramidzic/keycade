@@ -11,7 +11,7 @@ import {
 import { Input } from "@keycade/ui/components/input";
 import { NativeSelect } from "@keycade/ui/components/native-select";
 import { ChevronDown, Circle, CircleAlert, CircleCheck, CircleMinus, Clock3 } from "lucide-react";
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
 
 type Stage = "submission" | "approval" | "closing";
 type State = "open" | "submitted" | "needs_changes" | "completed" | "waived" | "cancelled";
@@ -133,6 +133,7 @@ export function TasksManager({
   mutate,
   reload,
   errorMessage,
+  renderDocuments,
 }: {
   data: TasksData;
   loadTask: (id: string, signal?: AbortSignal) => Promise<TaskDetailData>;
@@ -143,12 +144,15 @@ export function TasksManager({
   ) => Promise<TaskDetailData | TasksData>;
   reload: () => Promise<unknown>;
   errorMessage: (error: unknown) => string;
+  renderDocuments?: (taskId: string, onBusyChange: (busy: boolean) => void) => ReactNode;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [detail, setDetail] = useState<TaskDetailData | null>(null);
   const [loading, setLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [saving, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const busy = saving || uploading;
   const [filter, setFilter] = useState<"active" | "all">("active");
   const [creating, setCreating] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -429,32 +433,39 @@ export function TasksManager({
                               </div>
                             ) : (
                               detail?.id === task.id && (
-                                <TaskDetail
-                                  key={`${detail.id}:${reloadCount}`}
-                                  task={detail}
-                                  data={data}
-                                  busy={busy}
-                                  // List refreshes can observe our write before mutate returns
-                                  // its detail. Compare only after that write has settled;
-                                  // an older list snapshot never makes the editor stale.
-                                  stale={!busy && task.revision > detail.revision}
-                                  onBusy={setBusy}
-                                  onDirtyChange={setHasUnsavedChanges}
-                                  assigneeName={assignee(task.assigneeParticipantId)}
-                                  errorMessage={errorMessage}
-                                  onReload={() => {
-                                    void reload();
-                                    setHasUnsavedChanges(false);
-                                    setPendingSelection(null);
-                                    setReloadCount((value) => value + 1);
-                                  }}
-                                  mutate={async (path, body, method) => {
-                                    const updated = await mutate(path, body, method);
-                                    if ("id" in updated) setDetail(updated);
-                                    setPendingSelection(null);
-                                    return updated;
-                                  }}
-                                />
+                                <>
+                                  <TaskDetail
+                                    key={`${detail.id}:${reloadCount}`}
+                                    task={detail}
+                                    data={data}
+                                    busy={busy}
+                                    // List refreshes can observe our write before mutate returns
+                                    // its detail. Compare only after that write has settled;
+                                    // an older list snapshot never makes the editor stale.
+                                    stale={!busy && task.revision > detail.revision}
+                                    onBusy={setBusy}
+                                    onDirtyChange={setHasUnsavedChanges}
+                                    assigneeName={assignee(task.assigneeParticipantId)}
+                                    errorMessage={errorMessage}
+                                    onReload={() => {
+                                      void reload();
+                                      setHasUnsavedChanges(false);
+                                      setPendingSelection(null);
+                                      setReloadCount((value) => value + 1);
+                                    }}
+                                    mutate={async (path, body, method) => {
+                                      const updated = await mutate(path, body, method);
+                                      if ("id" in updated) setDetail(updated);
+                                      setPendingSelection(null);
+                                      return updated;
+                                    }}
+                                  />
+                                  {renderDocuments && (
+                                    <div className="border-t p-4 sm:p-5">
+                                      {renderDocuments(task.id, setUploading)}
+                                    </div>
+                                  )}
+                                </>
                               )
                             )}
                           </div>

@@ -3,6 +3,7 @@ import { TasksManager } from "@keycade/ui/components/tasks-manager";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { ApiError, useStaffApi } from "./api";
+import { ApplicationDocuments } from "./documents";
 import { ErrorNotice, Loading } from "./ui";
 
 export function ApplicationTasks({ applicationId }: { applicationId: string }) {
@@ -52,6 +53,13 @@ export function ApplicationTasks({ applicationId }: { applicationId: string }) {
       {tasks.error && <ErrorNotice error={tasks.error} onRetry={() => void tasks.refetch()} />}
       <TasksManager
         data={tasks.data}
+        renderDocuments={(taskId, onBusyChange) => (
+          <ApplicationDocuments
+            applicationId={applicationId}
+            taskId={taskId}
+            onBusyChange={onBusyChange}
+          />
+        )}
         errorMessage={(error) =>
           error instanceof ApiError
             ? error.message

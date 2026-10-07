@@ -4,6 +4,7 @@ import { TasksManager } from "@keycade/ui/components/tasks-manager";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { ApiError, errorMessage, request } from "./api";
+import { ApplicationDocuments } from "./documents";
 import { ErrorNotice, Loading } from "./workspace-ui";
 
 export function ApplicationTasks({
@@ -60,6 +61,14 @@ export function ApplicationTasks({
       <TasksManager
         data={tasks.data}
         errorMessage={errorMessage}
+        renderDocuments={(taskId, onBusyChange) => (
+          <ApplicationDocuments
+            session={session}
+            applicationId={applicationId}
+            taskId={taskId}
+            onBusyChange={onBusyChange}
+          />
+        )}
         reload={() => tasks.refetch()}
         loadTask={(id, signal) =>
           guarded(() => request(`${base}/${id}`, taskViewSchema, { ...options, signal }))

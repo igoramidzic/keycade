@@ -1,9 +1,11 @@
 import { loadServerEnv } from "@keycade/config/server";
 import { createMailpitAdapter, startWorker } from "@keycade/integrations";
+import { createLocalDocumentStorage } from "@keycade/integrations/document-storage-local";
 
 async function main() {
   const env = loadServerEnv();
   const worker = await startWorker(env.DATABASE_URL, {
+    documentStorage: createLocalDocumentStorage(env.PRIVATE_STORAGE_PATH),
     emailAdapter: createMailpitAdapter(env.MAILPIT_SMTP_PORT),
     delayMs: env.SIMULATION_DELAY_MS,
     deadlineMs: env.PROVIDER_DEADLINE_MS,

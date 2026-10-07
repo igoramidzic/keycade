@@ -293,12 +293,14 @@ test("staff workspace sections stay scoped and explain unavailable capabilities"
   await page.getByRole("link", { name: "Tasks", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Tasks", exact: true })).toBeVisible();
   for (const section of [
-    { path: "documents", label: "Documents", empty: "Documents are not available yet" },
+    { path: "documents", label: "Documents", empty: null },
     { path: "checks", label: "Checks", empty: "Checks are not available yet" },
   ]) {
     await page.getByRole("link", { name: section.label, exact: true }).click();
     await expect(page).toHaveURL(workspaceUrl(ids.small, section.path));
-    await expect(page.getByText(section.empty, { exact: true })).toBeVisible();
+    if (section.empty) await expect(page.getByText(section.empty, { exact: true })).toBeVisible();
+    else
+      await expect(page.getByRole("region", { name: "Document upload drop area" })).toBeVisible();
     await noOverflow(page);
   }
   await page.reload();

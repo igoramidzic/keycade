@@ -2,6 +2,8 @@ import {
   type ApplicationSetup,
   type ApplicationSetupStep,
   applicationSetupSchema,
+  industryByCode,
+  industryTaxonomyVersion,
   type SaveApplicationSetup,
   saveApplicationSetupSchema,
 } from "@keycade/contracts";
@@ -10,7 +12,7 @@ import { Button, buttonVariants } from "@keycade/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@keycade/ui/components/card";
 import type { AuthenticatedSession } from "@keycade/ui/components/identity-portal";
 import { Input } from "@keycade/ui/components/input";
-import { NativeSelect, NativeSelectOption } from "@keycade/ui/components/native-select";
+import { SearchCombobox } from "@keycade/ui/components/search-combobox";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -19,14 +21,10 @@ import { ApiError, decimalAmount, errorMessage, formatAmount, request } from "./
 import { answerKey, rememberAnswer, unsavedAnswer } from "./unsaved-answers";
 import { applicationPath, ErrorNotice } from "./workspace-ui";
 
-// Bounded synthetic fixture until T15 adds the industry lookup adapter.
-const industries = [
-  ["23", "Construction"],
-  ["31", "Manufacturing"],
-  ["44", "Retail trade"],
-  ["54", "Professional and technical services"],
-  ["72", "Accommodation and food services"],
-] as const;
+async function searchIndustries(query: string) {
+  const catalog = await import("@keycade/contracts/industry-search");
+  return catalog.searchIndustries(query);
+}
 const questions = {
   business_name: {
     title: "What is your business called?",
@@ -153,8 +151,11 @@ function WizardForm({
       );
     if (step === "business_name") return { businessName: entered };
     if (step === "purpose") return { purpose: entered };
-    if (step === "industry")
-      return { industryCode: entered, industryTaxonomyVersion: "NAICS-demo-2022-v1" };
+    if (step === "industry") {
+      if (!industryByCode(entered))
+        throw new Error("Choose an industry from the search results, or use Skip for now.");
+      return { industryCode: entered, industryTaxonomyVersion };
+    }
     const amount = decimalAmount(entered);
     if (
       selectedProduct &&
@@ -340,7 +341,7 @@ function WizardForm({
                         {key === "amount" && saved.requestedAmount
                           ? formatAmount(saved.requestedAmount)
                           : key === "industry"
-                            ? (industries.find(([code]) => code === saved.industryCode)?.[1] ??
+                            ? (industryByCode(saved.industryCode)?.title ??
                               (saved.industryCode
                                 ? `Industry ${saved.industryCode}`
                                 : "Skipped — can be added later"))
@@ -368,27 +369,17 @@ function WizardForm({
                   {question.label}
                 </label>
                 {step === "industry" ? (
-                  <NativeSelect
+                  <SearchCombobox
                     id="setup-answer"
-                    className="h-10 w-full"
-                    {...form.register("value")}
-                    aria-invalid={Boolean(failedField)}
-                    aria-describedby={answerDescription}
+                    value={industryByCode(value) ?? null}
+                    onSelect={(industry) =>
+                      form.setValue("value", industry.code, { shouldDirty: true })
+                    }
+                    search={searchIndustries}
+                    invalid={Boolean(failedField)}
+                    describedBy={answerDescription}
                     disabled={busy}
-                  >
-                    <NativeSelectOption value="">Choose an industry</NativeSelectOption>
-                    {saved.industryCode &&
-                      !industries.some(([code]) => code === saved.industryCode) && (
-                        <NativeSelectOption value={saved.industryCode}>
-                          Industry {saved.industryCode}
-                        </NativeSelectOption>
-                      )}
-                    {industries.map(([code, label]) => (
-                      <NativeSelectOption key={code} value={code}>
-                        {label}
-                      </NativeSelectOption>
-                    ))}
-                  </NativeSelect>
+                  />
                 ) : (
                   <Input
                     id="setup-answer"

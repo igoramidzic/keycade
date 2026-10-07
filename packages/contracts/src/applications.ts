@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { applicationStatusSchema, usdAmountSchema } from "./common.js";
+import { isValidIndustry } from "./industry.js";
 import { intakeProductSchema } from "./intake.js";
 import { taskProgressSchema } from "./tasks.js";
 
@@ -34,18 +35,35 @@ export const createDraftSchema = z.strictObject({
 });
 export const saveApplicationSetupSchema = z.strictObject({
   expectedRevision: z.number().int().positive(),
-  answers: z.strictObject({
-    businessName: z.string().trim().min(1).max(200).optional(),
-    productId: z.string().uuid().optional(),
-    requestedAmount: usdAmountSchema.optional(),
-    purpose: z.string().trim().min(1).max(500).optional(),
-    industryCode: z
-      .string()
-      .regex(/^\d{2,6}$/)
-      .nullable()
-      .optional(),
-    industryTaxonomyVersion: z.string().trim().min(1).max(40).nullable().optional(),
-  }),
+  answers: z
+    .strictObject({
+      businessName: z.string().trim().min(1).max(200).optional(),
+      productId: z.string().uuid().optional(),
+      requestedAmount: usdAmountSchema.optional(),
+      purpose: z.string().trim().min(1).max(500).optional(),
+      industryCode: z
+        .string()
+        .regex(/^\d{2,6}$/)
+        .nullable()
+        .optional(),
+      industryTaxonomyVersion: z.string().trim().min(1).max(40).nullable().optional(),
+    })
+    .superRefine((answers, context) => {
+      const code = answers.industryCode;
+      const version = answers.industryTaxonomyVersion;
+      if (code === undefined && version === undefined) return;
+      if (code === null && version === null) return;
+      if (
+        typeof code !== "string" ||
+        typeof version !== "string" ||
+        !isValidIndustry(code, version)
+      )
+        context.addIssue({
+          code: "custom",
+          path: ["industryCode"],
+          message: "Select a valid industry from the 2022 U.S. NAICS catalog, or skip industry.",
+        });
+    }),
   step: applicationSetupStepSchema.exclude(["review"]).optional(),
   skip: z.boolean().optional(),
   currentStep: applicationSetupStepSchema,

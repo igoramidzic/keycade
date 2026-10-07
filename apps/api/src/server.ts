@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { Readable } from "node:stream";
 import cookie from "@fastify/cookie";
 import rateLimit from "@fastify/rate-limit";
 import swagger from "@fastify/swagger";
@@ -15,6 +16,7 @@ import {
   assignTaskSchema,
   authSessionSchema,
   bankParamsSchema,
+  beginDocumentBatchSchema,
   claimApplicationSchema,
   consumeAccessLinkResponseSchema,
   consumeAccessLinkSchema,
@@ -23,6 +25,8 @@ import {
   createManualTaskSchema,
   demoSignInResponseSchema,
   demoSignInSchema,
+  documentsViewSchema,
+  documentUploadResultSchema,
   errorSchema,
   finishApplicationSetupSchema,
   invitationViewSchema,
@@ -77,6 +81,7 @@ import {
   updateApplicationPurpose,
   updateStaffNote,
 } from "@keycade/domain";
+import { type ByteSource, webByteSource } from "@keycade/integrations/documents";
 import Fastify, { type FastifyRequest, LogController } from "fastify";
 import {
   jsonSchemaTransform,
@@ -94,6 +99,7 @@ import {
   publicSession,
   readStaffSession,
 } from "./auth.js";
+import { createDocumentTransport, type DocumentTransportOptions } from "./documents.js";
 import {
   authConsumeRateLimit,
   authSendRateLimit,
@@ -111,7 +117,7 @@ declare module "fastify" {
   }
 }
 
-export interface ServerOptions extends IdentityTransportOptions {
+export interface ServerOptions extends IdentityTransportOptions, DocumentTransportOptions {
   db: Database;
   allowedOrigins: readonly string[];
   readiness: () => Promise<Readiness>;
@@ -133,6 +139,7 @@ export async function buildServer(options: ServerOptions) {
       options.authDeliveryEnabled !== false && !!options.portalOrigins?.borrower?.[0],
   });
   const tasks = createTasksService(options.db);
+  const documentTransport = createDocumentTransport(options.db, options);
   const originFor = (request: FastifyRequest) =>
     configuredRequestOrigin(
       request.headers.origin,
@@ -155,6 +162,9 @@ export async function buildServer(options: ServerOptions) {
     bodyLimit: 64 * 1024,
     trustProxy: false,
   }).withTypeProvider<ZodTypeProvider>();
+  app.addContentTypeParser("application/octet-stream", (_request, payload, done) =>
+    done(null, payload),
+  );
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
   app.decorateRequest("authentication");
@@ -863,6 +873,117 @@ export async function buildServer(options: ServerOptions) {
         request.params.applicationId,
         request.params.noteId,
         request.body,
+        request.id,
+      );
+    },
+  );
+  const documentsBase = "/api/v1/banks/:bankId/applications/:applicationId/documents";
+  const uploadParams = applicationParamsSchema.extend({ uploadId: z.string().uuid() });
+  const versionParams = applicationParamsSchema.extend({ versionId: z.string().uuid() });
+  const okSchema = z.object({ ok: z.literal(true) });
+  app.get(
+    documentsBase,
+    {
+      schema: {
+        params: applicationParamsSchema,
+        response: { 200: documentsViewSchema, ...responses },
+      },
+    },
+    async (request) => {
+      const { bankId, applicationId } = request.params;
+      assertSessionBank(request.authentication, bankId);
+      return documentTransport.list(request.authentication.actor, bankId, applicationId);
+    },
+  );
+  app.post(
+    `${documentsBase}/uploads`,
+    {
+      schema: {
+        params: applicationParamsSchema,
+        body: beginDocumentBatchSchema,
+        response: { 200: documentUploadResultSchema, ...responses },
+      },
+    },
+    async (request) => {
+      const { bankId, applicationId } = request.params;
+      assertSessionBank(request.authentication, bankId);
+      return documentTransport.begin(
+        request.authentication.actor,
+        bankId,
+        applicationId,
+        request.body,
+        request.id,
+      );
+    },
+  );
+  app.put<{
+    Params: { bankId: string; applicationId: string; uploadId: string };
+    Body: ByteSource;
+  }>(
+    `${documentsBase}/uploads/:uploadId/content`,
+    { schema: { params: uploadParams, response: { 200: okSchema, ...responses } } },
+    async (request) => {
+      const { bankId, applicationId, uploadId } = request.params;
+      assertSessionBank(request.authentication, bankId);
+      if (request.headers["content-type"] !== "application/octet-stream")
+        throw new DomainError("INVALID_INPUT", 400, "Send file bytes as application/octet-stream.");
+      return documentTransport.put(
+        request.authentication.actor,
+        bankId,
+        applicationId,
+        uploadId,
+        request.body,
+        request.id,
+      );
+    },
+  );
+  app.delete(
+    `${documentsBase}/uploads/:uploadId`,
+    { schema: { params: uploadParams, response: { 200: okSchema, ...responses } } },
+    async (request) => {
+      const { bankId, applicationId, uploadId } = request.params;
+      assertSessionBank(request.authentication, bankId);
+      return documentTransport.cancel(
+        request.authentication.actor,
+        bankId,
+        applicationId,
+        uploadId,
+        request.id,
+      );
+    },
+  );
+  app.get(
+    `${documentsBase}/versions/:versionId/content`,
+    { schema: { params: versionParams } },
+    async (request, reply) => {
+      const { bankId, applicationId, versionId } = request.params;
+      assertSessionBank(request.authentication, bankId);
+      const content = await documentTransport.download(
+        request.authentication.actor,
+        bankId,
+        applicationId,
+        versionId,
+      );
+      return reply.headers(content.headers).send(Readable.from(webByteSource(content.body)));
+    },
+  );
+  app.post(
+    `${documentsBase}/versions/:versionId/retry-scan`,
+    {
+      schema: {
+        params: versionParams,
+        body: z.strictObject({}),
+        response: { 200: okSchema, ...responses },
+      },
+    },
+    async (request) => {
+      const { bankId, applicationId, versionId } = request.params;
+      assertSessionBank(request.authentication, bankId);
+      return documentTransport.retry(
+        request.authentication.actor,
+        bankId,
+        applicationId,
+        versionId,
         request.id,
       );
     },

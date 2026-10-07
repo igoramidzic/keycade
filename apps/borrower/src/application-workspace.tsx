@@ -23,6 +23,7 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { ApiError, formatAmount, request } from "./api";
+import { ApplicationDocuments } from "./documents";
 import { ApplicationPeople } from "./participants";
 import { SetupWizard } from "./setup-wizard";
 import { ApplicationTasks } from "./tasks";
@@ -392,10 +393,6 @@ function ClosedApplication({ data, bankSlug }: { data: ApplicationSelection; ban
 
 const views = ["Overview", "Tasks", "Documents", "People", "Activity"] as const;
 const emptyViews = {
-  documents: [
-    "Documents are not available yet",
-    "Document uploads are not enabled in this demo yet. No documents have been requested through this workspace.",
-  ],
   activity: [
     "Activity is not available yet",
     "An application activity feed is not enabled in this demo yet.",
@@ -546,7 +543,7 @@ function ApplicationPortal({
                   <h2>Documents</h2>
                 </CardTitle>
                 <CardDescription>
-                  Document uploads are not enabled in this demo yet.
+                  Upload and view permitted evidence, with private files and simulated scan status.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -562,6 +559,8 @@ function ApplicationPortal({
         </div>
       ) : active === "people" ? (
         <ApplicationPeople session={session} applicationId={applicationId} />
+      ) : active === "documents" ? (
+        <ApplicationDocuments session={session} applicationId={applicationId} />
       ) : empty ? (
         <Card>
           <CardHeader>

@@ -1,7 +1,10 @@
 import { createDatabase, type Database, workerHeartbeats } from "@keycade/db";
+import { createDocumentsService } from "@keycade/domain";
 import { eq } from "drizzle-orm";
 import type { PgBoss } from "pg-boss";
 import { dispatchAccessDeliveries, processAccessDelivery } from "./access-delivery.js";
+import { type PrivateDocumentStorage } from "./document-content.js";
+import { processDocumentScans } from "./document-scan.js";
 import type { AccessEmailAdapter } from "./mailpit.js";
 import {
   configured,
@@ -48,7 +51,10 @@ export async function workerHealth(
 
 export async function startWorker(
   connectionString: string,
-  options: RuntimeOptions & { emailAdapter?: AccessEmailAdapter } = {},
+  options: RuntimeOptions & {
+    emailAdapter?: AccessEmailAdapter;
+    documentStorage?: PrivateDocumentStorage;
+  } = {},
 ) {
   await assertQueueReady(connectionString);
   const config = configured(options);
@@ -98,10 +104,33 @@ export async function startWorker(
         pendingHeartbeat = undefined;
       });
   }, config.heartbeatMs);
+  let nextDocumentCleanupAt = 0;
   const done = (async () => {
     while (!abort.signal.aborted) {
       await recoverExpiredRuns(db, config.clock, config.leaseMs);
       await dispatchOutbox(db, boss, config.clock);
+      if (options.documentStorage) {
+        if (config.clock.now().getTime() >= nextDocumentCleanupAt) {
+          const abandoned = await createDocumentsService(db, {
+            clock: () => config.clock.now(),
+          }).cleanupAbandoned();
+          for (const upload of abandoned) await options.documentStorage.remove(upload.storageKey);
+          await options.documentStorage.cleanupStaging(
+            new Date(config.clock.now().getTime() - 2 * 60 * 60_000),
+          );
+          nextDocumentCleanupAt = config.clock.now().getTime() + 60_000;
+        }
+        try {
+          await processDocumentScans(db, options.documentStorage, {
+            clock: config.clock,
+            delayMs: config.delayMs,
+            signal: abort.signal,
+          });
+        } catch {
+          if (!abort.signal.aborted)
+            console.warn("Document scan failed; safe retry state retained.");
+        }
+      }
       if (options.emailAdapter) {
         await dispatchAccessDeliveries(
           db,

@@ -21,6 +21,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router";
 import { ApiError, formatAmount, useStaffApi } from "./api";
+import { ApplicationDocuments } from "./documents";
 import { PrefillForm } from "./forms";
 import { ApplicationParticipants } from "./participants";
 import { ApplicationTasks } from "./tasks";
@@ -255,16 +256,18 @@ export function ApplicationDetail() {
               <ApplicationParticipants key={data.id} applicationId={data.id} />
             )}
             {selected === "tasks" && <ApplicationTasks key={data.id} applicationId={data.id} />}
-            {(selected === "documents" || selected === "checks") && (
+            {selected === "documents" && (
+              <ApplicationDocuments key={data.id} applicationId={data.id} />
+            )}
+            {selected === "checks" && (
               <Card>
                 <CardHeader>
                   <CardTitle>{tabs[selected]} are not available yet</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm leading-6 text-muted-foreground">
-                    {selected === "documents"
-                      ? "Document upload and document review will appear here when private document storage is available."
-                      : "Simulated identity, business, and fraud checks will appear here when checks are available. No checks have been run or passed."}
+                    Simulated identity, business, and fraud checks will appear here when checks are
+                    available. No checks have been run or passed.
                   </p>
                 </CardContent>
               </Card>
