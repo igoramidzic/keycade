@@ -33,3 +33,5 @@ Application creation binds this identity flow to drafts in T07. Invitation accep
 ## Implementation record
 
 Not started. Record date, commands/results, and deviations when implemented.
+
+Deployment dependency: D02 introduces a native Workers HTTP transport alongside the local Fastify server. Connect the same trusted session resolver and CSRF policy to both, with negative authorization tests; hosted UI requests use same-origin `/api/*` service bindings.

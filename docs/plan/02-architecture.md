@@ -2,7 +2,7 @@
 
 ## Deployment target
 
-Cloudflare is the intended hosted platform (user clarification, October 6, 2026); no Keycade Workers are provisioned yet. Initial hosting uses default `workers.dev` URLs without a custom domain. The existing account subdomain is `kualia-analytics.workers.dev`. Neon is selected for PostgreSQL only and the existing project is linked; Hyperdrive remains to be provisioned. Document storage remains planned for R2. GitHub Actions owns hosted Drizzle migrations, separately from local initialization. This document’s Node/Fastify/pg-boss topology is the local foundation. Before hosting, complete a separate compatibility and infrastructure slice described in [decisions](06-decisions-and-sources.md#cloudflare-implementation-boundary-october-6-2026). Keep domain services and transactional intent separate from HTTP, queue, timer, and file-storage adapters. Do not assume a persistent Node queue polling loop runs unchanged inside a request-driven Cloudflare Worker. PostgreSQL remains required; choosing Cloudflare does not replace it with D1.
+Cloudflare is the intended hosted platform (user clarification, October 6, 2026); the five Keycade Workers and their native Git build triggers exist. Initial hosting uses default `workers.dev` URLs without a custom domain. The existing account subdomain is `kualia.workers.dev`. Neon is selected for PostgreSQL only and the existing project is linked; Hyperdrive `keycade-db` is provisioned with caching disabled and a separate runtime login. Document storage remains planned for R2. GitHub Actions owns hosted Drizzle migrations, separately from local initialization. This document’s Node/Fastify/pg-boss topology is the local foundation. The hosted compatibility and infrastructure slice is tracked in [D02](tasks/D02-cloudflare-deployment.md), with the rationale in [decisions](06-decisions-and-sources.md#cloudflare-implementation-boundary-october-6-2026). Keep domain services and transactional intent separate from HTTP, queue, timer, and file-storage adapters. Do not assume a persistent Node queue polling loop runs unchanged inside a request-driven Cloudflare Worker. PostgreSQL remains required; choosing Cloudflare does not replace it with D1.
 
 ## Chosen starting architecture
 
@@ -101,3 +101,11 @@ Use an environment-specific private data directory with restrictive permissions 
 ## Deliberate limits
 
 No Redis, Kubernetes, event-streaming platform, microservice mesh, or separate workflow engine is needed initially. No real provider secrets are required. Production identity, file storage, deployment, backup/restore, bank retention policies, and live integrations are later decisions, with concrete placeholders in [decisions](06-decisions-and-sources.md).
+
+## Hosted runtime adapters (D02)
+
+The three frontend Workers serve static assets and proxy `/api/*` through the `API` service binding. They expose only public workspace URLs. The hosted API uses the native Request/Response transport with the existing Zod contracts, domain services and authorization rules; local Node continues to use Fastify. Fastify's router generates functions at runtime, which Workers prohibit. T06 must connect the trusted session resolver and CSRF policy to both transports; neither accepts identity from client headers.
+
+API and jobs open request/event-scoped PostgreSQL pools (maximum one client) through `HYPERDRIVE`, then close them. Cloudflare manages database pooling. Readiness checks migration timestamps and real required columns without applying SQL changes. GitHub alone checks full migration hashes and applies committed SQL.
+
+The hosted jobs Worker consumes operation IDs from `keycade-jobs`. A minute Cron recovers expired leases and dispatches pending outbox rows. Queue delivery may duplicate; operation IDs, claim tokens, transaction locks, stale-input checks and effect deduplication fence effects. Future pending application writes remain transactional. The jobs Worker has no public URL; the API reaches its internal readiness endpoint by service binding. Local jobs retain the pg-boss poller and heartbeat.

@@ -1,1 +1,8 @@
-{ "extends": "@keycade/config/tsconfig.json", "include": ["src"] }
+{
+  "extends": "@keycade/config/tsconfig.json",
+  "include": ["src", "worker.ts", "worker-configuration.d.ts"],
+  "compilerOptions": {
+    "types": ["node", "@cloudflare/workers-types"],
+    "lib": ["ES2023"]
+  }
+}

@@ -93,7 +93,7 @@ The user created Neon project `holy-fog-27591922` (Keycade), branch `production`
 
 The actual hosted project runs PostgreSQL 18.6, superseding the earlier suggested version 17. Keep the tested local 17.7 database and cover both versions in GitHub Actions before hosted migration; do not recreate the user's project merely to align versions.
 
-The user's `cf` CLI login was verified directly. It is separate from Wrangler's login. The connected Cloudflare account uses `kualia-analytics.workers.dev`; existing unrelated Workers are outside Keycade's scope. No Keycade Workers, Hyperdrive or R2 resources were created.
+The user's `cf` CLI login was verified directly. It is separate from Wrangler's login. The connected Cloudflare account uses `kualia.workers.dev`; existing unrelated Workers are outside Keycade's scope. No Keycade Workers, Hyperdrive or R2 resources were created.
 
 The user requested that GitHub jobs own changes pushed to Neon. D01 adds a main-only, explicitly enabled migration job with encrypted environment credentials, exact target/TLS validation, migration-history checks, advisory locking, and PostgreSQL 17/18 validation. `neon deploy` manages Neon service policy and is unnecessary for this PostgreSQL-only setup; committed Drizzle migrations define the application's schema. Neon agent tooling and `neon.ts` are optional, not required for this database workflow.
 
@@ -128,3 +128,17 @@ Connect `igoramidzic/keycade` to each of the three frontend Workers, the shared 
 Cloudflare builds and GitHub migration jobs are independent triggers. The deployment slice must account for schema-dependent releases explicitly; do not assume GitHub migrations finish before a Worker deployment.
 
 References: [Cloudflare GitHub integration](https://developers.cloudflare.com/workers/ci-cd/builds/git-integration/github-integration/), [monorepo setup](https://developers.cloudflare.com/workers/ci-cd/builds/advanced-setups/), and [build configuration and authentication](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/).
+
+## Cloudflare resources and native adapters (October 6, 2026)
+
+The user created all five Workers/build triggers and explicitly authorized creating Hyperdrive and the remaining Neon connections. Wrangler 4.148.0 and its lockfile dependency repair the missing CLI failure. The newer `cf` CLI is beta (1.0.0-beta.12 at setup), useful for resource management; Wrangler remains the supported build/deploy tool.
+
+`keycade-db` Hyperdrive connects directly to Neon using `keycade_runtime`, with TLS required, query caching disabled and an origin connection limit of five. GitHub configured this login with application DML and migration-history reads, without schema/role administration or audit update/delete privileges. Runtime credentials remain ignored locally and encrypted in GitHub/Cloudflare. The approved one-time runtime setup flag is disabled after the successful GitHub run; normal migrations do not rotate the password. Future tables inherit runtime privileges through the migration owner's default grants. New audit-style tables require explicit restricted grants.
+
+Cloudflare Queue `keycade-jobs`, event-scoped connections and a minute recovery Cron replace the hosted persistent Node poller. The local pg-boss adapter retains its behavior. Workers use the same portable operation processor and transactional outbox logic. R2 remains deferred until T13 because no document storage is used yet.
+
+A real Workers-runtime probe found that Fastify's routing dependency calls `new Function`, which Workers disallow. The hosted API therefore uses a small native HTTP transport, preserving existing Zod wire contracts and domain authorization. Fastify remains the local transport. This supersedes the assumption that Fastify itself could run in the hosted Worker; T06 and subsequent HTTP tasks must cover both transports. The alternative of enabling runtime code generation is not required.
+
+References: [Workers Builds configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/), [Cloudflare CLI](https://developers.cloudflare.com/cf/), [Workers security model](https://developers.cloudflare.com/workers/reference/security-model/), [Hyperdrive with Neon](https://developers.cloudflare.com/hyperdrive/examples/connect-to-postgres/postgres-drivers-and-libraries/node-postgres/), and [Queues](https://developers.cloudflare.com/queues/).
+
+The user changed the account subdomain to `kualia.workers.dev` during deployment setup. Hosted public URLs and allowed origins use that subdomain.

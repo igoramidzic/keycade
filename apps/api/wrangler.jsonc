@@ -1,0 +1,41 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "account_id": "7ca70a1deedbffff10d49a5e395aa978",
+  "main": "worker.ts",
+  "compatibility_date": "2026-10-06",
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "invocation_logs": false
+    }
+  },
+  "name": "keycade-api",
+  "workers_dev": true,
+  "compatibility_flags": ["nodejs_compat"],
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "2aa8c3bf77af4beb8208f07007fada92"
+    }
+  ],
+  "services": [
+    {
+      "binding": "JOBS",
+      "service": "keycade-jobs"
+    }
+  ],
+  "ratelimits": [
+    {
+      "name": "API_RATE_LIMITER",
+      "namespace_id": "1801812323",
+      "simple": {
+        "limit": 120,
+        "period": 60
+      }
+    }
+  ],
+  "vars": {
+    "ALLOWED_ORIGINS": "https://keycade-bank-site.kualia.workers.dev,https://keycade-borrower.kualia.workers.dev,https://keycade-bank-console.kualia.workers.dev"
+  }
+}

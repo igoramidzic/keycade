@@ -8,7 +8,8 @@
     "./schema": "./src/schema.ts",
     "./seed": "./src/seed.ts",
     "./migrate": "./src/migrate.ts",
-    "./testing": "./src/testing.ts"
+    "./testing": "./src/testing.ts",
+    "./cloudflare": "./src/cloudflare.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

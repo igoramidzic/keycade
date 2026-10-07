@@ -6,10 +6,10 @@ import * as coreSchema from "./schema.js";
 const schema = { ...coreSchema, ...jobSchema };
 
 /** Server-only connection; callers own pool.end() on shutdown. No connection is opened on import. */
-export function createDatabase(connectionString: string) {
+export function createDatabase(connectionString: string, options: { max?: number } = {}) {
   const pool = new pg.Pool({
     connectionString,
-    max: 10,
+    max: options.max ?? 10,
     connectionTimeoutMillis: 5_000,
     idleTimeoutMillis: 10_000,
   });

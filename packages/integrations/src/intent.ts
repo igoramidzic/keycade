@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   applications,
   auditEvents,
@@ -32,7 +33,7 @@ export async function enqueueDemo(
     throw new Error("Demo operations require a synthetic application in the specified bank.");
   if (["withdrawn", "declined", "funded"].includes(application.status))
     throw new Error("Demo operation is no longer applicable.");
-  const id = input.operationId ?? globalThis.crypto.randomUUID();
+  const id = input.operationId ?? randomUUID();
   await tx.insert(integrationRuns).values({
     id,
     bankId: input.bankId,

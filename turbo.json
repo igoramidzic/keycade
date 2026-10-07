@@ -5,7 +5,15 @@
       "dependsOn": ["^build"],
       "outputs": [],
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/.env"],
-      "env": ["BANK_SITE_PORT", "BORROWER_PORT", "BANK_CONSOLE_PORT", "API_PORT", "NODE_ENV"]
+      "env": [
+        "BANK_SITE_PORT",
+        "BORROWER_PORT",
+        "BANK_CONSOLE_PORT",
+        "API_PORT",
+        "NODE_ENV",
+        "WORKERS_CI",
+        "KEYCADE_DEPLOYMENT"
+      ]
     },
     "typecheck": {
       "dependsOn": ["^typecheck"]
@@ -46,19 +54,43 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**"],
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/.env"],
-      "env": ["BANK_SITE_PORT", "BORROWER_PORT", "BANK_CONSOLE_PORT", "API_PORT", "NODE_ENV"]
+      "env": [
+        "BANK_SITE_PORT",
+        "BORROWER_PORT",
+        "BANK_CONSOLE_PORT",
+        "API_PORT",
+        "NODE_ENV",
+        "WORKERS_CI",
+        "KEYCADE_DEPLOYMENT"
+      ]
     },
     "@keycade/borrower#build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**"],
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/.env"],
-      "env": ["BANK_SITE_PORT", "BORROWER_PORT", "BANK_CONSOLE_PORT", "API_PORT", "NODE_ENV"]
+      "env": [
+        "BANK_SITE_PORT",
+        "BORROWER_PORT",
+        "BANK_CONSOLE_PORT",
+        "API_PORT",
+        "NODE_ENV",
+        "WORKERS_CI",
+        "KEYCADE_DEPLOYMENT"
+      ]
     },
     "@keycade/bank-console#build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**"],
       "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/.env"],
-      "env": ["BANK_SITE_PORT", "BORROWER_PORT", "BANK_CONSOLE_PORT", "API_PORT", "NODE_ENV"]
+      "env": [
+        "BANK_SITE_PORT",
+        "BORROWER_PORT",
+        "BANK_CONSOLE_PORT",
+        "API_PORT",
+        "NODE_ENV",
+        "WORKERS_CI",
+        "KEYCADE_DEPLOYMENT"
+      ]
     }
   }
 }

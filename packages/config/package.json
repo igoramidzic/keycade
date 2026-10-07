@@ -5,7 +5,8 @@
   "exports": {
     "./tsconfig.json": "./tsconfig.json",
     "./server": "./src/server.ts",
-    "./vite": "./src/vite.ts"
+    "./vite": "./src/vite.ts",
+    "./cloudflare": "./src/cloudflare.ts"
   },
   "dependencies": {
     "dotenv": "18.0.6",

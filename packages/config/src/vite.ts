@@ -10,6 +10,7 @@ export function publicViteConfig({
   port: number;
 }): UserConfig {
   const env = readEnvironment();
+  const hosted = process.env.WORKERS_CI === "1" || process.env.KEYCADE_DEPLOYMENT === "cloudflare";
   const key = {
     "bank-site": "BANK_SITE_PORT",
     borrower: "BORROWER_PORT",
@@ -25,9 +26,16 @@ export function publicViteConfig({
     envPrefix: [],
     define: {
       __KEYCADE_PUBLIC__: JSON.stringify({
-        bankSiteUrl: `http://127.0.0.1:${numericPort(env.BANK_SITE_PORT, 3000)}`,
-        borrowerUrl: `http://127.0.0.1:${numericPort(env.BORROWER_PORT, 3001)}`,
-        bankConsoleUrl: `http://127.0.0.1:${numericPort(env.BANK_CONSOLE_PORT, 3002)}`,
+        bankSiteUrl: hosted
+          ? "https://keycade-bank-site.kualia.workers.dev"
+          : `http://127.0.0.1:${numericPort(env.BANK_SITE_PORT, 3000)}`,
+        borrowerUrl: hosted
+          ? "https://keycade-borrower.kualia.workers.dev"
+          : `http://127.0.0.1:${numericPort(env.BORROWER_PORT, 3001)}`,
+        bankConsoleUrl: hosted
+          ? "https://keycade-bank-console.kualia.workers.dev"
+          : `http://127.0.0.1:${numericPort(env.BANK_CONSOLE_PORT, 3002)}`,
+        hosted,
       }),
     },
     server: {

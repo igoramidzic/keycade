@@ -9,3 +9,5 @@
 - `pnpm infra:stop` stops these containers without removing either containers or volume. There is deliberately no reset command.
 
 The user explicitly authorized deleting the initial PostgreSQL 17 local data and starting fresh on 18. That one-time reset is separate from ordinary initialization. Explicit legacy 17 configuration still selects the original `${PROJECT_NAME}-postgres-data` volume at `/var/lib/postgresql/data`; changing an existing container's configured image without replacing it is refused. Do not mount a 17 data directory into an 18 server.
+
+Hosted infrastructure and native Git build settings are documented in [Cloudflare deployment](cloudflare.md); hosted PostgreSQL schema operations are documented in [Neon](neon.md).

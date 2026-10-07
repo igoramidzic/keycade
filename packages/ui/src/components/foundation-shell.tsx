@@ -27,6 +27,7 @@ declare const __KEYCADE_PUBLIC__: {
   bankSiteUrl: string;
   borrowerUrl: string;
   bankConsoleUrl: string;
+  hosted: boolean;
 };
 
 const applications = {
@@ -36,7 +37,7 @@ const applications = {
     eyebrow: "The beginning of the journey",
     title: "A place for businesses to move forward.",
     description:
-      "The public entry point for Keycade’s business lending experience. Explore the connected workspaces while the local foundation is ready to test.",
+      "The public entry point for Keycade’s business lending experience. Explore the connected workspaces while the foundation is ready to test.",
     next: "Email-first applications and product information will arrive in the next milestone.",
     icon: Landmark,
     url: () => __KEYCADE_PUBLIC__.bankSiteUrl,
@@ -47,7 +48,7 @@ const applications = {
     eyebrow: "Your business, in one place",
     title: "Room for your next chapter.",
     description:
-      "The future home for your businesses, applications, and requested documents. This workspace currently demonstrates the shared interface and local service connection.",
+      "The future home for your businesses, applications, and requested documents. This workspace currently demonstrates the shared interface and service connection.",
     next: "Passwordless access, saved applications, and document requests will arrive in later milestones.",
     icon: Building2,
     url: () => __KEYCADE_PUBLIC__.borrowerUrl,
@@ -58,7 +59,7 @@ const applications = {
     eyebrow: "A clear view of what’s next",
     title: "A workspace built around progress.",
     description:
-      "The future home for the bank’s application queue, reviews, and decisions. Start by checking the local services and exploring the connected applications.",
+      "The future home for the bank’s application queue, reviews, and decisions. Start by checking the services and exploring the connected applications.",
     next: "Staff authentication, application queues, and review tools will arrive in later milestones.",
     icon: Layers3,
     url: () => __KEYCADE_PUBLIC__.bankConsoleUrl,
@@ -168,8 +169,12 @@ export function FoundationShell({ app }: { app: AppName }) {
 
       <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-6 py-12 lg:px-8 lg:py-20">
         <div className="mb-5 flex flex-wrap items-center gap-3">
-          <Badge variant="secondary">Local foundation</Badge>
-          <span className="text-xs text-muted-foreground">Development preview</span>
+          <Badge variant="secondary">
+            {__KEYCADE_PUBLIC__.hosted ? "Demo foundation" : "Local foundation"}
+          </Badge>
+          <span className="text-xs text-muted-foreground">
+            {__KEYCADE_PUBLIC__.hosted ? "Hosted preview" : "Development preview"}
+          </span>
         </div>
         <div className="grid items-start gap-10 lg:grid-cols-[1.35fr_1fr] lg:gap-20">
           <section>
@@ -192,7 +197,7 @@ export function FoundationShell({ app }: { app: AppName }) {
 
           <Card id="services">
             <CardHeader>
-              <CardTitle>Local service connection</CardTitle>
+              <CardTitle>Service connection</CardTitle>
               <CardDescription>Live checks from this workspace to the API.</CardDescription>
             </CardHeader>
             <CardContent>
@@ -202,10 +207,10 @@ export function FoundationShell({ app }: { app: AppName }) {
               </div>
               <p className="mt-4 text-xs leading-5 text-muted-foreground">
                 {checking
-                  ? "Checking your local development services."
+                  ? "Checking the connected services."
                   : checks.api === "available" && checks.ready === "available"
                     ? "The API is responding and its readiness checks have passed."
-                    : "A service is unavailable. Check the development terminal, then try again."}
+                    : "A service is unavailable. Try refreshing the checks in a moment."}
               </p>
               <Button
                 variant="outline"
