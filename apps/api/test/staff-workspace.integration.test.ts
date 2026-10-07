@@ -227,7 +227,15 @@ for (const transport of ["fastify", "worker"] as const) {
       try {
         const staff = await c.demo("officer-a@example.test", "staff");
         const email = `staff-http-${randomUUID()}@example.test`;
-        const create = { email, idempotencyKey: randomUUID() };
+        const create = {
+          email,
+          idempotencyKey: randomUUID(),
+          answers: {
+            businessName: "Synthetic Initial Staff HTTP",
+            requestedAmount: "10000.00",
+            purpose: "Synthetic initial equipment",
+          },
+        };
         const created = await c.call(`${staffPath}/applications`, {
           ...staff,
           method: "POST",
@@ -235,11 +243,31 @@ for (const transport of ["fastify", "worker"] as const) {
         });
         expect(created.status, JSON.stringify(created.body)).toBe(200);
         const draft = applicationSetupSchema.parse(created.body);
-        expect(draft.setupStatus).toBe("in_progress");
+        expect(draft).toMatchObject({
+          ...create.answers,
+          setupStatus: "in_progress",
+          status: "draft",
+          currentStep: "business_name",
+          completedSteps: [],
+          skippedSteps: [],
+          completedAt: null,
+        });
         expect(
           (await c.call(`${staffPath}/applications`, { ...staff, method: "POST", body: create }))
             .body.id,
         ).toBe(draft.id);
+        expect(
+          (
+            await c.call(`${staffPath}/applications`, {
+              ...staff,
+              method: "POST",
+              body: {
+                ...create,
+                answers: { ...create.answers, purpose: "Synthetic changed payload" },
+              },
+            })
+          ).status,
+        ).toBe(409);
         const deliveries = await database.pool.query<{
           id: string;
           origin: string;
@@ -256,6 +284,7 @@ for (const transport of ["fastify", "worker"] as const) {
         const base = `${staffPath}/applications/${draft.id}`;
         let workspace = staffWorkspaceSchema.parse((await c.call(`${base}/workspace`, staff)).body);
         expect(workspace).toMatchObject({
+          ...create.answers,
           source: "staff",
           createdBy: { id: seedIds.officerA },
           contact: { email, status: "pending" },
@@ -396,6 +425,75 @@ for (const transport of ["fastify", "worker"] as const) {
           { path: `${base}/notes/${note.id}`, method: "PATCH" as const, body: edit },
         ])
           expect((await c.call(input.path, { ...borrower, ...input })).status).toBe(404);
+      } finally {
+        await c.app.close();
+      }
+    });
+
+    it("accepts email-only and partial staff creation and rejects invalid prefills atomically", async () => {
+      const c = await client();
+      try {
+        const staff = await c.demo("officer-a@example.test", "staff");
+        for (const answers of [undefined, { businessName: "Synthetic Partial HTTP" }]) {
+          const input = {
+            email: `staff-partial-${randomUUID()}@example.test`,
+            idempotencyKey: randomUUID(),
+            ...(answers ? { answers } : {}),
+          };
+          const response = await c.call(`${staffPath}/applications`, {
+            ...staff,
+            method: "POST",
+            body: input,
+          });
+          expect(response.status).toBe(200);
+          const created = applicationSetupSchema.parse(response.body);
+          expect(created).toMatchObject({
+            businessName: answers?.businessName ?? null,
+            requestedAmount: null,
+            purpose: null,
+            setupStatus: "in_progress",
+            completedAt: null,
+          });
+          const recipient = await c.demo(input.email);
+          expect(
+            (
+              await c.call(`${bankPath}/${created.id}/claim`, {
+                ...recipient,
+                method: "POST",
+                body: {},
+              })
+            ).status,
+          ).toBe(200);
+          expect((await c.call(`${bankPath}/${created.id}/portal`, recipient)).status).toBe(409);
+          expect(
+            (await c.call(`${staffPath}/applications/${created.id}/workspace`, recipient)).status,
+          ).toBe(404);
+        }
+        const invalid = {
+          email: `staff-invalid-${randomUUID()}@example.test`,
+          idempotencyKey: randomUUID(),
+          answers: { businessName: "Synthetic Invalid HTTP", requestedAmount: "7500000.01" },
+        };
+        const counts = () =>
+          database.pool.query(
+            "SELECT (SELECT count(*) FROM applications) AS applications, (SELECT count(*) FROM applicant_contacts) AS contacts, (SELECT count(*) FROM access_delivery_requests) AS deliveries, (SELECT count(*) FROM audit_events) AS audits, (SELECT count(*) FROM application_requests) AS requests",
+          );
+        const before = await counts();
+        const rejected = await c.call(`${staffPath}/applications`, {
+          ...staff,
+          method: "POST",
+          body: invalid,
+        });
+        expect(rejected.status).toBe(400);
+        expect(rejected.body.error.code).toBe("INVALID_INPUT");
+        expect((await counts()).rows).toEqual(before.rows);
+        const corrected = await c.call(`${staffPath}/applications`, {
+          ...staff,
+          method: "POST",
+          body: { ...invalid, answers: { ...invalid.answers, requestedAmount: "10000.00" } },
+        });
+        expect(corrected.status).toBe(200);
+        expect(corrected.body.requestedAmount).toBe("10000.00");
       } finally {
         await c.app.close();
       }

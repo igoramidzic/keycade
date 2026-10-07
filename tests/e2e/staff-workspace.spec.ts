@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { readEnvironment } from "@keycade/config/server";
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Page, type Response, test } from "@playwright/test";
 import { messages, openLink, waitForLink } from "./identity-helpers";
 
 const env = readEnvironment();
@@ -25,7 +25,30 @@ type Setup = {
   currentStep: string;
   setupStatus: string;
   revision: number;
+  completedSteps: string[];
+  skippedSteps: string[];
+  completedAt: string | null;
 };
+
+function isStaffCreation(response: Response) {
+  return (
+    response.request().method() === "POST" &&
+    /^\/api\/v1\/banks\/[^/]+\/staff\/applications$/.test(new URL(response.url()).pathname)
+  );
+}
+
+async function applicationsForEmail(page: Page, email: string) {
+  return page.evaluate(async (email) => {
+    const session = await (await fetch("/api/v1/auth/session")).json();
+    if (!session.authenticated) throw new Error("Expected an authenticated synthetic fixture.");
+    const response = await fetch(
+      `/api/v1/banks/${session.bank.id}/staff/applications?search=${encodeURIComponent(email)}`,
+    );
+    if (!response.ok) throw new Error("Synthetic staff queue was unavailable.");
+    const result = await response.json();
+    return result.total as number;
+  }, email);
+}
 
 async function api<T>(page: Page, method: string, suffix: string, body?: object): Promise<T> {
   // Only safe application data leaves the browser, never session or CSRF values.
@@ -103,8 +126,33 @@ test("staff creates and updates a prefilled draft, then the emailed borrower con
   await page.getByLabel("Business name", { exact: true }).fill(businessName);
   await page.getByLabel("Requested amount (USD)", { exact: true }).fill("7500000");
   await page.getByLabel("Purpose", { exact: true }).fill("Synthetic commercial equipment");
-  await page.getByRole("button", { name: "Create draft", exact: true }).click();
+  let setupPatches = 0;
+  page.on("request", (request) => {
+    if (
+      request.method() === "PATCH" &&
+      /^\/api\/v1\/banks\/[^/]+\/staff\/applications\/[^/]+\/setup$/.test(
+        new URL(request.url()).pathname,
+      )
+    )
+      setupPatches++;
+  });
+  const creating = page.waitForResponse(isStaffCreation);
+  await page.getByRole("button", { name: "Create and invite borrower", exact: true }).click();
+  const response = await creating;
+  expect(response.ok()).toBe(true);
+  // The first committed create response already includes every optional answer.
+  expect(await response.json()).toMatchObject({
+    businessName,
+    requestedAmount: "7500000.00",
+    purpose: "Synthetic commercial equipment",
+    setupStatus: "in_progress",
+    currentStep: "business_name",
+    completedSteps: [],
+    skippedSteps: [],
+    completedAt: null,
+  });
   await expect(page.getByRole("heading", { name: businessName, exact: true })).toBeVisible();
+  expect(setupPatches).toBe(0);
   const applicationId = new URL(page.url()).pathname.split("/")[2];
   if (!applicationId) throw new Error("Expected the created staff workspace route.");
   expect(await api<Setup>(page, "GET", `/${applicationId}/setup`)).toMatchObject({
@@ -181,9 +229,13 @@ test("staff creates and updates a prefilled draft, then the emailed borrower con
     await expect(
       borrowerPage.getByRole("heading", { name: "Review your application setup", exact: true }),
     ).toBeVisible();
-    await expect(borrowerPage.getByText(businessName, { exact: true })).toBeVisible();
     await expect(
-      borrowerPage.getByText("Synthetic updated commercial equipment", { exact: true }),
+      borrowerPage.locator("#identity").getByText(businessName, { exact: true }),
+    ).toBeVisible();
+    await expect(
+      borrowerPage
+        .locator("#identity")
+        .getByText("Synthetic updated commercial equipment", { exact: true }),
     ).toBeVisible();
     expect(await api<Setup>(borrowerPage, "GET", `/${applicationId}/setup`)).toMatchObject({
       setupStatus: "in_progress",
@@ -208,6 +260,145 @@ test("staff creates and updates a prefilled draft, then the emailed borrower con
   await expect(page.getByLabel("Assigned officer", { exact: true })).toHaveValue(ids.officer);
 });
 
+test("staff email-only creation recovers a lost response without duplicating the draft or invitation", async ({
+  page,
+  browser,
+}) => {
+  const email = `staff-email-only-${randomUUID()}@example.test`;
+  const previous = new Set((await messages()).map((message) => message.ID));
+  let committedId: string | null = null;
+  const payloads: string[] = [];
+  await page.route(/\/api\/v1\/banks\/[^/]+\/staff\/applications$/, async (route) => {
+    if (route.request().method() !== "POST") return route.continue();
+    payloads.push(route.request().postData() ?? "");
+    if (committedId) return route.continue();
+    const committed = await route.fetch();
+    expect(committed.ok()).toBe(true);
+    committedId = ((await committed.json()) as Setup).id;
+    // The real transaction committed; only its acknowledgement fails to reach the form.
+    return route.fulfill({
+      status: 503,
+      json: {
+        error: { code: "UNAVAILABLE", message: "Synthetic creation acknowledgement unavailable." },
+      },
+    });
+  });
+  await signIn(page);
+  await page.getByRole("link", { name: "Create application", exact: true }).click();
+  await page.getByLabel("Borrower email", { exact: true }).fill(email);
+  const losing = page.waitForResponse(isStaffCreation);
+  await page.getByRole("button", { name: "Create and invite borrower", exact: true }).click();
+  expect((await losing).status()).toBe(503);
+  await expect(page.getByRole("alert")).toContainText("acknowledgement unavailable");
+  for (const label of ["Borrower email", "Business name", "Requested amount (USD)", "Purpose"])
+    await expect(page.getByLabel(label, { exact: true })).toBeDisabled();
+  const creating = page.waitForResponse(isStaffCreation);
+  await page.getByRole("button", { name: "Retry creation and invitation", exact: true }).click();
+  const response = await creating;
+  expect(response.ok()).toBe(true);
+  const draft = (await response.json()) as Setup;
+  expect(draft.id).toBe(committedId);
+  expect(payloads).toHaveLength(2);
+  expect(payloads[0] === payloads[1]).toBe(true);
+  expect(draft).toMatchObject({
+    businessName: null,
+    requestedAmount: null,
+    purpose: null,
+    setupStatus: "in_progress",
+    currentStep: "business_name",
+    completedSteps: [],
+    completedAt: null,
+  });
+  await expect(page).toHaveURL(
+    (url) => url.origin === staff && url.pathname === `/applications/${draft.id}/overview`,
+  );
+  await expect(page.getByText("Pending borrower", { exact: true })).toBeVisible();
+  await expect(page.getByText("Setup incomplete", { exact: true })).toBeVisible();
+  expect(await applicationsForEmail(page, email)).toBe(1);
+  await noOverflow(page);
+
+  const borrowerContext = await browser.newContext({ viewport: page.viewportSize() });
+  try {
+    const borrowerPage = await borrowerContext.newPage();
+    const link = await waitForLink(borrower, email, previous);
+    expect(
+      (await messages()).filter((message) => message.To.some((to) => to.Address === email)),
+    ).toHaveLength(1);
+    await openLink(borrowerPage, link);
+    await borrowerPage.getByRole("button", { name: "Confirm and sign in", exact: true }).click();
+    await expect(borrowerPage).toHaveURL(
+      (url) => url.origin === borrower && url.pathname === `/applications/${draft.id}/setup`,
+    );
+    await expect(borrowerPage.getByLabel("Business name", { exact: true })).toHaveValue("");
+    expect(await api<Setup>(borrowerPage, "GET", `/${draft.id}/setup`)).toMatchObject({
+      businessName: null,
+      setupStatus: "in_progress",
+      completedAt: null,
+    });
+    await noOverflow(borrowerPage);
+  } finally {
+    await borrowerContext.close();
+  }
+});
+
+test("invalid optional prefill creates no draft or invitation before the officer corrects it", async ({
+  page,
+}) => {
+  const email = `staff-invalid-prefill-${randomUUID()}@example.test`;
+  const businessName = `Synthetic Partial Workshop ${randomUUID().slice(0, 8)}`;
+  const successfulCreations: number[] = [];
+  page.on("response", (response) => {
+    if (isStaffCreation(response) && response.ok()) successfulCreations.push(response.status());
+  });
+  await signIn(page);
+  await page.getByRole("link", { name: "Create application", exact: true }).click();
+  await page.getByLabel("Borrower email", { exact: true }).fill(email);
+  await page.getByLabel("Business name", { exact: true }).fill(businessName);
+  // Valid decimal syntax but above this bank's product maximum; validation is server-side.
+  await page.getByLabel("Requested amount (USD)", { exact: true }).fill("7500001");
+  const rejecting = page.waitForResponse(isStaffCreation);
+  await page.getByRole("button", { name: "Create and invite borrower", exact: true }).click();
+  expect((await rejecting).status()).toBe(400);
+  await expect(page.getByRole("alert")).toContainText("outside this product's limits");
+  await expect(page).toHaveURL(
+    (url) => url.origin === staff && url.pathname === "/applications/new",
+  );
+  await expect(page.getByLabel("Borrower email", { exact: true })).toBeEnabled();
+  await expect(page.getByLabel("Business name", { exact: true })).toHaveValue(businessName);
+  await expect(page.getByLabel("Requested amount (USD)", { exact: true })).toHaveValue("7500001");
+  expect(successfulCreations).toHaveLength(0);
+  expect(await applicationsForEmail(page, email)).toBe(0);
+  expect(
+    (await messages()).filter((message) => message.To.some((to) => to.Address === email)),
+  ).toHaveLength(0);
+
+  await page.getByLabel("Requested amount (USD)", { exact: true }).fill("10000");
+  const creating = page.waitForResponse(isStaffCreation);
+  await page.getByRole("button", { name: "Create and invite borrower", exact: true }).click();
+  const response = await creating;
+  expect(response.ok()).toBe(true);
+  const draft = (await response.json()) as Setup;
+  expect(draft).toMatchObject({
+    businessName,
+    requestedAmount: "10000.00",
+    purpose: null,
+    setupStatus: "in_progress",
+    completedSteps: [],
+    completedAt: null,
+  });
+  await expect(page).toHaveURL(
+    (url) => url.origin === staff && url.pathname === `/applications/${draft.id}/overview`,
+  );
+  await expect(page.getByRole("heading", { name: businessName, exact: true })).toBeVisible();
+  expect(successfulCreations).toHaveLength(1);
+  expect(await applicationsForEmail(page, email)).toBe(1);
+  await waitForLink(borrower, email, new Set());
+  expect(
+    (await messages()).filter((message) => message.To.some((to) => to.Address === email)),
+  ).toHaveLength(1);
+  await noOverflow(page);
+});
+
 test("the queue finds borrower and staff drafts together and filters without crossing banks", async ({
   page,
   browser,
@@ -225,17 +416,18 @@ test("the queue finds borrower and staff drafts together and filters without cro
   await namedDraft(page, `${prefix} Staff`, `staff-queue-created-${randomUUID()}@example.test`);
   await page.reload();
   await filter(page, "Rows per page", "limit", "5");
-  await expect(page.getByRole("article")).toHaveCount(5);
-  const firstPageIds = await page
-    .getByRole("article")
-    .evaluateAll((articles) => articles.map((article) => article.getAttribute("aria-label")));
+  const applicationRows = page.locator("#main").getByRole("article", { name: /^Application / });
+  await expect(applicationRows).toHaveCount(5);
+  const firstPageIds = await applicationRows.evaluateAll((articles) =>
+    articles.map((article) => article.getAttribute("aria-label")),
+  );
   await page.getByRole("button", { name: "Next page", exact: true }).click();
   await expect(page.getByRole("button", { name: "Previous page", exact: true })).toBeEnabled();
   await expect
     .poll(async () => {
-      const secondPageIds = await page
-        .getByRole("article")
-        .evaluateAll((articles) => articles.map((article) => article.getAttribute("aria-label")));
+      const secondPageIds = await applicationRows.evaluateAll((articles) =>
+        articles.map((article) => article.getAttribute("aria-label")),
+      );
       return secondPageIds.length > 0 && !secondPageIds.some((id) => firstPageIds.includes(id));
     })
     .toBe(true);
@@ -246,10 +438,10 @@ test("the queue finds borrower and staff drafts together and filters without cro
   await expect(page).toHaveURL((url) => url.searchParams.get("search") === prefix);
   await expect(page.getByRole("link", { name: `${prefix} Borrower`, exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: `${prefix} Staff`, exact: true })).toBeVisible();
-  await expect(page.getByRole("article").filter({ hasText: `${prefix} Borrower` })).toContainText(
+  await expect(applicationRows.filter({ hasText: `${prefix} Borrower` })).toContainText(
     "Borrower created",
   );
-  await expect(page.getByRole("article").filter({ hasText: `${prefix} Staff` })).toContainText(
+  await expect(applicationRows.filter({ hasText: `${prefix} Staff` })).toContainText(
     "Staff created",
   );
   await page.screenshot({ path: testInfo.outputPath("synthetic-staff-queue.png"), fullPage: true });

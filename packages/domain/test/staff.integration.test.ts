@@ -270,9 +270,9 @@ describe("staff queue and workspace on PostgreSQL", () => {
         randomUUID(),
       ),
     ).rejects.toMatchObject({ code: "IDEMPOTENCY_CONFLICT", statusCode: 409 });
-    await expect(
-      service().create(officer, ids.bankB, input, randomUUID()),
-    ).rejects.toMatchObject(notFound);
+    await expect(service().create(officer, ids.bankB, input, randomUUID())).rejects.toMatchObject(
+      notFound,
+    );
     await expect(
       service().create(
         { ...borrower, demoBankId: ids.bankA },
@@ -312,15 +312,25 @@ describe("staff queue and workspace on PostgreSQL", () => {
         .select()
         .from(auditEvents)
         .where(
-          and(eq(auditEvents.applicationId, created.id), eq(auditEvents.action, "application.created")),
+          and(
+            eq(auditEvents.applicationId, created.id),
+            eq(auditEvents.action, "application.created"),
+          ),
         );
       expect(audit?.changedFields).toEqual(["businessName", "requestedAmount", "purpose"]);
       expect(JSON.stringify(audit)).not.toContain("Synthetic equipment");
       const [persisted] = await database.db
-        .select({ application: applications, setup: applicationSetups, delivery: accessDeliveryRequests })
+        .select({
+          application: applications,
+          setup: applicationSetups,
+          delivery: accessDeliveryRequests,
+        })
         .from(applications)
         .innerJoin(applicationSetups, eq(applicationSetups.applicationId, applications.id))
-        .innerJoin(accessDeliveryRequests, eq(accessDeliveryRequests.applicationId, applications.id))
+        .innerJoin(
+          accessDeliveryRequests,
+          eq(accessDeliveryRequests.applicationId, applications.id),
+        )
         .where(eq(applications.id, created.id));
       expect(persisted?.application).toMatchObject({ requestedAmount, source: "staff" });
       expect(persisted?.setup.completedAt).toBeNull();
@@ -337,12 +347,18 @@ describe("staff queue and workspace on PostgreSQL", () => {
       };
       const requestId = randomUUID();
       const before = await listStaffApplications(database.db, officer, ids.bankA);
-      await expect(
-        service().create(officer, ids.bankA, input, requestId),
-      ).rejects.toMatchObject({ code: "INVALID_INPUT", statusCode: 400 });
-      expect((await listStaffApplications(database.db, officer, ids.bankA)).total).toBe(before.total);
+      await expect(service().create(officer, ids.bankA, input, requestId)).rejects.toMatchObject({
+        code: "INVALID_INPUT",
+        statusCode: 400,
+      });
+      expect((await listStaffApplications(database.db, officer, ids.bankA)).total).toBe(
+        before.total,
+      );
       expect(
-        await database.db.select().from(applicantContacts).where(eq(applicantContacts.email, input.email)),
+        await database.db
+          .select()
+          .from(applicantContacts)
+          .where(eq(applicantContacts.email, input.email)),
       ).toHaveLength(0);
       expect(
         await database.db.select().from(auditEvents).where(eq(auditEvents.requestId, requestId)),

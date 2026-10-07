@@ -74,6 +74,10 @@ Staff can add participants to an existing application. Recording a business owne
 
 The bank console lists applications with search, stage/assignee/product filters, pagination, next-action counts, and processing indicators. Staff can create an application on behalf of a client, assign an officer, inspect evidence and checks, add tasks/participants, and request missing information.
 
+For an officer-started application, the signed-in bank determines the tenant. Borrower email is the minimum required input; business name, requested amount and purpose are optional prefills. **Create and invite borrower** saves the draft and supplied details together with one simulated continuation request. Invalid supplied details save no draft or invitation; retrying the same request recovers the same application. The borrower opens that application's saved setup, confirms any prefills and completes missing questions before entering its task portal. An officer cannot finish this confirmation on the borrower's behalf. Staff and borrowers work on the same application through their separately authorized views; internal notes and staff-only operations remain private to the bank.
+
+This application handoff belongs to loan origination. Ongoing servicing after funding remains deferred under the first-release boundaries above.
+
 Application detail presents the business, requested terms, participant list, task review queue, document groups, internal checks, staff notes, and activity. Staff-only notes and risk evidence never appear in borrower responses.
 
 ### Upload and understand documents

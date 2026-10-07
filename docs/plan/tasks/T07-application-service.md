@@ -9,7 +9,7 @@ One backend use case creates and updates applications from both borrower and sta
 ## Scope
 
 - Implement restricted public email-start: validate public bank/product, create pending contact/draft, and queue a continuation link in one durable workflow.
-- Implement staff creation on behalf of a borrower through the same creation service; record source, actor, bank, contact, and optional existing authorized business.
+- Implement staff creation on behalf of a borrower through the same creation service; record source, actor, bank, contact, and optional existing authorized business. Accept optional initial business name, exact amount and purpose, validate them against the pinned product, and persist them with the new draft and continuation intent in one transaction.
 - On email verification, bind the selected intended draft/contact to the verified identity and appropriate participant role. Fresh generic resume lists existing grants and pending drafts addressed to that verified email within the selected bank; selecting one claims it idempotently without accepting unrelated invitations. Never merge businesses on name or supplied identifiers alone.
 - Honor the user's [local demo sign-in override](../06-decisions-and-sources.md#immediate-demo-sign-in-october-6-2026): allow a T06 demo actor to start/resume only synthetic drafts in its selected demo bank, without requiring email delivery. Record demo provenance; do not stamp mailbox verification or weaken the non-demo verification/claim path.
 - Add get/list/draft-patch services with decimal-string amounts, configurable product limits, optional industry, autosave revisions, and stable pagination. Generic draft DTOs reject raw EIN/SSN fields; private collection comes through T15/T16.
@@ -29,6 +29,7 @@ One backend use case creates and updates applications from both borrower and sta
 - Answers and current/completed/skipped steps survive session/device changes. A failed save changes neither the stored answers nor progress; a dependent answer change invalidates affected step validation.
 - Missing required answers, stale revisions, unauthorized actors, client-supplied completion flags, and direct applicant portal calls cannot bypass setup. Repeating a successful completion returns one completion and lifecycle transition without duplicate effects.
 - Creation and staff prefill leave setup incomplete. Only explicit applicant completion unlocks the portal, including for a permitted local synthetic demo actor. Completing application A does not complete application B or grant anyone access.
+- Staff creation accepts email alone or partial initial details. Invalid initial details leave no application, setup, contact, audit, idempotency or delivery intent from that attempt; corrected input can retry. Replaying a valid creation payload produces one application and continuation, and a conflicting payload with the same key is rejected. See the [T10 officer handoff follow-up](T10-bank-workspace.md#officer-started-application-handoff--october-7-2026) for validation.
 - Setup completion does not submit, approve, fund, or satisfy later evidence/check requirements.
 - The local demo can create/resume synthetic drafts after immediate email entry; demo actors cannot claim drafts in another bank or non-synthetic data.
 

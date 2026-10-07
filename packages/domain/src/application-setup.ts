@@ -300,7 +300,11 @@ async function product(tx: Tx, bankId: string, productId: string, syntheticOnly 
   if (!row || (syntheticOnly && !row.synthetic)) return invalid("Select an available product.");
   return row;
 }
-async function validateAmount(tx: Tx, row: Row, requireProduct: boolean) {
+async function validateAmount(
+  tx: Tx,
+  row: Pick<Row, "bankId" | "productId" | "demoCreated" | "requestedAmount">,
+  requireProduct: boolean,
+) {
   if (!row.productId) {
     if (requireProduct) invalid("Select a product.");
     return;
@@ -344,6 +348,16 @@ async function createApplication(
     now: Date;
   },
 ) {
+  await validateAmount(
+    tx,
+    {
+      bankId: input.bankId,
+      productId: input.productId ?? null,
+      demoCreated: input.actor.kind === "user" && Boolean(input.actor.demoBankId),
+      requestedAmount: input.requestedAmount ?? null,
+    },
+    false,
+  );
   const [row] = await tx
     .insert(applications)
     .values({
@@ -368,7 +382,6 @@ async function createApplication(
     .values({ bankId: row.bankId, applicationId: row.id })
     .returning();
   if (!setup) throw new Error("Setup creation failed.");
-  await validateAmount(tx, row, false);
   await audit(
     tx,
     row,

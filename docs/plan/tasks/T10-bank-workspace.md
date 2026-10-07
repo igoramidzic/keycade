@@ -18,7 +18,7 @@ Bank staff can find drafts, create an application on a client's behalf, and insp
 
 - Authorized staff see their bank's drafts and submitted records with expected filtering and pagination.
 - A borrower cannot access staff endpoints; Bank A staff cannot access Bank B records, notes, or counts.
-- Staff creation sends the borrower a local continuation link and preserves staff origin/creator metadata.
+- Staff creation accepts borrower email with optional business name, amount and purpose; supplied answers, draft, audit, idempotency and one simulated continuation intent commit together. Invalid prefills create no draft or delivery intent. The borrower receives a targeted continuation through local Mailpit or the hosted demo inbox; staff origin/creator metadata is preserved. Repeated identical requests return the same draft, including recovery after a lost response.
 - A staff-created draft exposes prefilled answers and incomplete setup through T07's authorized resume response; staff create/prefill calls cannot complete setup. Staff can inspect setup progress throughout. T08 covers the borrower-facing confirmation journey.
 - Staff assignment and note changes persist and are audited; notes never appear in borrower DTOs.
 - Empty results, unavailable API, and no staff membership produce clear UI states.
@@ -56,7 +56,7 @@ The local Podman virtual machine became unavailable during one integration attem
 
 1. Run `pnpm initialize` (or `pnpm db:migrate` for an initialized checkout), then `pnpm dev`.
 2. Open the bank console at `http://127.0.0.1:3002` and sign in as `officer-a@example.test`. Search and filter the queue; choose a small page size to exercise pagination.
-3. Choose **Create application**, use a fictional `example.test` address, and prefill a business, amount, and purpose. Open its Overview to inspect incomplete setup and pending contact status.
+3. Choose **Create application**, enter a fictional `example.test` address, and optionally prefill business name, amount and purpose. Select **Create and invite borrower**. Its Overview shows the saved draft, incomplete setup and pending contact.
 4. Assign an officer and add/edit an internal note. Reload to verify persistence. Check the unavailable task/document/check sections.
 5. Open the recipient's continuation message in Mailpit at `http://127.0.0.1:8025`, confirm sign-in, and finish the borrower setup. The staff prefill remains saved; completion still requires the applicant. Internal notes are absent from the borrower portal.
 
@@ -67,3 +67,21 @@ T11 participant management, T12 tasks, T13–T16 evidence/checks, and T19–T20 
 The reported `INTERNAL_ERROR` on port 3002 was reproduced while the frontend/API were alive but the Podman machine and database were stopped. Infrastructure was restarted in an independent process so it survives the launching command session, and the existing worker watcher was restarted after recovery. Live checks confirmed database/worker readiness, successful seeded officer sign-in, and a bank-scoped application queue; the temporary verification session was revoked. Existing records were preserved.
 
 Both API transports now translate recognized structured connection failures (including wrapped/aggregated driver errors) to HTTP 503 `SERVICE_UNAVAILABLE` without logging or returning raw exception details. Unknown SQL/configuration/application errors remain 500. The sign-in screen keeps the entered email and offers a clear retryable outage message. Validation: `pnpm check` passed (lint, types, boundaries, 161 unit tests); the focused desktop/mobile sign-in outage-and-retry browser test passed 2/2 with no skips or failures (`.local/e2e-nC2ylx/summary.json`). The recovered development API remained ready after the isolated browser runner exited.
+
+### Officer-started application handoff — October 7, 2026
+
+Done — implemented and validated locally October 7, 2026.
+
+The user's requested bank-officer → borrower journey already had a staff form and targeted continuation. Investigation found that the form created/queued the draft first, then saved optional details through a second request. A rejected amount or interrupted save could therefore leave an invited empty draft. The shared creation contract now accepts optional `answers` (business name, requested amount and purpose), validates configured product limits before insertion, and commits answers with the draft and its existing audit/idempotency/continuation transaction. No database migration or task-dependency change is needed. Staff-only initial answers cannot grant borrower permissions or complete setup.
+
+The form now sends one creation command, labelled **Create and invite borrower**, and describes simulated delivery in both local and hosted environments. Email alone is sufficient; the other fields may be supplied independently. An ambiguous network/server response locks the attempted details and offers **Retry creation and invitation** with the original payload/key. A definitive validation error retains editable input and allows correction. The success screen confirms saved details and queued delivery without claiming that delivery has completed.
+
+Focused coverage includes atomic full/partial/email-only creation; exact $10,000, $5,000,000 and $7,500,000 amounts; invalid zero/below/above-limit rollback; conflicting/replayed/concurrent creation; staff membership and bank isolation; both HTTP transports; and desktop/mobile officer creation through the emailed borrower's required setup. Browser regression also simulates a lost response after commit and verifies recovery of one draft and one invitation. Ongoing repayment servicing, contactless drafts and a dedicated original-applicant resend action remain outside this change. No hosted deployment is performed by this follow-up.
+
+Validation, using the repository's pinned Node 24 runtime:
+
+- `pnpm check` — Biome, browser package boundaries, all workspace/root TypeScript checks and 298 unit tests passed.
+- `pnpm test:integration` — all 364 real PostgreSQL tests in 39 files passed, including the new staff/domain and Fastify/native Worker transport checks.
+- `pnpm build` — all 12 workspace builds passed. Existing borrower/staff bundle-size warnings remain nonblocking.
+- `pnpm test:e2e tests/e2e/staff-workspace.spec.ts` — 16 desktop/mobile cases passed with zero failures, skips or flaky cases. An initial run exposed outdated test scoping: the D05 sidebar duplicated business text and document articles, and default-bank URLs omit the optional bank query. Correcting assertions to use the actual application/review regions produced the clean rerun. Private evidence: `.local/e2e-QCjWoS/summary.json`; synthetic desktop/mobile staff screenshots were captured, and the desktop overview was visually inspected. Owned browser processes and the disposable database were cleaned up.
+- Final Biome, root TypeScript and `git diff --check` passed after test-assertion corrections. No persistent records were reset, no schema migration was needed and no external email was sent.

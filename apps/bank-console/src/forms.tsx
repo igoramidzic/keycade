@@ -1,7 +1,4 @@
-import {
-  applicationSetupSchema,
-  type StaffWorkspace,
-} from "@keycade/contracts";
+import { applicationSetupSchema, type StaffWorkspace } from "@keycade/contracts";
 import { Button, buttonVariants } from "@keycade/ui/components/button";
 import {
   Card,
@@ -83,6 +80,7 @@ export function CreateApplication() {
     purpose: "",
   });
   const attempt = useRef<{ payload: string; key: string } | null>(null);
+  const [pending, setPending] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   async function submit(event: FormEvent) {
@@ -99,6 +97,7 @@ export function CreateApplication() {
       const payload = JSON.stringify(body);
       if (!attempt.current || attempt.current.payload !== payload)
         attempt.current = { payload, key: crypto.randomUUID() };
+      setPending(true);
       const created = await api.request("/applications", applicationSetupSchema, {
         method: "POST",
         body: { ...body, idempotencyKey: attempt.current.key },
@@ -109,6 +108,10 @@ export function CreateApplication() {
         state: { created: true },
       });
     } catch (error) {
+      if (error instanceof ApiError && error.status === 400) {
+        attempt.current = null;
+        setPending(false);
+      }
       setError(error);
     } finally {
       setBusy(false);
@@ -137,7 +140,7 @@ export function CreateApplication() {
                 maxLength={254}
                 required
                 value={email}
-                disabled={busy}
+                disabled={busy || pending}
                 onChange={(event) => setEmail(event.target.value)}
               />
             </Field>
@@ -147,18 +150,28 @@ export function CreateApplication() {
                 Add any details you already know for Synthetic Business Credit. The borrower will
                 confirm these answers and finish the remaining setup questions.
               </p>
-              <AnswerFields answers={answers} setAnswers={setAnswers} disabled={busy} />
+              <AnswerFields answers={answers} setAnswers={setAnswers} disabled={busy || pending} />
             </div>
             <p className="text-sm text-muted-foreground">
               A simulated continuation email will invite the borrower to this application.
             </p>
             {Boolean(error) && <ErrorNotice error={error} />}
+            {Boolean(error) && pending && (
+              <p className="text-sm text-muted-foreground">
+                The result could not be confirmed. Retry with these same details to recover the
+                application and invitation.
+              </p>
+            )}
             <div className="flex flex-wrap gap-3">
               <Button type="submit" disabled={busy}>
-                {busy ? "Creating and inviting…" : "Create and invite borrower"}
+                {busy
+                  ? "Creating and inviting…"
+                  : pending
+                    ? "Retry creation and invitation"
+                    : "Create and invite borrower"}
               </Button>
               <Link to={`/${bankQuery}`} className={buttonVariants({ variant: "outline" })}>
-                Cancel
+                {pending ? "Back to applications" : "Cancel"}
               </Link>
             </div>
           </form>
