@@ -29,7 +29,7 @@ import { ApplicationClosing } from "./closing";
 import { ApplicationDocuments } from "./documents";
 import { ApplicationPeople } from "./participants";
 import { ApplicationReadiness } from "./readiness";
-import { ApplicationReview, useApplicationReview } from "./review";
+import { ApplicationReview } from "./review";
 import { SetupWizard } from "./setup-wizard";
 import { ApplicationSignatures } from "./signatures";
 import { ApplicationTasks } from "./tasks";
@@ -439,7 +439,6 @@ function ApplicationPortal({
   applicationId: string;
   view: string;
 }) {
-  const review = useApplicationReview(session, applicationId);
   const detail = useQuery({
     queryKey: ["portal", session.bank.id, session.user.email, applicationId],
     queryFn: ({ signal }) =>
@@ -501,13 +500,9 @@ function ApplicationPortal({
       <nav aria-label="Application sections" className="flex flex-wrap gap-1">
         {views
           .filter((label) => {
-            if (label === "Review") return review.data && !review.error;
+            if (label === "Review") return data.canReview;
             if (label === "Closing")
-              return (
-                review.data &&
-                !review.error &&
-                ["approved", "closing", "funded"].includes(data.status)
-              );
+              return data.canReview && ["approved", "closing", "funded"].includes(data.status);
             return true;
           })
           .map((label) => {
@@ -572,22 +567,18 @@ function ApplicationPortal({
                     <Badge variant="secondary">Initial setup complete</Badge>
                   )}
                 </div>
-                {review.data &&
-                  !review.error &&
-                  ["approved", "closing", "funded"].includes(data.status) && (
-                    <Link to={path("closing")} className={buttonVariants({ variant: "outline" })}>
-                      {data.status === "funded"
-                        ? "View funded account"
-                        : "View closing requirements"}
-                    </Link>
-                  )}
+                {data.canReview && ["approved", "closing", "funded"].includes(data.status) && (
+                  <Link to={path("closing")} className={buttonVariants({ variant: "outline" })}>
+                    {data.status === "funded" ? "View funded account" : "View closing requirements"}
+                  </Link>
+                )}
                 <p className="text-xs text-muted-foreground">
                   Updated <UpdatedAt value={data.updatedAt} />
                 </p>
               </CardContent>
             </Card>
             <ApplicationReadiness session={session} applicationId={applicationId} />
-            {review.data && !review.error && (
+            {data.canReview && (
               <Link className={buttonVariants({ variant: "outline" })} to={path("review")}>
                 Review and submit application
               </Link>

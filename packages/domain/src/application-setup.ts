@@ -591,6 +591,13 @@ export function createApplicationService(
       const selected = await summary(tx, actor, row, setup, access);
       return applicationPortalSchema.parse({
         ...selected,
+        canReview:
+          actor.kind === "user" &&
+          row.synthetic &&
+          (access.kind === "staff" ||
+            (access.kind === "participant" &&
+              access.role === "applicant_admin" &&
+              access.scope === "full")),
         purpose: selected.accessScope === "assigned" ? null : row.purpose,
         remainingTasks:
           (selected.taskProgress?.total ?? 0) - (selected.taskProgress?.completed ?? 0),

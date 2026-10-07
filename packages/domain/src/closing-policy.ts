@@ -10,7 +10,7 @@ import {
 import { and, asc, eq } from "drizzle-orm";
 import type { QueryDatabase } from "./authorization.js";
 import { DomainError } from "./errors.js";
-import { signatureTaskEvidenceCurrent } from "./signatures.js";
+import { type SignatureEvidenceReader, signatureTaskEvidenceCurrent } from "./signatures.js";
 import { taskPasses } from "./task-rules.js";
 
 /** Mandatory signing requirements exist before an envelope is prepared. */
@@ -30,6 +30,8 @@ export async function readClosingConditions(
   db: QueryDatabase,
   bankId: string,
   applicationId: string,
+  signatureEvidenceCurrent: SignatureEvidenceReader = (taskId) =>
+    signatureTaskEvidenceCurrent(db, taskId),
 ) {
   const rows = await db
     .select({
@@ -59,7 +61,7 @@ export async function readClosingConditions(
         artifact &&
         artifact.taskId === task.id &&
         artifact.evidenceRevision === task.evidenceRevision &&
-        (await signatureTaskEvidenceCurrent(db, task.id))
+        (await signatureEvidenceCurrent(task.id))
       );
     else if (task.state === "waived") {
       const [waiver] = await db
@@ -91,21 +93,32 @@ export async function readClosingConditions(
   }
   return conditions;
 }
+/** Values from the same locked read evaluation, never a previous request or before a write. */
+export type ClosingReadContext = {
+  signatureEvidenceCurrent?: SignatureEvidenceReader;
+  packageExists?: boolean;
+  conditions?: Awaited<ReturnType<typeof readClosingConditions>>;
+};
 export async function closingRequirementBlockers(
   db: QueryDatabase,
   bankId: string,
   applicationId: string,
+  context: ClosingReadContext = {},
 ) {
-  const [pkg] = await db
-    .select({ id: applicationClosingPackages.id })
-    .from(applicationClosingPackages)
-    .where(
-      and(
-        eq(applicationClosingPackages.bankId, bankId),
-        eq(applicationClosingPackages.applicationId, applicationId),
-      ),
-    );
-  if (!pkg)
+  let packageExists = context.packageExists;
+  if (packageExists === undefined) {
+    const [pkg] = await db
+      .select({ id: applicationClosingPackages.id })
+      .from(applicationClosingPackages)
+      .where(
+        and(
+          eq(applicationClosingPackages.bankId, bankId),
+          eq(applicationClosingPackages.applicationId, applicationId),
+        ),
+      );
+    packageExists = !!pkg;
+  }
+  if (!packageExists)
     return [
       {
         kind: "application" as const,
@@ -115,7 +128,10 @@ export async function closingRequirementBlockers(
         reason: "closing_package_missing",
       },
     ];
-  return (await readClosingConditions(db, bankId, applicationId))
+  const conditions =
+    context.conditions ??
+    (await readClosingConditions(db, bankId, applicationId, context.signatureEvidenceCurrent));
+  return conditions
     .filter((c) => c.required && !c.passes)
     .map((c) => ({
       kind: "task" as const,

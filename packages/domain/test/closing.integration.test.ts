@@ -22,6 +22,7 @@ import {
 import { seedIds as ids, seedDatabase } from "@keycade/db/seed";
 import { createTestDatabase } from "@keycade/db/testing";
 import { and, eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/node-postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   type Actor,
@@ -289,6 +290,64 @@ async function rows(id: string) {
   };
 }
 describe("approved closing and immutable simulated funding", () => {
+  it("evaluates a two-signer artifact once per view and refreshes current grants on the next read", async () => {
+    const f = await ready();
+    const queries: string[] = [];
+    const measured = drizzle(database.pool, {
+      schema: database.db._.fullSchema,
+      logger: { logQuery: (query) => queries.push(query) },
+    });
+    const service = createClosingService(measured, { clock: () => now });
+    const countFrom = (table: string) =>
+      queries.filter((query) => query.includes(`from "${table}"`)).length;
+    const current = await service.read(officer, ids.bankA, f.id);
+    expect(current.capabilities.recordFunding).toBe(true);
+    expect(current.conditions.find((c) => c.kind === "signature")?.passes).toBe(true);
+    expect(current.readiness.gates.find((g) => g.stage === "closing")?.ready).toBe(true);
+    // The same artifact governs conditions and readiness. Rechecking it used to
+    // multiply the full source and live signer authorization queries three times.
+    expect(countFrom("signature_envelopes")).toBe(1);
+    expect(countFrom("users")).toBe(2);
+    expect(countFrom("closing_conditions")).toBe(1);
+    expect(countFrom("application_closing_packages")).toBe(1);
+
+    queries.length = 0;
+    const reviewed = await createReviewService(measured, { clock: () => now }).read(
+      officer,
+      ids.bankA,
+      f.id,
+    );
+    expect(reviewed.readiness.gates.find((g) => g.stage === "closing")?.ready).toBe(true);
+    expect(countFrom("signature_envelopes")).toBe(1);
+    expect(countFrom("users")).toBe(2);
+
+    await database.db
+      .update(applicationParticipants)
+      .set({ revokedAt: now })
+      .where(eq(applicationParticipants.id, f.envelope.second.id));
+    const revoked = await service.read(officer, ids.bankA, f.id);
+    expect(revoked.capabilities.recordFunding).toBe(false);
+    expect(revoked.conditions.find((c) => c.kind === "signature")?.passes).toBe(false);
+    await expect(
+      service.recordFunding(officer, ids.bankA, f.id, funding(f.view.revision), randomUUID()),
+    ).rejects.toMatchObject(invalid);
+    expect((await rows(f.id)).funding).toHaveLength(0);
+    await database.db
+      .update(applicationParticipants)
+      .set({ revokedAt: null })
+      .where(eq(applicationParticipants.id, f.envelope.second.id));
+    queries.length = 0;
+    const funded = await service.recordFunding(
+      officer,
+      ids.bankA,
+      f.id,
+      funding(f.view.revision),
+      randomUUID(),
+    );
+    expect(funded.status).toBe("funded");
+    // The mutation's gate and its post-write response each need a fresh evaluation.
+    expect(countFrom("signature_envelopes")).toBe(2);
+  });
   it("starts explicitly from approved terms, pins policy, and prevents generic completion of mandatory signatures", async () => {
     const f = await started();
     expect(f.view).toMatchObject({

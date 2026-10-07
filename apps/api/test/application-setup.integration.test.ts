@@ -189,6 +189,7 @@ for (const transport of ["fastify", "worker"] as const) {
           purpose: "Synthetic equipment purchase",
           remainingTasks: expect.any(Number),
           accessScope: "full",
+          canReview: true,
         });
         for (const [applicationId, code] of [
           [seedIds.applicationSetupDraft, "SETUP_REQUIRED"],
@@ -262,6 +263,7 @@ for (const transport of ["fastify", "worker"] as const) {
           requestedAmount: null,
           remainingTasks: expect.any(Number),
           accessScope: "assigned",
+          canReview: false,
         });
         expect((await c.call(`${bankPath}/${draft.id}`, adviser)).body).toMatchObject({
           purpose: null,
@@ -272,8 +274,17 @@ for (const transport of ["fastify", "worker"] as const) {
         expect(staffPortal.status).toBe(200);
         expect(staffPortal.body).toMatchObject({
           accessScope: "full",
+          canReview: true,
           purpose: "Synthetic equipment expansion",
           requestedAmount: "7500000.00",
+        });
+        await database.pool.query(
+          "UPDATE application_participants SET scope = 'full' WHERE application_id = $1 AND user_id = $2",
+          [draft.id, seedIds.adviser],
+        );
+        expect((await c.call(`${bankPath}/${draft.id}/portal`, adviser)).body).toMatchObject({
+          accessScope: "full",
+          canReview: false,
         });
         await database.pool.query(
           "UPDATE application_participants SET revoked_at = now() WHERE application_id = $1 AND user_id = $2",

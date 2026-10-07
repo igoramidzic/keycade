@@ -80,6 +80,11 @@ async function draft(page: Page, name: string) {
 test("business groups show granted applications and portal navigation keeps application context", async ({
   page,
 }, testInfo) => {
+  let backgroundReviewReads = 0;
+  page.on("request", (request) => {
+    if (request.method() === "GET" && /\/applications\/[^/]+\/review$/.test(request.url()))
+      backgroundReviewReads++;
+  });
   await signIn(page);
   const cedar = page.getByRole("region", { name: "Synthetic Cedar Workshop", exact: true });
   const maple = page.getByRole("region", { name: "Synthetic Maple Supply", exact: true });
@@ -141,6 +146,8 @@ test("business groups show granted applications and portal navigation keeps appl
   await expect(page.getByLabel("Role", { exact: true })).toHaveValue("adviser");
   await expect(page.getByLabel("Access scope", { exact: true })).toHaveValue("assigned");
   await expect(page.getByRole("button", { name: "Send invitation", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Review", exact: true })).toBeVisible();
+  expect(backgroundReviewReads).toBe(0);
   await noOverflow(page);
   await page.getByRole("link", { name: "Your applications", exact: true }).click();
   await card(page, ids.large)

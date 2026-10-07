@@ -23,9 +23,9 @@ import {
   requireApplicantPortalAccess,
 } from "./authorization.js";
 import { checkIsVisible, checkPasses, currentCheckInputs, lockCheckApplication } from "./checks.js";
-import { closingRequirementBlockers } from "./closing-policy.js";
+import { type ClosingReadContext, closingRequirementBlockers } from "./closing-policy.js";
 import { deny } from "./errors.js";
-import { signatureTaskEvidenceCurrent } from "./signatures.js";
+import { createSignatureEvidenceReader } from "./signatures.js";
 import { taskPasses, taskStages } from "./task-rules.js";
 import { reconcileTasks, taskIsVisible } from "./tasks.js";
 
@@ -37,7 +37,10 @@ export async function evaluateReadiness(
   tx: Tx,
   app: App,
   visibility?: { actor: Actor; access: ApplicationAccess },
+  context: ClosingReadContext = {},
 ) {
+  const signatureEvidenceCurrent =
+    context.signatureEvidenceCurrent ?? createSignatureEvidenceReader(tx);
   const blockers: ReadinessBlocker[] = [];
   const add = (
     kind: ReadinessBlocker["kind"],
@@ -137,7 +140,7 @@ export async function evaluateReadiness(
     const clean = evidence
       .filter((e) => e.taskId === task.id)
       .every((e) => e.uploadState === "uploaded" && e.scanState === "clean");
-    const signatureCurrent = taskPasses(task) && (await signatureTaskEvidenceCurrent(tx, task.id));
+    const signatureCurrent = taskPasses(task) && (await signatureEvidenceCurrent(task.id));
     const waiverCurrent =
       task.state !== "waived" ||
       waivers.some(
@@ -243,7 +246,10 @@ export async function evaluateReadiness(
       );
   }
   if (app.status === "closing") {
-    const closingBlockers = await closingRequirementBlockers(tx, app.bankId, app.id);
+    const closingBlockers = await closingRequirementBlockers(tx, app.bankId, app.id, {
+      ...context,
+      signatureEvidenceCurrent,
+    });
     blockers.push(
       ...closingBlockers.filter(
         (blocker) =>

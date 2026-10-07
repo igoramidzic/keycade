@@ -106,6 +106,7 @@ export const applicationSetupSchema = applicationSelectionSchema.extend({
 export const applicationPortalSchema = applicationSelectionSchema.extend({
   purpose: z.string().nullable(),
   remainingTasks: z.number().int().nonnegative(),
+  canReview: z.boolean().default(false),
 });
 export const applicationPageSchema = z.object({
   items: z.array(applicationSelectionSchema),

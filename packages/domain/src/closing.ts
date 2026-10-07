@@ -41,6 +41,7 @@ import {
   queueTaskNotification,
 } from "./notification-intents.js";
 import { evaluateReadiness } from "./readiness.js";
+import { createSignatureEvidenceReader } from "./signatures.js";
 import { reconcileTasks } from "./tasks.js";
 
 type Tx = DatabaseTransaction;
@@ -218,8 +219,13 @@ async function view(tx: Tx, actor: Actor, app: App, access: ApplicationAccess) {
         eq(applicationClosingPackages.applicationId, app.id),
       ),
     );
-  const conditions = await readClosingConditions(tx, app.bankId, app.id);
-  const readiness = await evaluateReadiness(tx, app, staff ? undefined : { actor, access });
+  const signatureEvidenceCurrent = createSignatureEvidenceReader(tx);
+  const conditions = await readClosingConditions(tx, app.bankId, app.id, signatureEvidenceCurrent);
+  const readiness = await evaluateReadiness(tx, app, staff ? undefined : { actor, access }, {
+    signatureEvidenceCurrent,
+    packageExists: !!pkg,
+    conditions,
+  });
   const account = await accountRow(tx, app);
   const approvedCurrent = !!(
     decision?.current &&
@@ -473,7 +479,13 @@ export function createClosingService(
           JSON.stringify(approvedTermsSchema.parse(pkg.terms)) !== JSON.stringify(decision.terms)
         )
           invalid("The closing package no longer matches the approved terms.");
-        const conditions = await readClosingConditions(tx, bankId, applicationId);
+        const signatureEvidenceCurrent = createSignatureEvidenceReader(tx);
+        const conditions = await readClosingConditions(
+          tx,
+          bankId,
+          applicationId,
+          signatureEvidenceCurrent,
+        );
         if (
           !conditions.some((c) => c.kind === "signature" && c.required) ||
           conditions.some((c) => c.required && !c.passes)
@@ -481,7 +493,11 @@ export function createClosingService(
           invalid(
             "Complete every required closing condition and current simulated signature first.",
           );
-        const readiness = await evaluateReadiness(tx, app);
+        const readiness = await evaluateReadiness(tx, app, undefined, {
+          signatureEvidenceCurrent,
+          packageExists: true,
+          conditions,
+        });
         if (!readiness.gates.find((g) => g.stage === "closing")?.ready)
           invalid("Current required tasks, checks and signed evidence must pass the closing gate.");
         const fund = recordFundingSchema.parse(data);

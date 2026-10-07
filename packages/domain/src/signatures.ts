@@ -155,6 +155,20 @@ export async function signatureTaskEvidenceCurrent(db: QueryDatabase, taskId: st
       return false;
   return true;
 }
+export type SignatureEvidenceReader = (taskId: string) => Promise<boolean>;
+/** Share only during one read evaluation under the application lock. Create a new
+ * reader after any writes; neither transactions nor later requests reuse this memo. */
+export function createSignatureEvidenceReader(db: QueryDatabase): SignatureEvidenceReader {
+  const current = new Map<string, Promise<boolean>>();
+  return (taskId) => {
+    let result = current.get(taskId);
+    if (!result) {
+      result = signatureTaskEvidenceCurrent(db, taskId);
+      current.set(taskId, result);
+    }
+    return result;
+  };
+}
 async function audit(
   tx: Tx,
   envelope: Envelope,
