@@ -15,7 +15,12 @@ for (const key of ["KEYCADE_E2E_BORROWER_ORIGIN", "KEYCADE_E2E_STAFF_ORIGIN"]) {
 
 export default defineConfig({
   ...base,
-  testMatch: ["demo-inbox.spec.ts", "hosted-demo.spec.ts"],
+  testMatch: [
+    "demo-inbox.spec.ts",
+    "hosted-demo.spec.ts",
+    "closing.spec.ts",
+    "hosted-enrichment.spec.ts",
+  ],
   fullyParallel: false,
   workers: 1,
   retries: 0,

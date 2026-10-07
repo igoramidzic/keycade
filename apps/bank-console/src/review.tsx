@@ -1,6 +1,7 @@
 import { reviewReasonLabels, reviewViewSchema } from "@keycade/contracts";
 import { buttonVariants } from "@keycade/ui/components/button";
 import { ReviewManager } from "@keycade/ui/components/review-manager";
+import { readinessRefreshInterval } from "@keycade/ui/lib/refresh-policy";
 import { reviewCommand, reviewReasons } from "@keycade/ui/lib/review-actions";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "react-router";
@@ -19,7 +20,8 @@ export function ApplicationReview({ applicationId }: { applicationId: string }) 
     retry: false,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
-    refetchInterval: 5000,
+    refetchInterval: (query) =>
+      query.state.error ? false : readinessRefreshInterval(query.state.data?.readiness),
   });
   if (review.isPending || !review.isFetchedAfterMount)
     return <Loading>Loading application review…</Loading>;

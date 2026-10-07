@@ -1,6 +1,7 @@
 import { readinessViewSchema } from "@keycade/contracts";
 import { ReadinessPanel } from "@keycade/ui/components/checks-manager";
 import type { AuthenticatedSession } from "@keycade/ui/components/identity-portal";
+import { readinessRefreshInterval } from "@keycade/ui/lib/refresh-policy";
 import { useQuery } from "@tanstack/react-query";
 import { ApiError, request } from "./api";
 import { ErrorNotice, Loading } from "./workspace-ui";
@@ -23,7 +24,8 @@ export function ApplicationReadiness({
     retry: false,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
-    refetchInterval: 3000,
+    refetchInterval: (query) =>
+      query.state.error ? false : readinessRefreshInterval(query.state.data),
   });
   if (readiness.isPending || !readiness.isFetchedAfterMount) return <Loading />;
   if (

@@ -1,4 +1,5 @@
 import { authSessionSchema } from "@keycade/contracts";
+import { currentSession, rememberSession } from "@keycade/ui/lib/session-snapshot";
 
 export class ApiError extends Error {
   constructor(
@@ -22,8 +23,11 @@ export async function request<T>(
 ): Promise<T> {
   const method = options.method ?? "GET";
   let csrf: string | undefined;
+  let expectedSession: string | undefined;
   if (method !== "GET" || options.bankId || options.actorEmail) {
-    const session = await request("/api/v1/auth/session", authSessionSchema);
+    const session =
+      currentSession() ??
+      (await request("/api/v1/auth/session", authSessionSchema, { signal: options.signal }));
     if (!session.authenticated)
       throw new ApiError(
         "SESSION_EXPIRED",
@@ -39,6 +43,7 @@ export async function request<T>(
         401,
         "Your sign-in changed. Return to your original account to continue.",
       );
+    expectedSession = session.csrfToken;
     if (method !== "GET") csrf = session.csrfToken;
   }
   const response = await fetch(path, {
@@ -49,6 +54,7 @@ export async function request<T>(
       Accept: "application/json",
       ...(options.body ? { "Content-Type": "application/json" } : {}),
       ...(csrf ? { "x-csrf-token": csrf } : {}),
+      ...(expectedSession ? { "x-keycade-session": expectedSession } : {}),
     },
     body: options.body ? JSON.stringify(options.body) : undefined,
     signal: options.signal
@@ -64,12 +70,19 @@ export async function request<T>(
         ? "This application is unavailable for your account."
         : (data?.error?.message ?? "We couldn’t complete your request. Please try again."),
     );
-  if (options.bankId || options.actorEmail) {
+  // Native Worker builds can finish independently. Older APIs need the explicit post-check.
+  if (expectedSession && response.headers.get("x-keycade-session-bound") !== "1") {
     const current = await request("/api/v1/auth/session", authSessionSchema, {
       signal: options.signal,
     });
+    if (!current.authenticated || current.csrfToken !== expectedSession)
+      throw new ApiError("SESSION_CHANGED", 401, "Your sign-in changed. Please sign in again.");
+  }
+  if (options.bankId || options.actorEmail) {
+    const current = currentSession();
     if (
-      !current.authenticated ||
+      !current?.authenticated ||
+      current.csrfToken !== expectedSession ||
       (options.bankId && current.bank.id !== options.bankId) ||
       (options.actorEmail && current.user.email !== options.actorEmail)
     ) {
@@ -80,7 +93,9 @@ export async function request<T>(
       );
     }
   }
-  return schema.parse(data);
+  const parsed = schema.parse(data);
+  if (path === "/api/v1/auth/session") rememberSession(authSessionSchema.parse(parsed));
+  return parsed;
 }
 export const errorMessage = (error: unknown) =>
   error instanceof ApiError

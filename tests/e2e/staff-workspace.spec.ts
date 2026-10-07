@@ -161,7 +161,9 @@ test("staff creates and updates a prefilled draft, then the emailed borrower con
     const link = await waitForLink(borrower, email, previous);
     await openLink(borrowerPage, link);
     await borrowerPage.getByRole("button", { name: "Confirm and sign in", exact: true }).click();
-    await borrowerPage.getByRole("button", { name: "Continue setup", exact: true }).click();
+    await expect(borrowerPage).toHaveURL(
+      (url) => url.origin === borrower && url.pathname === `/applications/${applicationId}/setup`,
+    );
     await expect(borrowerPage.getByLabel("Business name", { exact: true })).toHaveValue(
       businessName,
     );
@@ -325,7 +327,9 @@ test("queue loading and service failure are clear and retryable", async ({ page 
   });
   try {
     await signIn(page);
-    await expect(page.getByRole("status").filter({ hasText: "Loading" })).toBeVisible();
+    await expect(
+      page.getByRole("status").filter({ hasText: "Loading applications" }),
+    ).toBeVisible();
     await noOverflow(page);
   } finally {
     release();

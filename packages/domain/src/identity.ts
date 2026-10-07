@@ -468,10 +468,18 @@ export function createIdentityService(
   async function resolveSession(raw: string, origin: string): Promise<IdentitySession | null> {
     if (!/^[a-f0-9]{64}$/.test(raw)) return null;
     const [record] = await db
-      .select({ session: sessions, user: users, bank: banks })
+      .select({ session: sessions, user: users, bank: banks, staffRole: bankMemberships.role })
       .from(sessions)
       .innerJoin(users, eq(users.id, sessions.userId))
       .innerJoin(banks, eq(banks.id, sessions.bankId))
+      .leftJoin(
+        bankMemberships,
+        and(
+          eq(bankMemberships.bankId, sessions.bankId),
+          eq(bankMemberships.userId, sessions.userId),
+          isNull(bankMemberships.revokedAt),
+        ),
+      )
       .where(
         and(
           eq(sessions.tokenHash, hashIdentityCredential(raw)),
@@ -489,17 +497,7 @@ export function createIdentityService(
         ),
       );
     if (!record) return null;
-    const [membership] = await db
-      .select({ role: bankMemberships.role })
-      .from(bankMemberships)
-      .where(
-        and(
-          eq(bankMemberships.bankId, record.bank.id),
-          eq(bankMemberships.userId, record.user.id),
-          isNull(bankMemberships.revokedAt),
-        ),
-      );
-    if (record.session.portal === "staff" && !membership) return null;
+    if (record.session.portal === "staff" && !record.staffRole) return null;
     return {
       id: record.session.id,
       user: { id: record.user.id, email: record.user.email, displayName: record.user.displayName },
@@ -508,7 +506,7 @@ export function createIdentityService(
       authenticationMethod: record.session.authenticationMethod,
       csrfToken: csrfForSession(raw),
       expiresAt: record.session.expiresAt.toISOString(),
-      staffRole: membership?.role ?? null,
+      staffRole: record.staffRole,
       actor: {
         kind: "user",
         userId: record.user.id,

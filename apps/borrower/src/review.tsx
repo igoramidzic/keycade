@@ -2,6 +2,7 @@ import { reviewReasonLabels, reviewViewSchema } from "@keycade/contracts";
 import { buttonVariants } from "@keycade/ui/components/button";
 import type { AuthenticatedSession } from "@keycade/ui/components/identity-portal";
 import { ReviewManager } from "@keycade/ui/components/review-manager";
+import { readinessRefreshInterval } from "@keycade/ui/lib/refresh-policy";
 import { reviewCommand, reviewReasons } from "@keycade/ui/lib/review-actions";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, request } from "./api";
@@ -19,7 +20,8 @@ export function useApplicationReview(session: AuthenticatedSession, applicationI
     retry: false,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
-    refetchInterval: 5000,
+    refetchInterval: (query) =>
+      query.state.error ? false : readinessRefreshInterval(query.state.data?.readiness),
   });
 }
 

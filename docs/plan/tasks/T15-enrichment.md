@@ -35,7 +35,7 @@ No live tax/registry API, legal consent standard, or claim of real verification 
 
 ## Implementation record
 
-Done — local industry search, private identifier storage and protected business/tax simulation APIs validated October 7, 2026. T16 owns private task-entry integration, identity/fraud checks and the full bank-workspace presentation. Hosted identifier/enrichment deployment acceptance remains unverified.
+Done — local industry search, private identifier storage and protected business/tax simulation APIs validated October 7, 2026. T16 owns private task-entry integration, identity/fraud checks and the full bank-workspace presentation. Hosted identifier/enrichment acceptance subsequently passed at checkpoint `5a3c1a5`; evidence below.
 
 ### Industry catalog and picker — October 7, 2026
 
@@ -58,7 +58,7 @@ Done — local industry search, private identifier storage and protected busines
 
 - **4 protected HTTP tests passed** across Fastify and native Workers transports, exercising the shared identifier, authorization, request, confirmation and retry contracts with synthetic data. The local worker receives the generated encryption key and processes durable enrichment intent with configured delays.
 - Second-checkpoint aggregate: `pnpm check` passed formatting/lint, workspace typechecks and **256 unit tests in 18 suites**; `pnpm test:integration` passed **228 tests in 27 suites**. The earlier worker dependency-resolution failure was repaired before the successful full run. API and worker deployment dry runs passed.
-- The deployed hosted environment has no enrichment encryption key configured, and no new deployment was validated in this checkpoint. Hosted identifier/enrichment access therefore remains unavailable/unverified; passing the native HTTP adapter and dry-run build is not hosted acceptance. Local generated keys and synthetic data are the demonstrated target.
+- At the second checkpoint, the hosted environment had no enrichment encryption key and no deployed identifier/enrichment acceptance had run. D03 subsequently installed the shared private key; the hosted acceptance below verifies the deployed path rather than inferring it from the earlier native transport tests.
 - Protected API operations are under an application's `/enrichment` route: read the safe view, save a registered synthetic identifier, explicitly authorize sample tax availability, request a business/tax run, and explicitly confirm a current suggested fact. Staff can retry permitted terminal requests with an allowlisted reason. T16 adds the corresponding private tasks and staff readiness presentation; it must lock material identifier/authorization changes against submitted or decided snapshots together with T19's lifecycle policy.
 
 ### Intake feedback — October 7, 2026
@@ -66,3 +66,21 @@ Done — local industry search, private identifier storage and protected busines
 The user requested a searchable, fuzzy-matching NAICS combobox rather than the current short industry dropdown. “NEX code” refers to the industry-classification search already described in the product plan. This expands T15's original small-fixture requirement to a versioned catalog with hundreds of entries and source evaluation. Implementation stays deferred to T15; T08's optional fixture remains usable in the meantime. Dependencies remain T05 and T08.
 
 Final checkpoint: `pnpm check` passed all workspace/root typechecks and **256 unit tests in 18 files**; `pnpm build` passed all **12 workspace builds**. Existing Vite chunk-size advisories remain non-fatal. Additive migrations applied locally and development readiness confirms both PostgreSQL and the worker are available.
+
+### Hosted identifier and enrichment acceptance — October 7, 2026
+
+At deployed checkpoint `5a3c1a5`, all five native Cloudflare builds and [Neon migration run 37676993377](https://github.com/igoramidzic/keycade/actions/runs/37676993377) passed. The focused `tests/e2e/hosted-enrichment.spec.ts` case passed against the actual borrower URL in 1.0 minute:
+
+- Signed in as a new fictional `example.test` demo identity and created/completed setup for only its new synthetic application, `eeb09326-349f-4f26-b22d-2017e199c56b`.
+- Requested sample tax availability before inputs and observed `waiting_for_input` for identifier and tax authorization.
+- Saved registered invalid-for-real-world identifier `000000001`; the response exposed only `**-***0001`. Explicitly authorized the `demo-tax-v1` notice, then requested business simulation.
+- Observed both current runs succeed through the hosted worker. Shared strict contracts parsed the simulated result, two business suggestions and one sample tax-availability record. No suggested fact was confirmed automatically; business name, amount, purpose and application revision remained unchanged.
+
+Report: `.local/hosted-enrichment-5a3c1a5/report.json`. No external registry/tax provider, real identifier, authentication trace or bearer artifact was used. Existing hosted applications were untouched. This narrow acceptance complements the local privacy/staleness/failure suites; it does not claim those negative cases all ran against the shared hosted demo.
+
+```sh
+KEYCADE_E2E_HOSTED=true DEMO_INBOX_ENABLED=true \
+KEYCADE_E2E_BORROWER_ORIGIN=https://keycade-borrower.kualia.workers.dev \
+KEYCADE_E2E_STAFF_ORIGIN=https://keycade-bank-console.kualia.workers.dev \
+pnpm exec playwright test tests/e2e/hosted-enrichment.spec.ts --config=playwright.hosted.config.ts
+```

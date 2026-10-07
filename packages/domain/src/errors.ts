@@ -1,5 +1,6 @@
 export type DomainErrorCode =
   | "FORBIDDEN"
+  | "SESSION_CHANGED"
   | "NOT_FOUND"
   | "REVISION_CONFLICT"
   | "INVALID_STATE"

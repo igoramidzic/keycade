@@ -4,19 +4,21 @@ import type { ClosingView, DocumentsView } from "@keycade/contracts";
 import { syntheticDocumentPdf } from "@keycade/integrations/document-fixtures";
 import { type BrowserContext, expect as baseExpect, type Page, test } from "@playwright/test";
 import { prepareReview, workflowApi } from "./closing-helpers";
+import { confirmHostedInboxMessage, paceHostedRequests } from "./hosted-helpers";
 import { messages, openLink, waitForLink } from "./identity-helpers";
 
 const env = readEnvironment();
-const borrower = `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
-const staff = `http://127.0.0.1:${env.BANK_CONSOLE_PORT ?? 3002}`;
+const borrower = env.KEYCADE_E2E_BORROWER_ORIGIN ?? `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
+const staff = env.KEYCADE_E2E_STAFF_ORIGIN ?? `http://127.0.0.1:${env.BANK_CONSOLE_PORT ?? 3002}`;
+const hosted = env.KEYCADE_E2E_HOSTED === "true";
 test.use({ trace: "off", screenshot: "off", video: "off", actionTimeout: 25000 });
-test.setTimeout(420000);
-const expect = baseExpect.configure({ timeout: 15000 });
-async function signIn(page: Page, origin: string) {
+test.setTimeout(hosted ? 900000 : 420000);
+const expect = baseExpect.configure({ timeout: hosted ? 30000 : 15000 });
+async function signIn(page: Page, origin: string, email?: string) {
   await page.goto(origin);
   await page
     .getByLabel("Email address", { exact: true })
-    .fill(origin === staff ? "officer-a@example.test" : "borrower@example.test");
+    .fill(email ?? (origin === staff ? "officer-a@example.test" : "borrower@example.test"));
   await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
   await expect(
     page.getByRole("heading", {
@@ -39,6 +41,7 @@ test("approved terms progress through two signatures and explicit funding into o
 }, testInfo) => {
   let nextRequestAt = 0;
   const pace = async (context: BrowserContext) => {
+    if (hosted) return paceHostedRequests(context);
     await context.route("**/api/**", async (route) => {
       if (!route.request().url().includes("/api/v1/auth/session")) {
         const startAt = Math.max(Date.now(), nextRequestAt);
@@ -53,7 +56,21 @@ test("approved terms progress through two signatures and explicit funding into o
     });
   };
   await pace(page.context());
-  await signIn(page, borrower);
+  const primaryEmail = hosted
+    ? `hosted-closing-${randomUUID()}@example.test`
+    : "borrower@example.test";
+  if (hosted) {
+    await page.goto(`${borrower}/?bank=bank-a`);
+    await page.getByLabel("Email address", { exact: true }).fill(primaryEmail);
+    await page.getByRole("button", { name: "Use an email link instead", exact: true }).click();
+    await page.getByRole("button", { name: "Send sign-in link", exact: true }).click();
+    await expect(page.getByText("Check your inbox", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Open demo inbox", exact: true }).click();
+    await confirmHostedInboxMessage(page, "Your Keycade sign-in link");
+    await expect(
+      page.getByRole("heading", { name: "Your applications", exact: true }),
+    ).toBeVisible();
+  } else await signIn(page, borrower);
   await page.goto(`${borrower}/api/ready`);
   const officerContext = await browser.newContext({ viewport: page.viewportSize() });
   const signerContext = await browser.newContext({ viewport: page.viewportSize() });
@@ -63,7 +80,10 @@ test("approved terms progress through two signatures and explicit funding into o
     const officer = await officerContext.newPage();
     await signIn(officer, staff);
     await officer.goto(`${staff}/api/ready`);
-    const app = await prepareReview(page, officer);
+    const app = await prepareReview(page, officer, { checkTimeoutMs: hosted ? 120000 : 30000 });
+    testInfo.annotations.push({ type: "synthetic_application", description: app.id });
+    if (hosted)
+      console.log("Hosted closing: synthetic application is ready for explicit staff approval.");
     const base = `/applications/${app.id}`;
     const url = (origin: string, section: string) => `${origin}${base}/${section}?bank=bank-a`;
     await officer.goto(url(staff, "review"));
@@ -141,7 +161,7 @@ test("approved terms progress through two signatures and explicit funding into o
     });
     const document = officer.getByRole("listitem", { name: `Document ${fileName}`, exact: true });
     await expect(document.getByRole("button", { name: "Download", exact: true })).toBeVisible({
-      timeout: 25000,
+      timeout: hosted ? 120000 : 25000,
     });
     const documents = await workflowApi<DocumentsView>(officer, "GET", `${base}/documents`);
     const source = documents.documents.find((document) =>
@@ -149,7 +169,7 @@ test("approved terms progress through two signatures and explicit funding into o
     );
     if (!source?.currentVersionId) throw new Error("Clean synthetic closing source missing.");
     const email = `closing-signer-${randomUUID()}@example.test`;
-    const previous = new Set((await messages()).map((message) => message.ID));
+    const previous = new Set(hosted ? [] : (await messages()).map((message) => message.ID));
     await workflowApi(officer, "POST", `${base}/participants/invitations`, {
       idempotencyKey: randomUUID(),
       email,
@@ -159,8 +179,15 @@ test("approved terms progress through two signatures and explicit funding into o
       documentIds: [source.id],
     });
     const signer = await signerContext.newPage();
-    await openLink(signer, await waitForLink(borrower, email, previous));
-    await signer.getByRole("button", { name: "Confirm and sign in", exact: true }).click();
+    if (hosted) {
+      await officer.goto(`${staff}/api/ready`);
+      await signIn(signer, borrower, email);
+      await signer.getByRole("link", { name: "Demo inbox", exact: true }).click();
+      await confirmHostedInboxMessage(signer, "Your application invitation");
+    } else {
+      await openLink(signer, await waitForLink(borrower, email, previous));
+      await signer.getByRole("button", { name: "Confirm and sign in", exact: true }).click();
+    }
     await signer.getByRole("button", { name: "Accept invitation", exact: true }).click();
     await expect(signer.getByRole("heading", { name: "Tasks", exact: true })).toBeVisible();
     await signer.goto("about:blank");
@@ -169,7 +196,7 @@ test("approved terms progress through two signatures and explicit funding into o
     await officer
       .getByLabel("Current document", { exact: true })
       .selectOption(source.currentVersionId);
-    await officer.getByLabel(/borrower@example\.test/).check();
+    await officer.getByLabel(new RegExp(primaryEmail.replaceAll(".", "\\."))).check();
     await officer.getByLabel(new RegExp(email.replaceAll(".", "\\."))).check();
     await officer.getByRole("button", { name: "Create simulated request", exact: true }).click();
     const envelope = officer.getByRole("region", {
@@ -178,7 +205,7 @@ test("approved terms progress through two signatures and explicit funding into o
     });
     await envelope.getByRole("button", { name: "Send request", exact: true }).click();
     await expect(envelope.getByText("Sent in demo", { exact: true })).toBeVisible({
-      timeout: 25000,
+      timeout: hosted ? 120000 : 25000,
     });
     await officer.goto(`${staff}/api/ready`);
     await page.goto(url(borrower, "signatures"));
@@ -206,6 +233,8 @@ test("approved terms progress through two signatures and explicit funding into o
       .check();
     await invited.getByRole("button", { name: "Sign in demo", exact: true }).click();
     await expect(invited.getByText("Completed", { exact: true })).toBeVisible();
+    if (hosted)
+      console.log("Hosted closing: both intended signers completed the current closing agreement.");
     await signer.goto("about:blank");
 
     await page.goto(url(borrower, "closing"));
@@ -266,6 +295,11 @@ test("approved terms progress through two signatures and explicit funding into o
     ).toBeVisible();
     const funded = await workflowApi<ClosingView>(officer, "GET", `${base}/closing`);
     expect(funded.account).not.toBeNull();
+    if (funded.account)
+      testInfo.annotations.push({
+        type: "synthetic_funded_account",
+        description: funded.account.id,
+      });
     const replay = await workflowApi<ClosingView>(officer, "POST", `${base}/closing/fund`, command);
     expect(replay.account?.id).toBe(funded.account?.id);
     expect(replay.account?.fundedAmount).toBe("19000.25");
@@ -323,6 +357,37 @@ test("approved terms progress through two signatures and explicit funding into o
       signer.getByText("This application is unavailable for your account.", { exact: true }),
     ).toBeVisible();
     await expect(signer.getByRole("article", { name: /^Funded account / })).toHaveCount(0);
+    if (hosted) {
+      console.log(
+        "Hosted closing: funding replay returned one account; applicant/staff summaries and assigned-signer denial passed.",
+      );
+      await signer.goto("about:blank");
+      await page.goto(url(borrower, "activity"));
+      const activity = page.getByRole("region", { name: "Application activity", exact: true });
+      await expect(activity.getByText("Simulated funding recorded", { exact: true })).toBeVisible();
+      await expect(activity.getByText("Support reference", { exact: true })).toHaveCount(0);
+      await noOverflow(page);
+      await page.screenshot({
+        path: testInfo.outputPath("hosted-funded-activity.png"),
+        fullPage: true,
+      });
+      await page.goto(`${borrower}/api/ready`);
+      await officer.goto(url(staff, "operations"));
+      const operations = officer.getByRole("region", {
+        name: "Background operations",
+        exact: true,
+      });
+      await expect(operations.getByText("Responding", { exact: true })).toBeVisible();
+      expect(await operations.getByRole("listitem").count()).toBeGreaterThan(0);
+      await noOverflow(officer);
+      await officer.screenshot({
+        path: testInfo.outputPath("hosted-funded-operations.png"),
+        fullPage: true,
+      });
+      console.log(
+        "Hosted closing: scoped funding activity and staff background operations are visible.",
+      );
+    }
   } finally {
     await officerContext.close();
     await signerContext.close();

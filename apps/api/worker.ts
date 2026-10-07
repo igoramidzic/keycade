@@ -5,6 +5,7 @@ import { handleWorkerRequest } from "./src/worker-handler";
 
 export default {
   async fetch(request, env, ctx) {
+    const startedAt = performance.now();
     // Hyperdrive owns pooling at the edge; the app pool belongs only to this request.
     const { db, pool } = createDatabase(env.HYPERDRIVE.connectionString, { max: 1 });
     try {
@@ -42,6 +43,20 @@ export default {
             simulation: true,
           };
         },
+      });
+      const durationMs = Math.round(performance.now() - startedAt);
+      response.headers.set("server-timing", `api;dur=${durationMs}`);
+      // No raw URL, query, identity, cookie or document content enters the logs.
+      const resource =
+        new URL(request.url).pathname.match(
+          /\/(session|tasks|documents|readiness|review|portal|checks|closing)(?:\/|$)/,
+        )?.[1] ?? "other";
+      console.info({
+        event: "api.request",
+        resource,
+        method: request.method,
+        status: response.status,
+        durationMs,
       });
       if (response.ok && ["POST", "PATCH", "DELETE"].includes(request.method)) {
         // Persisted work is authoritative. This best-effort queue wake shortens demo latency;

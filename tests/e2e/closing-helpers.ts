@@ -29,7 +29,11 @@ export async function workflowApi<T>(
   );
 }
 
-export async function prepareReview(applicant: Page, officer: Page) {
+export async function prepareReview(
+  applicant: Page,
+  officer: Page,
+  options: { checkTimeoutMs?: number } = {},
+) {
   let app = await workflowApi<ApplicationSetup>(applicant, "POST", "/applications", {
     idempotencyKey: randomUUID(),
   });
@@ -102,7 +106,7 @@ export async function prepareReview(applicant: Page, officer: Page) {
         (await workflowApi<ReviewView>(officer, "GET", `${base}/review`)).readiness.gates
           .find((gate) => gate.stage === "approval")
           ?.blockers.filter((blocker) => blocker.kind !== "lifecycle").length,
-      { timeout: 30000, intervals: [2000] },
+      { timeout: options.checkTimeoutMs ?? 30000, intervals: [2000] },
     )
     .toBe(0);
   let review = await workflowApi<ReviewView>(applicant, "GET", `${base}/review`);

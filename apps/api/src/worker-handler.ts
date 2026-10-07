@@ -91,6 +91,7 @@ import { z } from "zod";
 import {
   type Authentication,
   accessLinkMessage,
+  assertExpectedSession,
   assertSessionBank,
   authenticateSession,
   type IdentityTransportOptions,
@@ -129,7 +130,7 @@ export async function handleWorkerRequest(
   deps: WorkerDependencies,
 ): Promise<Response> {
   const requestId = crypto.randomUUID();
-  const headers = {
+  const headers: Record<string, string> = {
     "cache-control": "no-store",
     "x-request-id": requestId,
     "x-content-type-options": "nosniff",
@@ -720,6 +721,8 @@ export async function handleWorkerRequest(
           origin,
           deps.demoSignInEnabled,
         );
+    assertExpectedSession(authentication, request.headers.get("x-keycade-session"));
+    if (request.headers.has("x-keycade-session")) headers["x-keycade-session-bound"] = "1";
     if (
       !get &&
       request.method !== "OPTIONS" &&

@@ -7,6 +7,7 @@ import {
 import { DocumentsManager } from "@keycade/ui/components/documents-manager";
 import type { AuthenticatedSession } from "@keycade/ui/components/identity-portal";
 import { createDocumentTransfer } from "@keycade/ui/lib/document-transfer";
+import { documentRefreshInterval } from "@keycade/ui/lib/refresh-policy";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { ApiError, errorMessage, request } from "./api";
@@ -47,7 +48,8 @@ export function useApplicationDocuments({
     retry: false,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
-    refetchInterval: 3_000,
+    refetchInterval: (query) =>
+      query.state.error ? false : documentRefreshInterval(query.state.data),
   });
   const transfer = createDocumentTransfer({
     base,

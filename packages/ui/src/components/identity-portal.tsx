@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from "@keycade/ui/components/card";
 import { Input } from "@keycade/ui/components/input";
+import { rememberSession } from "@keycade/ui/lib/session-snapshot";
 import { Check, CircleAlert, LoaderCircle, LockKeyhole, Mail } from "lucide-react";
 import { type FormEvent, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
@@ -75,7 +76,9 @@ async function fetchSession(signal?: AbortSignal): Promise<Session> {
   if (!result || typeof result !== "object" || !("authenticated" in result)) {
     throw new Error("Session unavailable");
   }
-  return result as Session;
+  const session = result as Session;
+  if (!signal?.aborted) rememberSession(session);
+  return session;
 }
 
 export function IdentityPortal({
@@ -373,6 +376,7 @@ export function IdentityPortal({
       clearConfirmation();
       startKey.current = null;
       createKey.current = null;
+      rememberSession({ authenticated: false });
       setSession({
         authenticated: false,
         demoSignInEnabled: session.demoSignInEnabled,

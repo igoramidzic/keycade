@@ -1,5 +1,6 @@
 import { authSessionSchema } from "@keycade/contracts";
 import type { AuthenticatedSession } from "@keycade/ui/components/identity-portal";
+import { currentSession } from "@keycade/ui/lib/session-snapshot";
 import { createContext, useContext } from "react";
 
 export class ApiError extends Error {
@@ -58,7 +59,6 @@ export function createStaffApi(session: AuthenticatedSession, onDenied: () => vo
     const signal = options.signal
       ? AbortSignal.any([options.signal, AbortSignal.timeout(15_000)])
       : AbortSignal.timeout(15_000);
-    const current = await verify(signal);
     const response = await fetch(`${base}${path}`, {
       method: options.method ?? "GET",
       credentials: "same-origin",
@@ -67,8 +67,9 @@ export function createStaffApi(session: AuthenticatedSession, onDenied: () => vo
       headers: {
         Accept: "application/json",
         ...(options.method && options.method !== "GET"
-          ? { "x-csrf-token": current.csrfToken }
+          ? { "x-csrf-token": session.csrfToken }
           : {}),
+        "x-keycade-session": session.csrfToken,
         ...(options.body ? { "Content-Type": "application/json" } : {}),
       },
       body: options.body ? JSON.stringify(options.body) : undefined,
@@ -84,7 +85,27 @@ export function createStaffApi(session: AuthenticatedSession, onDenied: () => vo
           : (data?.error?.message ?? "We couldn’t complete your request. Please try again."),
       );
     // A response started by an old account must never populate the current account's screen.
-    await verify(signal);
+    // An older API may still serve traffic while the five native builds finish independently.
+    if (response.headers.get("x-keycade-session-bound") !== "1") {
+      const verified = await verify(signal);
+      if (verified.csrfToken !== session.csrfToken) {
+        onDenied();
+        throw new ApiError(
+          "SESSION_CHANGED",
+          401,
+          "Your staff session changed. Please sign in again.",
+        );
+      }
+    }
+    const current = currentSession();
+    if (!current?.authenticated || current.csrfToken !== session.csrfToken) {
+      onDenied();
+      throw new ApiError(
+        "SESSION_CHANGED",
+        401,
+        "Your staff session changed. Please sign in again.",
+      );
+    }
     return schema.parse(data);
   }
   const request: <T>(

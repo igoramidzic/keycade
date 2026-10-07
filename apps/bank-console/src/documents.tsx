@@ -5,6 +5,7 @@ import {
 } from "@keycade/contracts";
 import { DocumentsManager } from "@keycade/ui/components/documents-manager";
 import { createDocumentTransfer } from "@keycade/ui/lib/document-transfer";
+import { documentRefreshInterval } from "@keycade/ui/lib/refresh-policy";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { ApiError, useStaffApi } from "./api";
@@ -41,7 +42,8 @@ export function useApplicationDocuments({ applicationId }: Pick<DocumentsProps, 
     retry: false,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
-    refetchInterval: 3_000,
+    refetchInterval: (query) =>
+      query.state.error ? false : documentRefreshInterval(query.state.data),
   });
   const transfer = createDocumentTransfer({
     base: `${api.bankBase}${base}`,

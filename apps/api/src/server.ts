@@ -103,6 +103,7 @@ import { z } from "zod";
 import {
   type Authentication,
   accessLinkMessage,
+  assertExpectedSession,
   assertSessionBank,
   authenticateSession,
   type IdentityTransportOptions,
@@ -178,7 +179,13 @@ export async function buildServer(options: ServerOptions) {
   const app = Fastify({
     logger: options.logger
       ? {
-          redact: ["req.headers.authorization", "req.headers.cookie", "res.headers.set-cookie"],
+          redact: [
+            "req.headers.authorization",
+            "req.headers.cookie",
+            'req.headers["x-csrf-token"]',
+            'req.headers["x-keycade-session"]',
+            "res.headers.set-cookie",
+          ],
           serializers: {
             req: (request) => ({ method: request.method }),
             res: (reply) => ({ statusCode: reply.statusCode }),
@@ -248,6 +255,8 @@ export async function buildServer(options: ServerOptions) {
           originFor(request),
           options.demoSignInEnabled,
         );
+    assertExpectedSession(request.authentication, request.headers["x-keycade-session"]);
+    if (request.headers["x-keycade-session"]) reply.header("x-keycade-session-bound", "1");
     if (
       !["GET", "HEAD", "OPTIONS"].includes(request.method) &&
       request.authentication.actor.kind === "user" &&

@@ -1,7 +1,13 @@
 import type { AuthPortal } from "@keycade/contracts";
 import type { Database } from "@keycade/db";
-import { type Actor, createIdentityService, deny, requireBankStaff } from "@keycade/domain";
-import { readSessionCookie } from "./security.js";
+import {
+  type Actor,
+  createIdentityService,
+  DomainError,
+  deny,
+  requireBankStaff,
+} from "@keycade/domain";
+import { readSessionCookie, validCsrfToken } from "./security.js";
 
 export type IdentityService = ReturnType<typeof createIdentityService>;
 export type Session = NonNullable<Awaited<ReturnType<IdentityService["resolveSession"]>>>;
@@ -9,6 +15,16 @@ export interface Authentication {
   actor: Actor;
   csrfToken?: string;
   session?: Session;
+}
+
+/** Bind a browser read to the session that mounted its workspace. This header never authenticates. */
+export function assertExpectedSession(authentication: Authentication, expected: unknown) {
+  if (
+    expected !== undefined &&
+    expected !== null &&
+    !validCsrfToken(expected, authentication.csrfToken)
+  )
+    throw new DomainError("SESSION_CHANGED", 401, "Your sign-in changed. Please sign in again.");
 }
 export interface IdentityTransportOptions {
   /** An explicit set per portal; link destinations never come from Host or forwarding headers. */

@@ -42,6 +42,7 @@ for (const transport of ["fastify", "worker"] as const) {
           origin?: string;
           cookie?: string;
           csrf?: string;
+          expectedSession?: string;
           body?: unknown;
           ip?: string;
           omitOrigin?: boolean;
@@ -54,6 +55,7 @@ for (const transport of ["fastify", "worker"] as const) {
           ...(input.omitOrigin ? {} : { origin }),
           ...(input.cookie ? { cookie: input.cookie } : {}),
           ...(input.csrf ? { "x-csrf-token": input.csrf } : {}),
+          ...(input.expectedSession ? { "x-keycade-session": input.expectedSession } : {}),
           ...(input.body !== undefined ? { "content-type": "application/json" } : {}),
         };
         if (transport === "fastify") {
@@ -69,6 +71,7 @@ for (const transport of ["fastify", "worker"] as const) {
             body: response.json(),
             cookie: String(response.headers["set-cookie"] ?? ""),
             requestId: String(response.headers["x-request-id"]),
+            sessionBound: response.headers["x-keycade-session-bound"] === "1",
           };
         }
         const response = await handleWorkerRequest(
@@ -84,6 +87,7 @@ for (const transport of ["fastify", "worker"] as const) {
           body: await response.json(),
           cookie: response.headers.get("set-cookie") ?? "",
           requestId: response.headers.get("x-request-id") ?? "",
+          sessionBound: response.headers.get("x-keycade-session-bound") === "1",
         };
       };
       const requestLink = async (email: string, portal: "borrower" | "staff" = "borrower") => {
@@ -107,6 +111,73 @@ for (const transport of ["fastify", "worker"] as const) {
       };
       return { app, call, requestLink };
     }
+
+    it("binds reads and writes to the mounted session without trusting the binding as authentication", async () => {
+      const enabled = await client(true);
+      try {
+        const signIn = async (email: string) =>
+          enabled.call("/api/v1/auth/demo-sign-in", {
+            method: "POST",
+            body: { email, bankSlug: "bank-a", portal: "borrower" },
+          });
+        const first = await signIn("borrower@example.test");
+        expect(first.status).toBe(200);
+        const cookie = first.cookie.split(";")[0];
+        const session = authSessionSchema.parse(
+          (await enabled.call("/api/v1/auth/session", { cookie })).body,
+        );
+        if (!session.authenticated) throw new Error("Expected synthetic session.");
+        const boundRead = await enabled.call("/api/v1/auth/session", {
+          cookie,
+          expectedSession: session.csrfToken,
+        });
+        expect(boundRead.status).toBe(200);
+        expect(boundRead.sessionBound).toBe(true);
+        const other = await signIn(`session-bound-${randomUUID()}@example.test`);
+        const changed = await enabled.call("/api/v1/auth/session", {
+          cookie: other.cookie.split(";")[0],
+          expectedSession: session.csrfToken,
+        });
+        expect(changed.status).toBe(401);
+        expect(changed.body.error.code).toBe("SESSION_CHANGED");
+        expect(
+          (
+            await enabled.call("/api/v1/auth/logout", {
+              method: "POST",
+              cookie: other.cookie.split(";")[0],
+              expectedSession: session.csrfToken,
+              csrf: session.csrfToken,
+              body: {},
+            })
+          ).status,
+        ).toBe(401);
+        expect(
+          (await enabled.call("/api/v1/auth/session", { expectedSession: session.csrfToken }))
+            .status,
+        ).toBe(401);
+        expect(
+          (
+            await enabled.call("/api/v1/auth/logout", {
+              method: "POST",
+              cookie,
+              csrf: session.csrfToken,
+              expectedSession: session.csrfToken,
+              body: {},
+            })
+          ).status,
+        ).toBe(200);
+        expect(
+          (
+            await enabled.call("/api/v1/auth/session", {
+              cookie,
+              expectedSession: session.csrfToken,
+            })
+          ).status,
+        ).toBe(401);
+      } finally {
+        await enabled.app.close();
+      }
+    });
 
     it("uses opt-in synthetic demo sessions without email while keeping staff, origin, CSRF and disabled-mode boundaries", async () => {
       const enabled = await client(true);

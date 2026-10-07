@@ -340,7 +340,10 @@ test("email start, expired-link recovery, and fresh links resume the same draft 
 test("a staff-prefilled draft requires the applicant to review and explicitly finish setup", async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop", "Seeded staff identity fixture runs once.");
+  test.skip(
+    testInfo.project.name !== "desktop" && testInfo.config.workers > 1,
+    "Concurrent projects share one seeded staff identity; isolated sequential runs cover both.",
+  );
   const email = `intake-staff-prefill-${randomUUID()}@example.test`;
   await page.goto(staff);
   await page.getByLabel("Email address", { exact: true }).fill("officer-a@example.test");

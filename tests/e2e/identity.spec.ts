@@ -146,8 +146,11 @@ test("staff membership permits the seeded officer and denies an unrecognized add
   page,
 }, testInfo) => {
   // The one seeded officer mailbox must not be consumed concurrently by two projects.
-  // Both viewports still exercise the full borrower journey and the staff shell.
-  test.skip(testInfo.project.name !== "desktop", "Seeded staff identity runs once on desktop.");
+  // The isolated runner uses one worker, so both viewports can verify this journey safely.
+  test.skip(
+    testInfo.project.name !== "desktop" && testInfo.config.workers > 1,
+    "Concurrent projects share one seeded staff inbox; isolated sequential runs cover both.",
+  );
   const deniedEmail = `nonstaff-browser-${randomUUID()}@example.test`;
   const deniedLink = await requestLink(page, staff, deniedEmail);
   await openLink(page, deniedLink);

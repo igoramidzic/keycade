@@ -3,6 +3,8 @@
   "account_id": "7ca70a1deedbffff10d49a5e395aa978",
   "main": "worker.ts",
   "compatibility_date": "2026-10-06",
+  // Neon is single-homed in AWS Ohio. Run sequential SQL close to the database.
+  "placement": { "region": "aws:us-east-2" },
   "observability": {
     "enabled": true,
     "logs": {

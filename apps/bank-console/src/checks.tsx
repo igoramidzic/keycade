@@ -1,5 +1,6 @@
 import { checksViewSchema, readinessViewSchema } from "@keycade/contracts";
 import { ChecksManager, ReadinessPanel } from "@keycade/ui/components/checks-manager";
+import { checkRefreshInterval, readinessRefreshInterval } from "@keycade/ui/lib/refresh-policy";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, useStaffApi } from "./api";
 import { ErrorNotice, Loading } from "./ui";
@@ -15,7 +16,8 @@ export function ApplicationChecks({ applicationId }: { applicationId: string }) 
     retry: false,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
-    refetchInterval: 3000,
+    refetchInterval: (query) =>
+      query.state.error ? false : checkRefreshInterval(query.state.data),
   });
   const readiness = useQuery({
     queryKey: ["staff-readiness", applicationId],
@@ -24,7 +26,8 @@ export function ApplicationChecks({ applicationId }: { applicationId: string }) 
     retry: false,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
-    refetchInterval: 3000,
+    refetchInterval: (query) =>
+      query.state.error ? false : readinessRefreshInterval(query.state.data),
   });
   async function mutate(checkId: string, action: string, body: object) {
     const updated = await api.participantRequest(

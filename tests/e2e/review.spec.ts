@@ -1,15 +1,37 @@
 import { randomUUID } from "node:crypto";
 import { readEnvironment } from "@keycade/config/server";
 import type { ApplicationSetup, ReviewView, TasksView, TaskView } from "@keycade/contracts";
-import { expect, type Page, test } from "@playwright/test";
+import { expect as baseExpect, type Page, test } from "@playwright/test";
 
 const env = readEnvironment();
 const borrower = `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
 const staff = `http://127.0.0.1:${env.BANK_CONSOLE_PORT ?? 3002}`;
+// Navigation can queue several deliberately paced requests before rendering.
+const expect = baseExpect.configure({ timeout: 15000 });
 test.use({ trace: "off", screenshot: "off", video: "off", actionTimeout: 15000 });
 test.setTimeout(150000);
 const url = (origin: string, id: string, section = "review") =>
   `${origin}/applications/${id}/${section}?bank=bank-a`;
+function paceRequests() {
+  let nextRequest = 0;
+  return async (page: Page) => {
+    // Both actors share the application's 120/minute IP budget. Session reads
+    // have their own 240/minute budget and must not delay queued navigation.
+    await page.route("**/api/**", async (route) => {
+      if (!route.request().url().includes("/api/v1/auth/session")) {
+        const now = Date.now();
+        const wait = Math.max(0, nextRequest - now);
+        nextRequest = Math.max(now, nextRequest) + 800;
+        if (wait) await new Promise((resolve) => setTimeout(resolve, wait));
+      }
+      try {
+        await route.continue();
+      } catch {
+        // Parking an inactive page may cancel one of its queued polls.
+      }
+    });
+  };
+}
 async function signIn(page: Page, origin: string) {
   await page.goto(origin);
   await page
@@ -161,11 +183,16 @@ test("submission, returned information, immutable resubmission, and explicit app
   page,
   browser,
 }, testInfo) => {
+  const pace = paceRequests();
+  await pace(page);
   await signIn(page, borrower);
+  await page.goto(`${borrower}/api/ready`);
   const context = await browser.newContext({ viewport: page.viewportSize() });
   try {
     const officer = await context.newPage();
+    await pace(officer);
     await signIn(officer, staff);
+    await officer.goto(`${staff}/api/ready`);
     const app = await createApplication(page);
     await page.goto(url(borrower, app.id));
     await expect(
@@ -190,7 +217,7 @@ test("submission, returned information, immutable resubmission, and explicit app
     });
     await officer.route(summaryPattern, async (route) => {
       await summaryGate;
-      await route.continue();
+      await route.fallback();
     });
     try {
       const summaryRefresh = officer.waitForRequest(summaryPattern);
@@ -223,6 +250,7 @@ test("submission, returned information, immutable resubmission, and explicit app
     await expect(
       officer.getByText("Synthetic internal information-request note.", { exact: true }),
     ).toBeVisible();
+    await officer.goto(`${staff}/api/ready`);
     await page.reload();
     await expect(
       page.getByText("Additional information is required before a decision.", { exact: true }),
@@ -241,6 +269,7 @@ test("submission, returned information, immutable resubmission, and explicit app
     await expect(
       page.getByRole("status").filter({ hasText: "Answer submitted for bank review." }),
     ).toBeVisible();
+    await page.goto(`${borrower}/api/ready`);
     const tasks = await api<TasksView>(officer, "GET", `/${app.id}/tasks`);
     const returned = tasks.tasks.find((task) => task.title === "Describe your business");
     if (!returned) throw new Error("Returned synthetic task missing.");
@@ -254,7 +283,7 @@ test("submission, returned information, immutable resubmission, and explicit app
     await submit(page, true);
     await expect(page.getByText(/^Submission 1 ·/)).toBeVisible();
     await expect(page.getByText(/^Submission 2 ·/)).toBeVisible();
-    await officer.reload();
+    await officer.goto(url(staff, app.id));
     await officer.getByRole("button", { name: "Start bank review", exact: true }).click();
     await officer.getByRole("button", { name: "Approve application", exact: true }).click();
     await officer.getByLabel("Approved amount (USD)", { exact: true }).fill("19000.25");
@@ -331,11 +360,16 @@ test("staff-on-behalf submission and stale decision forms require explicit reloa
   page,
   browser,
 }) => {
+  const pace = paceRequests();
+  await pace(page);
   await signIn(page, borrower);
+  await page.goto(`${borrower}/api/ready`);
   const context = await browser.newContext({ viewport: page.viewportSize() });
   try {
     const officer = await context.newPage();
+    await pace(officer);
     await signIn(officer, staff);
+    await officer.goto(`${staff}/api/ready`);
     const app = await createApplication(page);
     await completeSubmissionTasks(page, officer, app.id);
     await officer.goto(url(staff, app.id));
@@ -411,7 +445,9 @@ test("staff-on-behalf submission and stale decision forms require explicit reloa
 test("unfinished setup can be deliberately withdrawn without opening the task portal", async ({
   page,
 }, testInfo) => {
+  await paceRequests()(page);
   await signIn(page, borrower);
+  await page.goto(`${borrower}/api/ready`);
   const app = await createApplication(page, false);
   await page.goto(url(borrower, app.id, "setup"));
   await page
