@@ -395,7 +395,7 @@ export function IdentityPortal({
   };
 
   return (
-    <Card id="identity" className="h-fit">
+    <Card id="identity" className="mx-auto h-fit w-full max-w-3xl">
       <CardHeader>
         <div className="mb-2 flex items-center gap-2 text-muted-foreground">
           <LockKeyhole aria-hidden="true" className="size-5" />

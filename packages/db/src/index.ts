@@ -3,8 +3,9 @@ import pg from "pg";
 import * as authSchema from "./auth-schema.js";
 import * as jobSchema from "./job-schema.js";
 import * as coreSchema from "./schema.js";
+import * as taskSchema from "./task-schema.js";
 
-const schema = { ...coreSchema, ...jobSchema, ...authSchema };
+const schema = { ...coreSchema, ...jobSchema, ...authSchema, ...taskSchema };
 
 /** Server-only connection; callers own pool.end() on shutdown. No connection is opened on import. */
 export function createDatabase(connectionString: string, options: { max?: number } = {}) {
@@ -25,3 +26,5 @@ export * from "./auth-schema.js";
 export * from "./job-schema.js";
 export { normalizeMoney } from "./money.js";
 export * from "./schema.js";
+
+export * from "./task-schema.js";

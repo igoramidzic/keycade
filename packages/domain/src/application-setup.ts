@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import {
   applicationPageSchema,
   applicationPortalSchema,
@@ -9,6 +9,7 @@ import {
   pageQuerySchema,
   publicStartApplicationSchema,
   saveApplicationSetupSchema,
+  type TaskProgress,
 } from "@keycade/contracts";
 import {
   accessDeliveryRequests,
@@ -36,6 +37,7 @@ import {
   requireApplicationAccess,
 } from "./authorization.js";
 import { DomainError, deny } from "./errors.js";
+import { readTaskProgress, reconcileTasks } from "./tasks.js";
 
 const accepted = { message: "If the request is eligible, a continuation link will be sent." };
 const hash = (value: string) => createHash("sha256").update(value).digest("hex");
@@ -76,6 +78,7 @@ function selection(
   access: Access | null,
   claimRequired = false,
   productName: string | null = null,
+  taskProgress: TaskProgress | null = null,
 ) {
   const accessScope = access?.kind === "participant" ? access.scope : "full";
   const closed = ["withdrawn", "declined", "funded"].includes(row.status);
@@ -95,6 +98,7 @@ function selection(
     setupStatus: setup.completedAt ? "completed" : "in_progress",
     currentStep: setup.currentStep === "product" ? "amount" : setup.currentStep,
     claimRequired,
+    taskProgress,
     nextDestination: closed
       ? "closed"
       : access?.kind === "participant" && access.role !== "applicant_admin"
@@ -135,14 +139,18 @@ async function view(tx: Tx, row: Row, setup: Setup, access: Access) {
     completedAt: setup.completedAt?.toISOString() ?? null,
   });
 }
-async function summary(tx: Tx, row: Row, setup: Setup, access: Access) {
+async function summary(tx: Tx, actor: Actor, row: Row, setup: Setup, access: Access) {
   const [product] = row.productId
     ? await tx
         .select({ name: loanProducts.name })
         .from(loanProducts)
         .where(and(eq(loanProducts.id, row.productId), eq(loanProducts.bankId, row.bankId)))
     : [];
-  return selection(row, setup, access, false, product?.name ?? null);
+  const taskProgress =
+    access.kind === "participant" && access.role === "applicant_admin" && !setup.completedAt
+      ? null
+      : await readTaskProgress(tx, actor, access, row.bankId, row.id);
+  return selection(row, setup, access, false, product?.name ?? null, taskProgress);
 }
 async function records(tx: Tx, bankId: string, applicationId: string) {
   const [result] = await tx
@@ -565,18 +573,21 @@ export function createApplicationService(
     return db.transaction(async (tx) => {
       const { row, setup } = await records(tx, bankId, applicationId);
       const access = await requireApplicationAccess(tx, actor, bankId, applicationId);
-      return summary(tx, row, setup, access);
+      await reconcileTasks(tx, bankId, applicationId, randomUUID(), clock());
+      return summary(tx, actor, row, setup, access);
     });
   }
   async function portal(actor: Actor, bankId: string, applicationId: string) {
     return db.transaction(async (tx) => {
       const { row, setup } = await records(tx, bankId, applicationId);
       const access = await requireApplicantPortalAccess(tx, actor, bankId, applicationId);
-      const selected = await summary(tx, row, setup, access);
+      await reconcileTasks(tx, bankId, applicationId, randomUUID(), clock());
+      const selected = await summary(tx, actor, row, setup, access);
       return applicationPortalSchema.parse({
         ...selected,
         purpose: selected.accessScope === "assigned" ? null : row.purpose,
-        remainingTasks: null,
+        remainingTasks:
+          (selected.taskProgress?.total ?? 0) - (selected.taskProgress?.completed ?? 0),
       });
     });
   }
@@ -648,21 +659,30 @@ export function createApplicationService(
         )
         .orderBy(asc(applications.id))
         .limit(parsed.limit + 1);
-      const items = rows
-        .slice(0, parsed.limit)
-        .map(({ row, setup, participant, productName }) =>
-          selection(
-            row,
-            setup,
-            membership
-              ? { kind: "staff", role: membership.role }
-              : participant
-                ? { kind: "participant", role: participant.role, scope: participant.scope }
-                : null,
-            !membership && !participant,
-            productName,
-          ),
+      const items = [];
+      // Lock in stable application order before current grant checks or reconciliation.
+      // A revoked grant from the initial list snapshot must not expose task counts.
+      for (const result of rows.slice(0, parsed.limit)) {
+        const { participant, productName } = result;
+        const { row, setup } = await records(tx, bankId, result.row.id);
+        const access =
+          membership || participant
+            ? await requireApplicationAccess(tx, actor, bankId, row.id)
+            : null;
+        if (access) await reconcileTasks(tx, bankId, row.id, randomUUID(), clock());
+        const taskProgress =
+          access &&
+          !(
+            access.kind === "participant" &&
+            access.role === "applicant_admin" &&
+            !setup.completedAt
+          )
+            ? await readTaskProgress(tx, actor, access, bankId, row.id)
+            : null;
+        items.push(
+          selection(row, setup, access, !membership && !participant, productName, taskProgress),
         );
+      }
       return applicationPageSchema.parse({
         items,
         nextCursor: rows.length > parsed.limit ? items.at(-1)?.id : null,
@@ -769,6 +789,7 @@ export function createApplicationService(
         .where(eq(applicationSetups.applicationId, row.id))
         .returning();
       if (!updated || !updatedSetup) throw new Error("Setup save failed.");
+      await reconcileTasks(tx, bankId, applicationId, requestId, now);
       await audit(
         tx,
         updated,
@@ -874,7 +895,7 @@ export function createApplicationService(
         .where(eq(applicationSetups.applicationId, applicationId))
         .returning();
       if (!updated || !updatedSetup) throw new Error("Setup completion failed.");
-      // No external effect is required until task/requirement reconciliation is implemented in T12.
+      await reconcileTasks(tx, bankId, applicationId, requestId, now);
       await audit(
         tx,
         updated,

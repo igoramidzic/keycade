@@ -290,8 +290,9 @@ test("staff workspace sections stay scoped and explain unavailable capabilities"
   await expect(page.getByLabel("Role", { exact: true })).toHaveValue("adviser");
   await expect(page.getByLabel("Access scope", { exact: true })).toHaveValue("assigned");
   await noOverflow(page);
+  await page.getByRole("link", { name: "Tasks", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Tasks", exact: true })).toBeVisible();
   for (const section of [
-    { path: "tasks", label: "Tasks", empty: "Tasks are not available yet" },
     { path: "documents", label: "Documents", empty: "Documents are not available yet" },
     { path: "checks", label: "Checks", empty: "Checks are not available yet" },
   ]) {

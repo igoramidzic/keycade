@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { applicationSetupStepSchema } from "./applications.js";
 import { applicationStatusSchema, usdAmountSchema } from "./common.js";
+import { taskProgressSchema } from "./tasks.js";
 
 export const staffPageQuerySchema = z.strictObject({
   page: z.coerce.number().int().min(1).max(1_000_000).default(1),
@@ -49,6 +50,7 @@ export const staffQueueItemSchema = z.object({
   synthetic: z.boolean(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
+  taskProgress: taskProgressSchema.nullable().default(null),
 });
 export const staffApplicationPageSchema = z.object({
   items: z.array(staffQueueItemSchema),
@@ -95,7 +97,7 @@ export const staffWorkspaceSchema = staffQueueItemSchema.extend({
     }),
   ),
   notes: z.array(staffNoteSchema),
-  tasks: z.null(),
+  tasks: taskProgressSchema,
   documents: z.null(),
   checks: z.null(),
 });

@@ -109,9 +109,9 @@ test("business groups show granted applications and portal navigation keeps appl
   await expect(page.getByText("Initial setup complete", { exact: true })).toBeVisible();
   await expect(page.getByRole("progressbar")).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath("synthetic-overview.png"), fullPage: true });
-  await page.getByRole("link", { name: "View tasks", exact: true }).click();
+  await page.getByRole("link", { name: "Tasks", exact: true }).click();
   await expect(page).toHaveURL(applicationUrl(ids.small, "tasks"));
-  await expect(page.getByText("Tasks are not available yet", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Tasks", exact: true })).toBeVisible();
   for (const section of [
     { path: "documents", label: "Documents", empty: "Documents are not available yet" },
     { path: "activity", label: "Activity", empty: "Activity is not available yet" },
@@ -223,7 +223,7 @@ test("limited invited participants see scoped summaries without applicant setup 
   await expect(page).toHaveURL(applicationUrl(ids.small));
   await expect(page.getByLabel("Business name", { exact: true })).toHaveCount(0);
   await page.getByRole("link", { name: "Tasks", exact: true }).click();
-  await expect(page.getByText("Tasks are not available yet", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Tasks", exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByText("Limited access", { exact: true })).toBeVisible();
   await page.getByRole("link", { name: "People", exact: true }).click();
@@ -367,6 +367,9 @@ test("portal polling replaces an application that closes with its closed state",
     .getByRole("button", { name: "Open application", exact: true })
     .click();
   await expect(page).toHaveURL(applicationUrl(ids.small));
+  await expect(
+    page.getByRole("heading", { name: "Application details", exact: true }),
+  ).toBeVisible();
   await expect(page.getByText("Initial setup complete", { exact: true })).toBeVisible();
   const initialReads = detailReads;
   closed = true;
@@ -378,7 +381,7 @@ test("portal polling replaces an application that closes with its closed state",
   await expect(
     page.getByRole("navigation", { name: "Application sections", exact: true }),
   ).toHaveCount(0);
-  await expect(page.getByRole("link", { name: "View tasks", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Tasks", exact: true })).toHaveCount(0);
   await noOverflow(page);
 });
 
@@ -407,11 +410,13 @@ test("an invited participant with full scope is not told unfinished applicant se
     .getByRole("button", { name: "Open application", exact: true })
     .click();
   await expect(page).toHaveURL(applicationUrl(ids.small));
-  await expect(page.getByRole("heading", { name: "Overview", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Application details", exact: true }),
+  ).toBeVisible();
   await expect(page.getByText("Initial setup complete", { exact: true })).toHaveCount(0);
   await expect(page.getByLabel("Business name", { exact: true })).toHaveCount(0);
   await page.getByRole("link", { name: "Tasks", exact: true }).click();
-  await expect(page.getByText("Tasks are not available yet", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Tasks", exact: true })).toBeVisible();
   await noOverflow(page);
 });
 
@@ -427,7 +432,9 @@ test("polling after an account switch clears application cards and detail instea
   const switchPage = await context.newPage();
   try {
     await detailPage.goto(applicationUrl(ids.small));
-    await expect(detailPage.getByRole("heading", { name: "Overview", exact: true })).toBeVisible();
+    await expect(
+      detailPage.getByRole("heading", { name: "Application details", exact: true }),
+    ).toBeVisible();
     await switchPage.goto(borrower);
     expect(
       await switchPage.evaluate(async (email) => {

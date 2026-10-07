@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   addStaffNoteSchema,
   assignStaffSchema,
@@ -6,6 +7,7 @@ import {
   staffPageQuerySchema,
   staffQueueItemSchema,
   staffWorkspaceSchema,
+  type TaskProgress,
   updateStaffNoteSchema,
 } from "@keycade/contracts";
 import {
@@ -25,6 +27,7 @@ import { and, asc, count, desc, eq, ilike, isNull, or, type SQL, sql } from "dri
 import { type AnyPgColumn, alias } from "drizzle-orm/pg-core";
 import { type Actor, requireApplicationAccess, requireBankStaff } from "./authorization.js";
 import { DomainError, deny } from "./errors.js";
+import { readTaskProgress, reconcileTasks } from "./tasks.js";
 
 type Tx = DatabaseTransaction;
 const assignee = alias(users, "staff_assignee");
@@ -77,7 +80,7 @@ function queueQuery(tx: Tx) {
     .leftJoin(assignee, eq(assignee.id, applications.assignedStaffId));
 }
 type QueueRow = Awaited<ReturnType<typeof queueQuery>>[number];
-function queueItem(result: QueueRow) {
+function queueItem(result: QueueRow, taskProgress: TaskProgress | null = null) {
   return staffQueueItemSchema.parse({
     ...result.row,
     productName: result.productName,
@@ -87,6 +90,7 @@ function queueItem(result: QueueRow) {
     currentStep: result.setup.currentStep === "product" ? "amount" : result.setup.currentStep,
     createdAt: result.row.createdAt.toISOString(),
     updatedAt: result.row.updatedAt.toISOString(),
+    taskProgress,
   });
 }
 
@@ -100,7 +104,7 @@ export async function listStaffApplications(
   const query = parse(staffPageQuerySchema, input);
   return db.transaction(
     async (tx) => {
-      await requireBankStaff(tx, actor, bankId);
+      const access = await requireBankStaff(tx, actor, bankId);
       const pattern = query.search ? `%${query.search.replace(/[\\%_]/g, "\\$&")}%` : undefined;
       const where = and(
         eq(applications.bankId, bankId),
@@ -149,15 +153,24 @@ export async function listStaffApplications(
         .orderBy(sorts[query.sort], asc(applications.id))
         .limit(query.limit)
         .offset((query.page - 1) * query.limit);
+      const progress = new Map<string, TaskProgress>();
+      // Queue sorts differ across callers; acquire application locks in UUID order.
+      for (const result of [...rows].sort((a, b) => a.row.id.localeCompare(b.row.id))) {
+        await reconcileTasks(tx, bankId, result.row.id, randomUUID(), new Date());
+        progress.set(
+          result.row.id,
+          await readTaskProgress(tx, actor, access, bankId, result.row.id),
+        );
+      }
       return staffApplicationPageSchema.parse({
-        items: rows.map(queueItem),
+        items: rows.map((row) => queueItem(row, progress.get(row.row.id) ?? null)),
         page: query.page,
         limit: query.limit,
         total,
         totalPages: Math.ceil(total / query.limit),
       });
     },
-    { isolationLevel: "repeatable read" },
+    { isolationLevel: "read committed" },
   );
 }
 
@@ -204,6 +217,7 @@ async function workspace(tx: Tx, actor: Actor, bankId: string, applicationId: st
     ),
   );
   if (!result) return deny();
+  await reconcileTasks(tx, bankId, applicationId, randomUUID(), new Date());
   const { row, setup } = result;
   const [createdBy] = row.createdByUserId
     ? await tx.select(person(users)).from(users).where(eq(users.id, row.createdByUserId))
@@ -243,8 +257,15 @@ async function workspace(tx: Tx, actor: Actor, bankId: string, applicationId: st
     .innerJoin(editor, eq(editor.id, staffNotes.updatedByUserId))
     .where(and(eq(staffNotes.bankId, bankId), eq(staffNotes.applicationId, applicationId)))
     .orderBy(desc(staffNotes.createdAt), asc(staffNotes.id));
+  const taskProgress = await readTaskProgress(
+    tx,
+    actor,
+    await requireBankStaff(tx, actor, bankId),
+    bankId,
+    applicationId,
+  );
   return staffWorkspaceSchema.parse({
-    ...queueItem(result),
+    ...queueItem(result, taskProgress),
     purpose: row.purpose,
     industryCode: row.industryCode,
     industryTaxonomyVersion: row.industryTaxonomyVersion,
@@ -278,7 +299,7 @@ async function workspace(tx: Tx, actor: Actor, bankId: string, applicationId: st
       createdAt: note.createdAt.toISOString(),
       updatedAt: note.updatedAt.toISOString(),
     })),
-    tasks: null,
+    tasks: taskProgress,
     documents: null,
     checks: null,
   });
@@ -295,7 +316,7 @@ export async function readStaffWorkspace(
       await requireApplicationAccess(tx, actor, bankId, applicationId);
       return workspace(tx, actor, bankId, applicationId);
     },
-    { isolationLevel: "repeatable read" },
+    { isolationLevel: "read committed" },
   );
 }
 

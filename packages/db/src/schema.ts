@@ -298,6 +298,7 @@ export const applicationParticipants = pgTable(
   },
   (t) => [
     unique("participants_application_user").on(t.applicationId, t.userId),
+    unique("participants_bank_app_id").on(t.bankId, t.applicationId, t.id),
     foreignKey({
       name: "participants_application_bank_fk",
       columns: [t.bankId, t.applicationId],
@@ -312,6 +313,7 @@ export const applicationParticipants = pgTable(
 export const businessRelationships = pgTable(
   "business_relationships",
   {
+    removedAt: timestamp("removed_at", { withTimezone: true }),
     id: id(),
     bankId: uuid("bank_id").notNull(),
     applicationId: uuid("application_id").notNull(),
@@ -338,6 +340,7 @@ export const businessRelationships = pgTable(
       columns: [t.bankId, t.businessId],
       foreignColumns: [businesses.bankId, businesses.id],
     }),
+    unique("relationships_bank_app_id").on(t.bankId, t.applicationId, t.id),
     check("relationships_kind_valid", sql`${t.kind} IN ('owner', 'contact')`),
     check("relationships_name_valid", sql`length(btrim(${t.displayName})) BETWEEN 1 AND 160`),
     check(

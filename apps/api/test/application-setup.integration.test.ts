@@ -187,7 +187,7 @@ for (const transport of ["fastify", "worker"] as const) {
         expect(applicationPortalSchema.parse(portal.body)).toMatchObject({
           id: seedIds.applicationSmall,
           purpose: "Synthetic equipment purchase",
-          remainingTasks: null,
+          remainingTasks: expect.any(Number),
           accessScope: "full",
         });
         for (const [applicationId, code] of [
@@ -260,7 +260,7 @@ for (const transport of ["fastify", "worker"] as const) {
         expect(applicationPortalSchema.parse(portal.body)).toMatchObject({
           purpose: null,
           requestedAmount: null,
-          remainingTasks: null,
+          remainingTasks: expect.any(Number),
           accessScope: "assigned",
         });
         expect((await c.call(`${bankPath}/${draft.id}`, adviser)).body).toMatchObject({

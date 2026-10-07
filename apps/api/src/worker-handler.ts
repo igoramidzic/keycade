@@ -8,6 +8,7 @@ import {
   applicationSelectionSchema,
   applicationSetupSchema,
   assignStaffSchema,
+  assignTaskSchema,
   authSessionSchema,
   bankParamsSchema,
   claimApplicationSchema,
@@ -15,11 +16,13 @@ import {
   consumeAccessLinkSchema,
   createDraftSchema,
   createInvitationSchema,
+  createManualTaskSchema,
   demoSignInResponseSchema,
   demoSignInSchema,
   errorSchema,
   finishApplicationSetupSchema,
   invitationViewSchema,
+  linkRelationshipSchema,
   logoutResponseSchema,
   pageQuerySchema,
   participantCommandSchema,
@@ -33,7 +36,10 @@ import {
   readinessSchema,
   requestAccessLinkResponseSchema,
   requestAccessLinkSchema,
+  reviewTaskSchema,
   saveApplicationSetupSchema,
+  saveTaskAnswerSchema,
+  setRelationshipActiveSchema,
   staffApplicationPageSchema,
   staffApplicationSchema,
   staffNoteParamsSchema,
@@ -41,8 +47,12 @@ import {
   staffPageQuerySchema,
   staffSessionSchema,
   staffWorkspaceSchema,
+  taskRevisionSchema,
+  tasksViewSchema,
+  taskViewSchema,
   updatePurposeSchema,
   updateStaffNoteSchema,
+  waiveTaskSchema,
 } from "@keycade/contracts";
 import type { Database } from "@keycade/db";
 import {
@@ -51,6 +61,7 @@ import {
   createApplicationService,
   createIdentityService,
   createParticipantsService,
+  createTasksService,
   DomainError,
   listStaffApplications,
   readApplication,
@@ -125,6 +136,7 @@ export async function handleWorkerRequest(
       borrowerOrigin: deps.portalOrigins?.borrower?.[0] ?? "http://localhost:3001",
       deliveryEnabled: deps.authDeliveryEnabled !== false && !!deps.portalOrigins?.borrower?.[0],
     });
+    const tasks = createTasksService(deps.db);
     if (
       !["GET", "HEAD", "OPTIONS"].includes(request.method) &&
       !isAllowedOrigin(request.headers.get("origin") ?? undefined, deps.allowedOrigins)
@@ -490,6 +502,81 @@ export async function handleWorkerRequest(
               requestBody: requestBody(z.strictObject({})),
             },
           },
+          "/api/v1/banks/{bankId}/applications/{applicationId}/tasks": {
+            get: { parameters, responses: applicationResponses(tasksViewSchema) },
+            post: {
+              parameters,
+              requestBody: requestBody(createManualTaskSchema),
+              responses: applicationResponses(tasksViewSchema),
+            },
+          },
+          "/api/v1/banks/{bankId}/applications/{applicationId}/tasks/{taskId}": {
+            get: {
+              parameters: [
+                ...parameters,
+                {
+                  name: "taskId",
+                  in: "path",
+                  required: true,
+                  schema: { type: "string", format: "uuid" },
+                },
+              ],
+              responses: applicationResponses(taskViewSchema),
+            },
+          },
+          ...Object.fromEntries(
+            (
+              [
+                ["assignment", "patch", assignTaskSchema],
+                ["answer", "patch", saveTaskAnswerSchema],
+                ["submit", "post", taskRevisionSchema],
+                ["review", "post", reviewTaskSchema],
+                ["waive", "post", waiveTaskSchema],
+              ] as const
+            ).map(([action, method, schema]) => [
+              `/api/v1/banks/{bankId}/applications/{applicationId}/tasks/{taskId}/${action}`,
+              {
+                [method]: {
+                  parameters: [
+                    ...parameters,
+                    {
+                      name: "taskId",
+                      in: "path",
+                      required: true,
+                      schema: { type: "string", format: "uuid" },
+                    },
+                  ],
+                  requestBody: requestBody(schema),
+                  responses: applicationResponses(taskViewSchema),
+                },
+              },
+            ]),
+          ),
+          ...Object.fromEntries(
+            (
+              [
+                ["status", setRelationshipActiveSchema],
+                ["user", linkRelationshipSchema],
+              ] as const
+            ).map(([action, schema]) => [
+              `/api/v1/banks/{bankId}/applications/{applicationId}/participants/relationships/{relationshipId}/${action}`,
+              {
+                post: {
+                  parameters: [
+                    ...parameters,
+                    {
+                      name: "relationshipId",
+                      in: "path",
+                      required: true,
+                      schema: { type: "string", format: "uuid" },
+                    },
+                  ],
+                  requestBody: requestBody(schema),
+                  responses: applicationResponses(participantsWorkspaceSchema),
+                },
+              },
+            ]),
+          ),
           "/api/v1/banks/{bankId}/applications/{applicationId}/purpose": {
             patch: {
               parameters,
@@ -641,6 +728,73 @@ export async function handleWorkerRequest(
       }
       return failure(404, "NOT_FOUND", "Resource not found.");
     }
+    const taskResource =
+      /^\/api\/v1\/banks\/([^/]+)\/applications\/([^/]+)\/tasks(?:\/([^/]+)(?:\/(assignment|answer|submit|review|waive))?)?$/.exec(
+        path,
+      );
+    if (taskResource) {
+      const { bankId, applicationId } = applicationParamsSchema.parse({
+        bankId: taskResource[1],
+        applicationId: taskResource[2],
+      });
+      assertSessionBank(authentication, bankId);
+      const actor = authentication.actor;
+      const taskId = taskResource[3] ? z.string().uuid().parse(taskResource[3]) : undefined;
+      const action = taskResource[4];
+      if (get && !taskId)
+        return json(tasksViewSchema.parse(await tasks.read(actor, bankId, applicationId)));
+      if (get && taskId && !action)
+        return json(taskViewSchema.parse(await tasks.detail(actor, bankId, applicationId, taskId)));
+      if (request.method === "POST" && !taskId) {
+        const body = createManualTaskSchema.parse(await readJsonBody(request));
+        return json(
+          tasksViewSchema.parse(
+            await tasks.createManual(actor, bankId, applicationId, body, requestId),
+          ),
+        );
+      }
+      if (taskId && action === "assignment" && request.method === "PATCH") {
+        const body = assignTaskSchema.parse(await readJsonBody(request));
+        return json(
+          taskViewSchema.parse(
+            await tasks.assign(actor, bankId, applicationId, taskId, body, requestId),
+          ),
+        );
+      }
+      if (taskId && action === "answer" && request.method === "PATCH") {
+        const body = saveTaskAnswerSchema.parse(await readJsonBody(request));
+        return json(
+          taskViewSchema.parse(
+            await tasks.saveAnswer(actor, bankId, applicationId, taskId, body, requestId),
+          ),
+        );
+      }
+      if (taskId && action === "submit" && request.method === "POST") {
+        const body = taskRevisionSchema.parse(await readJsonBody(request));
+        return json(
+          taskViewSchema.parse(
+            await tasks.submit(actor, bankId, applicationId, taskId, body, requestId),
+          ),
+        );
+      }
+      if (taskId && action === "review" && request.method === "POST") {
+        const body = reviewTaskSchema.parse(await readJsonBody(request));
+        return json(
+          taskViewSchema.parse(
+            await tasks.review(actor, bankId, applicationId, taskId, body, requestId),
+          ),
+        );
+      }
+      if (taskId && action === "waive" && request.method === "POST") {
+        const body = waiveTaskSchema.parse(await readJsonBody(request));
+        return json(
+          taskViewSchema.parse(
+            await tasks.waive(actor, bankId, applicationId, taskId, body, requestId),
+          ),
+        );
+      }
+      return failure(404, "NOT_FOUND", "Resource not found.");
+    }
     const people =
       /^\/api\/v1\/banks\/([^/]+)\/applications\/([^/]+)\/participants(?:\/(.*))?$/.exec(path);
     if (people) {
@@ -671,6 +825,30 @@ export async function handleWorkerRequest(
               await participants.createInvitation(actor, bankId, applicationId, body, requestId),
             ),
           );
+        }
+        const relationshipAction = /^relationships\/([^/]+)\/(status|user)$/.exec(suffix ?? "");
+        if (relationshipAction) {
+          const relationshipId = z.string().uuid().parse(relationshipAction[1]);
+          const input = await readJsonBody(request);
+          const result =
+            relationshipAction[2] === "status"
+              ? await participants.setRelationshipActive(
+                  actor,
+                  bankId,
+                  applicationId,
+                  relationshipId,
+                  setRelationshipActiveSchema.parse(input),
+                  requestId,
+                )
+              : await participants.linkRelationship(
+                  actor,
+                  bankId,
+                  applicationId,
+                  relationshipId,
+                  linkRelationshipSchema.parse(input),
+                  requestId,
+                );
+          return json(participantsWorkspaceSchema.parse(result));
         }
         const invitationAction = /^invitations\/([^/]+)\/(resend|revoke)$/.exec(suffix ?? "");
         if (invitationAction) {

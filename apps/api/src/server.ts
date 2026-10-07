@@ -12,6 +12,7 @@ import {
   applicationSelectionSchema,
   applicationSetupSchema,
   assignStaffSchema,
+  assignTaskSchema,
   authSessionSchema,
   bankParamsSchema,
   claimApplicationSchema,
@@ -19,11 +20,13 @@ import {
   consumeAccessLinkSchema,
   createDraftSchema,
   createInvitationSchema,
+  createManualTaskSchema,
   demoSignInResponseSchema,
   demoSignInSchema,
   errorSchema,
   finishApplicationSetupSchema,
   invitationViewSchema,
+  linkRelationshipSchema,
   logoutResponseSchema,
   pageQuerySchema,
   participantCommandSchema,
@@ -37,7 +40,10 @@ import {
   readinessSchema,
   requestAccessLinkResponseSchema,
   requestAccessLinkSchema,
+  reviewTaskSchema,
   saveApplicationSetupSchema,
+  saveTaskAnswerSchema,
+  setRelationshipActiveSchema,
   staffApplicationPageSchema,
   staffApplicationSchema,
   staffNoteParamsSchema,
@@ -45,8 +51,12 @@ import {
   staffPageQuerySchema,
   staffSessionSchema,
   staffWorkspaceSchema,
+  taskRevisionSchema,
+  tasksViewSchema,
+  taskViewSchema,
   updatePurposeSchema,
   updateStaffNoteSchema,
+  waiveTaskSchema,
 } from "@keycade/contracts";
 import type { Database } from "@keycade/db";
 import {
@@ -55,6 +65,7 @@ import {
   createApplicationService,
   createIdentityService,
   createParticipantsService,
+  createTasksService,
   DomainError,
   listStaffApplications,
   readApplication,
@@ -121,6 +132,7 @@ export async function buildServer(options: ServerOptions) {
     deliveryEnabled:
       options.authDeliveryEnabled !== false && !!options.portalOrigins?.borrower?.[0],
   });
+  const tasks = createTasksService(options.db);
   const originFor = (request: FastifyRequest) =>
     configuredRequestOrigin(
       request.headers.origin,
@@ -855,6 +867,161 @@ export async function buildServer(options: ServerOptions) {
       );
     },
   );
+  const tasksBase = "/api/v1/banks/:bankId/applications/:applicationId/tasks";
+  const taskParams = applicationParamsSchema.extend({ taskId: z.string().uuid() });
+  app.get(
+    tasksBase,
+    {
+      schema: { params: applicationParamsSchema, response: { 200: tasksViewSchema, ...responses } },
+    },
+    async (request) => {
+      const { bankId, applicationId } = request.params;
+      assertSessionBank(request.authentication, bankId);
+      return tasks.read(request.authentication.actor, bankId, applicationId);
+    },
+  );
+  app.get(
+    `${tasksBase}/:taskId`,
+    {
+      schema: { params: taskParams, response: { 200: taskViewSchema, ...responses } },
+    },
+    async (request) => {
+      const { bankId, applicationId, taskId } = request.params;
+      assertSessionBank(request.authentication, bankId);
+      return tasks.detail(request.authentication.actor, bankId, applicationId, taskId);
+    },
+  );
+  app.post(
+    tasksBase,
+    {
+      schema: {
+        params: applicationParamsSchema,
+        body: createManualTaskSchema,
+        response: { 200: tasksViewSchema, ...responses },
+      },
+    },
+    async (request) => {
+      const { bankId, applicationId } = request.params;
+      assertSessionBank(request.authentication, bankId);
+      return tasks.createManual(
+        request.authentication.actor,
+        bankId,
+        applicationId,
+        request.body,
+        request.id,
+      );
+    },
+  );
+  app.patch(
+    `${tasksBase}/:taskId/assignment`,
+    {
+      schema: {
+        params: taskParams,
+        body: assignTaskSchema,
+        response: { 200: taskViewSchema, ...responses },
+      },
+    },
+    async (request) => {
+      const { bankId, applicationId, taskId } = request.params;
+      assertSessionBank(request.authentication, bankId);
+      return tasks.assign(
+        request.authentication.actor,
+        bankId,
+        applicationId,
+        taskId,
+        request.body,
+        request.id,
+      );
+    },
+  );
+  app.patch(
+    `${tasksBase}/:taskId/answer`,
+    {
+      schema: {
+        params: taskParams,
+        body: saveTaskAnswerSchema,
+        response: { 200: taskViewSchema, ...responses },
+      },
+    },
+    async (request) => {
+      const { bankId, applicationId, taskId } = request.params;
+      assertSessionBank(request.authentication, bankId);
+      return tasks.saveAnswer(
+        request.authentication.actor,
+        bankId,
+        applicationId,
+        taskId,
+        request.body,
+        request.id,
+      );
+    },
+  );
+  app.post(
+    `${tasksBase}/:taskId/submit`,
+    {
+      schema: {
+        params: taskParams,
+        body: taskRevisionSchema,
+        response: { 200: taskViewSchema, ...responses },
+      },
+    },
+    async (request) => {
+      const { bankId, applicationId, taskId } = request.params;
+      assertSessionBank(request.authentication, bankId);
+      return tasks.submit(
+        request.authentication.actor,
+        bankId,
+        applicationId,
+        taskId,
+        request.body,
+        request.id,
+      );
+    },
+  );
+  app.post(
+    `${tasksBase}/:taskId/review`,
+    {
+      schema: {
+        params: taskParams,
+        body: reviewTaskSchema,
+        response: { 200: taskViewSchema, ...responses },
+      },
+    },
+    async (request) => {
+      const { bankId, applicationId, taskId } = request.params;
+      assertSessionBank(request.authentication, bankId);
+      return tasks.review(
+        request.authentication.actor,
+        bankId,
+        applicationId,
+        taskId,
+        request.body,
+        request.id,
+      );
+    },
+  );
+  app.post(
+    `${tasksBase}/:taskId/waive`,
+    {
+      schema: {
+        params: taskParams,
+        body: waiveTaskSchema,
+        response: { 200: taskViewSchema, ...responses },
+      },
+    },
+    async (request) => {
+      const { bankId, applicationId, taskId } = request.params;
+      assertSessionBank(request.authentication, bankId);
+      return tasks.waive(
+        request.authentication.actor,
+        bankId,
+        applicationId,
+        taskId,
+        request.body,
+        request.id,
+      );
+    },
+  );
   const peopleBase = "/api/v1/banks/:bankId/applications/:applicationId/participants";
   const invitationParams = applicationParamsSchema.extend({ invitationId: z.string().uuid() });
   const recipientParams = bankParamsSchema.extend({ invitationId: z.string().uuid() });
@@ -909,6 +1076,50 @@ export async function buildServer(options: ServerOptions) {
         request.authentication.actor,
         bankId,
         applicationId,
+        request.body,
+        request.id,
+      );
+    },
+  );
+  app.post(
+    `${peopleBase}/relationships/:relationshipId/status`,
+    {
+      schema: {
+        params: applicationParamsSchema.extend({ relationshipId: z.string().uuid() }),
+        body: setRelationshipActiveSchema,
+        response: { 200: participantsWorkspaceSchema, ...responses },
+      },
+    },
+    async (request) => {
+      const { bankId, applicationId, relationshipId } = request.params;
+      assertSessionBank(request.authentication, bankId);
+      return participants.setRelationshipActive(
+        request.authentication.actor,
+        bankId,
+        applicationId,
+        relationshipId,
+        request.body,
+        request.id,
+      );
+    },
+  );
+  app.post(
+    `${peopleBase}/relationships/:relationshipId/user`,
+    {
+      schema: {
+        params: applicationParamsSchema.extend({ relationshipId: z.string().uuid() }),
+        body: linkRelationshipSchema,
+        response: { 200: participantsWorkspaceSchema, ...responses },
+      },
+    },
+    async (request) => {
+      const { bankId, applicationId, relationshipId } = request.params;
+      assertSessionBank(request.authentication, bankId);
+      return participants.linkRelationship(
+        request.authentication.actor,
+        bankId,
+        applicationId,
+        relationshipId,
         request.body,
         request.id,
       );

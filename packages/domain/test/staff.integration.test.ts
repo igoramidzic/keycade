@@ -173,7 +173,8 @@ describe("staff queue and workspace on PostgreSQL", () => {
     const original = await read(ids.applicationSmall);
     expect(original.contact?.status).toBe("verified");
     expect(original.participants.some((row) => row.id === ids.borrower)).toBe(true);
-    expect(original.tasks).toBeNull();
+    expect(original.tasks).toEqual(original.taskProgress);
+    expect(original.tasks.total).toBeGreaterThanOrEqual(0);
     expect(original.documents).toBeNull();
     expect(original.checks).toBeNull();
     const draft = await createDraft("Synthetic prefilled applicant");

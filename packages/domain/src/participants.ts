@@ -3,8 +3,10 @@ import {
   addBusinessRelationshipSchema,
   createInvitationSchema,
   invitationViewSchema,
+  linkRelationshipSchema,
   participantCommandSchema,
   participantsWorkspaceSchema,
+  setRelationshipActiveSchema,
 } from "@keycade/contracts";
 import {
   accessDeliveryRequests,
@@ -30,6 +32,7 @@ import {
 } from "./authorization.js";
 import { DomainError, deny } from "./errors.js";
 import { hashIdentityCredential } from "./identity.js";
+import { reconcileTasks, unassignParticipantTasks, validateTaskGrants } from "./tasks.js";
 
 type Tx = DatabaseTransaction;
 type Invitation = typeof invitations.$inferSelect;
@@ -158,6 +161,15 @@ export function createParticipantsService(
       grant.inviterGrantUpdatedAt.getTime() !== invitation.inviterGrantUpdatedAt.getTime()
     )
       return deny();
+    await validateTaskGrants(
+      tx,
+      { kind: "user", userId: invitation.inviterUserId },
+      access,
+      invitation.bankId,
+      invitation.applicationId,
+      invitation.taskIds,
+      invitation.email,
+    );
   }
   async function audit(
     tx: Tx,
@@ -292,6 +304,7 @@ export function createParticipantsService(
                 eq(businessRelationships.bankId, bankId),
                 eq(businessRelationships.applicationId, applicationId),
                 canManage ? undefined : eq(businessRelationships.userId, actor.userId),
+                canManage ? undefined : isNull(businessRelationships.removedAt),
               ),
             )
             .orderBy(asc(businessRelationships.createdAt), asc(businessRelationships.id));
@@ -340,6 +353,7 @@ export function createParticipantsService(
         kind: row.kind,
         ownershipPercent: row.ownershipPercent,
         userId: row.userId,
+        active: !row.removedAt,
       })),
       invitations: pending.map((row) => ({
         id: row.id,
@@ -356,6 +370,145 @@ export function createParticipantsService(
   }
   async function read(actor: Actor, bankId: string, applicationId: string) {
     return db.transaction((tx) => view(tx, actor, bankId, applicationId));
+  }
+  async function relationshipUser(tx: Tx, bankId: string, applicationId: string, userId: string) {
+    const [participant] = await tx
+      .select({ id: applicationParticipants.id })
+      .from(applicationParticipants)
+      .where(
+        and(
+          eq(applicationParticipants.bankId, bankId),
+          eq(applicationParticipants.applicationId, applicationId),
+          eq(applicationParticipants.userId, userId),
+          isNull(applicationParticipants.revokedAt),
+        ),
+      )
+      .for("share");
+    if (!participant) return deny();
+  }
+  async function setRelationshipActive(
+    actor: Actor,
+    bankId: string,
+    applicationId: string,
+    relationshipId: string,
+    input: unknown,
+    requestId: string,
+  ) {
+    const parsed = parse(setRelationshipActiveSchema, input);
+    return db.transaction(async (tx) => {
+      const { userId } = await manager(tx, actor, bankId, applicationId);
+      const command = await existingCommand(
+        tx,
+        userId,
+        bankId,
+        applicationId,
+        "relationship.status",
+        parsed,
+        { relationshipId, active: parsed.active },
+      );
+      if (!command.existing) {
+        const [relationship] = await tx
+          .select()
+          .from(businessRelationships)
+          .where(
+            and(
+              eq(businessRelationships.id, relationshipId),
+              eq(businessRelationships.bankId, bankId),
+              eq(businessRelationships.applicationId, applicationId),
+            ),
+          )
+          .for("update");
+        if (!relationship) return deny();
+        const now = clock();
+        if (parsed.active !== !relationship.removedAt) {
+          await tx
+            .update(businessRelationships)
+            .set({ removedAt: parsed.active ? null : now, updatedAt: now })
+            .where(eq(businessRelationships.id, relationshipId));
+          await reconcileTasks(tx, bankId, applicationId, requestId, now);
+          await audit(
+            tx,
+            userId,
+            bankId,
+            applicationId,
+            parsed.active ? "business_relationship.restored" : "business_relationship.removed",
+            "business_relationship",
+            relationshipId,
+            requestId,
+            now,
+          );
+        }
+        await tx
+          .insert(participantCommands)
+          .values({ ...command.values, resultId: relationshipId, createdAt: now });
+      }
+      return view(tx, actor, bankId, applicationId);
+    });
+  }
+  async function linkRelationship(
+    actor: Actor,
+    bankId: string,
+    applicationId: string,
+    relationshipId: string,
+    input: unknown,
+    requestId: string,
+  ) {
+    const parsed = parse(linkRelationshipSchema, input);
+    return db.transaction(async (tx) => {
+      const { userId } = await manager(tx, actor, bankId, applicationId);
+      const command = await existingCommand(
+        tx,
+        userId,
+        bankId,
+        applicationId,
+        "relationship.link",
+        parsed,
+        { relationshipId, userId: parsed.userId },
+      );
+      if (!command.existing) {
+        const [relationship] = await tx
+          .select()
+          .from(businessRelationships)
+          .where(
+            and(
+              eq(businessRelationships.id, relationshipId),
+              eq(businessRelationships.bankId, bankId),
+              eq(businessRelationships.applicationId, applicationId),
+              isNull(businessRelationships.removedAt),
+            ),
+          )
+          .for("update");
+        if (!relationship) return deny();
+        if (relationship.userId && relationship.userId !== parsed.userId)
+          invalidState(
+            "This person is already linked. Record a separate relationship for a different person.",
+          );
+        await relationshipUser(tx, bankId, applicationId, parsed.userId);
+        const now = clock();
+        if (!relationship.userId) {
+          await tx
+            .update(businessRelationships)
+            .set({ userId: parsed.userId, updatedAt: now })
+            .where(eq(businessRelationships.id, relationshipId));
+          await reconcileTasks(tx, bankId, applicationId, requestId, now);
+          await audit(
+            tx,
+            userId,
+            bankId,
+            applicationId,
+            "business_relationship.linked",
+            "business_relationship",
+            relationshipId,
+            requestId,
+            now,
+          );
+        }
+        await tx
+          .insert(participantCommands)
+          .values({ ...command.values, resultId: relationshipId, createdAt: now });
+      }
+      return view(tx, actor, bankId, applicationId);
+    });
   }
   async function addRelationship(
     actor: Actor,
@@ -380,9 +533,11 @@ export function createParticipantsService(
           displayName: parsed.displayName,
           kind: parsed.kind,
           ownershipPercent: parsed.ownershipPercent ?? null,
+          userId: parsed.userId ?? null,
         },
       );
       if (!command.existing) {
+        if (parsed.userId) await relationshipUser(tx, bankId, applicationId, parsed.userId);
         const now = clock();
         const [relationship] = await tx
           .insert(businessRelationships)
@@ -393,6 +548,7 @@ export function createParticipantsService(
             displayName: parsed.displayName,
             kind: parsed.kind,
             ownershipPercent: parsed.ownershipPercent ?? null,
+            userId: parsed.userId ?? null,
             createdByUserId: userId,
             synthetic: application.synthetic,
             createdAt: now,
@@ -414,6 +570,7 @@ export function createParticipantsService(
         await tx
           .insert(participantCommands)
           .values({ ...command.values, resultId: relationship.id, createdAt: now });
+        await reconcileTasks(tx, bankId, applicationId, requestId, now);
       }
       return view(tx, actor, bankId, applicationId);
     });
@@ -428,12 +585,20 @@ export function createParticipantsService(
     const parsed = parse(createInvitationSchema, input);
     parsed.taskIds = [...new Set(parsed.taskIds)].sort();
     parsed.documentIds = [...new Set(parsed.documentIds)].sort();
-    // T12/T13 must validate existence, application, visibility, and delegation before enabling IDs.
-    if (parsed.taskIds.length || parsed.documentIds.length)
-      throw new DomainError("INVALID_INPUT", 400, "Resource assignments are not available yet.");
+    if (parsed.documentIds.length)
+      throw new DomainError("INVALID_INPUT", 400, "Document assignments are not available yet.");
     return db.transaction(async (tx) => {
       const { application, userId, access } = await manager(tx, actor, bankId, applicationId);
       if (!canDelegateParticipantGrant(access, parsed)) return deny();
+      await validateTaskGrants(
+        tx,
+        actor,
+        access,
+        bankId,
+        applicationId,
+        parsed.taskIds,
+        parsed.email,
+      );
       const { idempotencyKey: _key, ...payload } = parsed;
       const command = await existingCommand(
         tx,
@@ -525,6 +690,15 @@ export function createParticipantsService(
           invalidState("This invitation has already been accepted.");
         const now = clock();
         if (operation === "resend") {
+          await validateTaskGrants(
+            tx,
+            actor,
+            access,
+            bankId,
+            applicationId,
+            invitation.taskIds,
+            invitation.email,
+          );
           if (invitation.status === "revoked")
             invalidState("Create a new invitation to invite this person again.");
           if (!options.deliveryEnabled)
@@ -621,12 +795,25 @@ export function createParticipantsService(
           );
         const now = clock();
         if (!participant.revokedAt) {
-          // T12 task adapters must use unassignedAt/revokedAt when reconciling unfinished assignments.
+          // This marker identifies the current assignment generation. Keep removals
+          // distinct even when an injected clock has not advanced between revocations.
+          const unassignedAt = new Date(
+            Math.max(now.getTime(), (participant.unassignedAt?.getTime() ?? -1) + 1),
+          );
+          await unassignParticipantTasks(
+            tx,
+            bankId,
+            applicationId,
+            participantId,
+            userId,
+            requestId,
+            now,
+          );
           await tx
             .update(applicationParticipants)
             .set({
               revokedAt: now,
-              unassignedAt: now,
+              unassignedAt,
               taskIds: [],
               documentIds: [],
               updatedAt: now,
@@ -678,6 +865,7 @@ export function createParticipantsService(
             requestId,
             now,
           );
+          await reconcileTasks(tx, bankId, applicationId, requestId, now);
         }
         await tx
           .insert(participantCommands)
@@ -824,7 +1012,8 @@ export function createParticipantsService(
               taskIds: invitation.taskIds,
               documentIds: invitation.documentIds,
               revokedAt: null,
-              unassignedAt: null,
+              // Preserve the removal marker: accepting a new grant never restores old assignments.
+              unassignedAt: existing?.unassignedAt ?? null,
               updatedAt: now,
             },
           });
@@ -834,6 +1023,7 @@ export function createParticipantsService(
         .set({ status: "accepted", acceptedAt: now, acceptedByUserId: user.id, updatedAt: now })
         .where(eq(invitations.id, invitationId));
       await revokeDeliveries(tx, invitationId, now);
+      await reconcileTasks(tx, bankId, application.id, requestId, now);
       await audit(
         tx,
         user.id,
@@ -851,6 +1041,8 @@ export function createParticipantsService(
   return {
     read,
     addRelationship,
+    setRelationshipActive,
+    linkRelationship,
     createInvitation,
     removeParticipant,
     readInvitation,

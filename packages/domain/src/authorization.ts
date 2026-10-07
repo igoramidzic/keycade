@@ -27,6 +27,7 @@ export type ApplicationAccess =
       role: "applicant_admin" | "owner" | "adviser";
       scope: "full" | "assigned";
       participantId?: string;
+      unassignedAt?: Date | null;
       taskIds?: readonly string[];
       documentIds?: readonly string[];
     }
@@ -116,6 +117,7 @@ export async function requireApplicationAccess(
     role: participant.role,
     scope: participant.scope,
     participantId: participant.id,
+    unassignedAt: participant.unassignedAt,
     taskIds: participant.taskIds,
     documentIds: participant.documentIds,
   };

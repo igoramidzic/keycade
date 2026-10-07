@@ -16,12 +16,14 @@ import {
   CardTitle,
 } from "@keycade/ui/components/card";
 import { NativeSelect } from "@keycade/ui/components/native-select";
+import { TaskProgress } from "@keycade/ui/components/tasks-manager";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router";
 import { ApiError, formatAmount, useStaffApi } from "./api";
 import { PrefillForm } from "./forms";
 import { ApplicationParticipants } from "./participants";
+import { ApplicationTasks } from "./tasks";
 import {
   ErrorNotice,
   Field,
@@ -207,6 +209,21 @@ export function ApplicationDetail() {
                     </CardContent>
                   </Card>
                 </div>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Task progress</CardTitle>
+                    <CardDescription>Current requirements for this application.</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <TaskProgress progress={data.tasks} />
+                    <Link
+                      className={buttonVariants({ variant: "outline" })}
+                      to={`/applications/${data.id}/tasks${bankQuery}`}
+                    >
+                      View tasks
+                    </Link>
+                  </CardContent>
+                </Card>
                 {prefill && data.setup.status === "in_progress" && (
                   <PrefillForm
                     key={data.id}
@@ -237,18 +254,17 @@ export function ApplicationDetail() {
             {selected === "participants" && (
               <ApplicationParticipants key={data.id} applicationId={data.id} />
             )}
-            {(selected === "tasks" || selected === "documents" || selected === "checks") && (
+            {selected === "tasks" && <ApplicationTasks key={data.id} applicationId={data.id} />}
+            {(selected === "documents" || selected === "checks") && (
               <Card>
                 <CardHeader>
                   <CardTitle>{tabs[selected]} are not available yet</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm leading-6 text-muted-foreground">
-                    {selected === "tasks"
-                      ? "Task requirements and next-action counts will appear here when task management is available. No readiness assessment has been made."
-                      : selected === "documents"
-                        ? "Document upload and document review will appear here when private document storage is available."
-                        : "Simulated identity, business, and fraud checks will appear here when checks are available. No checks have been run or passed."}
+                    {selected === "documents"
+                      ? "Document upload and document review will appear here when private document storage is available."
+                      : "Simulated identity, business, and fraud checks will appear here when checks are available. No checks have been run or passed."}
                   </p>
                 </CardContent>
               </Card>

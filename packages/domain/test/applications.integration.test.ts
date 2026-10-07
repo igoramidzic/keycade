@@ -142,8 +142,11 @@ describe("real PostgreSQL application boundaries", () => {
       .select()
       .from(auditEvents)
       .where(eq(auditEvents.requestId, requestId));
-    expect(audit).toHaveLength(1);
-    expect(audit[0]).toMatchObject({
+    const applicationAudit = audit.filter(
+      (event) => event.action === "application.purpose_updated",
+    );
+    expect(applicationAudit).toHaveLength(1);
+    expect(applicationAudit[0]).toMatchObject({
       bankId: ids.bankA,
       applicationId: ids.applicationSmall,
       actorUserId: ids.borrower,

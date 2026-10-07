@@ -49,14 +49,14 @@ export function BorrowerApp({ confirmation }: { confirmation: Confirmation }) {
         Skip to content
       </a>
       <header className="border-b">
-        <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-3 px-5 py-5">
+        <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-3 px-5 py-5 sm:px-8">
           <a href={__KEYCADE_PUBLIC__.bankSiteUrl} className="font-semibold">
             Keycade Bank
           </a>
           <span className="text-sm text-muted-foreground">Business financing</span>
         </div>
       </header>
-      <main id="main" className="mx-auto w-full max-w-3xl flex-1 px-5 py-8 sm:py-12">
+      <main id="main" className="mx-auto w-full max-w-[1440px] flex-1 px-5 py-6 sm:px-8 sm:py-8">
         {catalog.isPending ? (
           <Loading />
         ) : catalog.error ? (
@@ -133,10 +133,9 @@ function Workspace({
     retry: false,
   });
   return (
-    <div id="identity" className="space-y-8">
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b pb-5">
-        <div className="min-w-0 space-y-1">
-          <p className="text-sm font-medium">{session.bank.name}</p>
+    <div id="identity" className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
           <p className="break-all text-sm text-muted-foreground">{session.user.email}</p>
           <Badge variant="secondary">
             {session.authenticationMethod === "demo" ? "Demo access" : "Email verified"}
@@ -254,7 +253,7 @@ function StartApplication({ session }: { session: AuthenticatedSession }) {
     }
   }
   return (
-    <Card>
+    <Card className="mx-auto w-full max-w-3xl">
       <CardHeader>
         <CardTitle className="text-2xl">Start a new application</CardTitle>
         <CardDescription>

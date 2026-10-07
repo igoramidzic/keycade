@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { applicationStatusSchema, usdAmountSchema } from "./common.js";
 import { intakeProductSchema } from "./intake.js";
+import { taskProgressSchema } from "./tasks.js";
 
 export const applicationSetupStepSchema = z.enum([
   "business_name",
@@ -72,6 +73,7 @@ export const applicationSelectionSchema = z.object({
   nextDestination: z.enum(["setup", "portal", "closed", "assigned"]),
   currentStep: applicationSetupStepSchema,
   claimRequired: z.boolean(),
+  taskProgress: taskProgressSchema.nullable().default(null),
 });
 export const applicationSetupSchema = applicationSelectionSchema.extend({
   selectedProduct: intakeProductSchema.extend({ active: z.boolean() }).nullable(),
@@ -83,10 +85,9 @@ export const applicationSetupSchema = applicationSelectionSchema.extend({
   skippedSteps: z.array(applicationSetupStepSchema),
   completedAt: z.string().datetime().nullable(),
 });
-// Requirement/task data is unavailable until T12; null must not imply zero outstanding work.
 export const applicationPortalSchema = applicationSelectionSchema.extend({
   purpose: z.string().nullable(),
-  remainingTasks: z.null(),
+  remainingTasks: z.number().int().nonnegative(),
 });
 export const applicationPageSchema = z.object({
   items: z.array(applicationSelectionSchema),

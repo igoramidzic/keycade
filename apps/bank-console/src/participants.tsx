@@ -1,4 +1,4 @@
-import { participantsWorkspaceSchema } from "@keycade/contracts";
+import { participantsWorkspaceSchema, tasksViewSchema } from "@keycade/contracts";
 import { ParticipantsManager } from "@keycade/ui/components/participants-manager";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, useStaffApi } from "./api";
@@ -17,6 +17,14 @@ export function ApplicationParticipants({ applicationId }: { applicationId: stri
     refetchOnWindowFocus: true,
     refetchInterval: 15_000,
   });
+  const tasks = useQuery({
+    queryKey: ["staff-tasks", applicationId],
+    queryFn: ({ signal }) =>
+      api.participantRequest(`/applications/${applicationId}/tasks`, tasksViewSchema, { signal }),
+    enabled: Boolean(people.data?.canManage),
+    retry: false,
+    refetchOnMount: "always",
+  });
   if (people.isPending || !people.isFetchedAfterMount)
     return <Loading>Loading participants…</Loading>;
   if (people.error)
@@ -25,6 +33,11 @@ export function ApplicationParticipants({ applicationId }: { applicationId: stri
   return (
     <ParticipantsManager
       data={people.data}
+      availableTasks={
+        tasks.data?.tasks.filter(
+          (task) => task.visibility !== "private" && task.state !== "cancelled",
+        ) ?? []
+      }
       errorMessage={(error) =>
         error instanceof ApiError
           ? error.message
@@ -42,6 +55,7 @@ export function ApplicationParticipants({ applicationId }: { applicationId: stri
         );
         client.setQueryData(queryKey, updated);
         await client.invalidateQueries({ queryKey: ["staff-workspace", applicationId] });
+        await client.invalidateQueries({ queryKey: ["staff-tasks", applicationId] });
       }}
     />
   );

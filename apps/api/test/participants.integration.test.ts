@@ -302,7 +302,6 @@ for (const transport of ["fastify", "worker"] as const) {
           { role: "officer" },
           { scope: "business" },
           { taskIds: ["not-a-uuid"] },
-          { taskIds: [randomUUID()] },
           { documentIds: [randomUUID()] },
           { applicationId: seedIds.applicationLarge },
         ])
@@ -315,6 +314,15 @@ for (const transport of ["fastify", "worker"] as const) {
               })
             ).status,
           ).toBe(400);
+        expect(
+          (
+            await c.call(`${base}/invitations`, {
+              ...borrower,
+              method: "POST",
+              body: { ...input, taskIds: [randomUUID()], idempotencyKey: randomUUID() },
+            })
+          ).status,
+        ).toBe(404);
         expect(
           (
             await c.call(`${base}/invitations`, {

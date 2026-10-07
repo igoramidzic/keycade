@@ -2,6 +2,7 @@ import {
   acceptInvitationResponseSchema,
   invitationViewSchema,
   participantsWorkspaceSchema,
+  tasksViewSchema,
 } from "@keycade/contracts";
 import { Alert, AlertDescription, AlertTitle } from "@keycade/ui/components/alert";
 import { Badge } from "@keycade/ui/components/badge";
@@ -44,6 +45,18 @@ export function ApplicationPeople({
     refetchOnWindowFocus: true,
     refetchInterval: 15_000,
   });
+  const tasks = useQuery({
+    queryKey: ["tasks", session.bank.id, session.user.email, applicationId],
+    queryFn: ({ signal }) =>
+      request(
+        `/api/v1/banks/${session.bank.id}/applications/${applicationId}/tasks`,
+        tasksViewSchema,
+        { ...options, signal },
+      ),
+    enabled: Boolean(people.data?.canManage),
+    retry: false,
+    refetchOnMount: "always",
+  });
   if (people.isPending || !people.isFetchedAfterMount) return <Loading />;
   if (people.error)
     return <ErrorNotice error={people.error} onRetry={() => void people.refetch()} />;
@@ -51,6 +64,11 @@ export function ApplicationPeople({
   return (
     <ParticipantsManager
       data={people.data}
+      availableTasks={
+        tasks.data?.tasks.filter(
+          (task) => task.visibility !== "private" && task.state !== "cancelled",
+        ) ?? []
+      }
       errorMessage={errorMessage}
       mutate={async (path, body) => {
         await client.cancelQueries({ queryKey });
@@ -60,6 +78,9 @@ export function ApplicationPeople({
           body,
         });
         client.setQueryData(queryKey, updated);
+        await client.invalidateQueries({
+          queryKey: ["tasks", session.bank.id, session.user.email, applicationId],
+        });
       }}
     />
   );

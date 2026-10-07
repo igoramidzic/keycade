@@ -13,6 +13,7 @@ import {
   requireBankStaff,
 } from "./authorization.js";
 import { DomainError, deny } from "./errors.js";
+import { reconcileTasks } from "./tasks.js";
 
 async function findApplication(db: QueryDatabase, bankId: string, applicationId: string) {
   const [application] = await db
@@ -134,6 +135,7 @@ export async function updateApplicationPurpose(
       requestId,
       metadata: {},
     });
+    await reconcileTasks(tx, bankId, applicationId, requestId, updated.updatedAt);
     return publicApplicationSchema.parse(updated);
   });
 }

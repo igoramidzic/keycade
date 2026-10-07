@@ -20,6 +20,7 @@ export type ParticipantsData = {
   canManage: boolean;
   participants: {
     id: string;
+    userId: string;
     displayName: string;
     email: string;
     role: Role;
@@ -35,6 +36,7 @@ export type ParticipantsData = {
     kind: "owner" | "contact";
     ownershipPercent: string | null;
     userId: string | null;
+    active: boolean;
   }[];
   invitations: {
     id: string;
@@ -73,14 +75,17 @@ export function ParticipantsManager({
   data,
   mutate,
   errorMessage,
+  availableTasks = [],
 }: {
   data: ParticipantsData;
+  availableTasks?: { id: string; title: string }[];
   mutate: (path: string, body: object) => Promise<void>;
   errorMessage: (error: unknown) => string;
 }) {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<Role>("adviser");
   const [scope, setScope] = useState<Scope>("assigned");
+  const [taskIds, setTaskIds] = useState<string[]>([]);
   const [ownerName, setOwnerName] = useState("");
   const [ownershipPercent, setOwnershipPercent] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
@@ -112,9 +117,18 @@ export function ParticipantsManager({
     event.preventDefault();
     void save(
       "/invitations",
-      { email: email.trim(), role, scope, taskIds: [], documentIds: [] },
+      {
+        email: email.trim(),
+        role,
+        scope,
+        taskIds: scope === "assigned" ? taskIds : [],
+        documentIds: [],
+      },
       "Invitation saved. The recipient must verify their email and accept before gaining access.",
-      () => setEmail(""),
+      () => {
+        setEmail("");
+        setTaskIds([]);
+      },
     );
   }
   return (
@@ -264,10 +278,44 @@ export function ParticipantsManager({
                 </NativeSelect>
                 <p className="text-sm leading-6 text-muted-foreground">
                   {scope === "assigned"
-                    ? "The recipient can see a limited application summary. They can only use tasks and documents explicitly assigned or permitted to them when those features are available."
+                    ? "The recipient can see a limited application summary. They can only use tasks and documents explicitly assigned or permitted to them."
                     : "The recipient can manage this application and invite collaborators. Other people’s private identity information remains restricted."}
                 </p>
               </div>
+              {scope === "assigned" && (
+                <fieldset className="space-y-3 rounded-lg border p-4">
+                  <legend className="px-1 text-sm font-medium">Permitted tasks</legend>
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    Choose tasks this collaborator may access after accepting. Bank staff can assign
+                    them to submit answers. Owner-private tasks cannot be delegated.
+                  </p>
+                  {availableTasks.length ? (
+                    availableTasks.map((task) => (
+                      <label key={task.id} className="flex items-start gap-2 text-sm">
+                        <input
+                          className="mt-1"
+                          type="checkbox"
+                          checked={taskIds.includes(task.id)}
+                          disabled={Boolean(busy)}
+                          onChange={(event) =>
+                            setTaskIds((current) =>
+                              event.target.checked
+                                ? [...current, task.id]
+                                : current.filter((id) => id !== task.id),
+                            )
+                          }
+                        />
+                        <span>{task.title}</span>
+                      </label>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      No tasks are available to delegate yet. You can invite a collaborator with
+                      limited summary access.
+                    </p>
+                  )}
+                </fieldset>
+              )}
               <Button type="submit" disabled={Boolean(busy)}>
                 {busy === "/invitations" ? "Sending…" : "Send invitation"}
               </Button>
@@ -370,7 +418,18 @@ export function ParticipantsManager({
                           {relationship.ownershipPercent}% ownership
                         </Badge>
                       )}
+                      {!relationship.active && (
+                        <Badge variant="secondary">Inactive relationship</Badge>
+                      )}
                     </div>
+                    {data.canManage && (
+                      <RelationshipControls
+                        relationship={relationship}
+                        participants={data.participants}
+                        busy={Boolean(busy)}
+                        save={save}
+                      />
+                    )}
                   </li>
                 ))}
               </ul>
@@ -439,6 +498,88 @@ export function ParticipantsManager({
           </CardContent>
         </Card>
       )}
+    </div>
+  );
+}
+
+function RelationshipControls({
+  relationship,
+  participants,
+  busy,
+  save,
+}: {
+  relationship: ParticipantsData["relationships"][number];
+  participants: ParticipantsData["participants"];
+  busy: boolean;
+  save: (path: string, body: object, message: string) => Promise<void>;
+}) {
+  const [userId, setUserId] = useState("");
+  const linked = participants.find((person) => person.userId === relationship.userId);
+  return (
+    <div className="space-y-3 pt-2">
+      {relationship.userId ? (
+        <p className="text-sm text-muted-foreground">
+          Linked to {linked?.displayName ?? "an existing participant"}. Private owner tasks are
+          visible to this person and bank staff.
+        </p>
+      ) : (
+        relationship.active && (
+          <form
+            className="flex flex-wrap items-end gap-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (userId)
+                void save(
+                  `/relationships/${relationship.id}/user`,
+                  { userId },
+                  "Owner linked to the existing participant. Portal permissions remain separate.",
+                );
+            }}
+          >
+            <div className="min-w-0 flex-1 space-y-2">
+              <label className="text-sm" htmlFor={`owner-user-${relationship.id}`}>
+                Link {relationship.displayName} to a participant
+              </label>
+              <NativeSelect
+                id={`owner-user-${relationship.id}`}
+                className="w-full"
+                required
+                value={userId}
+                disabled={busy}
+                onChange={(event) => setUserId(event.target.value)}
+              >
+                <option value="">Choose the owner’s existing account</option>
+                {participants
+                  .filter((person) => person.status === "active")
+                  .map((person) => (
+                    <option key={person.id} value={person.userId}>
+                      {person.displayName}
+                    </option>
+                  ))}
+              </NativeSelect>
+            </div>
+            <Button type="submit" variant="outline" size="sm" disabled={busy || !userId}>
+              Link owner
+            </Button>
+          </form>
+        )
+      )}
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={busy}
+        onClick={() =>
+          void save(
+            `/relationships/${relationship.id}/status`,
+            { active: !relationship.active },
+            relationship.active
+              ? "Relationship marked inactive. Its prior task history is preserved."
+              : "Relationship restored. Applicable requirements need fresh review.",
+          )
+        }
+      >
+        {relationship.active ? "Mark relationship inactive" : "Restore relationship"}
+      </Button>
     </div>
   );
 }

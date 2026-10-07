@@ -17,6 +17,7 @@ export const addBusinessRelationshipSchema = participantCommandSchema
   .extend({
     displayName: z.string().trim().min(1).max(160),
     kind: z.enum(["owner", "contact"]),
+    userId: z.string().uuid().optional(),
     ownershipPercent: z
       .string()
       .regex(/^(?:100(?:\.0{1,2})?|\d{1,2}(?:\.\d{1,2})?)$/)
@@ -24,6 +25,10 @@ export const addBusinessRelationshipSchema = participantCommandSchema
       .optional(),
   })
   .refine((value) => value.kind === "owner" || value.ownershipPercent == null);
+export const setRelationshipActiveSchema = participantCommandSchema.extend({ active: z.boolean() });
+export const linkRelationshipSchema = participantCommandSchema.extend({
+  userId: z.string().uuid(),
+});
 export const invitationStatusSchema = z.enum(["pending", "accepted", "revoked", "expired"]);
 const grantFields = {
   role: participantRoleSchema,
@@ -53,6 +58,7 @@ export const participantsWorkspaceSchema = z.object({
       kind: z.enum(["owner", "contact"]),
       ownershipPercent: z.string().nullable(),
       userId: z.string().uuid().nullable(),
+      active: z.boolean(),
     }),
   ),
   invitations: z.array(

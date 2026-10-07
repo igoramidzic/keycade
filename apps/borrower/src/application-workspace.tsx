@@ -25,6 +25,7 @@ import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { ApiError, formatAmount, request } from "./api";
 import { ApplicationPeople } from "./participants";
 import { SetupWizard } from "./setup-wizard";
+import { ApplicationTasks } from "./tasks";
 import { applicationPath, ErrorNotice, Loading } from "./workspace-ui";
 
 const statusLabels: Record<ApplicationSelection["status"], string> = {
@@ -94,6 +95,14 @@ function Summary({ application }: { application: ApplicationSelection }) {
         <dt className="text-muted-foreground">Status</dt>
         <dd className="mt-1">{statusLabels[application.status]}</dd>
       </div>
+      {application.taskProgress && (
+        <div>
+          <dt className="text-muted-foreground">Required tasks satisfied</dt>
+          <dd className="mt-1">
+            {application.taskProgress.requiredCompleted} of {application.taskProgress.required}
+          </dd>
+        </div>
+      )}
       <div>
         <dt className="text-muted-foreground">Last updated</dt>
         <dd className="mt-1">
@@ -201,53 +210,57 @@ export function ApplicationList({
             return (
               <section key={key} aria-label={name} className="space-y-3">
                 <h2 className="break-words text-xl font-semibold">{name}</h2>
-                {applications.map((application) => (
-                  <article key={application.id} aria-label={`Application ${application.id}`}>
-                    <Card>
-                      <CardHeader>
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <CardTitle>Application {application.id.slice(-8)}</CardTitle>
-                          {application.accessScope === "assigned" ? (
-                            <Badge variant="secondary">Limited access</Badge>
-                          ) : (
-                            <Badge variant="outline">
-                              {application.nextDestination === "closed"
-                                ? "Closed"
-                                : application.setupStatus === "completed"
-                                  ? "Initial setup complete"
-                                  : "Setup in progress"}
-                            </Badge>
+                <div className="grid items-start gap-4 lg:grid-cols-2">
+                  {applications.map((application) => (
+                    <article key={application.id} aria-label={`Application ${application.id}`}>
+                      <Card>
+                        <CardHeader>
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <CardTitle>Application {application.id.slice(-8)}</CardTitle>
+                            {application.accessScope === "assigned" ? (
+                              <Badge variant="secondary">Limited access</Badge>
+                            ) : (
+                              <Badge variant="outline">
+                                {application.nextDestination === "closed"
+                                  ? "Closed"
+                                  : application.setupStatus === "completed"
+                                    ? "Initial setup complete"
+                                    : "Setup in progress"}
+                              </Badge>
+                            )}
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-5">
+                          <Summary application={application} />
+                          {application.nextDestination === "setup" && (
+                            <p className="text-sm text-muted-foreground">
+                              Next: {setupSteps[application.currentStep]}
+                              {application.claimRequired ? " · Confirm this draft to continue" : ""}
+                            </p>
                           )}
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-5">
-                        <Summary application={application} />
-                        {application.nextDestination === "setup" && (
-                          <p className="text-sm text-muted-foreground">
-                            Next: {setupSteps[application.currentStep]}
-                            {application.claimRequired ? " · Confirm this draft to continue" : ""}
-                          </p>
-                        )}
-                        {application.accessScope === "assigned" && (
-                          <p className="text-sm text-muted-foreground">
-                            Only your assigned work and permitted information will be available.
-                          </p>
-                        )}
-                        <Button
-                          disabled={busy !== null}
-                          variant={application.nextDestination === "closed" ? "outline" : "default"}
-                          onClick={() => void open(application)}
-                        >
-                          {busy === application.id
-                            ? "Opening…"
-                            : application.nextDestination === "setup"
-                              ? "Continue setup"
-                              : "Open application"}
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  </article>
-                ))}
+                          {application.accessScope === "assigned" && (
+                            <p className="text-sm text-muted-foreground">
+                              Only your assigned work and permitted information will be available.
+                            </p>
+                          )}
+                          <Button
+                            disabled={busy !== null}
+                            variant={
+                              application.nextDestination === "closed" ? "outline" : "default"
+                            }
+                            onClick={() => void open(application)}
+                          >
+                            {busy === application.id
+                              ? "Opening…"
+                              : application.nextDestination === "setup"
+                                ? "Continue setup"
+                                : "Open application"}
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    </article>
+                  ))}
+                </div>
               </section>
             );
           })}
@@ -328,12 +341,14 @@ export function ApplicationRoute({
     return <Navigate replace to={applicationPath(applicationId, session.bank.slug)} />;
   if (data.nextDestination === "setup")
     return (
-      <SetupWizard
-        key={`${session.bank.id}:${session.user.email}:${applicationId}`}
-        session={session}
-        applicationId={applicationId}
-        refreshSession={controls.refreshSession}
-      />
+      <div className="mx-auto w-full max-w-3xl">
+        <SetupWizard
+          key={`${session.bank.id}:${session.user.email}:${applicationId}`}
+          session={session}
+          applicationId={applicationId}
+          refreshSession={controls.refreshSession}
+        />
+      </div>
     );
   if (data.nextDestination === "closed")
     return <ClosedApplication data={data} bankSlug={session.bank.slug} />;
@@ -357,7 +372,7 @@ function ClosedApplication({ data, bankSlug }: { data: ApplicationSelection; ban
     </Link>
   );
   return (
-    <section className="space-y-5">
+    <section className="mx-auto w-full max-w-3xl space-y-5">
       {back}
       <Card>
         <CardHeader>
@@ -377,10 +392,6 @@ function ClosedApplication({ data, bankSlug }: { data: ApplicationSelection; ban
 
 const views = ["Overview", "Tasks", "Documents", "People", "Activity"] as const;
 const emptyViews = {
-  tasks: [
-    "Tasks are not available yet",
-    "Task requests are not enabled in this demo yet. Your initial setup is saved; finishing it does not complete or submit your application.",
-  ],
   documents: [
     "Documents are not available yet",
     "Document uploads are not enabled in this demo yet. No documents have been requested through this workspace.",
@@ -416,14 +427,19 @@ function ApplicationPortal({
     `/applications/${applicationId}${section ? `/${section}` : ""}?bank=${encodeURIComponent(session.bank.slug)}`;
   const back = (
     <Link
-      className={buttonVariants({ variant: "outline" })}
+      className="inline-flex text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
       to={`/?bank=${encodeURIComponent(session.bank.slug)}`}
     >
       Your applications
     </Link>
   );
   if (detail.isPending || !detail.isFetchedAfterMount) return <Loading />;
-  if (detail.error) {
+  if (
+    detail.error &&
+    (!detail.data ||
+      (detail.error instanceof ApiError &&
+        ([401, 403, 404].includes(detail.error.status) || detail.error.code === "SETUP_REQUIRED")))
+  ) {
     if (detail.error instanceof ApiError && detail.error.code === "SETUP_REQUIRED")
       return <Navigate replace to={applicationPath(applicationId, session.bank.slug, true)} />;
     return (
@@ -443,15 +459,15 @@ function ApplicationPortal({
   return (
     <section className="space-y-6">
       {back}
-      <header className="space-y-3">
-        <div className="flex flex-wrap gap-2">
-          <Badge variant="outline">{statusLabels[data.status]}</Badge>
-          {limited && <Badge variant="secondary">Limited access</Badge>}
+      {detail.error && <ErrorNotice error={detail.error} onRetry={() => void detail.refetch()} />}
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 space-y-2">
+          <h1 className="break-words text-3xl font-semibold tracking-tight">
+            {data.businessName ?? "Business application"}
+          </h1>
+          <p className="text-sm text-muted-foreground">Application {data.id.slice(-8)}</p>
         </div>
-        <h1 className="break-words text-3xl font-semibold tracking-tight">
-          {data.businessName ?? "Business application"}
-        </h1>
-        <p className="text-sm text-muted-foreground">Application {data.id.slice(-8)}</p>
+        {limited && <Badge variant="secondary">Limited access</Badge>}
       </header>
       <nav aria-label="Application sections" className="flex flex-wrap gap-1 border-b pb-3">
         {views.map((label) => {
@@ -471,49 +487,78 @@ function ApplicationPortal({
           );
         })}
       </nav>
-      {active === "overview" ? (
-        <div className="space-y-5">
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                <h2>Overview</h2>
-              </CardTitle>
-              <CardDescription>
-                {limited
-                  ? "Your access is limited to assigned work and permitted information."
-                  : statusDescriptions[data.status]}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              {!limited && data.setupStatus === "completed" && (
-                <Badge variant="secondary">Initial setup complete</Badge>
-              )}
-              <Summary application={data} />
-              {!limited && data.purpose && (
-                <div className="text-sm">
-                  <p className="text-muted-foreground">Loan purpose</p>
-                  <p className="mt-1 whitespace-pre-wrap break-words">{data.purpose}</p>
+      {active === "overview" || active === "tasks" ? (
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] xl:gap-8">
+          <section aria-label="Application tasks" className="min-w-0">
+            <ApplicationTasks session={session} applicationId={applicationId} />
+          </section>
+          <aside aria-label="Application details" className="min-w-0 space-y-6 lg:sticky lg:top-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  <h2>Application details</h2>
+                </CardTitle>
+                <CardDescription className="break-words">
+                  {data.businessName ?? "Business application"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="space-y-1">
+                  {!limited && (
+                    <p className="break-words text-3xl font-semibold tracking-tight">
+                      {data.requestedAmount
+                        ? formatAmount(data.requestedAmount)
+                        : "Amount not provided"}
+                    </p>
+                  )}
+                  <p className="text-sm text-muted-foreground">
+                    {data.productName ?? "Product not assigned"}
+                  </p>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                <h2>{limited ? "Your assigned work" : "Next steps"}</h2>
-              </CardTitle>
-              <CardDescription>
-                {limited
-                  ? "Assigned tasks will appear here when available. You do not need to complete the applicant’s setup."
-                  : "Review the Tasks section for remaining work. Task requests are not enabled in this demo yet."}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Link to={path("tasks")} className={buttonVariants()}>
-                View tasks
-              </Link>
-            </CardContent>
-          </Card>
+                {!limited && data.purpose && (
+                  <div className="text-sm">
+                    <p className="text-muted-foreground">Loan purpose</p>
+                    <p className="mt-1 whitespace-pre-wrap break-words">{data.purpose}</p>
+                  </div>
+                )}
+                <div className="space-y-3 border-t pt-5">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                    <span className="text-muted-foreground">Current stage</span>
+                    <Badge variant="outline">{statusLabels[data.status]}</Badge>
+                  </div>
+                  <p className="text-sm leading-6 text-muted-foreground">
+                    {limited
+                      ? "Your access is limited to assigned work and permitted information."
+                      : statusDescriptions[data.status]}
+                  </p>
+                  {!limited && data.setupStatus === "completed" && (
+                    <Badge variant="secondary">Initial setup complete</Badge>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Updated <UpdatedAt value={data.updatedAt} />
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  <h2>Documents</h2>
+                </CardTitle>
+                <CardDescription>
+                  Document uploads are not enabled in this demo yet.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Link
+                  to={path("documents")}
+                  className={buttonVariants({ variant: "outline", size: "sm" })}
+                >
+                  View documents
+                </Link>
+              </CardContent>
+            </Card>
+          </aside>
         </div>
       ) : active === "people" ? (
         <ApplicationPeople session={session} applicationId={applicationId} />

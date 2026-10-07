@@ -863,7 +863,12 @@ describe("real PostgreSQL authenticated creation and setup", () => {
     expect(failed).toHaveLength(1);
     expect(failed[0]?.reason).toMatchObject({ code: "REVISION_CONFLICT" });
     expect(await service().readSetup(actor, ids.bankA, draft.id)).toEqual(successful[0]?.value);
-    expect(await audits(draft.id)).toHaveLength(beforeAudit.length + 1);
+    const applicationAudits = (await audits(draft.id)).filter(
+      (event) => event.targetType === "application",
+    );
+    expect(applicationAudits).toHaveLength(
+      beforeAudit.filter((event) => event.targetType === "application").length + 1,
+    );
   });
 
   it("keeps the earlier staff purpose command consistent with setup revisions and dependent progress", async () => {

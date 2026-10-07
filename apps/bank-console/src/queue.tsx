@@ -234,6 +234,14 @@ export function ApplicationQueue() {
                             : stepLabels[item.currentStep]}
                         </dd>
                       </div>
+                      {item.taskProgress && (
+                        <div>
+                          <dt className="text-muted-foreground">Required tasks satisfied</dt>
+                          <dd>
+                            {item.taskProgress.requiredCompleted} of {item.taskProgress.required}
+                          </dd>
+                        </div>
+                      )}
                       <div>
                         <dt className="text-muted-foreground">Last updated</dt>
                         <dd>{new Date(item.updatedAt).toLocaleString()}</dd>

@@ -64,6 +64,22 @@ export async function request<T>(
         ? "This application is unavailable for your account."
         : (data?.error?.message ?? "We couldn’t complete your request. Please try again."),
     );
+  if (options.bankId || options.actorEmail) {
+    const current = await request("/api/v1/auth/session", authSessionSchema, {
+      signal: options.signal,
+    });
+    if (
+      !current.authenticated ||
+      (options.bankId && current.bank.id !== options.bankId) ||
+      (options.actorEmail && current.user.email !== options.actorEmail)
+    ) {
+      throw new ApiError(
+        "SESSION_CHANGED",
+        401,
+        "Your sign-in changed. Return to your original account to continue.",
+      );
+    }
+  }
   return schema.parse(data);
 }
 export const errorMessage = (error: unknown) =>

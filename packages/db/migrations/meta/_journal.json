@@ -57,6 +57,27 @@
       "when": 1791385149808,
       "tag": "0007_volatile_mordo",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791387230545,
+      "tag": "0008_tiny_mesmero",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791387298729,
+      "tag": "0009_unique_talisman",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791387996904,
+      "tag": "0010_cool_hitman",
+      "breakpoints": true
     }
   ]
 }
