@@ -1,9 +1,10 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
+import * as authSchema from "./auth-schema.js";
 import * as jobSchema from "./job-schema.js";
 import * as coreSchema from "./schema.js";
 
-const schema = { ...coreSchema, ...jobSchema };
+const schema = { ...coreSchema, ...jobSchema, ...authSchema };
 
 /** Server-only connection; callers own pool.end() on shutdown. No connection is opened on import. */
 export function createDatabase(connectionString: string, options: { max?: number } = {}) {
@@ -20,6 +21,7 @@ export function createDatabase(connectionString: string, options: { max?: number
 export type Database = ReturnType<typeof createDatabase>["db"];
 export type DatabaseTransaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
+export * from "./auth-schema.js";
 export * from "./job-schema.js";
 export { normalizeMoney } from "./money.js";
 export * from "./schema.js";

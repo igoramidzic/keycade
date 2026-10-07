@@ -56,3 +56,47 @@ export const readinessSchema = z.object({
 export type PublicApplication = z.infer<typeof publicApplicationSchema>;
 export type StaffApplication = z.infer<typeof staffApplicationSchema>;
 export type Readiness = z.infer<typeof readinessSchema>;
+
+export const authPortalSchema = z.enum(["borrower", "staff"]);
+// Only destinations implemented by this release can be preserved across authentication.
+export const authReturnPathSchema = z.literal("/");
+export const requestAccessLinkSchema = z.strictObject({
+  email: z.string().trim().email().max(254),
+  bankSlug: z
+    .string()
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+    .max(80),
+  portal: authPortalSchema,
+  returnPath: authReturnPathSchema.default("/"),
+});
+export const requestAccessLinkResponseSchema = z.object({ message: z.string() });
+export const consumeAccessLinkSchema = z.strictObject({
+  token: z.string().regex(/^[a-f0-9]{64}$/),
+});
+export const consumeAccessLinkResponseSchema = z.object({ returnPath: authReturnPathSchema });
+export const demoSignInSchema = requestAccessLinkSchema;
+export const demoSignInResponseSchema = consumeAccessLinkResponseSchema;
+export const sessionBankSchema = z.object({
+  id: z.string().uuid(),
+  slug: z.string(),
+  name: z.string(),
+});
+export const authSessionSchema = z.discriminatedUnion("authenticated", [
+  z.object({ authenticated: z.literal(false), demoSignInEnabled: z.boolean() }),
+  z.object({
+    authenticated: z.literal(true),
+    demoSignInEnabled: z.boolean(),
+    authenticationMethod: z.enum(["demo", "email_link"]),
+    user: z.object({ email: z.string().email(), displayName: z.string().nullable() }),
+    csrfToken: z.string().min(32),
+    bank: sessionBankSchema,
+    staff: z.boolean(),
+  }),
+]);
+export const staffSessionSchema = z.object({
+  bank: sessionBankSchema,
+  role: z.enum(["officer", "admin"]),
+});
+export const logoutResponseSchema = z.object({ ok: z.literal(true) });
+export type AuthSession = z.infer<typeof authSessionSchema>;
+export type AuthPortal = z.infer<typeof authPortalSchema>;

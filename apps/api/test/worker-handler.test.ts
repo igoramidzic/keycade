@@ -89,3 +89,89 @@ test("Worker publishes the same public application contract without administrati
   expect(document).toContain('"expectedRevision"');
   expect(document).not.toContain("DATABASE_URL");
 });
+
+test("Worker identity diagnostics do not authenticate public headers and reject unsafe login mutations", async () => {
+  expect(
+    await (
+      await handleWorkerRequest(
+        request("/api/v1/auth/session", {
+          headers: { "x-user-id": "admin", "x-bank-role": "admin" },
+        }),
+        deps,
+      )
+    ).json(),
+  ).toEqual({ authenticated: false, demoSignInEnabled: false });
+  expect((await handleWorkerRequest(request("/api/v1/auth/staff"), deps)).status).toBe(404);
+  expect((await handleWorkerRequest(request("/api/v1/auth/consume"), deps)).status).toBe(404);
+  expect(
+    (
+      await handleWorkerRequest(
+        request("/api/v1/auth/request-link", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: "{}",
+        }),
+        deps,
+      )
+    ).status,
+  ).toBe(403);
+});
+
+test("Worker explicitly reports unavailable hosted email and enforces CSRF for authenticated mutations", async () => {
+  const unavailable = await handleWorkerRequest(
+    request("/api/v1/auth/request-link", {
+      method: "POST",
+      headers: { origin: "https://borrower.example", "content-type": "application/json" },
+      body: JSON.stringify({
+        email: "borrower@example.test",
+        bankSlug: "bank-a",
+        portal: "borrower",
+        returnPath: "/",
+      }),
+    }),
+    { ...deps, authDeliveryEnabled: false },
+  );
+  expect(unavailable.status).toBe(503);
+  expect(await unavailable.text()).toContain("AUTH_DELIVERY_UNAVAILABLE");
+  for (const path of [
+    "/api/v1/auth/logout",
+    "/api/v1/auth/demo-sign-in",
+    "/api/v1/auth/request-link",
+    "/api/v1/auth/consume",
+    application + "/purpose",
+  ]) {
+    const denied = await handleWorkerRequest(
+      request(path, {
+        method: path.endsWith("purpose") ? "PATCH" : "POST",
+        headers: { origin: "https://borrower.example", "content-type": "application/json" },
+        body: "{}",
+      }),
+      {
+        ...deps,
+        authenticate: async () => ({
+          actor: { kind: "user", userId: "test" },
+          csrfToken: "a".repeat(64),
+        }),
+      },
+    );
+    expect(denied.status).toBe(403);
+  }
+});
+
+test("Worker immediate demo sign-in is unavailable by default", async () => {
+  const response = await handleWorkerRequest(
+    request("/api/v1/auth/demo-sign-in", {
+      method: "POST",
+      headers: { origin: "https://borrower.example", "content-type": "application/json" },
+      body: JSON.stringify({
+        email: "borrower@example.test",
+        bankSlug: "bank-a",
+        portal: "borrower",
+        returnPath: "/",
+      }),
+    }),
+    deps,
+  );
+  expect(response.status).toBe(503);
+  expect(await response.text()).toContain("DEMO_SIGN_IN_UNAVAILABLE");
+});

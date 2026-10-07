@@ -31,7 +31,7 @@ Pin mutually compatible maintained versions at implementation time, including th
 ```text
 apps/
   bank-site/          mock bank homepage and application entry
-  borrower/           intake, passwordless return, borrower workspace
+  borrower/           required setup wizard, passwordless return, task portal
   bank-console/       staff pipeline and application workspace
   api/                HTTP routes, session handling, webhooks, health
   worker/             durable jobs, schedules, outbox dispatch
@@ -69,6 +69,8 @@ Use `/api/v1` and resource modules for authentication, applications, businesses,
 Use explicit commands for state transitions instead of a generic endpoint that lets clients set arbitrary statuses. Service methods accept an actor context and enforce permissions even if invoked outside an HTTP route. Internal jobs get a limited system actor and explicit tenant context.
 
 All creation entry points call `createApplication`: borrower lead, bank staff, and a future bank API/SSO adapter. Record source and creator, enforce bank/product validity, and apply the same idempotency rules. A future external bank API reuses the same domain use case.
+
+Keep the initial setup wizard and application portal as distinct routes within the borrower app. T07 owns persisted per-application setup state, revision-aware answer/step saves, and an explicit idempotent completion command; T08 owns the one-question screens; T09 owns the portal and return routing. Resolve the next destination from authorized server state after authentication or application selection. Browser storage and route parameters cannot mark setup complete. Shared domain guards enforce the setup prerequisite for applicant portal operations in both HTTP transports, while retaining staff draft access and scoped collaborator permissions.
 
 List endpoints use stable pagination and an allowlist of filters/sorts. Response DTOs omit secrets and internal evidence. Return structured errors with a request ID; conceal inaccessible record existence. Use revision checks for autosave, task reviews, decisions, and other conflicting edits.
 

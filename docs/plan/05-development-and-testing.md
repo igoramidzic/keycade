@@ -1,6 +1,6 @@
 # Local development and verification
 
-The command inventory is implemented for T01–T05. The later identity/lending acceptance journeys below remain planned until their owning tasks are complete. See the root README for the current local-foundation test path.
+The command inventory is implemented for T01–T06. Passwordless identity is locally testable through [the identity guide](identity-validation.md); lending acceptance journeys below remain planned until their owning tasks are complete. See the root README for the current startup path.
 
 ## Developer entry path
 
@@ -70,6 +70,7 @@ Do not add snapshot tests of generated shadcn markup or tests that merely restat
 
 - Bank A and isolated Bank B; officers in each; no cross-bank access.
 - One borrower with two businesses, two active applications for one business, and a funded account.
+- Unfinished setup at different saved questions, explicit optional skips, completed setup with remaining tasks, and a staff-prefilled draft still awaiting applicant confirmation. Include unfinished and completed setups for the same borrower.
 - Requested amounts of $10,000, $5,000,000, and $7,500,000, plus an invalid/over-product-limit value.
 - A business that initially lacks EIN and industry code; no SSN required during intake.
 - One invited owner, one restricted lawyer, a pending invitation, and a revoked participant.
@@ -83,13 +84,13 @@ Use neutral fictional businesses and obviously synthetic identities. Fixtures sh
 ## End-to-end acceptance journeys
 
 1. Clean clone → initialize twice → start dev → open all apps and Studio; verify DB data survives a restart. With bad credentials/stopped unavailable DB, dev fails before launching apps.
-2. Mock bank → email-first lead → link verification → business name/amount → close tab → new resume link → same saved application; bank staff sees the draft and stage.
-3. Applicant with multiple applications selects the correct one; another business's tasks/docs remain separate.
+2. Mock bank → email-first lead → authorized sign-in → one-question setup screens → Back/edit → close tab and clear browser storage → fresh sign-in → same saved application, answers, and current question → skip optional industry → finish setup → portal with remaining tasks. Exercise both local demo access and the Mailpit email-link path. Early portal deep links/direct API calls cannot bypass setup; failed saves/completion preserve recoverable input and do not unlock the portal. Staff sees progress throughout, including a staff-prefilled draft that still needs applicant confirmation. Subsequent sign-in goes to the completed application's portal.
+3. Applicant with multiple applications selects the correct one; an unfinished setup opens its saved wizard step without blocking another completed application's portal. Another business's tasks/docs and setup state remain separate.
 4. Applicant invites owner and lawyer; lawyer uploads to an assigned task; cannot access another application or private owner evidence. Revoke access while their session is active and verify denial.
 5. Staff uploads documents; simulated scan/OCR categorize them; reviewer corrects one category and accepts evidence; original machine result remains in history.
 6. Add required identifier → check starts → update input → old result arrives → old result is ignored. Worker restart and duplicate delivery do not duplicate current tasks/effects.
 7. Submit → request more information → resubmit → approve → closing → all signers complete → record simulated funding → one funded account appears. Invalid transitions and duplicate funding are rejected/deduplicated.
-8. An idle draft gets a local reminder under fake time; completion/removal suppresses stale queued notifications.
+8. An idle draft gets a local reminder under fake time; renewed activity, submission, or recipient removal suppresses stale queued notifications. Opening a previously delivered link resumes incomplete setup at its saved step, or opens the portal if setup has since finished.
 
 ## Verification records
 

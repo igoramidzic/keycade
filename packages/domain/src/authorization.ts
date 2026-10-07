@@ -4,7 +4,7 @@ import { deny } from "./errors.js";
 
 export type Actor =
   | { kind: "anonymous" }
-  | { kind: "user"; userId: string }
+  | { kind: "user"; userId: string; demoBankId?: string }
   | {
       kind: "system";
       bankId: string;
@@ -23,6 +23,7 @@ export type ApplicationAccess =
 
 export async function requireBankStaff(db: QueryDatabase, actor: Actor, bankId: string) {
   if (actor.kind !== "user") return deny();
+  if (actor.demoBankId && actor.demoBankId !== bankId) return deny();
   const [membership] = await db
     .select()
     .from(bankMemberships)
@@ -46,6 +47,7 @@ export async function requireApplicationAccess(
   applicationId: string,
 ): Promise<ApplicationAccess> {
   if (actor.kind === "anonymous") return deny();
+  if (actor.kind === "user" && actor.demoBankId && actor.demoBankId !== bankId) return deny();
   const [application] = await db
     .select({ id: applications.id })
     .from(applications)

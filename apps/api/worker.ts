@@ -10,6 +10,10 @@ export default {
       return await handleWorkerRequest(request, {
         db,
         allowedOrigins: env.ALLOWED_ORIGINS.split(","),
+        nodeEnv: "production",
+        // T06 delivery is through local Mailpit. Do not promise an email on the hosted shell.
+        authDeliveryEnabled: false,
+        demoSignInEnabled: false,
         rateLimiter: env.API_RATE_LIMITER,
         readiness: async () => {
           await assertWorkerSchemaReady(pool);

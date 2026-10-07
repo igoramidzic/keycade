@@ -1,0 +1,2 @@
+CREATE TYPE "public"."session_authentication_method" AS ENUM('email_link', 'demo');--> statement-breakpoint
+ALTER TABLE "sessions" ADD COLUMN "authentication_method" "session_authentication_method" DEFAULT 'email_link' NOT NULL;

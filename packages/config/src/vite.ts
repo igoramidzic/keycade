@@ -1,7 +1,7 @@
 import type { UserConfig } from "vite";
 import { readEnvironment } from "./server.ts";
 
-// Read the root environment in Node; expose only these three explicit public URLs.
+// Read the root environment in Node; expose only explicit public URLs.
 export function publicViteConfig({
   name,
   port,
@@ -35,6 +35,7 @@ export function publicViteConfig({
         bankConsoleUrl: hosted
           ? "https://keycade-bank-console.kualia.workers.dev"
           : `http://127.0.0.1:${numericPort(env.BANK_CONSOLE_PORT, 3002)}`,
+        mailpitUrl: hosted ? null : `http://127.0.0.1:${numericPort(env.MAILPIT_UI_PORT, 8025)}`,
         hosted,
       }),
     },
@@ -42,7 +43,13 @@ export function publicViteConfig({
       host: "127.0.0.1",
       port: numericPort(env[key], port),
       strictPort: true,
-      proxy: { "/api": `http://127.0.0.1:${numericPort(env.API_PORT, 4000)}` },
+      proxy: {
+        "/api": {
+          target: `http://127.0.0.1:${numericPort(env.API_PORT, 4000)}`,
+          // Preserve the browser portal's host for origin-bound session reads on GET.
+          changeOrigin: false,
+        },
+      },
     },
     preview: { host: "127.0.0.1", port: numericPort(env[key], port), strictPort: true },
     resolve: { dedupe: ["react", "react-dom"] },

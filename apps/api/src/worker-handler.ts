@@ -1,44 +1,81 @@
 import {
   applicationParamsSchema,
+  authSessionSchema,
+  consumeAccessLinkResponseSchema,
+  consumeAccessLinkSchema,
+  demoSignInResponseSchema,
+  demoSignInSchema,
+  errorSchema,
+  logoutResponseSchema,
   publicApplicationSchema,
   type Readiness,
   readinessSchema,
+  requestAccessLinkResponseSchema,
+  requestAccessLinkSchema,
   staffApplicationSchema,
+  staffSessionSchema,
   updatePurposeSchema,
 } from "@keycade/contracts";
 import type { Database } from "@keycade/db";
 import {
+  createIdentityService,
   DomainError,
   readApplication,
   readStaffApplication,
   updateApplicationPurpose,
 } from "@keycade/domain";
 import { z } from "zod";
-import { isAllowedOrigin } from "./security";
+import {
+  type Authentication,
+  accessLinkMessage,
+  authenticateSession,
+  type IdentityTransportOptions,
+  publicSession,
+  readStaffSession,
+} from "./auth.js";
+import {
+  configuredRequestOrigin,
+  isAllowedOrigin,
+  readSessionCookie,
+  serializeSessionCookie,
+  validCsrfToken,
+} from "./security.js";
 
-interface Dependencies {
+export interface WorkerDependencies extends IdentityTransportOptions {
   db: Database;
   allowedOrigins: readonly string[];
   rateLimiter: { limit(input: { key: string }): Promise<{ success: boolean }> };
   readiness(): Promise<Readiness>;
+  authenticate?: (request: Request) => Promise<Authentication>;
 }
 
 /** Native Worker transport shares Node API contracts/services. Fastify's router requires runtime eval. */
-export async function handleWorkerRequest(request: Request, deps: Dependencies): Promise<Response> {
+export async function handleWorkerRequest(
+  request: Request,
+  deps: WorkerDependencies,
+): Promise<Response> {
   const requestId = crypto.randomUUID();
   const headers = {
     "cache-control": "no-store",
     "x-request-id": requestId,
     "x-content-type-options": "nosniff",
+    "referrer-policy": "no-referrer",
   };
-  const json = (value: unknown, status = 200) => {
-    const response = Response.json(value, { status, headers });
+  const json = (value: unknown, status = 200, cookie?: string) => {
+    const response = Response.json(value, {
+      status,
+      headers: cookie ? { ...headers, "set-cookie": cookie } : headers,
+    });
     return request.method === "HEAD" ? new Response(null, response) : response;
   };
   const failure = (status: number, code: string, message: string) =>
     json({ error: { code, message, requestId } }, status);
   try {
-    const path = new URL(request.url).pathname;
+    const url = new URL(request.url);
+    const path = url.pathname;
+    const originHeader = request.headers.get("origin") ?? undefined;
+    const origin = configuredRequestOrigin(originHeader, url.origin, deps.allowedOrigins);
+    const identity = createIdentityService(deps.db);
     if (
       !["GET", "HEAD", "OPTIONS"].includes(request.method) &&
       !isAllowedOrigin(request.headers.get("origin") ?? undefined, deps.allowedOrigins)
@@ -91,6 +128,66 @@ export async function handleWorkerRequest(request: Request, deps: Dependencies):
               responses: { "200": response(readinessSchema), "503": response(readinessSchema) },
             },
           },
+          "/api/v1/auth/session": { get: { responses: { "200": response(authSessionSchema) } } },
+          "/api/v1/auth/staff": {
+            get: {
+              responses: { "200": response(staffSessionSchema), "404": response(errorSchema) },
+            },
+          },
+          "/api/v1/auth/request-link": {
+            post: {
+              requestBody: {
+                required: true,
+                content: {
+                  "application/json": { schema: z.toJSONSchema(requestAccessLinkSchema) },
+                },
+              },
+              responses: {
+                "202": response(requestAccessLinkResponseSchema),
+                "400": response(errorSchema),
+                "403": response(errorSchema),
+                "429": response(errorSchema),
+                "503": response(errorSchema),
+              },
+            },
+          },
+          "/api/v1/auth/demo-sign-in": {
+            post: {
+              requestBody: {
+                required: true,
+                content: { "application/json": { schema: z.toJSONSchema(demoSignInSchema) } },
+              },
+              responses: {
+                "200": response(demoSignInResponseSchema),
+                "400": response(errorSchema),
+                "403": response(errorSchema),
+                "404": response(errorSchema),
+                "429": response(errorSchema),
+                "503": response(errorSchema),
+              },
+            },
+          },
+          "/api/v1/auth/consume": {
+            post: {
+              requestBody: {
+                required: true,
+                content: {
+                  "application/json": { schema: z.toJSONSchema(consumeAccessLinkSchema) },
+                },
+              },
+              responses: {
+                "200": response(consumeAccessLinkResponseSchema),
+                "400": response(errorSchema),
+                "403": response(errorSchema),
+                "429": response(errorSchema),
+              },
+            },
+          },
+          "/api/v1/auth/logout": {
+            post: {
+              responses: { "200": response(logoutResponseSchema), "403": response(errorSchema) },
+            },
+          },
           "/api/v1/banks/{bankId}/applications/{applicationId}": {
             get: { parameters, responses: { "200": response(publicApplicationSchema) } },
           },
@@ -110,6 +207,91 @@ export async function handleWorkerRequest(request: Request, deps: Dependencies):
         },
       });
     }
+    const authentication = deps.authenticate
+      ? await deps.authenticate(request)
+      : await authenticateSession(
+          identity,
+          request.headers.get("cookie") ?? undefined,
+          origin,
+          deps.demoSignInEnabled,
+        );
+    if (
+      !get &&
+      request.method !== "OPTIONS" &&
+      authentication.actor.kind === "user" &&
+      !validCsrfToken(request.headers.get("x-csrf-token"), authentication.csrfToken)
+    ) {
+      return failure(403, "FORBIDDEN", "Invalid request verification.");
+    }
+    if (get && path === "/api/v1/auth/session")
+      return json(authSessionSchema.parse(publicSession(authentication, deps.demoSignInEnabled)));
+    if (get && path === "/api/v1/auth/staff")
+      return json(staffSessionSchema.parse(await readStaffSession(deps.db, authentication)));
+    if (request.method === "POST" && path === "/api/v1/auth/request-link") {
+      const body = requestAccessLinkSchema.parse(await readJsonBody(request));
+      if (deps.authDeliveryEnabled === false)
+        return failure(
+          503,
+          "AUTH_DELIVERY_UNAVAILABLE",
+          "Email sign-in is available in the local demo. Hosted email delivery is not configured.",
+        );
+      if (!originHeader || !isAllowedOrigin(originHeader, deps.portalOrigins?.[body.portal] ?? []))
+        return failure(403, "FORBIDDEN", "Request origin is not allowed for this portal.");
+      await identity.requestAccessLink({
+        ...body,
+        origin: originHeader,
+        requestId,
+        rateLimitKey: request.headers.get("cf-connecting-ip") ?? "unknown",
+      });
+      return json({ message: accessLinkMessage }, 202);
+    }
+    if (request.method === "POST" && path === "/api/v1/auth/demo-sign-in") {
+      const body = demoSignInSchema.parse(await readJsonBody(request));
+      if (deps.demoSignInEnabled !== true)
+        return failure(
+          503,
+          "DEMO_SIGN_IN_UNAVAILABLE",
+          "Immediate demo sign-in is unavailable in this environment.",
+        );
+      if (!originHeader || !isAllowedOrigin(originHeader, deps.portalOrigins?.[body.portal] ?? []))
+        return failure(403, "FORBIDDEN", "Request origin is not allowed for this portal.");
+      const result = await identity.signInDemo({
+        ...body,
+        origin: originHeader,
+        requestId,
+        rateLimitKey: request.headers.get("cf-connecting-ip") ?? "unknown",
+      });
+      return json(
+        demoSignInResponseSchema.parse({ returnPath: result.returnPath }),
+        200,
+        serializeSessionCookie(originHeader, result.sessionToken, deps.nodeEnv ?? "production"),
+      );
+    }
+    if (request.method === "POST" && path === "/api/v1/auth/consume") {
+      const body = consumeAccessLinkSchema.parse(await readJsonBody(request));
+      if (!originHeader) return failure(403, "FORBIDDEN", "Request origin is not allowed.");
+      const result = await identity.consumeAccessLink({
+        ...body,
+        origin: originHeader,
+        requestId,
+        rateLimitKey: request.headers.get("cf-connecting-ip") ?? "unknown",
+      });
+      return json(
+        consumeAccessLinkResponseSchema.parse({ returnPath: result.returnPath }),
+        200,
+        serializeSessionCookie(originHeader, result.sessionToken, deps.nodeEnv ?? "production"),
+      );
+    }
+    if (request.method === "POST" && path === "/api/v1/auth/logout") {
+      if (!originHeader) return failure(403, "FORBIDDEN", "Request origin is not allowed.");
+      const raw = readSessionCookie(request.headers.get("cookie") ?? undefined, originHeader);
+      if (raw && authentication.session) await identity.revokeSession(raw, requestId);
+      return json(
+        { ok: true },
+        200,
+        serializeSessionCookie(originHeader, "", deps.nodeEnv ?? "production"),
+      );
+    }
     const match = /^\/api\/v1\/banks\/([^/]+)\/(staff\/)?applications\/([^/]+)(\/purpose)?$/.exec(
       path,
     );
@@ -122,8 +304,7 @@ export async function handleWorkerRequest(request: Request, deps: Dependencies):
       return failure(404, "NOT_FOUND", "Resource not found.");
     const params = applicationParamsSchema.safeParse({ bankId: match[1], applicationId: match[3] });
     if (!params.success) return failure(400, "INVALID_INPUT", "Invalid request.");
-    // T06 must wire its trusted session resolver into both transports; no header grants identity.
-    const actor = { kind: "anonymous" } as const;
+    const actor = authentication.actor;
     const { bankId, applicationId } = params.data;
     if (get) {
       if (match[2])
@@ -136,32 +317,7 @@ export async function handleWorkerRequest(request: Request, deps: Dependencies):
         publicApplicationSchema.parse(await readApplication(deps.db, actor, bankId, applicationId)),
       );
     }
-    if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json"))
-      return failure(400, "INVALID_INPUT", "Invalid request.");
-    const reader = request.body?.getReader();
-    if (!reader) return failure(400, "INVALID_INPUT", "Invalid request.");
-    const chunks: Uint8Array[] = [];
-    let size = 0;
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        size += value.byteLength;
-        if (size > 64 * 1024) {
-          await reader.cancel();
-          return failure(413, "INVALID_INPUT", "Invalid request.");
-        }
-        chunks.push(value);
-      }
-    } finally {
-      reader.releaseLock();
-    }
-    let input: unknown;
-    try {
-      input = JSON.parse(Buffer.concat(chunks).toString("utf8"));
-    } catch {
-      return failure(400, "INVALID_INPUT", "Invalid request.");
-    }
+    const input = await readJsonBody(request);
     const body = updatePurposeSchema.safeParse(input);
     if (!body.success) return failure(400, "INVALID_INPUT", "Invalid request.");
     return json(
@@ -171,8 +327,37 @@ export async function handleWorkerRequest(request: Request, deps: Dependencies):
     );
   } catch (error) {
     if (error instanceof DomainError) return failure(error.statusCode, error.code, error.message);
+    if (error instanceof z.ZodError) return failure(400, "INVALID_INPUT", "Invalid request.");
     // Database/provider errors can contain confidential values; never log raw exceptions.
     console.warn("Worker request failed.");
     return failure(500, "INTERNAL_ERROR", "The request could not be completed.");
+  }
+}
+
+async function readJsonBody(request: Request): Promise<unknown> {
+  if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json"))
+    throw new DomainError("INVALID_INPUT", 400, "Invalid request.");
+  const reader = request.body?.getReader();
+  if (!reader) throw new DomainError("INVALID_INPUT", 400, "Invalid request.");
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > 64 * 1024) {
+        await reader.cancel();
+        throw new DomainError("INVALID_INPUT", 413, "Invalid request.");
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  } catch {
+    throw new DomainError("INVALID_INPUT", 400, "Invalid request.");
   }
 }

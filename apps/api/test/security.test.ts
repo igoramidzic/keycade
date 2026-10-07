@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  configuredRequestOrigin,
   isAllowedOrigin,
+  readSessionCookie,
   safeReturnUrl,
+  serializeSessionCookie,
+  sessionCookieName,
   sessionCookieOptions,
   validCsrfToken,
 } from "../src/security.js";
@@ -41,5 +45,15 @@ describe("authentication security hooks", () => {
       sameSite: "lax",
     });
     expect(sessionCookieOptions("development").secure).toBe(false);
+  });
+  it("isolates same-host portal cookies by their configured origins", () => {
+    const staffOrigin = "http://localhost:3002";
+    expect(sessionCookieName(origin) === sessionCookieName(staffOrigin)).toBe(false);
+    const cookie = serializeSessionCookie(origin, "a".repeat(64), "development");
+    expect(Boolean(readSessionCookie(cookie, origin))).toBe(true);
+    expect(Boolean(readSessionCookie(cookie, staffOrigin))).toBe(false);
+    expect(Boolean(readSessionCookie(`${cookie}; ${cookie}`, origin))).toBe(false);
+    expect(configuredRequestOrigin(undefined, origin, [origin])).toBe(origin);
+    expect(configuredRequestOrigin("https://evil.test", origin, [origin])).toBeUndefined();
   });
 });

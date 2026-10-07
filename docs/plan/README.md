@@ -2,11 +2,13 @@
 
 Planning baseline: October 6, 2026. The first local-foundation milestone (T01–T05) is complete and verified. Cloudflare is the intended deployment target; five Keycade Workers are deployed and their Neon/Hyperdrive connections are verified. Neon PostgreSQL is linked and migrated through GitHub Actions; the initial apply and repeat no-op run passed. Separate CI validation is paused for faster demo deployment at the user's request.
 
-Current handoff: [local-foundation validation and test guide](local-foundation-validation.md). Next unfinished task: **T06 — Passwordless identity and sessions**; next coherent milestone: T06–T10.
+Current handoff: [demo sign-in and identity test guide](identity-validation.md). T06 is complete locally, including the user's immediate demo sign-in override. The October 7 [shared-page cleanup](tasks/T01-workspace.md#ui-cleanup--october-7-2026) is also complete. Next unfinished task: **T07 — Application creation and resumable setup state**; the remaining start-and-resume milestone is T07–T10.
 
 ## Agreed outcome
 
 Build a bank-operated business lending platform with a mock bank website, a borrower application/dashboard, and a bank staff console. Support multiple businesses, participants, applications, and eventual loan accounts. Ask for email first, progressively collect information, and use passwordless access. Simulate outside services with visible delays and reliable background processing.
+
+Borrowers start in a dedicated initial loan-application setup wizard that asks one simple question per screen and persists answers and progress for later resume. They must finish setup before entering that application's portal to see and complete remaining tasks. This is a per-application gate, separate from submission, approval, and funding; see [the setup contract](01-product.md#initial-setup-wizard-and-portal-entry). The October 6 clarification is planned in T07–T09; their existing dependency order remains appropriate and their implementation statuses remain unchanged.
 
 The user confirmed that the first version ends at approval and funding. Ongoing servicing is a later phase. Initial funding is a recorded simulation, with no movement of money.
 
@@ -39,10 +41,10 @@ Use `Not started`, `In progress`, `Blocked — reason`, or `Done — evidence`. 
 | T05 | [Durable jobs and provider contracts](tasks/T05-jobs.md) | T04 | Done — [validated](local-foundation-validation.md) |
 | D01 | [Neon connection and GitHub migrations](tasks/D01-neon-migrations.md) | T03, T05 | Done — first hosted apply and faster demo no-op run passed; [evidence](tasks/D01-neon-migrations.md) |
 | D02 | [Cloudflare deployment and Neon runtime connection](tasks/D02-cloudflare-deployment.md) | D01, T04, T05 | Done — all five native builds and hosted readiness passed; [evidence](tasks/D02-cloudflare-deployment.md) |
-| T06 | [Passwordless identity and sessions](tasks/T06-identity.md) | T05, D02 | Not started |
-| T07 | [Application creation and draft service](tasks/T07-application-service.md) | T06 | Not started |
-| T08 | [Mock bank and short application flow](tasks/T08-intake.md) | T07 | Not started |
-| T09 | [Borrower dashboard and application workspace](tasks/T09-borrower-workspace.md) | T08 | Not started |
+| T06 | [Passwordless identity and sessions](tasks/T06-identity.md) | T05, D02 | Done — local demo/email sign-in, revocable sessions, both API transports; [validated](identity-validation.md) |
+| T07 | [Application creation, saved setup state, and completion guards](tasks/T07-application-service.md) | T06 | Not started |
+| T08 | [Mock bank and required setup wizard](tasks/T08-intake.md) | T07 | Not started |
+| T09 | [Borrower dashboard and portal after setup](tasks/T09-borrower-workspace.md) | T08 | Not started |
 | T10 | [Bank application queue and workspace](tasks/T10-bank-workspace.md) | T07 | Not started |
 | T11 | [Participants, owners, and invitations](tasks/T11-participants.md) | T09, T10 | Not started |
 | T12 | [Tasks and product requirements](tasks/T12-tasks-and-requirements.md) | T11 | Not started |
@@ -64,7 +66,7 @@ The table gives a default sequence; dependencies allow parallel work. For exampl
 | Milestone | Required tasks | Demonstration |
 | --- | --- | --- |
 | Local foundation | T01–T05 | One initialization command; all shells launch; database, Studio, and restart-safe worker are usable. |
-| Start and resume | T06–T10 | Mock bank → email link → short application → borrower dashboard and bank queue. |
+| Start and resume | T06–T10 | Mock bank → email-first access → one-question setup wizard → leave/resume saved step → finish setup → remaining-task portal; bank staff can see drafts throughout. |
 | Collaborate and collect | T11–T14 | Invite an owner/lawyer; assign requirements; upload on either dashboard; categorized documents appear. |
 | Checks and decisions | T15–T19 plus prerequisites | Simulated checks, signatures, reminders, submission, and human review work with failures and retries. |
 | Close and demonstrate | T20–T22 | Record simulated funding, see the resulting loan account, inspect history, and run the full acceptance suite. |

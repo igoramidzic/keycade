@@ -1,4 +1,10 @@
-export type DomainErrorCode = "NOT_FOUND" | "REVISION_CONFLICT" | "INVALID_STATE" | "INVALID_INPUT";
+export type DomainErrorCode =
+  | "NOT_FOUND"
+  | "REVISION_CONFLICT"
+  | "INVALID_STATE"
+  | "INVALID_INPUT"
+  | "INVALID_ACCESS_LINK"
+  | "RATE_LIMITED";
 
 export class DomainError extends Error {
   constructor(

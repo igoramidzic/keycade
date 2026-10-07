@@ -42,3 +42,7 @@ Implemented October 6, 2026 as part of the T01–T05 local foundation milestone.
 - `pnpm test` passed 52 unit tests after adding initialization regression coverage; the focused `scripts/local-lib.test.ts` suite passed 16 tests. The single package-manager lockfile is `pnpm-lock.yaml`.
 
 The shells remain a local foundation preview; authentication and business application flows belong to later tasks. The frontend builds are static and browser-safe for future hosting; this milestone does not provision Cloudflare Workers.
+
+## UI cleanup — October 7, 2026
+
+Removed the shared “Three connected workspaces” cards and the development-preview notice beneath them from all three pages at the user's request. The bank homepage's former section link now opens the borrower portal. Header navigation remains available. Shared UI TypeScript and scoped Biome checks passed; all 10 existing desktop/mobile foundation browser tests passed.

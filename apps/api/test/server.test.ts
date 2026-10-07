@@ -162,3 +162,68 @@ describe("HTTP foundation", () => {
     expect(spec.paths["/api/v1/banks/{bankId}/applications/{applicationId}"]).toHaveProperty("get");
   });
 });
+
+describe("identity HTTP security", () => {
+  it("gives session preflights an independent read budget while keeping them bounded", async () => {
+    const app = await server();
+    const application = `/api/v1/banks/${randomUUID()}/applications/${randomUUID()}`;
+    for (let i = 0; i < 120; i++) await app.inject(application);
+    expect((await app.inject(application)).statusCode).toBe(429);
+    for (let i = 0; i < 240; i++) {
+      expect((await app.inject("/api/v1/auth/session")).statusCode).toBe(200);
+    }
+    expect((await app.inject("/api/v1/auth/session")).statusCode).toBe(429);
+  });
+  it("does not authenticate claimed identity, consume on GET, or send to another portal", async () => {
+    const app = await server();
+    expect(
+      (await app.inject({ url: "/api/v1/auth/session", headers: { "x-user-id": "admin" } })).json(),
+    ).toEqual({ authenticated: false, demoSignInEnabled: false });
+    expect((await app.inject("/api/v1/auth/staff")).statusCode).toBe(404);
+    expect((await app.inject("/api/v1/auth/consume")).statusCode).toBe(404);
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: "/api/v1/auth/request-link",
+          headers: { origin: "http://localhost:3001" },
+          payload: {
+            email: "borrower@example.test",
+            bankSlug: "bank-a",
+            portal: "staff",
+            returnPath: "/",
+          },
+        })
+      ).statusCode,
+    ).toBe(403);
+  });
+  it("throttles anonymous link confirmation before parsing credentials", async () => {
+    const app = await server();
+    const attempt = () =>
+      app.inject({
+        method: "POST",
+        url: "/api/v1/auth/consume",
+        headers: { origin: "http://localhost:3001" },
+        payload: { token: "invalid" },
+      });
+    for (let i = 0; i < 30; i++) expect((await attempt()).statusCode).toBe(400);
+    expect((await attempt()).statusCode).toBe(429);
+  });
+});
+
+it("keeps immediate demo sign-in disabled unless explicitly enabled by the runtime", async () => {
+  const app = await server();
+  const reply = await app.inject({
+    method: "POST",
+    url: "/api/v1/auth/demo-sign-in",
+    headers: { origin: "http://localhost:3001" },
+    payload: {
+      email: "borrower@example.test",
+      bankSlug: "bank-a",
+      portal: "borrower",
+      returnPath: "/",
+    },
+  });
+  expect(reply.statusCode).toBe(503);
+  expect(reply.json().error.code).toBe("DEMO_SIGN_IN_UNAVAILABLE");
+});

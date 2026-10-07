@@ -18,4 +18,10 @@ export async function assertWorkerSchemaReady(pool: pg.Pool): Promise<void> {
   await pool.query("SELECT run_id, dispatched_at FROM outbox_events LIMIT 0");
   await pool.query("SELECT operation_id FROM effect_deduplications LIMIT 0");
   await pool.query("SELECT id, action FROM audit_events LIMIT 0");
+  await pool.query("SELECT id, consumed_at, expires_at FROM access_delivery_requests LIMIT 0");
+  await pool.query("SELECT delivery_request_id, token_hash FROM login_tokens LIMIT 0");
+  await pool.query(
+    "SELECT token_hash, origin, authentication_method, revoked_at FROM sessions LIMIT 0",
+  );
+  await pool.query("SELECT key_hash, reset_at FROM identity_rate_limits LIMIT 0");
 }

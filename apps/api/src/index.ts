@@ -9,6 +9,16 @@ const { db, pool } = createDatabase(env.DATABASE_URL);
 const app = await buildServer({
   db,
   allowedOrigins: env.ALLOWED_ORIGINS,
+  nodeEnv: env.NODE_ENV,
+  authDeliveryEnabled: true,
+  demoSignInEnabled: env.NODE_ENV === "development",
+  portalOrigins: {
+    borrower: [`http://127.0.0.1:${env.BORROWER_PORT}`, `http://localhost:${env.BORROWER_PORT}`],
+    staff: [
+      `http://127.0.0.1:${env.BANK_CONSOLE_PORT}`,
+      `http://localhost:${env.BANK_CONSOLE_PORT}`,
+    ],
+  },
   logger: true,
   readiness: async () => {
     await assertSchemaReady(env.DATABASE_URL);

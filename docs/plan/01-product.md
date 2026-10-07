@@ -12,6 +12,7 @@ Included:
 
 - Three web applications: mock bank site, borrower portal, and bank console.
 - Email-first applications and passwordless resume links; no password creation.
+- Required initial setup wizard with one simple question per screen, persisted progress, and resume before entering the application's task portal.
 - Business profiles, term-loan and credit-facility application types, multiple applications, and funded-account summaries.
 - Applicant-created and staff-created applications through one backend use case.
 - Owners and advisers with explicit application/task/document permissions.
@@ -39,17 +40,27 @@ One person may have several roles across applications. Never infer access from a
 ### Start with the mock bank
 
 1. A fictional bank homepage offers “Apply for business financing” and “Continue an application.” Its apply link supplies a public bank slug and optional product hint, never credentials.
-2. The borrower portal asks for email first and explains that Keycade will send a continuation link. Creating this lead records a provisional contact and a draft application, even before business details exist.
-3. Send a single-use email link to the local development inbox. The baseline verifies email before granting server-side access to application content; an anonymous user never sees existing applications. This extra click deliberately keeps the initial security model simple.
-4. After verification, ask only for business name, requested amount, and a short purpose/product choice. Make industry search skippable. Autosave each meaningful step and show save errors explicitly.
+2. The borrower app asks for email first. Starting an application records a provisional contact and a draft application, even before business details exist; generic sign-in or resume alone never creates an application.
+3. Authenticate through T06. The explicitly enabled local demo uses immediate, visibly labelled demo sign-in for synthetic users; the email-link path sends a single-use link to the local inbox and verifies email before granting access. Both paths enforce application participation. Anonymous users never see existing applications.
+4. Open a dedicated initial setup page, before the task portal. Walk through business name, requested amount, purpose, product selection when needed, and optional industry as separate, simple questions, one per screen. Save each answer and the current step; show progress and explicit save errors.
 5. EIN and SSN are not entry requirements. Collect them later, only in an authorized, private task when the configured product needs them. A business may initially have an unknown EIN.
-6. Show the workspace with next steps. “Continue later” is always available. Returning via a fresh link restores saved progress.
+6. “Continue later” is always available and explains which progress has been saved. Returning after sign-in or through a fresh link restores the saved setup step and answers for the same application. Only an explicit, successful “Finish setup” action opens that application's portal with its remaining tasks.
 
 Do not require users to know their industry code. Interpret the user's “NEX code” as NAICS, offer plain-language search, and allow “I don't know.” Save the selected code plus taxonomy version, or an unresolved value to be completed later.
 
+### Initial setup wizard and portal entry
+
+The wizard is the applicant's required entry experience for each new loan application. Keep it focused on one question at a time, with plain-language prompts, Back/Continue controls, a clear step indicator, and an explicit skip action for optional questions. A final summary allows corrections before “Finish setup.” Setup progress describes these questions only; it is separate from the portal's remaining-task progress and is never an approval probability.
+
+Persist answers, current step, completed/skipped steps, and completion state in the database against the application. Resume must work after refresh, sign-out, browser storage loss, an expired original link, or a new device. A failed save keeps entered values visible and retryable; do not advance persisted progress or claim completion until the server acknowledges it. Back navigation restores saved answers, and edits revalidate any dependent answers.
+
+The server validates all required initial answers and records completion atomically and idempotently. Signing in, creating a draft, pre-filling fields, or navigating directly to a portal URL does not finish setup. Until completion, applicant routes return to the wizard and backend guards block applicant operations that require the task portal. Once complete, the portal becomes the normal return destination and shows outstanding information, documents, signatures, and other permitted tasks as those features are implemented. Finishing setup does not submit an application, approve credit, or create a funded loan account; EIN, SSN, evidence collection, and checks remain later tasks.
+
+This gate belongs to each application, not the user account or business. A minimal application selector may offer “Continue setup” for unfinished drafts and “Open application” for completed setups. An unfinished new application does not block access to another completed application. Staff may inspect and prefill drafts before setup finishes; a staff-created draft still requires the applicant to confirm its initial answers and finish setup. Invited owners/advisers follow their scoped invitation/task journeys and are not asked to complete the applicant's wizard or granted broader access by it.
+
 ### Work across applications
 
-The borrower home lists applications and funded accounts grouped by business. Each card identifies business, product, amount, state, last update, and outstanding action count. A person with access to only one task sees a limited card and workspace. Selecting one application must not merge its documents or tasks with another.
+After initial setup, the borrower home lists applications and funded accounts grouped by business. Each card identifies business, product, amount, state, last update, and outstanding action count where available. Unfinished drafts show setup progress and “Continue setup,” which opens the saved wizard step rather than that application's task workspace. A person with access to only one task sees a limited card and workspace. Selecting one application must not merge its documents or tasks with another.
 
 Application detail has Overview, Tasks, Documents, People, and Activity views. Show a simple status explanation and the most useful next action. Progress is derived from applicable requirements, and can change when new requirements are added; it is not an approval probability.
 

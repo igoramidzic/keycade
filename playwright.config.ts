@@ -21,6 +21,8 @@ export default defineConfig({
     command: "pnpm dev",
     url: `http://127.0.0.1:${env.API_PORT ?? 4000}/api/ready`,
     reuseExistingServer: !process.env.CI,
+    // Let scripts/dev.ts forward shutdown to its detached Turbo process group.
+    gracefulShutdown: { signal: "SIGTERM", timeout: 10_000 },
     timeout: 120_000,
   },
 });

@@ -1,9 +1,10 @@
 import { loadServerEnv } from "@keycade/config/server";
-import { startWorker } from "@keycade/integrations";
+import { createMailpitAdapter, startWorker } from "@keycade/integrations";
 
 async function main() {
   const env = loadServerEnv();
   const worker = await startWorker(env.DATABASE_URL, {
+    emailAdapter: createMailpitAdapter(env.MAILPIT_SMTP_PORT),
     delayMs: env.SIMULATION_DELAY_MS,
     deadlineMs: env.PROVIDER_DEADLINE_MS,
     pollMs: env.WORKER_POLL_MS,

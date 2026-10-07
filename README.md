@@ -1,8 +1,10 @@
 # Keycade
 
-Keycade is a bank-operated business lending prototype. The first testable milestone, **T01–T05: Local foundation**, is implemented: three React shells, repeatable local infrastructure, a seeded PostgreSQL schema, API authorization foundations, and a durable simulated job runner.
+Keycade is a bank-operated business lending prototype. **T01–T06 are implemented locally**: three React apps, repeatable infrastructure, a seeded PostgreSQL schema, backend authorization, durable simulated jobs, and passwordless access.
 
-The screens currently demonstrate navigation and live service readiness. Login, application intake, and the borrower/staff application experience are the next milestone (T06–T10). All records and provider results are synthetic. No financial or identity determination is real.
+The current test point is immediate demo sign-in: enter an email to get in, then reload or sign out. The optional email-link flow also supports confirmation and recovery. Application intake and workspaces are next (T07–T10). All records and provider results are synthetic. No financial or identity determination is real. See the [passwordless test guide](docs/plan/identity-validation.md).
+
+The planned borrower journey starts with a required [initial setup wizard](docs/plan/01-product.md#initial-setup-wizard-and-portal-entry): one simple question per screen, saved progress, and resume at the saved step. Completing setup opens that application's portal with its remaining tasks. This flow is specified for T07–T09 and is not implemented yet.
 
 ## Start locally
 
@@ -18,19 +20,19 @@ pnpm dev
 
 Initialization creates a private ignored `.env`, starts project-owned PostgreSQL 18.6/Mailpit on loopback ports, authenticates to the configured database, applies committed migrations, initializes pg-boss, and inserts missing synthetic fixtures. Running it again preserves existing env values and records. It never resets a volume or stops unrelated services. Change names/ports in `.env` before first setup if defaults are occupied; a pre-existing container must continue to match its configured image, identity, storage and port bindings.
 
-`pnpm dev` verifies actual SQL connectivity, migration history, and queue schema before starting apps. The API becomes ready only after a healthy worker heartbeat. Environment overrides are passed explicitly through Turbo; browser bundles receive only the three public application URLs.
+`pnpm dev` verifies actual SQL connectivity, migration history, and queue schema before starting apps. The API becomes ready only after a healthy worker heartbeat. Environment overrides are passed explicitly through Turbo; browser bundles receive only public application URLs, the local inbox URL, and the hosted-mode flag.
 
 | Surface | Default URL | What to test now |
 | --- | --- | --- |
 | Mock bank shell | http://127.0.0.1:3000 | Shared UI, links, API/service status |
-| Borrower shell | http://127.0.0.1:3001 | Responsive layout and health retry |
-| Bank console shell | http://127.0.0.1:3002 | Cross-app navigation and health retry |
+| Borrower portal | http://127.0.0.1:3001 | Sign in as `borrower@example.test`, reload, sign out, request a fresh link |
+| Bank console | http://127.0.0.1:3002 | Sign in as `officer-a@example.test`; nonstaff addresses cannot gain access |
 | API liveness / readiness | http://127.0.0.1:4000/api/health · http://127.0.0.1:4000/api/ready | Process health vs database/worker readiness |
 | OpenAPI | http://127.0.0.1:4000/api/openapi.json | Validated initial API contract |
-| Mailpit | http://127.0.0.1:8025 | Local inbox is available; email delivery arrives in T06 |
+| Mailpit | http://127.0.0.1:8025 | Open a delivered sign-in link, then deliberately confirm in the portal |
 | Drizzle Studio | `pnpm db:studio`, then https://local.drizzle.studio | Core data and durable job history; listener binds only to 127.0.0.1:4983 |
 
-No public impersonation shortcut exists. Application API routes deliberately deny anonymous access until T06 implements passwordless sessions. Service/HTTP tests supply actors internally and enforce current bank memberships and application grants.
+Local development explicitly enables **Demo access**: enter an email without mailbox verification, restricted to synthetic users and banks. The optional email-link path verifies mailbox access. Production/hosted mode disables demo sign-in. Application API routes still require a server-side session and current bank membership or application participation. Sign-in alone never creates an application or grants application access. Borrower and staff cookies are isolated by portal origin, including localhost ports.
 
 ## Try background work
 
@@ -69,7 +71,7 @@ Invalid credentials or an unavailable database stop development before apps laun
 
 ## Synthetic fixtures
 
-`packages/db/src/seed.ts` exports stable `seedIds`. Bank A contains two businesses and explicit borrower participation in two applications; another application for the same business remains unshared. Bank B is isolated. Fixtures include $10,000, $5,000,000, $7,500,000, and an incomplete draft, plus a restricted adviser and revoked owner. Emails end in `example.test`; they are fixture identities, not current login credentials. No EINs, SSNs, documents, or funded accounts are seeded at this milestone.
+`packages/db/src/seed.ts` exports stable `seedIds`. Bank A contains two businesses and explicit borrower participation in two applications; another application for the same business remains unshared. Bank B is isolated. Fixtures include $10,000, $5,000,000, $7,500,000, and an incomplete draft, plus a restricted adviser and revoked owner. Emails end in `example.test`; use these synthetic addresses in the local email-link flow. No EINs, SSNs, documents, or funded accounts are seeded at this milestone.
 
 ## Cloudflare deployment
 
@@ -79,4 +81,4 @@ API and jobs connect to Neon PostgreSQL through `keycade-db` Hyperdrive with que
 
 For faster demo deployment, automatic test/build validation and the PR trigger remain commented out in the Neon workflow. Tests remain available locally. Application builds and migrations trigger independently; readiness fails until required migrations are present. Use additive schema changes and wait for the GitHub migration run before testing a schema-dependent release.
 
-Document storage remains planned for Cloudflare R2 in T13. Login and application screens remain T06–T10; this deployment exposes the testable foundation only.
+Document storage remains planned for Cloudflare R2 in T13. T06 sign-in is testable locally. Hosted email delivery is explicitly unavailable until a simulated hosted delivery destination is configured; no public inbox, real email provider, or hosted seeds were added. This change has not been deployed. Application intake and workspaces remain T07–T10.

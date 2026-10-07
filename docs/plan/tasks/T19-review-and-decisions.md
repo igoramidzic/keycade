@@ -17,6 +17,7 @@ Applicants submit a complete-enough package, and staff request changes or record
 ## Acceptance criteria
 
 - A draft cannot jump directly to approval/funding; illegal/unauthorized transitions fail on the server.
+- Incomplete setup blocks submission, including staff submission on behalf. Setup completion alone does not submit the application or satisfy remaining submission tasks/checks.
 - Submission gates differ from approval gates and report specific unmet requirements.
 - Staff can return an application for information, then review a fresh submission without overwriting the old snapshot.
 - Approval and decline require a recorded human decision; a fake check cannot make the decision.

@@ -16,6 +16,7 @@
 - Cloudflare is the intended deployment platform; no Cloudflare Workers are provisioned yet. The Node/pg-boss worker is local infrastructure. Keep domain rules and transactional intent separate from runtime adapters, and validate a Cloudflare deployment slice before claiming hosted compatibility.
 - Use simulated external providers and synthetic data in the initial release. Simulated results must be visible as such. Use configurable asynchronous delays for demos and injected clocks for tests.
 - First-release scope is applications through funding. Repayment schedules, balances, payment collection, interest, and collections are deferred by the user's explicit choice.
+- Borrowers must finish a dedicated, resumable initial loan-application setup wizard before entering that application's task portal. Ask one simple question per screen, persist answers and progress on the server, and return unfinished applicants to their saved step. Enforce setup completion in backend workflow guards; see [the borrower journey](docs/plan/01-product.md#initial-setup-wizard-and-portal-entry).
 
 ## Implementation discipline
 

@@ -1,4 +1,4 @@
-import { timingSafeEqual } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import type { CookieSerializeOptions } from "@fastify/cookie";
 
 export function isAllowedOrigin(
@@ -52,5 +52,36 @@ export function safeReturnUrl(
   }
 }
 
-// T06 applies these tighter per-route policies to authentication sends and consumes.
-export const authRateLimit = { max: 5, timeWindow: "1 minute" } as const;
+// Shared PostgreSQL limits also cap sends per address/IP and consume attempts per IP.
+export const authSendRateLimit = { max: 20, timeWindow: "1 minute" } as const;
+export const authConsumeRateLimit = { max: 30, timeWindow: "1 minute" } as const;
+
+// Cookies do not distinguish ports. Give each configured portal its own cookie so local
+// borrower and staff sessions can coexist without replacing one another.
+export function sessionCookieName(origin: string): string {
+  return `keycade_session_${createHash("sha256").update(origin).digest("hex").slice(0, 16)}`;
+}
+
+export function readSessionCookie(header: string | undefined, origin: string): string | undefined {
+  const name = sessionCookieName(origin);
+  const values = (header ?? "").split(";").map((part) => part.trim());
+  const matches = values.filter((part) => part.startsWith(`${name}=`));
+  if (matches.length !== 1) return undefined;
+  const token = matches[0]?.slice(name.length + 1);
+  return token && /^[a-f0-9]{64}$/.test(token) ? token : undefined;
+}
+
+export function serializeSessionCookie(origin: string, token: string, nodeEnv: string): string {
+  const options = sessionCookieOptions(nodeEnv);
+  return `${sessionCookieName(origin)}=${token}; Path=/; Max-Age=${token ? options.maxAge : 0}; HttpOnly; SameSite=Lax${options.secure ? "; Secure" : ""}`;
+}
+
+/** Mutations use Origin exclusively. GETs may omit it; their URL must match configuration. */
+export function configuredRequestOrigin(
+  origin: string | undefined,
+  requestOrigin: string,
+  allowedOrigins: readonly string[],
+): string | undefined {
+  const candidate = origin ?? requestOrigin;
+  return isAllowedOrigin(candidate, allowedOrigins) ? candidate : undefined;
+}

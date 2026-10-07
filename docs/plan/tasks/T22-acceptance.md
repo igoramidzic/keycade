@@ -17,6 +17,7 @@ The complete local prototype is reproducible, demonstrable, and clearly bounded.
 ## Acceptance criteria
 
 - All eight journeys in the development guide pass, including amounts $10k/$5m/$7.5m, multiple applications, restricted adviser access, delayed processing, and recorded funding.
+- Borrower setup asks one question per screen, persists answers/step state, resumes after browser/session loss, and blocks portal entry until explicit completion. Verify failed saves/completion, staff-prefilled drafts, per-application isolation, and correct return to the remaining-task portal after completion.
 - Restart, duplicate delivery, stale results, link expiry, bad credentials, revoked access, and provider failures have verified recovery/denial behavior.
 - Fresh setup and repeated setup need no manual env editing for standard defaults; no secrets or real data are committed.
 - Relevant lint, type, build, unit, PostgreSQL, and browser checks pass with recorded results; no feature is marked done based only on a screenshot.

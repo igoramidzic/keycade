@@ -4,16 +4,25 @@ import rateLimit from "@fastify/rate-limit";
 import swagger from "@fastify/swagger";
 import {
   applicationParamsSchema,
+  authSessionSchema,
+  consumeAccessLinkResponseSchema,
+  consumeAccessLinkSchema,
+  demoSignInResponseSchema,
+  demoSignInSchema,
   errorSchema,
+  logoutResponseSchema,
   publicApplicationSchema,
   type Readiness,
   readinessSchema,
+  requestAccessLinkResponseSchema,
+  requestAccessLinkSchema,
   staffApplicationSchema,
+  staffSessionSchema,
   updatePurposeSchema,
 } from "@keycade/contracts";
 import type { Database } from "@keycade/db";
 import {
-  type Actor,
+  createIdentityService,
   DomainError,
   readApplication,
   readStaffApplication,
@@ -27,28 +36,47 @@ import {
   type ZodTypeProvider,
 } from "fastify-type-provider-zod";
 import { z } from "zod";
-import { isAllowedOrigin, validCsrfToken } from "./security.js";
+import {
+  type Authentication,
+  accessLinkMessage,
+  authenticateSession,
+  type IdentityTransportOptions,
+  publicSession,
+  readStaffSession,
+} from "./auth.js";
+import {
+  authConsumeRateLimit,
+  authSendRateLimit,
+  configuredRequestOrigin,
+  isAllowedOrigin,
+  readSessionCookie,
+  serializeSessionCookie,
+  validCsrfToken,
+} from "./security.js";
 
-interface Authentication {
-  actor: Actor;
-  csrfToken?: string;
-}
 declare module "fastify" {
   interface FastifyRequest {
     authentication: Authentication;
   }
 }
 
-export interface ServerOptions {
+export interface ServerOptions extends IdentityTransportOptions {
   db: Database;
   allowedOrigins: readonly string[];
   readiness: () => Promise<Readiness>;
   logger?: boolean;
-  // Internal dependency injection. T06 connects its session resolver here; no request header grants identity.
+  // Internal test injection; runtime identity is resolved only from server-side sessions.
   authenticate?: (request: FastifyRequest) => Promise<Authentication>;
 }
 
 export async function buildServer(options: ServerOptions) {
+  const identity = createIdentityService(options.db);
+  const originFor = (request: FastifyRequest) =>
+    configuredRequestOrigin(
+      request.headers.origin,
+      `${request.protocol}://${request.host}`,
+      options.allowedOrigins,
+    );
   const app = Fastify({
     logger: options.logger
       ? {
@@ -78,6 +106,7 @@ export async function buildServer(options: ServerOptions) {
     reply.header("x-request-id", request.id);
     reply.header("cache-control", "no-store");
     reply.header("x-content-type-options", "nosniff");
+    reply.header("referrer-policy", "no-referrer");
     if (
       !["GET", "HEAD", "OPTIONS"].includes(request.method) &&
       !isAllowedOrigin(request.headers.origin, options.allowedOrigins)
@@ -100,7 +129,12 @@ export async function buildServer(options: ServerOptions) {
     }
     request.authentication = options.authenticate
       ? await options.authenticate(request)
-      : { actor: { kind: "anonymous" } };
+      : await authenticateSession(
+          identity,
+          request.headers.cookie,
+          originFor(request),
+          options.demoSignInEnabled,
+        );
     if (
       !["GET", "HEAD", "OPTIONS"].includes(request.method) &&
       request.authentication.actor.kind === "user" &&
@@ -198,7 +232,141 @@ export async function buildServer(options: ServerOptions) {
     409: errorSchema,
     429: errorSchema,
     500: errorSchema,
+    503: errorSchema,
   };
+  app.get(
+    "/api/v1/auth/session",
+    {
+      // Session preflights are frequent reads; isolate their budget from application navigation.
+      config: { rateLimit: { max: 240, timeWindow: "1 minute" } },
+      schema: { response: { 200: authSessionSchema, ...responses } },
+    },
+    async (request) => publicSession(request.authentication, options.demoSignInEnabled),
+  );
+  app.get(
+    "/api/v1/auth/staff",
+    {
+      schema: { response: { 200: staffSessionSchema, ...responses } },
+    },
+    async (request) => readStaffSession(options.db, request.authentication),
+  );
+  app.post(
+    "/api/v1/auth/request-link",
+    {
+      config: { rateLimit: authSendRateLimit },
+      schema: {
+        body: requestAccessLinkSchema,
+        response: { 202: requestAccessLinkResponseSchema, ...responses },
+      },
+    },
+    async (request, reply) => {
+      if (options.authDeliveryEnabled === false)
+        return reply.code(503).send({
+          error: {
+            code: "AUTH_DELIVERY_UNAVAILABLE",
+            message:
+              "Email sign-in is available in the local demo. Hosted email delivery is not configured.",
+            requestId: request.id,
+          },
+        });
+      const origin = request.headers.origin;
+      if (!origin || !isAllowedOrigin(origin, options.portalOrigins?.[request.body.portal] ?? []))
+        return reply.code(403).send({
+          error: {
+            code: "FORBIDDEN",
+            message: "Request origin is not allowed for this portal.",
+            requestId: request.id,
+          },
+        });
+      await identity.requestAccessLink({
+        ...request.body,
+        origin,
+        requestId: request.id,
+        rateLimitKey: request.ip,
+      });
+      return reply.code(202).send({ message: accessLinkMessage });
+    },
+  );
+  app.post(
+    "/api/v1/auth/demo-sign-in",
+    {
+      config: { rateLimit: authConsumeRateLimit },
+      schema: { body: demoSignInSchema, response: { 200: demoSignInResponseSchema, ...responses } },
+    },
+    async (request, reply) => {
+      if (options.demoSignInEnabled !== true)
+        return reply.code(503).send({
+          error: {
+            code: "DEMO_SIGN_IN_UNAVAILABLE",
+            message: "Immediate demo sign-in is unavailable in this environment.",
+            requestId: request.id,
+          },
+        });
+      const origin = request.headers.origin;
+      if (!origin || !isAllowedOrigin(origin, options.portalOrigins?.[request.body.portal] ?? []))
+        return reply.code(403).send({
+          error: {
+            code: "FORBIDDEN",
+            message: "Request origin is not allowed for this portal.",
+            requestId: request.id,
+          },
+        });
+      const result = await identity.signInDemo({
+        ...request.body,
+        origin,
+        requestId: request.id,
+        rateLimitKey: request.ip,
+      });
+      reply.header(
+        "set-cookie",
+        serializeSessionCookie(origin, result.sessionToken, options.nodeEnv ?? "production"),
+      );
+      return demoSignInResponseSchema.parse({ returnPath: result.returnPath });
+    },
+  );
+  app.post(
+    "/api/v1/auth/consume",
+    {
+      config: { rateLimit: authConsumeRateLimit },
+      schema: {
+        body: consumeAccessLinkSchema,
+        response: { 200: consumeAccessLinkResponseSchema, ...responses },
+      },
+    },
+    async (request, reply) => {
+      // onRequest already requires the exact configured Origin on every mutation.
+      const origin = request.headers.origin;
+      if (!origin) throw new DomainError("INVALID_INPUT", 400, "Invalid request.");
+      const result = await identity.consumeAccessLink({
+        ...request.body,
+        origin,
+        requestId: request.id,
+        rateLimitKey: request.ip,
+      });
+      reply.header(
+        "set-cookie",
+        serializeSessionCookie(origin, result.sessionToken, options.nodeEnv ?? "production"),
+      );
+      return consumeAccessLinkResponseSchema.parse({ returnPath: result.returnPath });
+    },
+  );
+  app.post(
+    "/api/v1/auth/logout",
+    {
+      schema: { response: { 200: logoutResponseSchema, ...responses } },
+    },
+    async (request, reply) => {
+      const origin = request.headers.origin;
+      if (!origin) throw new DomainError("INVALID_INPUT", 400, "Invalid request.");
+      const raw = readSessionCookie(request.headers.cookie, origin);
+      if (raw && request.authentication.session) await identity.revokeSession(raw, request.id);
+      reply.header(
+        "set-cookie",
+        serializeSessionCookie(origin, "", options.nodeEnv ?? "production"),
+      );
+      return { ok: true as const };
+    },
+  );
   app.get(
     "/api/v1/banks/:bankId/applications/:applicationId",
     {

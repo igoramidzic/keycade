@@ -20,6 +20,7 @@ Baseline recorded October 6, 2026. Update this document when a future instructio
 | Simulate all third-party services | Explicit user permission; preserve delays, failures, retries, and provenance. |
 | USD and US business terminology | Working assumption from EIN, SSN, NAICS, and dollar examples. No legal or regulatory rules are inferred. |
 | “NEX” means NAICS | Working interpretation; industry lookup remains optional during initial intake. |
+| Required resumable setup wizard before the borrower task portal | Explicit user clarification, October 6, 2026: one simple question at a time, saved state, and completion before entering the portal. Planned in T07–T09; see the decision below. |
 | One demo bank, tenant-aware schema | User asked to start as internal to a bank while describing a product banks will use. |
 | Funding is simulated and recorded | No payment rail or core banking provider requested. Funding record is separate from approval. |
 | Human lending decisions | Product default; fake risk/AI outputs support review and do not decide credit. |
@@ -142,3 +143,29 @@ A real Workers-runtime probe found that Fastify's routing dependency calls `new 
 References: [Workers Builds configuration](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/), [Cloudflare CLI](https://developers.cloudflare.com/cf/), [Workers security model](https://developers.cloudflare.com/workers/reference/security-model/), [Hyperdrive with Neon](https://developers.cloudflare.com/hyperdrive/examples/connect-to-postgres/postgres-drivers-and-libraries/node-postgres/), and [Queues](https://developers.cloudflare.com/queues/).
 
 The user changed the account subdomain to `kualia.workers.dev` during deployment setup. Hosted public URLs and allowed origins use that subdomain.
+
+## Passwordless access test slice (October 6, 2026)
+
+The next-feature request selects T06 as a coherent test point before T07 application creation. Generic sign-in creates only pending contacts and access-delivery intent; it never creates applications or grants participation. Both HTTP transports share the same identity service, origin policy, hashed credentials, database-backed rate limits, and live membership checks. The local Vite proxy preserves the configured frontend Host for same-origin session reads. Each frontend origin has its own cookie name so local borrower and staff sessions can coexist across ports.
+
+Access-delivery requests serve as the transactional identity outbox. pg-boss receives only a delivery-request ID. The local worker claims a request, persists the new token hash, and sends through loopback SMTP to Mailpit. A lease recovers ambiguous SMTP acceptance; retry-issued sibling tokens share atomic consumption/revocation. Links expire after 15 minutes, delivery requests after one hour, sessions after eight hours. A credential is carried in the email URL fragment, removed from browser history on page load, and consumed only by an explicit POST. Only `/` is an approved return destination in this slice.
+
+The existing hosted foundation has no email sink and no seeded banks/users. This slice does not provision a public inbox, send real email, seed Neon, or deploy. Hosted request-link returns an explicit delivery-unavailable response and the UI explains that email sign-in is local. Hosted session/CSRF behavior is covered by the native transport tests; hosted end-to-end sign-in requires a separately configured simulated delivery destination. Application intake and workspaces remain T07–T10.
+
+The SMTP adapter follows [Nodemailer's SMTP transport options](https://nodemailer.com/smtp), with fixed loopback destination, bounded timeouts, and protocol/content logging disabled. Browser authentication tests disable traces/screenshots/video to avoid retaining credentials from the local inbox.
+
+## Immediate demo sign-in (October 6, 2026)
+
+During T06 testing the user explicitly requested entering an email and signing in immediately, without visiting the inbox. This overrides email verification as the default local demo entry path. The local development API enables a visibly labelled demo sign-in endpoint; both the default production configuration and hosted Worker leave it disabled. The endpoint requires a synthetic bank and synthetic user, preserves explicit staff membership and application grants, and uses the same origin, CSRF, rate-limit, cookie, expiry, and revocation controls.
+
+Sessions record `authenticationMethod` as `demo` or `email_link`. Demo sign-in does not mark an email verified, consume or mint an email token, queue an email, or create an application. Its actor is restricted to the selected demo bank. Disabling demo mode rejects existing demo sessions. UI copy says **Demo access**, never **Email verified**, for that method. The email-link flow remains available as a secondary option for exercising T06's single-use/recovery behavior. T07 must allow the explicitly authorized demo actor for synthetic draft workflows while retaining actual email verification for the email-link path.
+
+## Required initial setup before the borrower portal (October 6, 2026)
+
+The user clarified that borrowers need a dedicated page to set up a loan application through a wizard that asks simple, single questions one at a time, tracks state, and can be resumed. Borrowers must finish that process before entering the portal to see their remaining tasks. This replaces the earlier loosely defined short-form-to-workspace handoff.
+
+The plan implements this as per-application setup with database-persisted answers, current/completed/skipped steps, revisions, and explicit completion. The initial questions remain business name, amount, purpose/product, and optional industry; identifiers, evidence, signatures, and checks stay in later tasks. Back/Continue, optional Skip, a setup-only step indicator, save feedback, and a final summary/“Finish setup” action keep the process understandable. Server validation and an atomic, idempotent completion command unlock the applicant portal; sign-in or a direct URL cannot bypass setup. Both permitted local demo access and verified email-link access follow this rule.
+
+Implementation defaults: the gate applies to each application independently; a minimal selector can route unfinished drafts to setup without blocking an already completed application. Staff can inspect/prefill a draft, but the applicant must confirm and finish setup. Owners/advisers keep their separate scoped invitation/task journeys. Setup completion transitions the draft to information collection; it is not submission, approval, funding, or completion of later requirements.
+
+T07 owns persistence and domain guards, T08 the wizard, and T09 the portal handoff. The existing T07 → T08 → T09 dependencies remain valid; T10 still depends on T07 for staff progress/prefill. T18 continuation links resolve current setup state; T19 submission requires completed setup; T22 verifies the combined journey. This request updates instructions only. These features remain not started, with acceptance criteria and planned validation updated rather than marked implemented.

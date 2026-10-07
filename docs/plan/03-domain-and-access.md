@@ -14,6 +14,7 @@ This is the target model, not a requirement to create every table in T03. Add ea
 | BusinessRelationship | Person's owner/contact relationship and optional ownership percentage. Does not grant login or access. |
 | LoanProduct / RequirementSet | Versioned demo product and rules determining applicable information and tasks. |
 | Application | Bank, optional business, contact, product, requested amount, purpose, source, lifecycle, assigned staff, revision. |
+| ApplicationSetup | Per-application wizard state, step-definition version, current step, completed/skipped step keys, revision, and completion actor/time; initial answers use the application's canonical fields. |
 | ApplicationParticipant / Invitation | Verified application access and permitted scope; email invitation is a pending grant. |
 | Task | Stable requirement key or manual task, assignee, stage, visibility, evidence, due date, revision, review result. |
 | Document / DocumentVersion | Application-specific artifact and immutable uploaded versions, uploader, private storage key, scan/processing state. |
@@ -30,6 +31,16 @@ Every business record is bank-scoped. Tenant-bearing relationships must prevent 
 
 Use an explicit application participant grant for every non-staff reader. Do not automatically share all applications of a business. Initially a document belongs to one application; cross-application document reuse is deferred.
 
+## Initial setup state and completion
+
+Every new application starts with setup `in_progress`, including staff-created drafts. Persist the step-definition version, stable current-step key, completed/skipped steps, and an optimistic revision alongside canonical answers. Save answers and progress transactionally; optional skips are explicit, required questions cannot be skipped, and changed answers invalidate dependent step validation where needed. Resume reads this server state after authorization, never just a browser step index. Use committed migrations and synthetic fixtures in T07.
+
+An applicant administrator explicitly finishes setup through a revision-checked, idempotent domain command. Validate required business name, product, exact requested amount, and purpose against product configuration; optional industry may remain unresolved. Record `completed`, actor/time, audit and any job intent in the same transaction as the transition to `collecting_information`. Pre-filled staff answers still require applicant confirmation. Failed saves, invalid answers, and concurrent stale completion requests cannot partially complete setup.
+
+Until completion, an authorized applicant may read a minimal summary, save/resume setup, or withdraw, but cannot enter that application's task workspace or invoke applicant portal operations such as task/evidence submission or application submission. Enforce the prerequisite in domain/API guards as well as route handling. Completing setup grants no new participation or document permissions. Staff retain authorized draft access; invited owners/advisers retain their separate assigned scope without completing someone else's setup.
+
+Setup completion is independent of task readiness and later review. New requirements do not send an applicant back through the initial wizard, and ordinary permitted edits after setup use the portal's validation and lifecycle guards. Each new application requires its own setup, even for an existing business; another application's completion cannot satisfy it. Withdrawn or otherwise inaccessible drafts use closed/denied states rather than an endless setup redirect.
+
 ## Application lifecycle
 
 “Ready to submit” is derived from requirements and checks. It is not a mutable status that can disagree with evidence.
@@ -37,7 +48,7 @@ Use an explicit application participant grant for every non-staff reader. Do not
 | From | To | Actor and guard |
 | --- | --- | --- |
 | New lead | `draft` | Public email-start or authorized staff creation; bank/product valid; idempotent. |
-| `draft` | `collecting_information` | Verified applicant supplies initial business details; staff can do so on behalf of the applicant. |
+| `draft` | `collecting_information` | Authorized applicant administrator explicitly finishes initial setup; server validates required answers and records setup completion atomically. T06's permitted synthetic demo actor may do this without claiming verified email. Staff prefill alone does not complete setup. |
 | `collecting_information`, `needs_information` | `submitted` | Applicant administrator or staff explicitly submitting on behalf; submission gates pass; record submitting actor and current snapshot. |
 | `submitted` | `in_review` | Bank staff claims/starts review. |
 | `in_review` | `needs_information` | Bank staff records a reason and opens/returns relevant tasks. |
@@ -62,7 +73,7 @@ Material evidence changes reopen affected completion or mark it stale for review
 
 If a cancelled requirement becomes applicable again, reactivate its stable requirement identity with a new occurrence/revision and preserve prior history. It starts open unless an explicit reuse policy proves that the same current evidence still satisfies it. A waiver is scoped to its requirement occurrence and policy version; reactivation requires renewed reviewer confirmation rather than silently reusing it. Test amount changes and owner removal/re-addition, not just the first rule evaluation.
 
-For a target gate, evaluate all active mandatory requirements/checks assigned to that stage or an earlier stage. Optional or later-stage items do not block it. A task passes only with current completed evidence or an allowed audited waiver. A required check passes only with a current successful execution and a clear outcome, or an explicit policy-permitted staff resolution; a resolution preserves the original finding. Waiting, failed, running, stale, and unresolved review outcomes block their assigned gate. Submission additionally requires verified authority and valid initial business/product/amount fields; approval requires an in-review application and a human decision; funding requires closing and current approved terms/signatures. Do not make every known identifier/check a submission prerequisite by default.
+For a target gate, evaluate all active mandatory requirements/checks assigned to that stage or an earlier stage. Optional or later-stage items do not block it. A task passes only with current completed evidence or an allowed audited waiver. A required check passes only with a current successful execution and a clear outcome, or an explicit policy-permitted staff resolution; a resolution preserves the original finding. Waiting, failed, running, stale, and unresolved review outcomes block their assigned gate. Submission additionally requires completed initial setup, verified authority, and valid initial business/product/amount fields; approval requires an in-review application and a human decision; funding requires closing and current approved terms/signatures. Do not make every known identifier/check a submission prerequisite by default.
 
 ## Independent processing states
 
@@ -97,6 +108,8 @@ Authorization applies to lists, counts, search, activity, direct record URLs, AP
 
 ## Identity and invitations
 
+Local demo exception (user instruction, October 6, 2026): an explicitly enabled demo endpoint accepts an email and creates a session immediately, solely for synthetic users/banks. It records `authenticationMethod=demo`, never marks mailbox ownership verified, and scopes the actor to the selected demo bank. Current application grants and staff membership still apply. Production mode rejects demo sessions. The rules below continue to govern actual email-link verification and invitations; the override does not auto-accept invitations or grant roles.
+
 - Email-start creates a pending contact/draft and sends a link; it reveals neither existing accounts nor application details. Creating another lead with the same email does not grant access or merge businesses.
 - Store only token hashes, use cryptographically random credentials, set expiry and single-use semantics, and consume links transactionally. A GET displays a confirmation page; a deliberate POST consumes the token so email scanners do not exhaust it.
 - Queue only an access-delivery request ID. The worker generates the raw credential in memory at delivery time, commits its hash/expiry/purpose/target, then sends it. No plaintext credential belongs in application tables, outbox/queue records, logs, or test reports. The local inbox necessarily contains the emailed bearer link and is development-only.
@@ -109,6 +122,8 @@ Authorization applies to lists, counts, search, activity, direct record URLs, AP
 - Repeated creation requests with the same idempotency key and payload return the same logical result. A changed payload for that key is a conflict. Use a new key for an intentional second application.
 
 “Continue an application” requests authentication and never creates an application. After verifying email in the selected bank, resolve an allowed target draft if one was recorded; otherwise list existing grants and pending borrower/contact drafts addressed to that verified email for explicit selection/claim. A claim is idempotent and restricted to that recipient and bank. Do not infer other business access or accept role-specific invitations through generic resume. Test loss of the original link/browser and multiple pending drafts for one email.
+
+After resolving an authorized application, route the applicant to its saved setup step when setup is incomplete and to its portal when complete. Re-evaluate current setup state even for old continuation links or direct portal URLs. The explicitly enabled local demo path uses its synthetic actor/grants without asserting mailbox verification; the same setup completion prerequisite applies.
 
 ## Data integrity and privacy
 

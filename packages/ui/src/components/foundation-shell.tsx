@@ -7,17 +7,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@keycade/ui/components/card";
-import {
-  ArrowRight,
-  Building2,
-  Check,
-  CircleAlert,
-  CircleDashed,
-  ExternalLink,
-  Landmark,
-  Layers3,
-  RefreshCw,
-} from "lucide-react";
+import { type Confirmation, IdentityPortal } from "@keycade/ui/components/identity-portal";
+import { ArrowRight, Check, CircleAlert, CircleDashed, Landmark, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type AppName = "bank-site" | "borrower" | "bank-console";
@@ -37,9 +28,7 @@ const applications = {
     eyebrow: "The beginning of the journey",
     title: "A place for businesses to move forward.",
     description:
-      "The public entry point for Keycade’s business lending experience. Explore the connected workspaces while the foundation is ready to test.",
-    next: "Email-first applications and product information will arrive in the next milestone.",
-    icon: Landmark,
+      "The public entry point for Keycade’s business lending experience. Sign in to the borrower portal to try the demo.",
     url: () => __KEYCADE_PUBLIC__.bankSiteUrl,
   },
   borrower: {
@@ -48,9 +37,7 @@ const applications = {
     eyebrow: "Your business, in one place",
     title: "Room for your next chapter.",
     description:
-      "The future home for your businesses, applications, and requested documents. This workspace currently demonstrates the shared interface and service connection.",
-    next: "Passwordless access, saved applications, and document requests will arrive in later milestones.",
-    icon: Building2,
+      "Enter a synthetic email to open the local borrower demo immediately. You can also test the one-time email link flow.",
     url: () => __KEYCADE_PUBLIC__.borrowerUrl,
   },
   "bank-console": {
@@ -59,9 +46,7 @@ const applications = {
     eyebrow: "A clear view of what’s next",
     title: "A workspace built around progress.",
     description:
-      "The future home for the bank’s application queue, reviews, and decisions. Start by checking the services and exploring the connected applications.",
-    next: "Staff authentication, application queues, and review tools will arrive in later milestones.",
-    icon: Layers3,
+      "Sign in with your bank staff email to access the console. Your membership is checked independently from borrower access.",
     url: () => __KEYCADE_PUBLIC__.bankConsoleUrl,
   },
 } satisfies Record<AppName, object>;
@@ -105,7 +90,13 @@ function ServiceStatus({ label, state }: { label: string; state: CheckState }) {
   );
 }
 
-export function FoundationShell({ app }: { app: AppName }) {
+export function FoundationShell({
+  app,
+  confirmation,
+}: {
+  app: AppName;
+  confirmation?: Confirmation;
+}) {
   const current = applications[app];
   const [checks, setChecks] = useState<{ api: CheckState; ready: CheckState }>({
     api: "checking",
@@ -170,7 +161,11 @@ export function FoundationShell({ app }: { app: AppName }) {
       <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-6 py-12 lg:px-8 lg:py-20">
         <div className="mb-5 flex flex-wrap items-center gap-3">
           <Badge variant="secondary">
-            {__KEYCADE_PUBLIC__.hosted ? "Demo foundation" : "Local foundation"}
+            {app === "bank-site"
+              ? __KEYCADE_PUBLIC__.hosted
+                ? "Demo foundation"
+                : "Local foundation"
+              : "Demo access"}
           </Badge>
           <span className="text-xs text-muted-foreground">
             {__KEYCADE_PUBLIC__.hosted ? "Hosted preview" : "Development preview"}
@@ -186,8 +181,12 @@ export function FoundationShell({ app }: { app: AppName }) {
               {current.description}
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
-              <a href="#workspaces" className={buttonVariants()}>
-                Explore workspaces <ArrowRight aria-hidden="true" />
+              <a
+                href={app === "bank-site" ? __KEYCADE_PUBLIC__.borrowerUrl : "#identity"}
+                className={buttonVariants()}
+              >
+                {app === "bank-site" ? "Open borrower portal" : "Continue to sign in"}{" "}
+                <ArrowRight aria-hidden="true" />
               </a>
               <a href="#services" className={buttonVariants({ variant: "outline" })}>
                 Check services
@@ -195,88 +194,44 @@ export function FoundationShell({ app }: { app: AppName }) {
             </div>
           </section>
 
-          <Card id="services">
-            <CardHeader>
-              <CardTitle>Service connection</CardTitle>
-              <CardDescription>Live checks from this workspace to the API.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div aria-live="polite" aria-atomic="true" className="divide-y border-y">
-                <ServiceStatus label="API health" state={checks.api} />
-                <ServiceStatus label="API readiness" state={checks.ready} />
-              </div>
-              <p className="mt-4 text-xs leading-5 text-muted-foreground">
-                {checking
-                  ? "Checking the connected services."
-                  : checks.api === "available" && checks.ready === "available"
-                    ? "The API is responding and its readiness checks have passed."
-                    : "A service is unavailable. Try refreshing the checks in a moment."}
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-5"
-                disabled={checking}
-                onClick={() => void refresh()}
-              >
-                <RefreshCw aria-hidden="true" className={checking ? "animate-spin" : undefined} />
-                {checking ? "Checking…" : "Refresh checks"}
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        <section
-          id="workspaces"
-          aria-labelledby="workspaces-heading"
-          className="mt-16 border-t pt-10 lg:mt-24"
-        >
-          <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h2 id="workspaces-heading" className="text-lg font-semibold tracking-tight">
-                Three connected workspaces
-              </h2>
-              <p className="mt-1 text-sm text-muted-foreground">
-                A shared foundation for the whole lending journey.
-              </p>
-            </div>
-            <span className="text-xs text-muted-foreground">
-              Synthetic data · Simulated providers
-            </span>
-          </div>
-          <div className="grid gap-4 md:grid-cols-3">
-            {(Object.entries(applications) as [AppName, (typeof applications)[AppName]][]).map(
-              ([key, item]) => {
-                const Icon = item.icon;
-                return (
-                  <Card key={key}>
-                    <CardHeader>
-                      <div className="mb-3 flex items-center justify-between">
-                        <Icon aria-hidden="true" className="size-5 text-muted-foreground" />
-                        {key === app && <Badge variant="outline">You are here</Badge>}
-                      </div>
-                      <CardTitle>{item.name}</CardTitle>
-                      <CardDescription>{item.next}</CardDescription>
-                    </CardHeader>
-                    <CardContent className="mt-auto">
-                      <a
-                        href={item.url()}
-                        className="inline-flex items-center gap-2 text-sm font-medium underline-offset-4 hover:underline"
-                      >
-                        Open workspace <ExternalLink aria-hidden="true" className="size-3.5" />
-                      </a>
-                    </CardContent>
-                  </Card>
-                );
-              },
+          <div className="min-w-0 space-y-6">
+            {app !== "bank-site" && (
+              <IdentityPortal
+                portal={app === "borrower" ? "borrower" : "staff"}
+                confirmation={confirmation}
+              />
             )}
+            <Card id="services">
+              <CardHeader>
+                <CardTitle>Service connection</CardTitle>
+                <CardDescription>Live checks from this workspace to the API.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div aria-live="polite" aria-atomic="true" className="divide-y border-y">
+                  <ServiceStatus label="API health" state={checks.api} />
+                  <ServiceStatus label="API readiness" state={checks.ready} />
+                </div>
+                <p className="mt-4 text-xs leading-5 text-muted-foreground">
+                  {checking
+                    ? "Checking the connected services."
+                    : checks.api === "available" && checks.ready === "available"
+                      ? "The API is responding and its readiness checks have passed."
+                      : "A service is unavailable. Try refreshing the checks in a moment."}
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-5"
+                  disabled={checking}
+                  onClick={() => void refresh()}
+                >
+                  <RefreshCw aria-hidden="true" className={checking ? "animate-spin" : undefined} />
+                  {checking ? "Checking…" : "Refresh checks"}
+                </Button>
+              </CardContent>
+            </Card>
           </div>
-        </section>
-
-        <p className="mt-8 rounded-lg border bg-muted/40 px-5 py-4 text-sm leading-6 text-muted-foreground">
-          This is a local development preview. Lending forms and account access are not available
-          yet. Future checks and funding in this prototype will be clearly marked simulations.
-        </p>
+        </div>
       </main>
       <footer className="border-t">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-6 py-5 text-xs text-muted-foreground lg:px-8">

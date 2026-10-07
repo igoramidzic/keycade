@@ -1,6 +1,8 @@
 import { createDatabase, type Database, workerHeartbeats } from "@keycade/db";
 import { eq } from "drizzle-orm";
 import type { PgBoss } from "pg-boss";
+import { dispatchAccessDeliveries, processAccessDelivery } from "./access-delivery.js";
+import type { AccessEmailAdapter } from "./mailpit.js";
 import {
   configured,
   deliverOutbox,
@@ -9,7 +11,7 @@ import {
   recoverExpiredRuns,
 } from "./operations.js";
 import { type Clock, systemClock } from "./provider.js";
-import { assertQueueReady, createQueueClient, demoQueue } from "./queue.js";
+import { accessQueue, assertQueueReady, createQueueClient, demoQueue } from "./queue.js";
 
 export { processOperation, type RuntimeOptions, recoverExpiredRuns } from "./operations.js";
 
@@ -44,7 +46,10 @@ export async function workerHealth(
   };
 }
 
-export async function startWorker(connectionString: string, options: RuntimeOptions = {}) {
+export async function startWorker(
+  connectionString: string,
+  options: RuntimeOptions & { emailAdapter?: AccessEmailAdapter } = {},
+) {
   await assertQueueReady(connectionString);
   const config = configured(options);
   const { db, pool } = createDatabase(connectionString);
@@ -97,6 +102,26 @@ export async function startWorker(connectionString: string, options: RuntimeOpti
     while (!abort.signal.aborted) {
       await recoverExpiredRuns(db, config.clock, config.leaseMs);
       await dispatchOutbox(db, boss, config.clock);
+      if (options.emailAdapter) {
+        await dispatchAccessDeliveries(
+          db,
+          async (message) => {
+            if (!(await boss.send(accessQueue, message)))
+              throw new Error("Queue rejected access delivery.");
+          },
+          config.clock,
+        );
+        const deliveries = await boss.fetch<{ deliveryRequestId: string }>(accessQueue, {
+          batchSize: 5,
+        });
+        for (const job of deliveries) {
+          await processAccessDelivery(db, job.data.deliveryRequestId, options.emailAdapter, {
+            clock: config.clock,
+            delayMs: Math.min(config.delayMs, 1000),
+          });
+          await boss.complete(accessQueue, job.id);
+        }
+      }
       const jobs = await boss.fetch<{ operationId: string }>(demoQueue, { batchSize: 5 });
       const outcomes = await Promise.allSettled(
         jobs.map(async (job) => {
