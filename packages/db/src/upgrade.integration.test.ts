@@ -142,3 +142,47 @@ it("assigns the fixed bank product to legacy drafts and resumes past product sel
     await rm(folder, { recursive: true, force: true });
   }
 });
+
+it("adds internal staff notes without altering pre-T10 applications and enforces tenant references", async () => {
+  const folder = await mkdtemp(join(tmpdir(), "keycade-before-staff-workspace-"));
+  const database = await createTestDatabase(undefined, { migrate: false });
+  try {
+    const journal = JSON.parse(
+      await readFile(join(migrationsFolder, "meta/_journal.json"), "utf8"),
+    ) as { entries: { idx: number; tag: string }[] };
+    journal.entries = journal.entries.filter((entry) => entry.idx < 6);
+    await mkdir(join(folder, "meta"));
+    await writeFile(join(folder, "meta/_journal.json"), JSON.stringify(journal));
+    await Promise.all(
+      journal.entries.map((entry) =>
+        copyFile(join(migrationsFolder, `${entry.tag}.sql`), join(folder, `${entry.tag}.sql`)),
+      ),
+    );
+    await migrate(database.db, { migrationsFolder: folder });
+    await seedDatabase(database.connectionString);
+    const before = (await database.pool.query("SELECT * FROM applications ORDER BY id")).rows;
+    await migrateDatabase(database.connectionString);
+    await assertSchemaReady(database.connectionString);
+    expect((await database.pool.query("SELECT * FROM applications ORDER BY id")).rows).toEqual(
+      before,
+    );
+    expect((await database.pool.query("SELECT * FROM staff_notes")).rows).toEqual([]);
+    await database.pool.query(
+      "INSERT INTO staff_notes (bank_id, application_id, body, author_user_id, updated_by_user_id) VALUES ($1, $2, 'Synthetic retained note', $3, $3)",
+      [seedIds.bankA, seedIds.applicationSmall, seedIds.officerA],
+    );
+    await expect(
+      database.pool.query(
+        "INSERT INTO staff_notes (bank_id, application_id, body, author_user_id, updated_by_user_id) VALUES ($1, $2, 'Synthetic invalid reference', $3, $3)",
+        [seedIds.bankA, seedIds.applicationOtherBank, seedIds.officerA],
+      ),
+    ).rejects.toMatchObject({ code: "23503" });
+    await migrateDatabase(database.connectionString);
+    expect((await database.pool.query("SELECT body FROM staff_notes")).rows).toEqual([
+      { body: "Synthetic retained note" },
+    ]);
+  } finally {
+    await database.cleanup();
+    await rm(folder, { recursive: true, force: true });
+  }
+});

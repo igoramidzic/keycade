@@ -1,10 +1,10 @@
 # Keycade
 
-Keycade is a bank-operated business lending prototype. **T01–T09 are implemented locally**: three React apps, repeatable infrastructure, a seeded PostgreSQL schema, backend authorization, durable simulated jobs, passwordless access, a mock bank page, a resumable one-question application setup wizard, and a business-grouped borrower workspace.
+Keycade is a bank-operated business lending prototype. **T01–T10 are implemented locally**: three React apps, repeatable infrastructure, a seeded PostgreSQL schema, backend authorization, durable simulated jobs, passwordless access, a mock bank page, a resumable one-question application setup wizard, a business-grouped borrower workspace, and a bank staff queue with assignments and internal notes.
 
-Start at the mock bank, choose **Apply for business financing**, and enter a fictional email. The default local demo opens setup immediately. Answer one question per screen, use **Continue later**, then sign in with the same email to resume the same application. **Finish setup** confirms the answers and opens that application’s portal with Overview, Tasks, Documents, People, and Activity sections. Bank staff screens follow in T10.
+Start at the mock bank, choose **Apply for business financing**, and enter a fictional email. The default local demo opens setup immediately. Answer one question per screen, use **Continue later**, then sign in with the same email to resume the same application. **Finish setup** confirms the answers and opens that application’s portal with Overview, Tasks, Documents, People, and Activity sections. Bank staff can search and filter applications, create and prefill drafts, assign officers, and maintain private internal notes.
 
-The optional email-link path supports Mailpit verification, expired links, and fresh-link resume. Saved answers and progress live on the server; browser storage is not required. All records and provider results are synthetic. See [T09’s implementation and test steps](docs/plan/tasks/T09-borrower-workspace.md#try-it-locally) and the [identity test guide](docs/plan/identity-validation.md).
+The optional email-link path supports Mailpit verification, expired links, and fresh-link resume. Saved answers and progress live on the server; browser storage is not required. All records and provider results are synthetic. See [T10’s staff walkthrough](docs/plan/tasks/T10-bank-workspace.md#try-it-locally), [T09’s implementation and test steps](docs/plan/tasks/T09-borrower-workspace.md#try-it-locally) and the [identity test guide](docs/plan/identity-validation.md).
 
 ## Start locally
 
@@ -26,7 +26,7 @@ Initialization creates a private ignored `.env`, starts project-owned PostgreSQL
 | --- | --- | --- |
 | Mock bank site | http://127.0.0.1:3000 | Apply for financing or continue an application |
 | Borrower portal | http://127.0.0.1:3001 | Sign in as `borrower@example.test` to browse two businesses, completed setups, a resumable draft, and a closed application |
-| Bank console | http://127.0.0.1:3002 | Sign in as `officer-a@example.test`; nonstaff addresses cannot gain access |
+| Bank console | http://127.0.0.1:3002 | Sign in as `officer-a@example.test` to search drafts, create an application, assign an officer, and add internal notes |
 | API liveness / readiness | http://127.0.0.1:4000/api/health · http://127.0.0.1:4000/api/ready | Process health vs database/worker readiness |
 | OpenAPI | http://127.0.0.1:4000/api/openapi.json | Validated initial API contract |
 | Mailpit | http://127.0.0.1:8025 | Open a delivered sign-in link, then deliberately confirm in the portal |
@@ -81,4 +81,4 @@ API and jobs connect to Neon PostgreSQL through `keycade-db` Hyperdrive with que
 
 For faster demo deployment, automatic test/build validation and the PR trigger remain commented out in the Neon workflow. Tests remain available locally. Application builds and migrations trigger independently; readiness fails until required migrations are present. Use additive schema changes and wait for the GitHub migration run before testing a schema-dependent release.
 
-Document storage remains planned for Cloudflare R2 in T13. T06 sign-in is testable locally. Hosted email delivery is explicitly unavailable until a simulated hosted delivery destination is configured; no public inbox, real email provider, or hosted seeds were added. This change has not been deployed. T07–T09 setup, intake, and borrower workspace are locally verified. Bank queue/workspace screens remain T10. Tasks, uploads, participant management, activity, and funded accounts show honest unavailable states until their owning tasks are implemented.
+Document storage remains planned for Cloudflare R2 in T13. T06 sign-in is testable locally. Hosted email delivery is explicitly unavailable until a simulated hosted delivery destination is configured; no public inbox, real email provider, or hosted seeds were added. This change has not been deployed. T07–T10 setup, intake, borrower workspace, and staff workspace are implemented locally. Staff creation queues a continuation email to Mailpit; hosted staff creation remains unavailable until simulated email delivery is configured. Tasks, uploads, participant management, activity, and funded accounts show honest unavailable states until their owning tasks are implemented.

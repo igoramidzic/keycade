@@ -1,9 +1,11 @@
 import {
+  addStaffNoteSchema,
   applicationPageSchema,
   applicationParamsSchema,
   applicationPortalSchema,
   applicationSelectionSchema,
   applicationSetupSchema,
+  assignStaffSchema,
   authSessionSchema,
   bankParamsSchema,
   claimApplicationSchema,
@@ -26,19 +28,32 @@ import {
   requestAccessLinkResponseSchema,
   requestAccessLinkSchema,
   saveApplicationSetupSchema,
+  staffApplicationPageSchema,
   staffApplicationSchema,
+  staffNoteParamsSchema,
+  staffOptionsSchema,
+  staffPageQuerySchema,
   staffSessionSchema,
+  staffWorkspaceSchema,
   updatePurposeSchema,
+  updateStaffNoteSchema,
 } from "@keycade/contracts";
 import type { Database } from "@keycade/db";
 import {
+  addStaffNote,
+  assignApplicationStaff,
   createApplicationService,
   createIdentityService,
   DomainError,
+  listStaffApplications,
   readApplication,
   readPublicIntake,
   readStaffApplication,
+  readStaffOptions,
+  readStaffWorkspace,
+  requireBankStaff,
   updateApplicationPurpose,
+  updateStaffNote,
 } from "@keycade/domain";
 import { z } from "zod";
 import {
@@ -57,6 +72,7 @@ import {
   serializeSessionCookie,
   validCsrfToken,
 } from "./security.js";
+import { isServiceUnavailable, serviceUnavailableMessage } from "./service-errors.js";
 
 export interface WorkerDependencies extends IdentityTransportOptions {
   db: Database;
@@ -93,7 +109,11 @@ export async function handleWorkerRequest(
     const originHeader = request.headers.get("origin") ?? undefined;
     const origin = configuredRequestOrigin(originHeader, url.origin, deps.allowedOrigins);
     const identity = createIdentityService(deps.db);
-    const applications = createApplicationService(deps.db);
+    const applications = createApplicationService(deps.db, {
+      requireStaffContinuation: true,
+      staffContinuationOrigin:
+        deps.authDeliveryEnabled === false ? undefined : deps.portalOrigins?.borrower?.[0],
+    });
     if (
       !["GET", "HEAD", "OPTIONS"].includes(request.method) &&
       !isAllowedOrigin(request.headers.get("origin") ?? undefined, deps.allowedOrigins)
@@ -137,7 +157,7 @@ export async function handleWorkerRequest(
       const applicationResponses = (schema: z.ZodType) => ({
         "200": response(schema),
         ...Object.fromEntries(
-          [400, 403, 404, 409, 429, 500].map((code) => [code, response(errorSchema)]),
+          [400, 403, 404, 409, 429, 500, 503].map((code) => [code, response(errorSchema)]),
         ),
       });
       return json({
@@ -298,6 +318,70 @@ export async function handleWorkerRequest(
           "/api/v1/banks/{bankId}/staff/applications/{applicationId}": {
             get: { parameters, responses: { "200": response(staffApplicationSchema) } },
           },
+          "/api/v1/banks/{bankId}/staff/options": {
+            get: {
+              parameters: [parameters[0]],
+              responses: applicationResponses(staffOptionsSchema),
+            },
+          },
+          "/api/v1/banks/{bankId}/staff/applications": {
+            get: {
+              parameters: [
+                parameters[0],
+                ...Object.entries(staffPageQuerySchema.shape).map(([name, schema]) => ({
+                  name,
+                  in: "query",
+                  schema: z.toJSONSchema(schema),
+                })),
+              ],
+              responses: applicationResponses(staffApplicationPageSchema),
+            },
+            post: {
+              parameters: [parameters[0]],
+              requestBody: requestBody(createDraftSchema),
+              responses: applicationResponses(applicationSetupSchema),
+            },
+          },
+          "/api/v1/banks/{bankId}/staff/applications/{applicationId}/workspace": {
+            get: { parameters, responses: applicationResponses(staffWorkspaceSchema) },
+          },
+          "/api/v1/banks/{bankId}/staff/applications/{applicationId}/setup": {
+            get: { parameters, responses: applicationResponses(applicationSetupSchema) },
+            patch: {
+              parameters,
+              requestBody: requestBody(saveApplicationSetupSchema),
+              responses: applicationResponses(applicationSetupSchema),
+            },
+          },
+          "/api/v1/banks/{bankId}/staff/applications/{applicationId}/assignment": {
+            patch: {
+              parameters,
+              requestBody: requestBody(assignStaffSchema),
+              responses: applicationResponses(staffWorkspaceSchema),
+            },
+          },
+          "/api/v1/banks/{bankId}/staff/applications/{applicationId}/notes": {
+            post: {
+              parameters,
+              requestBody: requestBody(addStaffNoteSchema),
+              responses: applicationResponses(staffWorkspaceSchema),
+            },
+          },
+          "/api/v1/banks/{bankId}/staff/applications/{applicationId}/notes/{noteId}": {
+            patch: {
+              parameters: [
+                ...parameters,
+                {
+                  name: "noteId",
+                  in: "path",
+                  required: true,
+                  schema: { type: "string", format: "uuid" },
+                },
+              ],
+              requestBody: requestBody(updateStaffNoteSchema),
+              responses: applicationResponses(staffWorkspaceSchema),
+            },
+          },
           "/api/v1/banks/{bankId}/applications/{applicationId}/purpose": {
             patch: {
               parameters,
@@ -419,6 +503,100 @@ export async function handleWorkerRequest(
       });
       return json(requestAccessLinkResponseSchema.parse(result), 202);
     }
+    const staffCollection = /^\/api\/v1\/banks\/([^/]+)\/staff\/(applications|options)$/.exec(path);
+    if (staffCollection) {
+      const { bankId } = bankParamsSchema.parse({ bankId: staffCollection[1] });
+      assertSessionBank(authentication, bankId);
+      if (get && staffCollection[2] === "options")
+        return json(
+          staffOptionsSchema.parse(await readStaffOptions(deps.db, authentication.actor, bankId)),
+        );
+      if (get) {
+        const query = staffPageQuerySchema.parse(Object.fromEntries(url.searchParams));
+        return json(
+          staffApplicationPageSchema.parse(
+            await listStaffApplications(deps.db, authentication.actor, bankId, query),
+          ),
+        );
+      }
+      if (request.method === "POST" && staffCollection[2] === "applications") {
+        const body = createDraftSchema.parse(await readJsonBody(request));
+        await requireBankStaff(deps.db, authentication.actor, bankId);
+        if (deps.authDeliveryEnabled === false || !deps.portalOrigins?.borrower?.[0])
+          return failure(
+            503,
+            "AUTH_DELIVERY_UNAVAILABLE",
+            "Application continuation email is unavailable in this environment.",
+          );
+        return json(
+          applicationSetupSchema.parse(
+            await applications.create(authentication.actor, bankId, body, requestId),
+          ),
+        );
+      }
+      return failure(404, "NOT_FOUND", "Resource not found.");
+    }
+    const staffResource =
+      /^\/api\/v1\/banks\/([^/]+)\/staff\/applications\/([^/]+)\/(workspace|setup|assignment|notes)(?:\/([^/]+))?$/.exec(
+        path,
+      );
+    if (staffResource) {
+      const { bankId, applicationId } = applicationParamsSchema.parse({
+        bankId: staffResource[1],
+        applicationId: staffResource[2],
+      });
+      assertSessionBank(authentication, bankId);
+      const actor = authentication.actor;
+      const resource = staffResource[3];
+      const noteId = staffResource[4];
+      if (resource === "workspace" && get && !noteId)
+        return json(
+          staffWorkspaceSchema.parse(
+            await readStaffWorkspace(deps.db, actor, bankId, applicationId),
+          ),
+        );
+      if (resource === "setup" && !noteId && (get || request.method === "PATCH")) {
+        await requireBankStaff(deps.db, actor, bankId);
+        if (get)
+          return json(
+            applicationSetupSchema.parse(
+              await applications.readSetup(actor, bankId, applicationId),
+            ),
+          );
+        const body = saveApplicationSetupSchema.parse(await readJsonBody(request));
+        return json(
+          applicationSetupSchema.parse(
+            await applications.saveSetup(actor, bankId, applicationId, body, requestId),
+          ),
+        );
+      }
+      if (resource === "assignment" && request.method === "PATCH" && !noteId) {
+        const body = assignStaffSchema.parse(await readJsonBody(request));
+        return json(
+          staffWorkspaceSchema.parse(
+            await assignApplicationStaff(deps.db, actor, bankId, applicationId, body, requestId),
+          ),
+        );
+      }
+      if (resource === "notes" && request.method === "POST" && !noteId) {
+        const body = addStaffNoteSchema.parse(await readJsonBody(request));
+        return json(
+          staffWorkspaceSchema.parse(
+            await addStaffNote(deps.db, actor, bankId, applicationId, body, requestId),
+          ),
+        );
+      }
+      if (resource === "notes" && request.method === "PATCH" && noteId) {
+        staffNoteParamsSchema.parse({ bankId, applicationId, noteId });
+        const body = updateStaffNoteSchema.parse(await readJsonBody(request));
+        return json(
+          staffWorkspaceSchema.parse(
+            await updateStaffNote(deps.db, actor, bankId, applicationId, noteId, body, requestId),
+          ),
+        );
+      }
+      return failure(404, "NOT_FOUND", "Resource not found.");
+    }
     const collection = /^\/api\/v1\/banks\/([^/]+)\/applications$/.exec(path);
     if (collection && (get || request.method === "POST")) {
       const { bankId } = bankParamsSchema.parse({ bankId: collection[1] });
@@ -524,6 +702,8 @@ export async function handleWorkerRequest(
   } catch (error) {
     if (error instanceof DomainError) return failure(error.statusCode, error.code, error.message);
     if (error instanceof z.ZodError) return failure(400, "INVALID_INPUT", "Invalid request.");
+    if (isServiceUnavailable(error))
+      return failure(503, "SERVICE_UNAVAILABLE", serviceUnavailableMessage);
     // Database/provider errors can contain confidential values; never log raw exceptions.
     console.warn("Worker request failed.");
     return failure(500, "INTERNAL_ERROR", "The request could not be completed.");

@@ -6,46 +6,35 @@ const workspaces = [
   {
     name: "Keycade Bank",
     brand: "Synthetic Bank A",
-    label: "Mock bank site",
     port: env.BANK_SITE_PORT ?? 3000,
   },
   {
     name: "Borrower Portal",
     brand: "Keycade Bank",
-    label: "Borrower workspace",
     port: env.BORROWER_PORT ?? 3001,
   },
   {
     name: "Bank Console",
-    brand: "Bank Console",
-    label: "Staff workspace",
+    brand: "Keycade Bank Console",
     port: env.BANK_CONSOLE_PORT ?? 3002,
   },
 ];
 
 for (const workspace of workspaces) {
-  test(`${workspace.name} connects to real services and navigates between apps`, async ({
-    page,
-  }) => {
+  test(`${workspace.name} serves its workspace and connects to real services`, async ({ page }) => {
     const errors: Error[] = [];
     page.on("pageerror", (error) => errors.push(error));
     await page.goto(`http://127.0.0.1:${workspace.port}`);
     await expect(
       page.getByRole("banner").getByRole("link", { name: workspace.brand }),
     ).toBeVisible();
-    // The public lending and borrower screens now focus on the application journey.
+    // The public lending, borrower, and staff screens focus on their application journeys.
     // Their same-origin service boundary still reaches the real local services.
     for (const endpoint of ["/api/health", "/api/ready"]) {
       const response = await page.request.get(`http://127.0.0.1:${workspace.port}${endpoint}`);
       expect(response.ok()).toBe(true);
       expect((await response.json()).status).toMatch(/^(ok|ready)$/);
     }
-    if (workspace.name === "Bank Console") {
-      await expect(page.getByText("Connected", { exact: true })).toHaveCount(2);
-      await page.getByRole("button", { name: "Refresh checks" }).click();
-      await expect(page.getByText("Connected", { exact: true })).toHaveCount(2);
-    }
-
     // The shared styles must render at both viewport sizes without sideways scrolling.
     const layout = await page.evaluate(() => ({
       width: document.documentElement.clientWidth,
@@ -72,42 +61,31 @@ for (const workspace of workspaces) {
         .click();
       await expect(page).toHaveURL(`http://127.0.0.1:${env.BANK_SITE_PORT ?? 3000}/`);
     } else {
-      for (const destination of workspaces) {
-        await page.goto(`http://127.0.0.1:${workspace.port}/`);
-        await page
-          .getByRole("navigation", { name: "Applications" })
-          .getByRole("link", { name: destination.label })
-          .click();
-        await expect(page).toHaveURL(`http://127.0.0.1:${destination.port}/`);
-        await expect(
-          page.getByRole("banner").getByRole("link", { name: destination.brand }),
-        ).toBeVisible();
-      }
+      await expect(page.getByLabel("Email address", { exact: true })).toBeVisible();
+      await page.getByRole("banner").getByRole("link", { name: workspace.brand }).click();
+      await expect(page).toHaveURL(`http://127.0.0.1:${workspace.port}/?bank=bank-a`);
+      await expect(page.getByLabel("Email address", { exact: true })).toBeVisible();
     }
     expect(errors).toEqual([]);
   });
 }
 
-test("a failed connection is visible and refresh reconnects to the real API", async ({ page }) => {
-  await page.route("**/api/health", (route) => route.abort());
-  await page.route("**/api/ready", (route) =>
-    route.fulfill({ status: 503, json: { status: "not_ready" } }),
-  );
+test("staff sign-in explains service failure and retries the real API", async ({ page }) => {
+  await page.route("**/api/v1/auth/session", (route) => route.abort());
   await page.goto(`http://127.0.0.1:${env.BANK_CONSOLE_PORT ?? 3002}`);
-  await expect(page.getByText("Unavailable", { exact: true })).toHaveCount(2);
-  await expect(page.getByText("A service is unavailable.", { exact: false })).toBeVisible();
+  await expect(page.getByText("Sign-in is temporarily unavailable", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Email address", { exact: true })).toHaveCount(0);
 
-  await page.unroute("**/api/health");
-  await page.unroute("**/api/ready");
-  await page.getByRole("button", { name: "Refresh checks" }).click();
-  await expect(page.getByText("Connected", { exact: true })).toHaveCount(2);
+  await page.unroute("**/api/v1/auth/session");
+  await page.getByRole("button", { name: "Try again", exact: true }).click();
+  await expect(page.getByLabel("Email address", { exact: true })).toBeVisible();
 });
 
-test("an HTML fallback cannot masquerade as a healthy API", async ({ page }) => {
-  await page.route("**/api/health", (route) =>
+test("an HTML fallback cannot masquerade as an available staff session", async ({ page }) => {
+  await page.route("**/api/v1/auth/session", (route) =>
     route.fulfill({ contentType: "text/html", body: "<html>shell</html>" }),
   );
   await page.goto(`http://127.0.0.1:${env.BANK_CONSOLE_PORT ?? 3002}`);
-  await expect(page.getByText("Unavailable", { exact: true })).toHaveCount(1);
-  await expect(page.getByText("Connected", { exact: true })).toHaveCount(1);
+  await expect(page.getByText("Sign-in is temporarily unavailable", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Email address", { exact: true })).toHaveCount(0);
 });

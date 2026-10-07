@@ -213,6 +213,7 @@ export const applications = pgTable(
     check("applications_currency_usd", sql`${t.currency} = 'USD'`),
     check("applications_revision_positive", sql`${t.revision} > 0`),
     index("applications_bank_created_id").on(t.bankId, t.createdAt, t.id),
+    index("applications_bank_updated_id").on(t.bankId, t.updatedAt, t.id),
   ],
 );
 
@@ -300,6 +301,40 @@ export const applicationParticipants = pgTable(
       foreignColumns: [applications.bankId, applications.id],
     }),
     index("participants_user_bank").on(t.userId, t.bankId),
+  ],
+);
+
+// Internal staff content; never joined by borrower read models.
+export const staffNotes = pgTable(
+  "staff_notes",
+  {
+    id: id(),
+    bankId: uuid("bank_id").notNull(),
+    applicationId: uuid("application_id").notNull(),
+    body: text("body").notNull(),
+    authorUserId: uuid("author_user_id").notNull(),
+    updatedByUserId: uuid("updated_by_user_id").notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    foreignKey({
+      name: "staff_notes_application_bank_fk",
+      columns: [t.bankId, t.applicationId],
+      foreignColumns: [applications.bankId, applications.id],
+    }),
+    foreignKey({
+      name: "staff_notes_author_bank_fk",
+      columns: [t.bankId, t.authorUserId],
+      foreignColumns: [bankMemberships.bankId, bankMemberships.userId],
+    }),
+    foreignKey({
+      name: "staff_notes_editor_bank_fk",
+      columns: [t.bankId, t.updatedByUserId],
+      foreignColumns: [bankMemberships.bankId, bankMemberships.userId],
+    }),
+    check("staff_notes_body_length", sql`length(btrim(${t.body})) BETWEEN 1 AND 5000`),
+    index("staff_notes_bank_application_created").on(t.bankId, t.applicationId, t.createdAt, t.id),
   ],
 );
 

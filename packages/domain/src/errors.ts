@@ -6,7 +6,8 @@ export type DomainErrorCode =
   | "INVALID_ACCESS_LINK"
   | "RATE_LIMITED"
   | "IDEMPOTENCY_CONFLICT"
-  | "SETUP_REQUIRED";
+  | "SETUP_REQUIRED"
+  | "AUTH_DELIVERY_UNAVAILABLE";
 
 export class DomainError extends Error {
   constructor(

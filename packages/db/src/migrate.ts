@@ -42,6 +42,9 @@ export async function assertSchemaReady(connectionString: string): Promise<void>
       "SELECT token_hash, origin, authentication_method, revoked_at FROM sessions LIMIT 0",
     );
     await pool.query("SELECT key_hash, reset_at FROM identity_rate_limits LIMIT 0");
+    await pool.query(
+      "SELECT id, bank_id, application_id, body, author_user_id, updated_by_user_id, created_at, updated_at FROM staff_notes LIMIT 0",
+    );
     await pool.query(`SELECT a.id, a.bank_id, a.revision, a.requested_amount, a.business_name, a.industry_code, a.industry_taxonomy_version, a.demo_created, p.user_id, p.revoked_at
       FROM applications a LEFT JOIN application_participants p ON p.application_id = a.id AND p.bank_id = a.bank_id LIMIT 0`);
     await pool.query(

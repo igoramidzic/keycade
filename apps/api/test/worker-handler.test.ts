@@ -29,6 +29,56 @@ test("Worker liveness stays available when readiness fails without leaking crede
     (await handleWorkerRequest(request("/api/health", { method: "HEAD" }), deps)).body,
   ).toBeNull();
 });
+test("Worker reports refused PostgreSQL connections during staff demo login as safely retryable", async () => {
+  const origin = "https://staff.example";
+  const response = await handleWorkerRequest(
+    request("/api/v1/auth/demo-sign-in", {
+      method: "POST",
+      headers: { origin, "content-type": "application/json" },
+      body: JSON.stringify({
+        email: "officer-a@example.test",
+        bankSlug: "bank-a",
+        portal: "staff",
+        returnPath: "/",
+      }),
+    }),
+    {
+      ...deps,
+      allowedOrigins: [origin],
+      portalOrigins: { staff: [origin] },
+      demoSignInEnabled: true,
+    },
+  );
+  expect(response.status).toBe(503);
+  const body = await response.text();
+  expect(JSON.parse(body)).toEqual({
+    error: {
+      code: "SERVICE_UNAVAILABLE",
+      message: "The service is temporarily unavailable. Please try again in a moment.",
+      requestId: response.headers.get("x-request-id"),
+    },
+  });
+  expect(body).not.toMatch(/127\.0\.0\.1|unused|officer-a|ECONNREFUSED|postgresql/);
+});
+test("Worker classifies wrapped session connection failures but preserves unknown failures", async () => {
+  for (const [code, status, expectedCode] of [
+    ["ECONNRESET", 503, "SERVICE_UNAVAILABLE"],
+    ["23505", 500, "INTERNAL_ERROR"],
+  ] as const) {
+    const response = await handleWorkerRequest(request("/api/v1/auth/session"), {
+      ...deps,
+      authenticate: async () => {
+        throw new Error("secret query and parameters", {
+          cause: Object.assign(new Error("secret database detail"), { code }),
+        });
+      },
+    });
+    expect(response.status).toBe(status);
+    const body = await response.text();
+    expect(JSON.parse(body).error.code).toBe(expectedCode);
+    expect(body).not.toMatch(/secret|query|parameters|ECONNRESET|23505/);
+  }
+});
 test("Worker transport preserves no-existence-oracle authorization and ignores claimed identity", async () => {
   for (const path of [application, application.replace("/applications/", "/staff/applications/")]) {
     const response = await handleWorkerRequest(

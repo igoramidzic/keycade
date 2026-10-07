@@ -211,6 +211,8 @@ export function IdentityPortal({
       }
       if (response.status === 429) {
         setError("Too many requests. Please wait a few minutes before trying again.");
+      } else if (useDemo && response.status === 503) {
+        setError("Sign-in is temporarily unavailable. Please try again in a moment.");
       } else if (useDemo && [403, 404].includes(response.status)) {
         setError(
           isStaff

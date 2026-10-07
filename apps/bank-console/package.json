@@ -10,9 +10,12 @@
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {
+    "@keycade/contracts": "workspace:*",
     "@keycade/ui": "workspace:*",
+    "@tanstack/react-query": "5.104.1",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "react-router": "8.4.0"
   },
   "devDependencies": {
     "@keycade/config": "workspace:*",

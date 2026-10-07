@@ -345,9 +345,7 @@ test("a staff-prefilled draft requires the applicant to review and explicitly fi
   await page.goto(staff);
   await page.getByLabel("Email address", { exact: true }).fill("officer-a@example.test");
   await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
-  await expect(
-    page.getByText("You’re signed in to the bank console", { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Applications", exact: true })).toBeVisible();
   const draft = await api<Setup>(page, "POST", "", { email, idempotencyKey: randomUUID() });
   const catalog = await page.evaluate(async () =>
     (await fetch("/api/v1/public/banks/bank-a/intake")).json(),

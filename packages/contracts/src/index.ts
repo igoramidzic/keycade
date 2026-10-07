@@ -5,6 +5,7 @@ export * from "./applications.js";
 // Browser-safe wire contracts. Never import database or server configuration here.
 export { applicationStatusSchema, usdAmountSchema } from "./common.js";
 export * from "./intake.js";
+export * from "./staff.js";
 export const errorSchema = z.object({
   error: z.object({ code: z.string(), message: z.string(), requestId: z.string().uuid() }),
 });

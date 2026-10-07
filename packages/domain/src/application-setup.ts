@@ -353,7 +353,14 @@ async function createApplication(
   return { row, setup };
 }
 
-export function createApplicationService(db: Database, options: { clock?: () => Date } = {}) {
+export function createApplicationService(
+  db: Database,
+  options: {
+    clock?: () => Date;
+    staffContinuationOrigin?: string;
+    requireStaffContinuation?: boolean;
+  } = {},
+) {
   const clock = options.clock ?? (() => new Date());
   async function publicStart(
     input: unknown,
@@ -453,6 +460,12 @@ export function createApplicationService(db: Database, options: { clock?: () => 
       const { bank, user, membership } = await identity(tx, actor, bankId);
       const email = parsed.email?.trim().toLowerCase() ?? user.email;
       if (membership ? !parsed.email : email !== user.email || parsed.businessId) return deny();
+      if (membership && options.requireStaffContinuation && !options.staffContinuationOrigin)
+        throw new DomainError(
+          "AUTH_DELIVERY_UNAVAILABLE",
+          503,
+          "Application continuation email is unavailable in this environment.",
+        );
       const request = await requestRecord(
         tx,
         bankId,
@@ -500,6 +513,33 @@ export function createApplicationService(db: Database, options: { clock?: () => 
       });
       if (!membership)
         await claimApplicationInTransaction(tx, actor, bankId, row.id, requestId, now);
+      if (membership && options.staffContinuationOrigin) {
+        const origin = new URL(options.staffContinuationOrigin);
+        if (
+          origin.origin !== options.staffContinuationOrigin ||
+          origin.username ||
+          origin.password ||
+          !(
+            origin.protocol === "https:" ||
+            (origin.protocol === "http:" &&
+              ["localhost", "127.0.0.1", "[::1]"].includes(origin.hostname))
+          )
+        )
+          return invalid("Invalid borrower continuation origin.");
+        await tx.insert(accessDeliveryRequests).values({
+          bankId,
+          contactId: pending.id,
+          applicationId: row.id,
+          portal: "borrower",
+          origin: options.staffContinuationOrigin,
+          returnPath: "/",
+          requestId,
+          expiresAt: new Date(now.getTime() + 60 * 60_000),
+          availableAt: now,
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
       await tx
         .insert(applicationRequests)
         .values({ ...request.values, applicationId: row.id, createdAt: now });

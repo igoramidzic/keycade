@@ -32,4 +32,7 @@ export async function assertWorkerSchemaReady(pool: pg.Pool): Promise<void> {
     "SELECT token_hash, origin, authentication_method, revoked_at FROM sessions LIMIT 0",
   );
   await pool.query("SELECT key_hash, reset_at FROM identity_rate_limits LIMIT 0");
+  await pool.query(
+    "SELECT id, bank_id, application_id, body, author_user_id, updated_by_user_id, created_at, updated_at FROM staff_notes LIMIT 0",
+  );
 }

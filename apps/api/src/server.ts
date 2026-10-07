@@ -3,11 +3,13 @@ import cookie from "@fastify/cookie";
 import rateLimit from "@fastify/rate-limit";
 import swagger from "@fastify/swagger";
 import {
+  addStaffNoteSchema,
   applicationPageSchema,
   applicationParamsSchema,
   applicationPortalSchema,
   applicationSelectionSchema,
   applicationSetupSchema,
+  assignStaffSchema,
   authSessionSchema,
   bankParamsSchema,
   claimApplicationSchema,
@@ -30,19 +32,32 @@ import {
   requestAccessLinkResponseSchema,
   requestAccessLinkSchema,
   saveApplicationSetupSchema,
+  staffApplicationPageSchema,
   staffApplicationSchema,
+  staffNoteParamsSchema,
+  staffOptionsSchema,
+  staffPageQuerySchema,
   staffSessionSchema,
+  staffWorkspaceSchema,
   updatePurposeSchema,
+  updateStaffNoteSchema,
 } from "@keycade/contracts";
 import type { Database } from "@keycade/db";
 import {
+  addStaffNote,
+  assignApplicationStaff,
   createApplicationService,
   createIdentityService,
   DomainError,
+  listStaffApplications,
   readApplication,
   readPublicIntake,
   readStaffApplication,
+  readStaffOptions,
+  readStaffWorkspace,
+  requireBankStaff,
   updateApplicationPurpose,
+  updateStaffNote,
 } from "@keycade/domain";
 import Fastify, { type FastifyRequest, LogController } from "fastify";
 import {
@@ -70,6 +85,7 @@ import {
   serializeSessionCookie,
   validCsrfToken,
 } from "./security.js";
+import { isServiceUnavailable, serviceUnavailableMessage } from "./service-errors.js";
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -88,7 +104,11 @@ export interface ServerOptions extends IdentityTransportOptions {
 
 export async function buildServer(options: ServerOptions) {
   const identity = createIdentityService(options.db);
-  const applications = createApplicationService(options.db);
+  const applications = createApplicationService(options.db, {
+    requireStaffContinuation: true,
+    staffContinuationOrigin:
+      options.authDeliveryEnabled === false ? undefined : options.portalOrigins?.borrower?.[0],
+  });
   const originFor = (request: FastifyRequest) =>
     configuredRequestOrigin(
       request.headers.origin,
@@ -204,6 +224,10 @@ export async function buildServer(options: ServerOptions) {
       status = 429;
       code = "RATE_LIMITED";
       message = "Too many requests. Try again later.";
+    } else if (isServiceUnavailable(error)) {
+      status = 503;
+      code = "SERVICE_UNAVAILABLE";
+      message = serviceUnavailableMessage;
     }
     // Never log error objects: SQL/validation/provider errors may contain confidential input.
     request.log.warn({ code, statusCode: status }, "request failed");
@@ -260,6 +284,7 @@ export async function buildServer(options: ServerOptions) {
           404: errorSchema,
           429: errorSchema,
           500: errorSchema,
+          503: errorSchema,
         },
       },
     },
@@ -638,6 +663,181 @@ export async function buildServer(options: ServerOptions) {
         request.authentication.actor,
         request.params.bankId,
         request.params.applicationId,
+        request.body,
+        request.id,
+      );
+    },
+  );
+  const staffBase = "/api/v1/banks/:bankId/staff";
+  app.get(
+    `${staffBase}/options`,
+    {
+      schema: { params: bankParamsSchema, response: { 200: staffOptionsSchema, ...responses } },
+    },
+    async (request) => {
+      assertSessionBank(request.authentication, request.params.bankId);
+      return readStaffOptions(options.db, request.authentication.actor, request.params.bankId);
+    },
+  );
+  app.get(
+    `${staffBase}/applications`,
+    {
+      schema: {
+        params: bankParamsSchema,
+        querystring: staffPageQuerySchema,
+        response: { 200: staffApplicationPageSchema, ...responses },
+      },
+    },
+    async (request) => {
+      assertSessionBank(request.authentication, request.params.bankId);
+      return listStaffApplications(
+        options.db,
+        request.authentication.actor,
+        request.params.bankId,
+        request.query,
+      );
+    },
+  );
+  app.post(
+    `${staffBase}/applications`,
+    {
+      schema: {
+        params: bankParamsSchema,
+        body: createDraftSchema,
+        response: { 200: applicationSetupSchema, ...responses },
+      },
+    },
+    async (request, reply) => {
+      const { bankId } = request.params;
+      assertSessionBank(request.authentication, bankId);
+      await requireBankStaff(options.db, request.authentication.actor, bankId);
+      if (options.authDeliveryEnabled === false || !options.portalOrigins?.borrower?.[0])
+        return reply.code(503).send({
+          error: {
+            code: "AUTH_DELIVERY_UNAVAILABLE",
+            message: "Application continuation email is unavailable in this environment.",
+            requestId: request.id,
+          },
+        });
+      return applications.create(request.authentication.actor, bankId, request.body, request.id);
+    },
+  );
+  app.get(
+    `${staffBase}/applications/:applicationId/workspace`,
+    {
+      schema: {
+        params: applicationParamsSchema,
+        response: { 200: staffWorkspaceSchema, ...responses },
+      },
+    },
+    async (request) => {
+      assertSessionBank(request.authentication, request.params.bankId);
+      return readStaffWorkspace(
+        options.db,
+        request.authentication.actor,
+        request.params.bankId,
+        request.params.applicationId,
+      );
+    },
+  );
+  app.get(
+    `${staffBase}/applications/:applicationId/setup`,
+    {
+      schema: {
+        params: applicationParamsSchema,
+        response: { 200: applicationSetupSchema, ...responses },
+      },
+    },
+    async (request) => {
+      assertSessionBank(request.authentication, request.params.bankId);
+      await requireBankStaff(options.db, request.authentication.actor, request.params.bankId);
+      return applications.readSetup(
+        request.authentication.actor,
+        request.params.bankId,
+        request.params.applicationId,
+      );
+    },
+  );
+  app.patch(
+    `${staffBase}/applications/:applicationId/setup`,
+    {
+      schema: {
+        params: applicationParamsSchema,
+        body: saveApplicationSetupSchema,
+        response: { 200: applicationSetupSchema, ...responses },
+      },
+    },
+    async (request) => {
+      assertSessionBank(request.authentication, request.params.bankId);
+      await requireBankStaff(options.db, request.authentication.actor, request.params.bankId);
+      return applications.saveSetup(
+        request.authentication.actor,
+        request.params.bankId,
+        request.params.applicationId,
+        request.body,
+        request.id,
+      );
+    },
+  );
+  app.patch(
+    `${staffBase}/applications/:applicationId/assignment`,
+    {
+      schema: {
+        params: applicationParamsSchema,
+        body: assignStaffSchema,
+        response: { 200: staffWorkspaceSchema, ...responses },
+      },
+    },
+    async (request) => {
+      assertSessionBank(request.authentication, request.params.bankId);
+      return assignApplicationStaff(
+        options.db,
+        request.authentication.actor,
+        request.params.bankId,
+        request.params.applicationId,
+        request.body,
+        request.id,
+      );
+    },
+  );
+  app.post(
+    `${staffBase}/applications/:applicationId/notes`,
+    {
+      schema: {
+        params: applicationParamsSchema,
+        body: addStaffNoteSchema,
+        response: { 200: staffWorkspaceSchema, ...responses },
+      },
+    },
+    async (request) => {
+      assertSessionBank(request.authentication, request.params.bankId);
+      return addStaffNote(
+        options.db,
+        request.authentication.actor,
+        request.params.bankId,
+        request.params.applicationId,
+        request.body,
+        request.id,
+      );
+    },
+  );
+  app.patch(
+    `${staffBase}/applications/:applicationId/notes/:noteId`,
+    {
+      schema: {
+        params: staffNoteParamsSchema,
+        body: updateStaffNoteSchema,
+        response: { 200: staffWorkspaceSchema, ...responses },
+      },
+    },
+    async (request) => {
+      assertSessionBank(request.authentication, request.params.bankId);
+      return updateStaffNote(
+        options.db,
+        request.authentication.actor,
+        request.params.bankId,
+        request.params.applicationId,
+        request.params.noteId,
         request.body,
         request.id,
       );

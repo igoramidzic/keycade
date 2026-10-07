@@ -1,6 +1,6 @@
 # Local development and verification
 
-The command inventory is implemented for T01–T09. Passwordless identity is locally testable through [the identity guide](identity-validation.md); application creation and setup APIs are verified in [T07](tasks/T07-application-service.md#validation). The bank → setup → completion handoff is verified on desktop and mobile in [T08](tasks/T08-intake.md#implementation-record); T09 adds [business selection and guarded portal navigation](tasks/T09-borrower-workspace.md#implementation-record). See the root README for the current startup path.
+The command inventory is implemented for T01–T10. Passwordless identity is locally testable through [the identity guide](identity-validation.md); application creation and setup APIs are verified in [T07](tasks/T07-application-service.md#validation). The bank → setup → completion handoff is verified on desktop and mobile in [T08](tasks/T08-intake.md#implementation-record); T09 adds [business selection and guarded portal navigation](tasks/T09-borrower-workspace.md#implementation-record). T10 adds the [staff queue and local continuation journey](tasks/T10-bank-workspace.md#try-it-locally). See the root README for the current startup path.
 
 ## Developer entry path
 
@@ -26,6 +26,8 @@ Running initialization twice preserves existing env values, application records,
 `pnpm dev` runs a finite **noncached** readiness preflight before Turbo launches persistent app/API/worker dev tasks. It verifies env completeness, a real DB query, and current schema readiness. If PostgreSQL is stopped, it may start the project's existing local container; failures stop the launch with a clear instruction. A configured remote/unrecognized URL is checked, never silently replaced or started as a local database.
 
 Development startup does not silently generate new migrations or reset data. Use an explicit migration command when schema is behind. Check Mailpit/storage prerequisites for flows that need them. A worker that cannot initialize must report its failure rather than leave the UI claiming checks will run. Ctrl-C stops child development processes; persistent database containers remain available until explicitly stopped.
+
+When running local infrastructure through an automated terminal, start Podman from an independent process or a persistent user terminal, then verify it from a separate command after the launcher exits. A short-lived command session may clean up the virtual machine's inherited process group. If liveness succeeds while `/api/ready` reports the database unavailable, restore the existing Podman machine/containers with `pnpm infra:start` from that persistent terminal; do not reset data. Restart a failed development worker after database recovery and confirm readiness before testing email delivery. Recognized database connection outages return HTTP 503 with safe retry guidance; unexpected application/schema errors remain HTTP 500.
 
 ### Root command inventory
 

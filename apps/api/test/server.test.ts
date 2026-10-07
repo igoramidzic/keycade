@@ -3,13 +3,13 @@ import { publicApplicationSchema, staffApplicationSchema } from "@keycade/contra
 import { createDatabase } from "@keycade/db";
 import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod";
-import { buildServer } from "../src/server.js";
+import { buildServer, type ServerOptions } from "../src/server.js";
 
 const cleanups: (() => Promise<unknown>)[] = [];
 afterEach(async () => {
   await Promise.all(cleanups.splice(0).map((close) => close()));
 });
-async function server() {
+async function server(overrides: Partial<ServerOptions> = {}) {
   const { db, pool } = createDatabase("postgresql://unused:unused@127.0.0.1:1/unused");
   const app = await buildServer({
     db,
@@ -17,6 +17,7 @@ async function server() {
     readiness: async () => {
       throw new Error("secret database URL");
     },
+    ...overrides,
   });
   cleanups.push(
     () => app.close(),
@@ -60,6 +61,48 @@ describe("HTTP foundation", () => {
     );
     expect((await app.inject("/api/health")).statusCode).toBe(200);
     expect((await app.inject("/api/ready")).statusCode).toBe(503);
+  });
+  it("reports refused PostgreSQL connections during staff demo login as safely retryable", async () => {
+    const origin = "http://localhost:3002";
+    const app = await server({
+      allowedOrigins: [origin],
+      portalOrigins: { staff: [origin] },
+      demoSignInEnabled: true,
+    });
+    const reply = await app.inject({
+      method: "POST",
+      url: "/api/v1/auth/demo-sign-in",
+      headers: { origin },
+      payload: {
+        email: "officer-a@example.test",
+        bankSlug: "bank-a",
+        portal: "staff",
+        returnPath: "/",
+      },
+    });
+    expect(reply.statusCode).toBe(503);
+    expect(reply.json()).toEqual({
+      error: {
+        code: "SERVICE_UNAVAILABLE",
+        message: "The service is temporarily unavailable. Please try again in a moment.",
+        requestId: reply.headers["x-request-id"],
+      },
+    });
+    expect(reply.body).not.toMatch(/127\.0\.0\.1|unused|officer-a|ECONNREFUSED|postgresql/);
+    expect((await app.inject("/api/health")).statusCode).toBe(200);
+  });
+  it("reports wrapped session connection failures without exposing SQL details", async () => {
+    const app = await server({
+      authenticate: async () => {
+        throw new Error("secret query and parameters", {
+          cause: Object.assign(new Error("secret database address"), { code: "ECONNRESET" }),
+        });
+      },
+    });
+    const reply = await app.inject("/api/v1/auth/session");
+    expect(reply.statusCode).toBe(503);
+    expect(reply.json().error.code).toBe("SERVICE_UNAVAILABLE");
+    expect(reply.body).not.toMatch(/secret|query|parameters|ECONNRESET/);
   });
   it("returns stable malformed-input errors and generates its own request IDs", async () => {
     const app = await server();

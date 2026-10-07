@@ -50,14 +50,41 @@ test("staff demo sign-in enforces bank membership without an email", async ({ pa
   expect(await page.evaluate(async () => (await fetch("/api/v1/auth/staff")).status)).toBe(404);
   await page.getByLabel("Email address", { exact: true }).fill("officer-a@example.test");
   await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
-  await expect(
-    page.getByText("You’re signed in to the bank console", { exact: true }),
-  ).toBeVisible();
-  await expect(page.locator("#identity").getByText("Demo access", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Applications", exact: true })).toBeVisible();
+  await expect(page.getByText("Demo access · email unverified", { exact: true })).toBeVisible();
   expect(await page.evaluate(async () => (await fetch("/api/v1/auth/staff")).status)).toBe(200);
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await expect(page.getByRole("button", { name: "Sign in to demo", exact: true })).toBeVisible();
   expect(emailsRequested).toBe(0);
+});
+
+test("staff demo sign-in preserves email during a service outage and can retry", async ({
+  page,
+}) => {
+  await page.route("**/api/v1/auth/demo-sign-in", (route) =>
+    route.fulfill({
+      status: 503,
+      json: {
+        error: {
+          code: "SERVICE_UNAVAILABLE",
+          message: "The service is temporarily unavailable. Please try again in a moment.",
+          requestId: randomUUID(),
+        },
+      },
+    }),
+  );
+  await page.goto(staff);
+  await page.getByLabel("Email address", { exact: true }).fill("officer-a@example.test");
+  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+  await expect(page.getByRole("alert")).toHaveText(
+    "Sign-in is temporarily unavailable. Please try again in a moment.",
+  );
+  await expect(page.getByLabel("Email address", { exact: true })).toHaveValue(
+    "officer-a@example.test",
+  );
+  await page.unroute("**/api/v1/auth/demo-sign-in");
+  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Applications", exact: true })).toBeVisible();
 });
 
 test("borrower email confirmation is deliberate, resumes, revokes on logout, and rejects replay", async ({
@@ -130,9 +157,8 @@ test("staff membership permits the seeded officer and denies an unrecognized add
   const link = await requestLink(page, staff, "officer-a@example.test");
   await openLink(page, link);
   await page.getByRole("button", { name: "Confirm and sign in" }).click();
-  await expect(
-    page.getByText("You’re signed in to the bank console", { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Applications", exact: true })).toBeVisible();
+  await expect(page.getByText("Email verified", { exact: true })).toBeVisible();
   await expect(page.getByText("officer-a@example.test", { exact: true }).first()).toBeVisible();
   expect(await page.evaluate(async () => (await fetch("/api/v1/auth/staff")).status)).toBe(200);
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
