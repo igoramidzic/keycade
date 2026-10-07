@@ -5,6 +5,7 @@ import path from "node:path";
 import { seedIds as ids, seedDatabase } from "@keycade/db/seed";
 import { createTestDatabase } from "@keycade/db/testing";
 import { syntheticDocumentPdf } from "@keycade/integrations/document-fixtures";
+import { processDocumentInterpretations } from "@keycade/integrations/document-processing";
 import { processDocumentScans } from "@keycade/integrations/document-scan";
 import { createLocalDocumentStorage } from "@keycade/integrations/document-storage-local";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -203,6 +204,73 @@ for (const transport of ["fastify", "worker"] as const) {
         ).toBe(409);
       } finally {
         await user.close();
+      }
+    });
+    it("classifies clean content and enforces staff correction while preserving original machine history", async () => {
+      const user = await client(ids.borrower),
+        staff = await client(ids.officerA);
+      try {
+        const pdf = Buffer.from(syntheticDocumentPdf("clean-statement"));
+        const initial = await user.call(`${base}/uploads`, "POST", {
+          files: [
+            {
+              fileName: "Synthetic statement.pdf",
+              mimeType: "application/pdf",
+              expectedSize: pdf.length,
+              idempotencyKey: randomUUID(),
+            },
+          ],
+        });
+        const upload = initial.body.uploads[0];
+        expect(
+          (await user.call(`${base}/uploads/${upload.uploadId}/content`, "PUT", pdf)).status,
+        ).toBe(200);
+        for (
+          let i = 0;
+          i < 20 && (await processDocumentScans(database.db, user.storage, { delayMs: 0 }));
+          i++
+        ) {}
+        for (
+          let i = 0;
+          i < 30 &&
+          (await processDocumentInterpretations(database.db, { delayMs: 0, deadlineMs: 100 }));
+          i++
+        ) {}
+        let view = (await user.call(base)).body.documents.find(
+          (d: { id: string }) => d.id === upload.documentId,
+        );
+        expect(view.category).toBe("bank_statement");
+        const categoryPath = `${base}/${upload.documentId}/category`;
+        const correction = {
+          versionId: upload.versionId,
+          category: "business_legal",
+          reason: "Synthetic reviewer correction",
+        };
+        expect((await user.call(categoryPath, "POST", correction)).status).toBe(404);
+        expect((await staff.call(categoryPath, "POST", correction)).status).toBe(200);
+        view = (await user.call(base)).body.documents.find(
+          (d: { id: string }) => d.id === upload.documentId,
+        );
+        expect(view.category).toBe("business_legal");
+        expect(view.versions[0].processing.history[0].result.category).toBe("bank_statement");
+        expect(
+          (await staff.call(`${base}/versions/${upload.versionId}/retry-processing`, "POST", {}))
+            .status,
+        ).toBe(200);
+        for (
+          let i = 0;
+          i < 30 &&
+          (await processDocumentInterpretations(database.db, { delayMs: 0, deadlineMs: 100 }));
+          i++
+        ) {}
+        view = (await user.call(base)).body.documents.find(
+          (d: { id: string }) => d.id === upload.documentId,
+        );
+        expect(view.category).toBe("business_legal");
+        expect(view.versions[0].processing.history.length).toBe(2);
+      } finally {
+        await user.close();
+        await staff.close();
       }
     });
     it("shows blocked/error scans, permits error retry, and never downloads blocked bytes", async () => {

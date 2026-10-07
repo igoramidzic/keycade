@@ -26,6 +26,9 @@ Every participant sees their next actions, and staff can review evidence against
 - Concurrent submissions/reviews reject stale revisions. Applicable completed/waived tasks drive progress accurately.
 - The October 7 reference layout shows tasks immediately on application entry, with a wider task column on the left and application details on the right at desktop sizes. Mobile stacks the regions without horizontal overflow. Task detail expands beneath its row; switching or collapsing a task protects unsaved entries.
 
+- Task details, answers, history and permitted task documents load with the workspace. Opening or switching a task uses the loaded snapshot without a per-task request or loading flash; explicit reload and mutation refresh still preserve revision checks and unsaved edits.
+- Dashboard hierarchy uses a muted page surface, white primary panels, spacing and restrained selected states instead of repeated nested card outlines and horizontal rules.
+
 ## Validation
 
 Unit-test rule reconciliation, stage gates, task transitions, waiver and evidence-revision rules. Use PostgreSQL for assignment/scope and concurrent review tests. Demonstrate a staff-added task, borrower submission, return for changes, and completion.
@@ -92,3 +95,19 @@ Validation:
 - Added a controlled slow-summary browser regression and reproduced the original borrower warning before the fix in `.local/e2e-qAOtjJ`.
 - `pnpm test:e2e task-conflicts.spec.ts tasks.spec.ts`: **14/14 passed** on desktop/mobile in `.local/e2e-upkrZJ`, including borrower answer saves, staff assignment saves, newer versions arriving through polling, explicit reload while the list remains older, real concurrent-answer rejection, and existing task workflows.
 - `pnpm check`: Biome/browser boundaries, all workspace/root typechecks, and **208 unit tests** passed. `pnpm build`: **12/12 passed**, retaining the existing non-fatal Vite chunk-size advisories. `git diff --check` passed.
+
+## Upfront task details and quieter dashboard — October 7, 2026
+
+The user requested immediate task expansion and fewer competing horizontal/card lines. The task-list contract now returns full authorized details, including answers, reviews and assignments. The service filters tasks before querying related history and batches those reads per table. Both dashboards load permitted document metadata alongside tasks; expanding a row selects an in-memory snapshot and makes no detail or document request. Polling can flag newer revisions without overwriting an edited answer. Explicit reload refreshes the complete snapshot, and permission failures still remove unavailable content.
+
+Borrower and staff shells use a muted page background with white content panels. Account, navigation, task-row and nested-detail separator lines are removed. Expanded tasks have a subtle background; the borrower document shortcut is an unboxed sidebar section. Default shadcn inputs, buttons, focus rings and semantic status labels remain. No schema change is needed for these UI improvements.
+
+Validation:
+
+- `pnpm test:e2e tasks.spec.ts task-conflicts.spec.ts borrower-workspace.spec.ts`: all **36 selected desktop/mobile cases verified** across `.local/e2e-g5LSnt` (30 initial passes), `.local/e2e-Ocueoh` (four eager-loading cases), and `.local/e2e-ymB5xS` (two layout cases). Test assertions were corrected to distinguish “Uploading” from a loading status and to avoid assuming a random task order. Browser request interception proves no detail request or additional document request when opening/switching tasks.
+- Final task-mutation/document-cache and save-conflict checks: **8/8 passed** in `.local/e2e-aVsuLe`. Successful task changes immediately refresh document permissions; unsaved edits and genuine conflicts remain protected.
+- Both API transports return the same authorized full detail in the task list and detail endpoint. The combined PostgreSQL suite passed **228 tests in 27 files**, including private-history exclusion and cross-bank/setup guards.
+- Desktop/mobile collapsed dashboard screenshots were inspected in `.local/e2e-ymB5xS`; hierarchy is clearer and neither viewport overflows.
+- Additive document/enrichment migrations applied to the existing local database. The development API reports database and worker ready after restarting its file watcher. Existing data was preserved.
+
+Final combined checkpoint: `pnpm check` passed Biome, browser boundaries, all workspace/root typechecks, and **256 unit tests in 18 files**. `pnpm build` passed all **12 workspace builds** with the existing non-fatal bundle-size advisories. `git diff --check` passed.

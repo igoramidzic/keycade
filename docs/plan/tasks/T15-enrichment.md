@@ -35,7 +35,7 @@ No live tax/registry API, legal consent standard, or claim of real verification 
 
 ## Implementation record
 
-In progress — industry catalog/search slice implemented October 7, 2026. Business/tax simulations, encrypted identifiers, tax authorization and enrichment fact confirmation remain unfinished.
+Done — local industry search, private identifier storage and protected business/tax simulation APIs validated October 7, 2026. T16 owns private task-entry integration, identity/fraud checks and the full bank-workspace presentation. Hosted identifier/enrichment deployment acceptance remains unverified.
 
 ### Industry catalog and picker — October 7, 2026
 
@@ -43,8 +43,26 @@ In progress — industry catalog/search slice implemented October 7, 2026. Busin
 - Search text and selected value are separate. Only an explicit catalog selection saves a code plus `2022`; schema validation is shared with the backend. Paired null skip remains optional. Historical demo answers remain readable but require a valid selection or skip when edited.
 - The popup preserves query/selection on failure, has a retry action, announces loading/results/no-match states, and ignores cancelled or out-of-order searches. The local index needs no provider credentials or external search requests.
 - Validation: focused catalog/search and application-contract tests passed (30); `@keycade/contracts`, `@keycade/ui` and `@keycade/borrower` typechecks passed. `pnpm test:e2e tests/e2e/industry.spec.ts`: **4 passed**, desktop/mobile keyboard selection, persistence, Escape focus return, popup width, optional skip, failed-search retry and out-of-order response fencing; run `.local/e2e-MMQMvr` used disposable PostgreSQL. Additional direct domain validation is included in the setup integration suite.
-- No identifier or business/tax verification claims are introduced. T15 remains in progress until its remaining backend and simulation acceptance criteria pass.
+- Catalog selection classifies the applicant's chosen industry; it makes no identifier, business or tax verification claim.
+
+### Identifier and enrichment backend — October 7, 2026
+
+- Migration `0013_melted_chronomancer.sql` adds immutable encrypted identifier versions, scoped input revisions and tax authorization, durable enrichment runs, and separately confirmed facts. Composite foreign keys prevent linking another application's identifier or result. `ENCRYPTION_KEY` is the generated local 256-bit key; AES-256-GCM uses a random nonce and authenticates bank, application, subject and identifier revision.
+- The protected service exposes a mask, presence and revision only. Business EIN scope requires full applicant-administrator or bank staff access. Personal SSN scope requires the subject's active applicant/owner participation, or staff access in the same bank. Other applicant administrators, advisers, revoked users, strangers, and other banks cannot read the personal view. Applicant setup completion remains required.
+- Requests persist their job intent in the same transaction as input changes. Run rows support bounded attempts, delayed retry, claim expiry/recovery, history and duplicate-safe application. Input changes invalidate prior results; replacing an identifier also clears tax authorization. Previously requested operations are rescheduled once for the new input revision, and missing identifier/authorization remains `waiting_for_input`. Authorization and input versions are checked before the provider call and before applying its result.
+- Only registered, invalid-for-real-world identifiers `000000001`–`000000007` are accepted: success, no match, needs review, transient error, timeout, terminal error and missing input respectively. There is no public scenario parameter. Adapters have configurable asynchronous delays and injected clocks, strict typed simulated results, and no network provider calls. Business suggestions and sample tax availability make no verification claim.
+- Fact confirmation is explicit, revision-checked and audited. It records the selected suggestion separately, preserves provider history and never overwrites application business facts. Old confirmations become visibly stale after input changes. Staff retries accept an allowlisted reason, preserving a safe reason in audit metadata without free-text identifier leakage.
+- Validation: **14 focused unit tests passed** for authenticated encryption, scope/revision/key tampering, randomized ciphertext, synthetic-only inputs, explicit notice/retry contracts, delayed business/tax results, no match/review/missing-input outcomes, deadlines and strict provider result boundaries. **7 real-PostgreSQL integration tests passed** for masked storage and history, private/cross-bank access, setup and tax prerequisites, duplicate claims, stale input during execution, explicit confirmations, retry exhaustion and recovery, revoked authorizers, and database scope/null-consent constraints.
+
+### Transport, runtime and checkpoint validation
+
+- **4 protected HTTP tests passed** across Fastify and native Workers transports, exercising the shared identifier, authorization, request, confirmation and retry contracts with synthetic data. The local worker receives the generated encryption key and processes durable enrichment intent with configured delays.
+- Second-checkpoint aggregate: `pnpm check` passed formatting/lint, workspace typechecks and **256 unit tests in 18 suites**; `pnpm test:integration` passed **228 tests in 27 suites**. The earlier worker dependency-resolution failure was repaired before the successful full run. API and worker deployment dry runs passed.
+- The deployed hosted environment has no enrichment encryption key configured, and no new deployment was validated in this checkpoint. Hosted identifier/enrichment access therefore remains unavailable/unverified; passing the native HTTP adapter and dry-run build is not hosted acceptance. Local generated keys and synthetic data are the demonstrated target.
+- Protected API operations are under an application's `/enrichment` route: read the safe view, save a registered synthetic identifier, explicitly authorize sample tax availability, request a business/tax run, and explicitly confirm a current suggested fact. Staff can retry permitted terminal requests with an allowlisted reason. T16 adds the corresponding private tasks and staff readiness presentation; it must lock material identifier/authorization changes against submitted or decided snapshots together with T19's lifecycle policy.
 
 ### Intake feedback — October 7, 2026
 
 The user requested a searchable, fuzzy-matching NAICS combobox rather than the current short industry dropdown. “NEX code” refers to the industry-classification search already described in the product plan. This expands T15's original small-fixture requirement to a versioned catalog with hundreds of entries and source evaluation. Implementation stays deferred to T15; T08's optional fixture remains usable in the meantime. Dependencies remain T05 and T08.
+
+Final checkpoint: `pnpm check` passed all workspace/root typechecks and **256 unit tests in 18 files**; `pnpm build` passed all **12 workspace builds**. Existing Vite chunk-size advisories remain non-fatal. Additive migrations applied locally and development readiness confirms both PostgreSQL and the worker are available.

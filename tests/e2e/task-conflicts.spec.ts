@@ -172,11 +172,13 @@ test("stale task answers keep typed text until the borrower explicitly reloads t
     expect((await tasksApi<TaskView>(applicant, "GET", `/${task.id}`)).revision).toBe(
       concurrent.revision,
     );
+    // Explicit reload now refreshes the full authorized task snapshot, including
+    // details, instead of issuing a separate per-task request.
+    await applicant.unroute(taskListPattern);
     await applicant.getByRole("button", { name: "Reload saved task", exact: true }).click();
     await expect(answer).toHaveValue("A concurrent synthetic answer already saved.");
-    // A freshly loaded editor may be newer than the cached list; that is not a conflict.
+    // The refreshed workspace snapshot and editor now agree on the saved revision.
     await expect(applicant.getByRole("alert")).toHaveCount(0);
-    await applicant.unroute(taskListPattern);
     await answer.fill("A revised fictional description after checking the newer answer.");
     await applicant.getByRole("button", { name: "Save answer", exact: true }).click();
     await expect(applicant.getByRole("status").filter({ hasText: "Answer saved." })).toBeVisible();

@@ -31,6 +31,63 @@ async function noOverflow(page: Page) {
   ).toBe(true);
 }
 
+for (const [actor, origin, email] of [
+  ["borrower", borrower, "borrower@example.test"],
+  ["staff", staff, "officer-a@example.test"],
+] as const) {
+  test(`${actor} task accordions open from the initial workspace data without fetching or flashing loading`, async ({
+    page,
+  }) => {
+    await page.clock.install();
+    const detailRequests: string[] = [];
+    let documentRequests = 0;
+    page.on("request", (request) => {
+      if (request.method() === "GET" && /\/documents$/.test(request.url())) documentRequests++;
+    });
+    await page.route(/\/tasks\/[0-9a-f-]+$/, async (route) => {
+      if (route.request().method() === "GET") {
+        detailRequests.push(route.request().url());
+        await route.abort();
+      } else await route.continue();
+    });
+    await signIn(page, origin, email);
+    const initialDocumentRequests = documentRequests;
+    expect(initialDocumentRequests).toBeGreaterThan(0);
+    await page.evaluate(() => {
+      const state = window as Window & { taskLoadingSeen?: boolean };
+      state.taskLoadingSeen = false;
+      new MutationObserver(() => {
+        if (
+          [...document.querySelectorAll('[id^="task-detail-"] [role="status"]')].some((status) =>
+            /^\s*Loading(?:\s|…|\.)/.test(status.textContent ?? ""),
+          )
+        )
+          state.taskLoadingSeen = true;
+      }).observe(document.body, { subtree: true, childList: true, characterData: true });
+    });
+    for (const title of [
+      "Describe your business",
+      "Confirm business entity details",
+      "Describe your business",
+    ]) {
+      const toggle = page.getByRole("button", { name: title, exact: true });
+      await toggle.click();
+      await expect(toggle).toHaveAttribute("aria-expanded", "true");
+      await expect(page.getByLabel("Your answer", { exact: true })).toBeVisible();
+      await expect(
+        page.getByRole("heading", { name: "Task documents", exact: true }),
+      ).toBeVisible();
+      await page.clock.runFor(100);
+    }
+    expect(detailRequests).toEqual([]);
+    expect(documentRequests).toBe(initialDocumentRequests);
+    expect(
+      await page.evaluate(() => (window as Window & { taskLoadingSeen?: boolean }).taskLoadingSeen),
+    ).toBe(false);
+    await noOverflow(page);
+  });
+}
+
 test("application dashboard keeps tasks beside details on desktop and stacks them on mobile", async ({
   page,
 }, testInfo) => {
@@ -62,9 +119,12 @@ test("application dashboard keeps tasks beside details on desktop and stacks the
       fullPage: true,
     });
 
-    const toggles = taskPanel.locator("button[aria-controls][aria-expanded]");
-    await expect(toggles.nth(1)).toBeVisible();
-    const first = toggles.first();
+    const first = taskPanel.getByRole("button", { name: "Describe your business", exact: true });
+    const next = taskPanel.getByRole("button", {
+      name: "Confirm business entity details",
+      exact: true,
+    });
+    await expect(next).toBeVisible();
     const controlledId = await first.getAttribute("aria-controls");
     if (!controlledId) throw new Error("Expected an accessible task detail control.");
     await first.click();
@@ -73,18 +133,18 @@ test("application dashboard keeps tasks beside details on desktop and stacks the
     await expect(expanded.getByLabel("Your answer", { exact: true })).toBeVisible();
     const triggerBox = await first.boundingBox();
     const expandedBox = await expanded.boundingBox();
-    const nextBox = await toggles.nth(1).boundingBox();
-    if (!triggerBox || !expandedBox || !nextBox)
+    const rowBox = await first.locator("xpath=ancestor::li[1]").boundingBox();
+    if (!triggerBox || !expandedBox || !rowBox)
       throw new Error("Expected visible task accordion rows.");
     expect(expandedBox.y).toBeGreaterThanOrEqual(triggerBox.y + triggerBox.height - 1);
-    expect(expandedBox.y + expandedBox.height).toBeLessThanOrEqual(nextBox.y + 1);
+    expect(expandedBox.y + expandedBox.height).toBeLessThanOrEqual(rowBox.y + rowBox.height + 1);
     await noOverflow(page);
     await first.click();
     await expect(first).toHaveAttribute("aria-expanded", "false");
     await expect(expanded).toBeHidden();
     await first.click();
     await expanded.getByLabel("Your answer", { exact: true }).fill("Unsaved synthetic draft");
-    await toggles.nth(1).click();
+    await next.click();
     await expect(
       page.getByRole("alert").filter({ hasText: "You have unsaved changes" }),
     ).toBeVisible();
@@ -93,10 +153,10 @@ test("application dashboard keeps tasks beside details on desktop and stacks the
     await expect(expanded.getByLabel("Your answer", { exact: true })).toHaveValue(
       "Unsaved synthetic draft",
     );
-    await toggles.nth(1).click();
+    await next.click();
     await page.getByRole("button", { name: "Discard changes", exact: true }).click();
     await expect(first).toHaveAttribute("aria-expanded", "false");
-    await expect(toggles.nth(1)).toHaveAttribute("aria-expanded", "true");
+    await expect(next).toHaveAttribute("aria-expanded", "true");
     await noOverflow(page);
   }
 });

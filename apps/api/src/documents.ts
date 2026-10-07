@@ -1,5 +1,6 @@
 import {
   beginDocumentBatchSchema,
+  correctDocumentCategorySchema,
   type DocumentsView,
   documentUploadResultSchema,
 } from "@keycade/contracts";
@@ -101,6 +102,34 @@ export function createDocumentTransport(db: Database, options: DocumentTransport
           "content-security-policy": "sandbox",
         },
       };
+    },
+    async retryProcessing(
+      actor: Actor,
+      bank: string,
+      app: string,
+      versionId: string,
+      requestId: string,
+    ) {
+      await service.retryProcessing(actor, bank, app, versionId, requestId);
+      return { ok: true as const };
+    },
+    async correctCategory(
+      actor: Actor,
+      bank: string,
+      app: string,
+      documentId: string,
+      input: unknown,
+      requestId: string,
+    ) {
+      await service.correctCategory(
+        actor,
+        bank,
+        app,
+        documentId,
+        correctDocumentCategorySchema.parse(input),
+        requestId,
+      );
+      return { ok: true as const };
     },
     async retry(actor: Actor, bank: string, app: string, versionId: string, requestId: string) {
       await service.retryScan(actor, bank, app, versionId, requestId);

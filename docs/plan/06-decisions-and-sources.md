@@ -258,3 +258,19 @@ T13 uses private local file storage for the demonstrated upload milestone. Both 
 The document version is the transactional upload reservation and scan intent. The local worker claims due scans using PostgreSQL leases and generation tokens, retaining safe retries and avoiding file/identifier content in queue payloads. Staging is cleaned after interruption or expiry, and immutable publication prevents concurrent retries from changing stored bytes. Production malware scanning and full document-format sanitization remain outside this simulated release.
 
 Source references: [Fastify streaming content parsers](https://fastify.dev/docs/latest/Reference/ContentTypeParser/) and [Workers streaming best practices](https://developers.cloudflare.com/workers/best-practices/workers-best-practices/). Industry search source evaluation is recorded in [NAICS sources](naics-source.md).
+
+## Document interpretation and enrichment checkpoint — October 7, 2026
+
+T14 records clean-scan interpretation intent through a transactional outbox, with version-bound run generations, expiring leases and separately audited manual category corrections. Provider suggestions remain unconfirmed evidence; neither classifications nor extracted values complete tasks or alter application facts. Category counts and suggested task titles follow the same backend permissions as the underlying resources.
+
+T15 selects the complete 1,012-entry U.S. Census 2022 six-digit NAICS catalog for deterministic local search; [the source evaluation](naics-source.md) records the download, licensing basis, checksums, commercial alternative and explicit update policy. The saved version is `2022`. Broad historical demo answers stay readable but require a precise new selection or Skip when edited.
+
+Private identifiers use immutable AES-256-GCM versions, a generated local key and authenticated bank/application/subject/revision context. Only the registered synthetic namespace `000000001`–`000000007` is accepted. Enrichment run rows serve as transactional durable work intent with bounded retries and leases; workers load identifiers by authorized reference, and no raw identifier enters a job, audit event or result. An identifier replacement clears tax authorization and invalidates prior runs. Tax authorization uses explicit demonstration text and does not claim a legal consent standard or access to real records. Suggested facts require a separate explicit confirmation record and never overwrite user-entered application facts. T16/T19 must apply the unified material-edit and frozen-snapshot policy when adding checks and decisions.
+
+The private R2 bucket is provisioned with its managed public URL disabled. The adapter/native worker path is tested locally in workerd, and the API/jobs deployment dry runs pass. No new hosted deployment or hosted document/enrichment acceptance is claimed here; the deployed enrichment environment still lacks its encryption key. These local milestones preserve the explicit hosted-validation boundary.
+
+## Immediate task expansion and dashboard surfaces — October 7, 2026
+
+The user requested all tasks up front and a clearer visual hierarchy with fewer card outlines and horizontal rules. T12's list response now includes full details for permitted tasks using batched history queries. Both dashboards preload permitted document metadata at the same time; task expansion is a local selection rather than a fetch. The selected detail remains an editing snapshot so background polling cannot replace an unsaved answer; explicit reload and current server mutation guards remain authoritative.
+
+Use the existing shadcn neutral palette: muted page background, white primary task/details panels, spacing between rows, and subtle expansion/selection surfaces. Remove redundant nested containers and separators, and leave the document shortcut unboxed. This refines T09/T12 without changing their dependencies or the default component styling.

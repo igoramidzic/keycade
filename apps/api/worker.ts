@@ -1,5 +1,6 @@
 import { createDatabase } from "@keycade/db";
 import { assertWorkerSchemaReady } from "@keycade/db/cloudflare";
+import { createR2DocumentStorage } from "@keycade/integrations/document-storage-r2";
 import { handleWorkerRequest } from "./src/worker-handler";
 
 export default {
@@ -9,6 +10,10 @@ export default {
     try {
       return await handleWorkerRequest(request, {
         db,
+        documentStorage: createR2DocumentStorage(
+          env.DOCUMENTS,
+          (size) => new FixedLengthStream(size),
+        ),
         allowedOrigins: env.ALLOWED_ORIGINS.split(","),
         nodeEnv: "production",
         // T06 delivery is through local Mailpit. Do not promise an email on the hosted shell.

@@ -4,7 +4,7 @@ import { TasksManager } from "@keycade/ui/components/tasks-manager";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { ApiError, errorMessage, request } from "./api";
-import { ApplicationDocuments } from "./documents";
+import { useApplicationDocuments } from "./documents";
 import { ErrorNotice, Loading } from "./workspace-ui";
 
 export function ApplicationTasks({
@@ -15,6 +15,7 @@ export function ApplicationTasks({
   applicationId: string;
 }) {
   const client = useQueryClient();
+  const documents = useApplicationDocuments({ session, applicationId });
   const [accessError, setAccessError] = useState<unknown>(null);
   async function guarded<T>(operation: () => Promise<T>) {
     try {
@@ -47,7 +48,7 @@ export function ApplicationTasks({
         }}
       />
     );
-  if (tasks.isPending || !tasks.isFetchedAfterMount) return <Loading />;
+  if (tasks.isPending || !tasks.isFetchedAfterMount || documents.pending) return <Loading />;
   if (
     tasks.error &&
     (!tasks.data ||
@@ -61,24 +62,21 @@ export function ApplicationTasks({
       <TasksManager
         data={tasks.data}
         errorMessage={errorMessage}
-        renderDocuments={(taskId, onBusyChange) => (
-          <ApplicationDocuments
-            session={session}
-            applicationId={applicationId}
-            taskId={taskId}
-            onBusyChange={onBusyChange}
-          />
-        )}
-        reload={() => tasks.refetch()}
-        loadTask={(id, signal) =>
-          guarded(() => request(`${base}/${id}`, taskViewSchema, { ...options, signal }))
-        }
+        renderDocuments={documents.render}
+        reload={async () => {
+          const updated = await tasks.refetch({ throwOnError: true });
+          if (!updated.data) throw new Error("Tasks are unavailable.");
+          return updated.data;
+        }}
         mutate={(path, body, method) =>
           guarded(async () => {
             await client.cancelQueries({ queryKey });
             if (!path) {
               const updated = await request(base, tasksViewSchema, { ...options, method, body });
               client.setQueryData(queryKey, updated);
+              await client.invalidateQueries({
+                queryKey: ["documents", session.bank.id, session.user.email, applicationId],
+              });
               await client.invalidateQueries({
                 queryKey: ["portal", session.bank.id, session.user.email, applicationId],
               });
@@ -90,6 +88,9 @@ export function ApplicationTasks({
               body,
             });
             await client.invalidateQueries({ queryKey });
+            await client.invalidateQueries({
+              queryKey: ["documents", session.bank.id, session.user.email, applicationId],
+            });
             await client.invalidateQueries({
               queryKey: ["portal", session.bank.id, session.user.email, applicationId],
             });

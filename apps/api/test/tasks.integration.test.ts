@@ -155,6 +155,16 @@ for (const transport of ["fastify", "worker"] as const) {
         expect(detail.state).toBe("completed");
         expect(detail.answers).toHaveLength(2);
         expect(detail.reviews).toHaveLength(2);
+        const upfront = tasksViewSchema.parse((await borrower.call(base)).body);
+        expect(upfront.tasks.find((item) => item.id === task.id)).toEqual(detail);
+        expect(
+          upfront.tasks.every(
+            (item) =>
+              Array.isArray(item.answers) &&
+              Array.isArray(item.reviews) &&
+              Array.isArray(item.assignments),
+          ),
+        ).toBe(true);
         expect(
           (
             await staff.call(`${taskPath}/waive`, "POST", {
@@ -203,6 +213,8 @@ for (const transport of ["fastify", "worker"] as const) {
         if (!task) throw new Error("Expected private synthetic owner task.");
         expect(task.visibility).toBe("private");
         expect((await adviser.call(`${base}/${task.id}`)).status).toBe(404);
+        const restricted = tasksViewSchema.parse((await adviser.call(base)).body);
+        expect(restricted.tasks.some((item) => item.id === task.id)).toBe(false);
         expect(
           (
             await borrower.call(`${base}/${task.id}/answer`, "PATCH", {

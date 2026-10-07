@@ -37,5 +37,11 @@
   ],
   "vars": {
     "ALLOWED_ORIGINS": "https://keycade-bank-site.kualia.workers.dev,https://keycade-borrower.kualia.workers.dev,https://keycade-bank-console.kualia.workers.dev"
-  }
+  },
+  "r2_buckets": [
+    {
+      "binding": "DOCUMENTS",
+      "bucket_name": "keycade-private-documents"
+    }
+  ]
 }

@@ -11,6 +11,7 @@
   "dependencies": {
     "@keycade/config": "workspace:*",
     "@keycade/db": "workspace:*",
-    "@keycade/integrations": "workspace:*"
+    "@keycade/integrations": "workspace:*",
+    "@keycade/domain": "workspace:*"
   }
 }

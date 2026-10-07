@@ -10,15 +10,17 @@ import { useState } from "react";
 import { ApiError, useStaffApi } from "./api";
 import { ErrorNotice, Loading } from "./ui";
 
-export function ApplicationDocuments({
-  applicationId,
-  taskId,
-  onBusyChange,
-}: {
+type DocumentsProps = {
   applicationId: string;
   taskId?: string;
   onBusyChange?: (busy: boolean) => void;
-}) {
+};
+export function ApplicationDocuments(props: DocumentsProps) {
+  const workspace = useApplicationDocuments(props);
+  return workspace.render(props.taskId, props.onBusyChange);
+}
+
+export function useApplicationDocuments({ applicationId }: Pick<DocumentsProps, "applicationId">) {
   const api = useStaffApi();
   const client = useQueryClient();
   const [accessError, setAccessError] = useState<unknown>(null);
@@ -54,71 +56,91 @@ export function ApplicationDocuments({
       client.invalidateQueries({ queryKey: ["staff-queue"] }),
     ]);
   }
-  if (accessError)
+  function render(taskId?: string, onBusyChange?: (busy: boolean) => void) {
+    if (accessError)
+      return (
+        <ErrorNotice
+          error={accessError}
+          onRetry={() => {
+            void documents.refetch().then((result) => {
+              if (!result.error) setAccessError(null);
+            });
+          }}
+        />
+      );
+    if (documents.isPending || !documents.isFetchedAfterMount)
+      return <Loading>Loading documents…</Loading>;
+    if (
+      documents.error &&
+      (!documents.data ||
+        (documents.error instanceof ApiError && [401, 403, 404].includes(documents.error.status)))
+    )
+      return <ErrorNotice error={documents.error} onRetry={() => void documents.refetch()} />;
+    if (!documents.data) return null;
     return (
-      <ErrorNotice
-        error={accessError}
-        onRetry={() => {
-          void documents.refetch().then((result) => {
-            if (!result.error) setAccessError(null);
-          });
-        }}
-      />
-    );
-  if (documents.isPending || !documents.isFetchedAfterMount)
-    return <Loading>Loading documents…</Loading>;
-  if (
-    documents.error &&
-    (!documents.data ||
-      (documents.error instanceof ApiError && [401, 403, 404].includes(documents.error.status)))
-  )
-    return <ErrorNotice error={documents.error} onRetry={() => void documents.refetch()} />;
-  if (!documents.data) return null;
-  return (
-    <div className="space-y-4">
-      {documents.error && (
-        <ErrorNotice error={documents.error} onRetry={() => void documents.refetch()} />
-      )}
-      <DocumentsManager
-        data={documents.data}
-        taskId={taskId}
-        onBusyChange={onBusyChange}
-        errorMessage={(error) =>
-          error instanceof ApiError ? error.message : "We couldn’t connect. Please try again."
-        }
-        reload={reload}
-        begin={(files) =>
-          guarded(() =>
-            api.participantRequest(`${base}/uploads`, documentUploadResultSchema, {
-              method: "POST",
-              body: { files },
-            }),
-          )
-        }
-        upload={(id, file, progress, signal) =>
-          guarded(() => transfer.upload(id, file, progress, signal))
-        }
-        cancel={(id) =>
-          guarded(() =>
-            api.participantRequest(`${base}/uploads/${id}`, documentActionResultSchema, {
-              method: "DELETE",
-            }),
-          )
-        }
-        download={(id, fileName) => guarded(() => transfer.download(id, fileName))}
-        retryScan={(id) =>
-          guarded(() =>
-            api.participantRequest(
-              `${base}/versions/${id}/retry-scan`,
-              documentActionResultSchema,
-              {
+      <div className="space-y-4">
+        {documents.error && (
+          <ErrorNotice error={documents.error} onRetry={() => void documents.refetch()} />
+        )}
+        <DocumentsManager
+          data={documents.data}
+          taskId={taskId}
+          onBusyChange={onBusyChange}
+          errorMessage={(error) =>
+            error instanceof ApiError ? error.message : "We couldn’t connect. Please try again."
+          }
+          reload={reload}
+          begin={(files) =>
+            guarded(() =>
+              api.participantRequest(`${base}/uploads`, documentUploadResultSchema, {
                 method: "POST",
-                body: {},
-              },
-            ),
-          )
-        }
-      />
-    </div>
-  );
+                body: { files },
+              }),
+            )
+          }
+          upload={(id, file, progress, signal) =>
+            guarded(() => transfer.upload(id, file, progress, signal))
+          }
+          cancel={(id) =>
+            guarded(() =>
+              api.participantRequest(`${base}/uploads/${id}`, documentActionResultSchema, {
+                method: "DELETE",
+              }),
+            )
+          }
+          download={(id, fileName) => guarded(() => transfer.download(id, fileName))}
+          retryScan={(id) =>
+            guarded(() =>
+              api.participantRequest(
+                `${base}/versions/${id}/retry-scan`,
+                documentActionResultSchema,
+                {
+                  method: "POST",
+                  body: {},
+                },
+              ),
+            )
+          }
+          retryProcessing={(id) =>
+            guarded(() =>
+              api.participantRequest(
+                `${base}/versions/${id}/retry-processing`,
+                documentActionResultSchema,
+                { method: "POST", body: {} },
+              ),
+            )
+          }
+          correctCategory={(id, versionId, category, reason) =>
+            guarded(() =>
+              api.participantRequest(`${base}/${id}/category`, documentActionResultSchema, {
+                method: "POST",
+                body: { versionId, category, reason },
+              }),
+            )
+          }
+        />
+      </div>
+    );
+  }
+  return { pending: documents.isPending || !documents.isFetchedAfterMount, render };
 }

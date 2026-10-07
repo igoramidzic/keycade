@@ -43,5 +43,11 @@
   "vars": {
     "SIMULATION_DELAY_MS": "2000",
     "PROVIDER_DEADLINE_MS": "60000"
-  }
+  },
+  "r2_buckets": [
+    {
+      "binding": "DOCUMENTS",
+      "bucket_name": "keycade-private-documents"
+    }
+  ]
 }

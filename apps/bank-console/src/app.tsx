@@ -21,11 +21,11 @@ export function BankApp({ confirmation }: { confirmation: Confirmation }) {
   const navigate = useNavigate();
   const bankSlug = new URLSearchParams(location.search).get("bank") ?? "bank-a";
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
+    <div className="flex min-h-screen flex-col bg-muted text-foreground">
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4">
         Skip to content
       </a>
-      <header className="border-b">
+      <header className="bg-card">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-5">
           <Link
             to={`/?bank=${encodeURIComponent(bankSlug)}`}
@@ -51,7 +51,7 @@ export function BankApp({ confirmation }: { confirmation: Confirmation }) {
           )}
         />
       </main>
-      <footer className="border-t px-5 py-5 text-center text-xs leading-5 text-muted-foreground">
+      <footer className="px-5 py-6 text-center text-xs leading-5 text-muted-foreground">
         Synthetic lending demo · Use fictional information only. No real credit decisions or money
         movement.
       </footer>
@@ -121,7 +121,7 @@ function Workspace({
   return (
     <QueryClientProvider client={client}>
       <StaffApiContext.Provider value={api}>
-        <div className="mb-8 flex flex-wrap items-start justify-between gap-4 border-b pb-5">
+        <div className="mb-8 flex flex-wrap items-start justify-between gap-4 pb-2">
           <div className="space-y-1">
             <p className="font-medium">{session.bank.name}</p>
             <p className="break-all text-sm text-muted-foreground">{session.user.email}</p>

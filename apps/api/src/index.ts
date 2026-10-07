@@ -9,6 +9,7 @@ const env = loadServerEnv();
 const { db, pool } = createDatabase(env.DATABASE_URL);
 const app = await buildServer({
   db,
+  encryptionKey: env.ENCRYPTION_KEY,
   documentStorage: createLocalDocumentStorage(env.PRIVATE_STORAGE_PATH),
   documentLimits: {
     maxFileBytes: env.DOCUMENT_MAX_FILE_BYTES,

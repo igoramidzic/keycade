@@ -191,7 +191,7 @@ export function ApplicationList({
       ) : list.error && !list.isFetchNextPageError ? (
         <ErrorNotice error={list.error} onRetry={() => void list.refetch()} />
       ) : items.length === 0 ? (
-        <Card>
+        <Card className="shadow-sm ring-0">
           <CardHeader>
             <CardTitle>No applications yet</CardTitle>
             <CardDescription>
@@ -214,7 +214,7 @@ export function ApplicationList({
                 <div className="grid items-start gap-4 lg:grid-cols-2">
                   {applications.map((application) => (
                     <article key={application.id} aria-label={`Application ${application.id}`}>
-                      <Card>
+                      <Card className="shadow-sm ring-0">
                         <CardHeader>
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <CardTitle>Application {application.id.slice(-8)}</CardTitle>
@@ -285,7 +285,7 @@ export function ApplicationList({
       >
         Start a new application
       </Link>
-      <section aria-label="Funded accounts" className="border-t pt-5">
+      <section aria-label="Funded accounts" className="pt-5">
         <h2 className="font-semibold">Funded accounts</h2>
         <p className="mt-2 text-sm text-muted-foreground">
           Funded account details are not available in this demo yet.
@@ -375,7 +375,7 @@ function ClosedApplication({ data, bankSlug }: { data: ApplicationSelection; ban
   return (
     <section className="mx-auto w-full max-w-3xl space-y-5">
       {back}
-      <Card>
+      <Card className="shadow-sm ring-0">
         <CardHeader>
           <CardTitle>
             <h1 className="text-2xl">This application is closed</h1>
@@ -466,7 +466,7 @@ function ApplicationPortal({
         </div>
         {limited && <Badge variant="secondary">Limited access</Badge>}
       </header>
-      <nav aria-label="Application sections" className="flex flex-wrap gap-1 border-b pb-3">
+      <nav aria-label="Application sections" className="flex flex-wrap gap-1">
         {views.map((label) => {
           const key = label.toLowerCase();
           return (
@@ -474,10 +474,7 @@ function ApplicationPortal({
               key={key}
               to={path(key === "overview" ? "" : key)}
               aria-current={active === key ? "page" : undefined}
-              className={buttonVariants({
-                variant: active === key ? "secondary" : "ghost",
-                size: "sm",
-              })}
+              className={`${buttonVariants({ variant: "ghost", size: "sm" })} ${active === key ? "bg-card shadow-sm hover:bg-card" : "text-muted-foreground"}`}
             >
               {label}
             </Link>
@@ -490,7 +487,7 @@ function ApplicationPortal({
             <ApplicationTasks session={session} applicationId={applicationId} />
           </section>
           <aside aria-label="Application details" className="min-w-0 space-y-6 lg:sticky lg:top-6">
-            <Card>
+            <Card className="shadow-sm ring-0">
               <CardHeader>
                 <CardTitle>
                   <h2>Application details</h2>
@@ -518,7 +515,7 @@ function ApplicationPortal({
                     <p className="mt-1 whitespace-pre-wrap break-words">{data.purpose}</p>
                   </div>
                 )}
-                <div className="space-y-3 border-t pt-5">
+                <div className="space-y-3 rounded-lg bg-muted/60 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                     <span className="text-muted-foreground">Current stage</span>
                     <Badge variant="outline">{statusLabels[data.status]}</Badge>
@@ -537,24 +534,18 @@ function ApplicationPortal({
                 </p>
               </CardContent>
             </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>
-                  <h2>Documents</h2>
-                </CardTitle>
-                <CardDescription>
-                  Upload and view permitted evidence, with private files and simulated scan status.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Link
-                  to={path("documents")}
-                  className={buttonVariants({ variant: "outline", size: "sm" })}
-                >
-                  View documents
-                </Link>
-              </CardContent>
-            </Card>
+            <section aria-label="Application documents" className="space-y-3 px-4">
+              <h2 className="text-sm font-semibold">Documents</h2>
+              <p className="text-sm leading-6 text-muted-foreground">
+                Upload and view permitted evidence, with private files and simulated scan status.
+              </p>
+              <Link
+                to={path("documents")}
+                className="inline-flex text-sm font-medium underline underline-offset-4 hover:text-muted-foreground"
+              >
+                View documents
+              </Link>
+            </section>
           </aside>
         </div>
       ) : active === "people" ? (
@@ -562,7 +553,7 @@ function ApplicationPortal({
       ) : active === "documents" ? (
         <ApplicationDocuments session={session} applicationId={applicationId} />
       ) : empty ? (
-        <Card>
+        <Card className="shadow-sm ring-0">
           <CardHeader>
             <CardTitle>
               <h2>{views.find((label) => label.toLowerCase() === active)}</h2>
@@ -578,7 +569,7 @@ function ApplicationPortal({
           </CardContent>
         </Card>
       ) : (
-        <Card>
+        <Card className="shadow-sm ring-0">
           <CardHeader>
             <CardTitle>
               <h2>Page not found</h2>

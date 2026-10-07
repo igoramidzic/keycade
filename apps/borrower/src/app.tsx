@@ -44,11 +44,11 @@ export function BorrowerApp({ confirmation }: { confirmation: Confirmation }) {
   });
   const selected = catalog.data?.products.find((product) => product.slug === productSlug);
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
+    <div className="flex min-h-screen flex-col bg-muted text-foreground">
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4">
         Skip to content
       </a>
-      <header className="border-b">
+      <header className="bg-card">
         <div className="mx-auto flex max-w-[1440px] flex-wrap items-center justify-between gap-3 px-5 py-5 sm:px-8">
           <a href={__KEYCADE_PUBLIC__.bankSiteUrl} className="font-semibold">
             Keycade Bank
@@ -103,7 +103,7 @@ export function BorrowerApp({ confirmation }: { confirmation: Confirmation }) {
           ))
         )}
       </main>
-      <footer className="border-t px-5 py-5 text-center text-xs leading-5 text-muted-foreground">
+      <footer className="px-5 py-6 text-center text-xs leading-5 text-muted-foreground">
         Synthetic lending demo · Use fictional information only. No real credit decisions or money
         movement.
       </footer>
@@ -134,7 +134,7 @@ function Workspace({
   });
   return (
     <div id="identity" className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-2">
         <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
           <p className="break-all text-sm text-muted-foreground">{session.user.email}</p>
           <Badge variant="secondary">

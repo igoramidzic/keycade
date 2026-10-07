@@ -14,12 +14,15 @@ import {
   applicationSetupSchema,
   assignStaffSchema,
   assignTaskSchema,
+  authorizeTaxSchema,
   authSessionSchema,
   bankParamsSchema,
   beginDocumentBatchSchema,
   claimApplicationSchema,
+  confirmEnrichmentFactSchema,
   consumeAccessLinkResponseSchema,
   consumeAccessLinkSchema,
+  correctDocumentCategorySchema,
   createDraftSchema,
   createInvitationSchema,
   createManualTaskSchema,
@@ -27,6 +30,8 @@ import {
   demoSignInSchema,
   documentsViewSchema,
   documentUploadResultSchema,
+  enrichmentSubjectSchema,
+  enrichmentViewSchema,
   errorSchema,
   finishApplicationSetupSchema,
   invitationViewSchema,
@@ -44,8 +49,11 @@ import {
   readinessSchema,
   requestAccessLinkResponseSchema,
   requestAccessLinkSchema,
+  requestEnrichmentSchema,
+  retryEnrichmentSchema,
   reviewTaskSchema,
   saveApplicationSetupSchema,
+  saveIdentifierSchema,
   saveTaskAnswerSchema,
   setRelationshipActiveSchema,
   staffApplicationPageSchema,
@@ -67,6 +75,8 @@ import {
   addStaffNote,
   assignApplicationStaff,
   createApplicationService,
+  createEnrichmentService,
+  createIdentifierCipher,
   createIdentityService,
   createParticipantsService,
   createTasksService,
@@ -119,6 +129,7 @@ declare module "fastify" {
 
 export interface ServerOptions extends IdentityTransportOptions, DocumentTransportOptions {
   db: Database;
+  encryptionKey?: string;
   allowedOrigins: readonly string[];
   readiness: () => Promise<Readiness>;
   logger?: boolean;
@@ -140,6 +151,17 @@ export async function buildServer(options: ServerOptions) {
   });
   const tasks = createTasksService(options.db);
   const documentTransport = createDocumentTransport(options.db, options);
+  const enrichment = () => {
+    if (!options.encryptionKey)
+      throw new DomainError(
+        "ENRICHMENT_UNAVAILABLE",
+        503,
+        "Private enrichment is unavailable in this environment.",
+      );
+    return createEnrichmentService(options.db, {
+      cipher: createIdentifierCipher(options.encryptionKey),
+    });
+  };
   const originFor = (request: FastifyRequest) =>
     configuredRequestOrigin(
       request.headers.origin,
@@ -984,6 +1006,115 @@ export async function buildServer(options: ServerOptions) {
         bankId,
         applicationId,
         versionId,
+        request.id,
+      );
+    },
+  );
+  app.post(
+    `${documentsBase}/versions/:versionId/retry-processing`,
+    {
+      schema: {
+        params: versionParams,
+        body: z.strictObject({}),
+        response: { 200: okSchema, ...responses },
+      },
+    },
+    async (request) => {
+      const { bankId, applicationId, versionId } = request.params;
+      assertSessionBank(request.authentication, bankId);
+      return documentTransport.retryProcessing(
+        request.authentication.actor,
+        bankId,
+        applicationId,
+        versionId,
+        request.id,
+      );
+    },
+  );
+  app.post(
+    `${documentsBase}/:documentId/category`,
+    {
+      schema: {
+        params: applicationParamsSchema.extend({ documentId: z.string().uuid() }),
+        body: correctDocumentCategorySchema,
+        response: { 200: okSchema, ...responses },
+      },
+    },
+    async (request) => {
+      const { bankId, applicationId, documentId } = request.params;
+      assertSessionBank(request.authentication, bankId);
+      return documentTransport.correctCategory(
+        request.authentication.actor,
+        bankId,
+        applicationId,
+        documentId,
+        request.body,
+        request.id,
+      );
+    },
+  );
+  const enrichmentBase = "/api/v1/banks/:bankId/applications/:applicationId/enrichment";
+  app.get(
+    enrichmentBase,
+    {
+      schema: {
+        params: applicationParamsSchema,
+        querystring: enrichmentSubjectSchema,
+        response: { 200: enrichmentViewSchema, ...responses },
+      },
+    },
+    async (request) => {
+      const { bankId, applicationId } = request.params;
+      assertSessionBank(request.authentication, bankId);
+      return enrichment().read(request.authentication.actor, bankId, applicationId, request.query);
+    },
+  );
+  for (const [action, schema, method] of [
+    ["identifier", saveIdentifierSchema, "saveIdentifier"],
+    ["tax-authorization", authorizeTaxSchema, "authorizeTax"],
+    ["requests", requestEnrichmentSchema, "requestRun"],
+    ["confirm-fact", confirmEnrichmentFactSchema, "confirmFact"],
+  ] as const) {
+    app.post(
+      `${enrichmentBase}/${action}`,
+      {
+        schema: {
+          params: applicationParamsSchema,
+          body: schema,
+          response: { 200: enrichmentViewSchema, ...responses },
+        },
+      },
+      async (request) => {
+        const { bankId, applicationId } = request.params;
+        assertSessionBank(request.authentication, bankId);
+        return enrichment()[method](
+          request.authentication.actor,
+          bankId,
+          applicationId,
+          request.body,
+          request.id,
+        );
+      },
+    );
+  }
+  app.post(
+    `${enrichmentBase}/runs/:runId/retry`,
+    {
+      schema: {
+        params: applicationParamsSchema.extend({ runId: z.string().uuid() }),
+        body: retryEnrichmentSchema,
+        response: { 200: enrichmentViewSchema, ...responses },
+      },
+    },
+    async (request) => {
+      const { bankId, applicationId, runId } = request.params;
+      assertSessionBank(request.authentication, bankId);
+      return enrichment().retry(
+        request.authentication.actor,
+        bankId,
+        applicationId,
+        runId,
+        request.body,
         request.id,
       );
     },

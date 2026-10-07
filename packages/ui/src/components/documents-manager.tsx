@@ -8,6 +8,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@keycade/ui/components/card";
+import {
+  categoryLabels,
+  type DocumentCategory,
+  DocumentInterpretation,
+  type DocumentProcessingData,
+} from "@keycade/ui/components/document-interpretation";
 import { NativeSelect } from "@keycade/ui/components/native-select";
 import { FileUp } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
@@ -23,7 +29,9 @@ export type DocumentVersionData = {
   canDownload: boolean;
   canRetryScan: boolean;
   createdAt: string;
+  processing?: DocumentProcessingData | null;
 };
+const categoryKeys = Object.keys(categoryLabels) as DocumentCategory[];
 export type DocumentData = {
   id: string;
   taskId: string | null;
@@ -31,6 +39,7 @@ export type DocumentData = {
   currentVersionId: string | null;
   versions: DocumentVersionData[];
   canReplace: boolean;
+  category?: DocumentCategory;
 };
 export type DocumentsData = {
   applicationId: string;
@@ -82,6 +91,8 @@ export function DocumentsManager({
   cancel,
   download,
   retryScan,
+  retryProcessing,
+  correctCategory,
   reload,
   errorMessage,
   taskId,
@@ -98,6 +109,13 @@ export function DocumentsManager({
   cancel: (uploadId: string) => Promise<unknown>;
   download: (versionId: string, fileName: string) => Promise<void>;
   retryScan: (versionId: string) => Promise<unknown>;
+  retryProcessing: (versionId: string) => Promise<unknown>;
+  correctCategory: (
+    documentId: string,
+    versionId: string,
+    category: DocumentCategory,
+    reason: string,
+  ) => Promise<unknown>;
   reload: () => Promise<unknown>;
   errorMessage: (error: unknown) => string;
   taskId?: string;
@@ -113,6 +131,7 @@ export function DocumentsManager({
   const [error, setError] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
   const [action, setAction] = useState<string | null>(null);
+  const [category, setCategory] = useState<"all" | DocumentCategory>("all");
   const busy = queue.some((entry) => entry.state === "preparing" || entry.state === "uploading");
   useEffect(() => {
     onBusyChange?.(busy);
@@ -134,6 +153,11 @@ export function DocumentsManager({
   const documents = taskId
     ? data.documents.filter((document) => document.taskId === taskId)
     : data.documents;
+  const filteredDocuments =
+    category === "all"
+      ? documents
+      : documents.filter((document) => (document.category ?? "other") === category);
+  const categories = ["all", ...categoryKeys] as const;
   const canUpload = taskId
     ? data.uploadTasks.some((task) => task.id === taskId)
     : data.canUpload || data.uploadTasks.length > 0;
@@ -281,7 +305,7 @@ export function DocumentsManager({
     }
   }
   return (
-    <Card>
+    <Card className={taskId ? "border-0 bg-transparent ring-0 shadow-none" : undefined}>
       <CardHeader>
         <CardTitle>
           <h2>{taskId ? "Task documents" : "Documents"}</h2>
@@ -469,117 +493,189 @@ export function DocumentsManager({
               Refresh documents
             </Button>
           </div>
-          {!documents.length ? (
-            <p className="text-sm text-muted-foreground">
-              No documents are visible for your account yet.
-            </p>
-          ) : (
-            <ul className="space-y-3">
-              {documents.map((document) => {
-                const current =
-                  document.versions.find((version) => version.id === document.currentVersionId) ??
-                  document.versions[0];
-                if (!current) return null;
-                const older = document.versions.filter((version) => version.id !== current.id);
-                const renderVersion = (version: DocumentVersionData) => (
-                  <div className="space-y-2">
-                    <p className="break-all text-sm font-medium">{version.fileName}</p>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge
-                        variant={
-                          version.scanState === "blocked" || version.uploadState === "missing"
-                            ? "destructive"
-                            : "outline"
-                        }
-                      >
-                        {status(version)}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">
-                        Version {version.version} · {fileSize(version.sizeBytes)}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {version.canDownload && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={Boolean(action)}
-                          onClick={() =>
-                            void perform(version.id, () => download(version.id, version.fileName))
+          <div
+            role="tablist"
+            aria-label="Document categories"
+            className="flex flex-wrap gap-1 border-b pb-3"
+          >
+            {categories.map((key, index) => {
+              const count =
+                key === "all"
+                  ? documents.length
+                  : documents.filter((document) => (document.category ?? "other") === key).length;
+              const label = key === "all" ? "All documents" : categoryLabels[key];
+              return (
+                <Button
+                  key={key}
+                  id={`${pickerId}-category-${key}`}
+                  role="tab"
+                  aria-selected={category === key}
+                  aria-controls={`${pickerId}-document-list`}
+                  tabIndex={category === key ? 0 : -1}
+                  variant={category === key ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => setCategory(key)}
+                  onKeyDown={(event) => {
+                    let next: number | undefined;
+                    if (event.key === "ArrowRight") next = (index + 1) % categories.length;
+                    else if (event.key === "ArrowLeft")
+                      next = (index + categories.length - 1) % categories.length;
+                    else if (event.key === "Home") next = 0;
+                    else if (event.key === "End") next = categories.length - 1;
+                    if (next === undefined) return;
+                    event.preventDefault();
+                    const value = categories[next];
+                    if (value) {
+                      setCategory(value);
+                      globalThis.document.getElementById(`${pickerId}-category-${value}`)?.focus();
+                    }
+                  }}
+                >
+                  {label} <span className="text-muted-foreground">({count})</span>
+                </Button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Categories and counts include only documents you can access. Suggested categories and
+            fields are simulated.
+          </p>
+          <div
+            role="tabpanel"
+            id={`${pickerId}-document-list`}
+            aria-labelledby={`${pickerId}-category-${category}`}
+            tabIndex={0}
+            className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {!documents.length ? (
+              <p className="text-sm text-muted-foreground">
+                No documents are visible for your account yet.
+              </p>
+            ) : !filteredDocuments.length ? (
+              <p className="py-3 text-sm text-muted-foreground">
+                No visible documents in this category.
+              </p>
+            ) : (
+              <ul className="space-y-3">
+                {filteredDocuments.map((document) => {
+                  const current =
+                    document.versions.find((version) => version.id === document.currentVersionId) ??
+                    document.versions[0];
+                  if (!current) return null;
+                  const older = document.versions.filter((version) => version.id !== current.id);
+                  const renderVersion = (version: DocumentVersionData) => (
+                    <div className="space-y-2">
+                      <p className="break-all text-sm font-medium">{version.fileName}</p>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge
+                          variant={
+                            version.scanState === "blocked" || version.uploadState === "missing"
+                              ? "destructive"
+                              : "outline"
                           }
                         >
-                          Download
-                        </Button>
+                          {status(version)}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          Version {version.version} · {fileSize(version.sizeBytes)}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {version.canDownload && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={Boolean(action)}
+                            onClick={() =>
+                              void perform(version.id, () => download(version.id, version.fileName))
+                            }
+                          >
+                            Download
+                          </Button>
+                        )}
+                        {version.canRetryScan && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={Boolean(action)}
+                            onClick={() => void perform(version.id, () => retryScan(version.id))}
+                          >
+                            Retry simulated scan
+                          </Button>
+                        )}
+                      </div>
+                      {!version.canDownload && (
+                        <p className="text-xs text-muted-foreground">
+                          Download is unavailable until this file is present and its simulated scan
+                          is clean.
+                        </p>
                       )}
-                      {version.canRetryScan && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={Boolean(action)}
-                          onClick={() => void perform(version.id, () => retryScan(version.id))}
-                        >
-                          Retry simulated scan
-                        </Button>
+                      {version.processing && (
+                        <DocumentInterpretation
+                          processing={version.processing}
+                          versionId={version.id}
+                          retry={() => retryProcessing(version.id)}
+                          correct={async (category, reason) => {
+                            await correctCategory(document.id, version.id, category, reason);
+                            setCategory("all");
+                          }}
+                          reload={reload}
+                          errorMessage={errorMessage}
+                        />
                       )}
                     </div>
-                    {!version.canDownload && (
+                  );
+                  return (
+                    <li
+                      key={document.id}
+                      className="space-y-3 rounded-lg border p-4"
+                      aria-label={`Document ${current.fileName}`}
+                    >
+                      {renderVersion(current)}
                       <p className="text-xs text-muted-foreground">
-                        Download is unavailable until this file is present and its simulated scan is
-                        clean.
+                        {document.visibility === "private"
+                          ? "Owner private"
+                          : document.visibility === "assigned"
+                            ? "Assigned participants and bank staff"
+                            : "Shared with permitted application participants"}
+                        {document.taskId
+                          ? ` · ${data.uploadTasks.find((task) => task.id === document.taskId)?.title ?? "Task evidence"}`
+                          : " · Application document"}
                       </p>
-                    )}
-                  </div>
-                );
-                return (
-                  <li
-                    key={document.id}
-                    className="space-y-3 rounded-lg border p-4"
-                    aria-label={`Document ${current.fileName}`}
-                  >
-                    {renderVersion(current)}
-                    <p className="text-xs text-muted-foreground">
-                      {document.visibility === "private"
-                        ? "Owner private"
-                        : document.visibility === "assigned"
-                          ? "Assigned participants and bank staff"
-                          : "Shared with permitted application participants"}
-                      {document.taskId
-                        ? ` · ${data.uploadTasks.find((task) => task.id === document.taskId)?.title ?? "Task evidence"}`
-                        : " · Application document"}
-                    </p>
-                    {document.canReplace && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        disabled={busy}
-                        onClick={() => {
-                          setReplacement(document);
-                          picker.current?.scrollIntoView({ block: "center", behavior: "smooth" });
-                          picker.current?.click();
-                        }}
-                      >
-                        Upload replacement
-                      </Button>
-                    )}
-                    {older.length > 0 && (
-                      <details>
-                        <summary className="cursor-pointer text-sm">
-                          Previous versions ({older.length})
-                        </summary>
-                        <ul className="mt-3 space-y-4">
-                          {older.map((version) => (
-                            <li className="border-l-2 pl-3" key={version.id}>
-                              {renderVersion(version)}
-                            </li>
-                          ))}
-                        </ul>
-                      </details>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+                      {document.canReplace && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={busy}
+                          onClick={() => {
+                            setReplacement(document);
+                            picker.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+                            picker.current?.click();
+                          }}
+                        >
+                          Upload replacement
+                        </Button>
+                      )}
+                      {older.length > 0 && (
+                        <details>
+                          <summary className="cursor-pointer text-sm">
+                            Previous versions ({older.length})
+                          </summary>
+                          <ul className="mt-3 space-y-4">
+                            {older.map((version) => (
+                              <li className="border-l-2 pl-3" key={version.id}>
+                                {renderVersion(version)}
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
         </section>
         <p className="text-xs leading-5 text-muted-foreground">
           Simulated scanning is for this demo and is not a production malware scanner. Uploading a

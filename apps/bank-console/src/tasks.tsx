@@ -3,12 +3,13 @@ import { TasksManager } from "@keycade/ui/components/tasks-manager";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { ApiError, useStaffApi } from "./api";
-import { ApplicationDocuments } from "./documents";
+import { useApplicationDocuments } from "./documents";
 import { ErrorNotice, Loading } from "./ui";
 
 export function ApplicationTasks({ applicationId }: { applicationId: string }) {
   const api = useStaffApi();
   const client = useQueryClient();
+  const documents = useApplicationDocuments({ applicationId });
   const [accessError, setAccessError] = useState<unknown>(null);
   async function guarded<T>(operation: () => Promise<T>) {
     try {
@@ -40,7 +41,8 @@ export function ApplicationTasks({ applicationId }: { applicationId: string }) {
         }}
       />
     );
-  if (tasks.isPending || !tasks.isFetchedAfterMount) return <Loading>Loading tasks…</Loading>;
+  if (tasks.isPending || !tasks.isFetchedAfterMount || documents.pending)
+    return <Loading>Loading tasks…</Loading>;
   if (
     tasks.error &&
     (!tasks.data ||
@@ -53,28 +55,24 @@ export function ApplicationTasks({ applicationId }: { applicationId: string }) {
       {tasks.error && <ErrorNotice error={tasks.error} onRetry={() => void tasks.refetch()} />}
       <TasksManager
         data={tasks.data}
-        renderDocuments={(taskId, onBusyChange) => (
-          <ApplicationDocuments
-            applicationId={applicationId}
-            taskId={taskId}
-            onBusyChange={onBusyChange}
-          />
-        )}
+        renderDocuments={documents.render}
         errorMessage={(error) =>
           error instanceof ApiError
             ? error.message
             : "We couldn’t connect. Your entries are still here; please try again."
         }
-        reload={() => tasks.refetch()}
-        loadTask={(id, signal) =>
-          guarded(() => api.participantRequest(`${base}/${id}`, taskViewSchema, { signal }))
-        }
+        reload={async () => {
+          const updated = await tasks.refetch({ throwOnError: true });
+          if (!updated.data) throw new Error("Tasks are unavailable.");
+          return updated.data;
+        }}
         mutate={(path, body, method) =>
           guarded(async () => {
             await client.cancelQueries({ queryKey });
             if (!path) {
               const updated = await api.participantRequest(base, tasksViewSchema, { method, body });
               client.setQueryData(queryKey, updated);
+              await client.invalidateQueries({ queryKey: ["staff-documents", applicationId] });
               await client.invalidateQueries({ queryKey: ["staff-workspace", applicationId] });
               await client.invalidateQueries({ queryKey: ["staff-queue"] });
               return updated;
@@ -84,6 +82,7 @@ export function ApplicationTasks({ applicationId }: { applicationId: string }) {
               body,
             });
             await client.invalidateQueries({ queryKey });
+            await client.invalidateQueries({ queryKey: ["staff-documents", applicationId] });
             await client.invalidateQueries({ queryKey: ["staff-workspace", applicationId] });
             await client.invalidateQueries({ queryKey: ["staff-queue"] });
             return updated;

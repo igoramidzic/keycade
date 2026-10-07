@@ -1,7 +1,10 @@
 import { createHash } from "node:crypto";
 import { DomainError } from "@keycade/domain";
 
-export type ByteSource = AsyncIterable<Uint8Array>;
+export type ByteSource = AsyncIterable<Uint8Array> & {
+  /** Interrupt an in-flight upstream read when its downstream storage operation fails. */
+  cancel?(reason?: unknown): Promise<void>;
+};
 export interface PrivateDocumentStorage {
   write(
     key: string,
@@ -60,17 +63,31 @@ export function validateDocumentContent(
     );
 }
 
-export async function* webByteSource(body: ReadableStream<Uint8Array> | null): ByteSource {
-  if (!body) throw new DomainError("INVALID_INPUT", 400, "The upload is empty.");
-  const reader = body.getReader();
-  try {
-    while (true) {
-      const chunk = await reader.read();
-      if (chunk.done) return;
-      yield chunk.value;
-    }
-  } finally {
-    await reader.cancel().catch(() => undefined);
-    reader.releaseLock();
-  }
+export function webByteSource(body: ReadableStream<Uint8Array> | null): ByteSource {
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+  let cancelled = false;
+  const cancel = async (reason?: unknown) => {
+    cancelled = true;
+    await (reader ? reader.cancel(reason) : body?.cancel(reason))?.catch(() => undefined);
+  };
+  return {
+    cancel,
+    async *[Symbol.asyncIterator]() {
+      if (!body) throw new DomainError("INVALID_INPUT", 400, "The upload is empty.");
+      if (cancelled) return;
+      const current = body.getReader();
+      reader = current;
+      try {
+        while (!cancelled) {
+          const chunk = await current.read();
+          if (chunk.done) return;
+          yield chunk.value;
+        }
+      } finally {
+        await current.cancel().catch(() => undefined);
+        current.releaseLock();
+        reader = undefined;
+      }
+    },
+  };
 }

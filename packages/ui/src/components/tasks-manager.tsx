@@ -58,7 +58,7 @@ export type TasksData = {
   applicationId: string;
   simulation: true;
   canManage: boolean;
-  tasks: TaskSummary[];
+  tasks: TaskDetailData[];
   progress: {
     total: number;
     completed: number;
@@ -129,26 +129,23 @@ export function TaskProgress({
 
 export function TasksManager({
   data,
-  loadTask,
   mutate,
   reload,
   errorMessage,
   renderDocuments,
 }: {
   data: TasksData;
-  loadTask: (id: string, signal?: AbortSignal) => Promise<TaskDetailData>;
   mutate: (
     path: string,
     body: object,
     method: "POST" | "PATCH",
   ) => Promise<TaskDetailData | TasksData>;
-  reload: () => Promise<unknown>;
+  reload: () => Promise<TasksData>;
   errorMessage: (error: unknown) => string;
   renderDocuments?: (taskId: string, onBusyChange: (busy: boolean) => void) => ReactNode;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [detail, setDetail] = useState<TaskDetailData | null>(null);
-  const [loading, setLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [saving, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -160,33 +157,6 @@ export function TasksManager({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [pendingSelection, setPendingSelection] = useState<{ id: string | null } | null>(null);
   const confirmRef = useRef<HTMLDivElement>(null);
-  const loadRef = useRef(loadTask);
-  const errorRef = useRef(errorMessage);
-  loadRef.current = loadTask;
-  errorRef.current = errorMessage;
-  // Re-fetch selection explicitly: polling must not replace an answer being edited.
-  useEffect(() => {
-    if (!selected) {
-      setDetail(null);
-      return;
-    }
-    const controller = new AbortController();
-    setLoading(true);
-    setDetail(null);
-    setDetailError(null);
-    void loadRef
-      .current(selected, controller.signal)
-      .then((task) => {
-        if (!controller.signal.aborted) setDetail(task);
-      })
-      .catch((error) => {
-        if (!controller.signal.aborted) setDetailError(errorRef.current(error));
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-    return () => controller.abort();
-  }, [selected, reloadCount]);
   useEffect(() => {
     if (pendingSelection) confirmRef.current?.focus();
   }, [pendingSelection]);
@@ -210,7 +180,14 @@ export function TasksManager({
       setPendingSelection({ id });
       return;
     }
+    openTask(id);
+  }
+  function openTask(id: string | null) {
+    // Keep an editing snapshot: a background refresh may flag it stale, but never
+    // replace typed answers. Opening a row needs only the already-authorized list.
     setSelected(id);
+    setDetail(data.tasks.find((task) => task.id === id) ?? null);
+    setDetailError(null);
     setHasUnsavedChanges(false);
     setPendingSelection(null);
     setNotice(null);
@@ -219,7 +196,7 @@ export function TasksManager({
     data.assignees.find((person) => person.id === id)?.displayName ??
     (id ? "Assigned participant" : "Unassigned");
   return (
-    <Card className="gap-5">
+    <Card className="gap-5 ring-0 shadow-sm">
       <CardHeader className="gap-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
@@ -239,7 +216,7 @@ export function TasksManager({
             </Button>
           )}
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t pt-3">
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pt-1">
           <p className="text-xs text-muted-foreground" aria-label="Visible task progress">
             <span className="font-medium text-foreground">
               {data.progress.requiredCompleted} of {data.progress.required}
@@ -320,7 +297,10 @@ export function TasksManager({
                               ? CircleMinus
                               : Circle;
                     return (
-                      <li key={task.id} className="overflow-hidden rounded-lg border bg-card">
+                      <li
+                        key={task.id}
+                        className={`overflow-hidden rounded-lg ${expanded ? "bg-muted/40" : ""}`}
+                      >
                         <h4>
                           <button
                             type="button"
@@ -361,7 +341,7 @@ export function TasksManager({
                             id={`task-detail-${task.id}`}
                             role="region"
                             aria-labelledby={`task-toggle-${task.id}`}
-                            className="border-t"
+                            className="pb-1"
                           >
                             {pendingSelection && (
                               <div
@@ -394,8 +374,7 @@ export function TasksManager({
                                         size="sm"
                                         disabled={busy}
                                         onClick={() => {
-                                          setHasUnsavedChanges(false);
-                                          setSelected(pendingSelection.id);
+                                          openTask(pendingSelection.id);
                                           document
                                             .getElementById(
                                               `task-toggle-${pendingSelection.id ?? selected}`,
@@ -412,61 +391,62 @@ export function TasksManager({
                                 </Alert>
                               </div>
                             )}
-                            {loading || (!detailError && detail?.id !== task.id) ? (
-                              <p role="status" className="p-4 text-sm text-muted-foreground">
-                                Loading task…
-                              </p>
-                            ) : detailError ? (
+                            {detailError && (
                               <div className="p-4">
                                 <Alert variant="destructive" role="alert">
-                                  <AlertTitle>Task unavailable</AlertTitle>
+                                  <AlertTitle>Saved task could not be reloaded</AlertTitle>
                                   <AlertDescription>
                                     <p>{detailError}</p>
-                                    <Button
-                                      variant="outline"
-                                      onClick={() => setReloadCount((value) => value + 1)}
-                                    >
-                                      Try again
-                                    </Button>
                                   </AlertDescription>
                                 </Alert>
                               </div>
-                            ) : (
-                              detail?.id === task.id && (
-                                <>
-                                  <TaskDetail
-                                    key={`${detail.id}:${reloadCount}`}
-                                    task={detail}
-                                    data={data}
-                                    busy={busy}
-                                    // List refreshes can observe our write before mutate returns
-                                    // its detail. Compare only after that write has settled;
-                                    // an older list snapshot never makes the editor stale.
-                                    stale={!busy && task.revision > detail.revision}
-                                    onBusy={setBusy}
-                                    onDirtyChange={setHasUnsavedChanges}
-                                    assigneeName={assignee(task.assigneeParticipantId)}
-                                    errorMessage={errorMessage}
-                                    onReload={() => {
-                                      void reload();
+                            )}
+                            {detail?.id === task.id && (
+                              <>
+                                <TaskDetail
+                                  key={`${detail.id}:${reloadCount}`}
+                                  task={detail}
+                                  data={data}
+                                  busy={busy}
+                                  // List refreshes can observe our write before mutate returns
+                                  // its detail. Compare only after that write has settled;
+                                  // an older list snapshot never makes the editor stale.
+                                  stale={!busy && task.revision > detail.revision}
+                                  onBusy={setBusy}
+                                  onDirtyChange={setHasUnsavedChanges}
+                                  assigneeName={assignee(task.assigneeParticipantId)}
+                                  errorMessage={errorMessage}
+                                  onReload={async () => {
+                                    setBusy(true);
+                                    setDetailError(null);
+                                    try {
+                                      const latest = await reload();
+                                      setDetail(
+                                        latest.tasks.find((current) => current.id === task.id) ??
+                                          null,
+                                      );
                                       setHasUnsavedChanges(false);
                                       setPendingSelection(null);
                                       setReloadCount((value) => value + 1);
-                                    }}
-                                    mutate={async (path, body, method) => {
-                                      const updated = await mutate(path, body, method);
-                                      if ("id" in updated) setDetail(updated);
-                                      setPendingSelection(null);
-                                      return updated;
-                                    }}
-                                  />
-                                  {renderDocuments && (
-                                    <div className="border-t p-4 sm:p-5">
-                                      {renderDocuments(task.id, setUploading)}
-                                    </div>
-                                  )}
-                                </>
-                              )
+                                    } catch (error) {
+                                      setDetailError(errorMessage(error));
+                                    } finally {
+                                      setBusy(false);
+                                    }
+                                  }}
+                                  mutate={async (path, body, method) => {
+                                    const updated = await mutate(path, body, method);
+                                    if ("id" in updated) setDetail(updated);
+                                    setPendingSelection(null);
+                                    return updated;
+                                  }}
+                                />
+                                {renderDocuments && (
+                                  <div className="p-4 pt-0 sm:p-5 sm:pt-0">
+                                    {renderDocuments(task.id, setUploading)}
+                                  </div>
+                                )}
+                              </>
                             )}
                           </div>
                         )}
@@ -588,7 +568,7 @@ function TaskDetail({
         </p>
       )}
       {task.reviews.length > 0 && (
-        <div className="space-y-2 rounded-lg border p-4">
+        <div className="space-y-2 rounded-lg bg-background p-4">
           <h4 className="text-sm font-medium">Bank review</h4>
           {task.reviews.slice(0, 1).map((review) => (
             <div key={review.id} className="text-sm">
@@ -685,7 +665,7 @@ function TaskDetail({
       </form>
       {data.canManage && !["completed", "waived", "cancelled"].includes(task.state) && (
         <form
-          className="space-y-4 border-t pt-5"
+          className="space-y-4 pt-3"
           onSubmit={(event) => {
             event.preventDefault();
             void save(
@@ -741,7 +721,7 @@ function TaskDetail({
         </form>
       )}
       {task.canReview && !["completed", "waived", "cancelled"].includes(task.state) && (
-        <div className="space-y-3 border-t pt-5">
+        <div className="space-y-3 pt-3">
           <h4 className="font-medium">Review task</h4>
           <label className="block text-sm" htmlFor={`review-reason-${task.id}`}>
             Review or waiver reason
@@ -808,7 +788,7 @@ function TaskDetail({
           </p>
         </div>
       )}
-      <details className="border-t pt-4">
+      <details className="pt-2">
         <summary className="cursor-pointer text-sm font-medium">Task history</summary>
         <div className="mt-3 space-y-4 text-sm">
           <p className="text-muted-foreground">

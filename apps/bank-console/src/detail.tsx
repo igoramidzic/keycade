@@ -128,16 +128,13 @@ export function ApplicationDetail() {
                 </p>
               </div>
             </div>
-            <nav aria-label="Application sections" className="flex flex-wrap gap-2 border-b pb-4">
+            <nav aria-label="Application sections" className="flex flex-wrap gap-2">
               {Object.entries(tabs).map(([value, label]) => (
                 <Link
                   key={value}
                   to={`/applications/${data.id}/${value}${bankQuery}`}
                   aria-current={selected === value ? "page" : undefined}
-                  className={buttonVariants({
-                    variant: selected === value ? "secondary" : "ghost",
-                    size: "sm",
-                  })}
+                  className={`${buttonVariants({ variant: "ghost", size: "sm" })} ${selected === value ? "bg-card shadow-sm hover:bg-card" : "text-muted-foreground"}`}
                 >
                   {label}
                 </Link>
@@ -146,7 +143,7 @@ export function ApplicationDetail() {
             {selected === "overview" && (
               <div className="space-y-6">
                 <div className="grid gap-6 lg:grid-cols-2">
-                  <Card>
+                  <Card className="shadow-sm ring-0">
                     <CardHeader>
                       <CardTitle>Application overview</CardTitle>
                     </CardHeader>
@@ -171,7 +168,7 @@ export function ApplicationDetail() {
                       </dl>
                     </CardContent>
                   </Card>
-                  <Card>
+                  <Card className="shadow-sm ring-0">
                     <CardHeader>
                       <CardTitle>Borrower and setup</CardTitle>
                       <CardDescription>
@@ -210,7 +207,7 @@ export function ApplicationDetail() {
                     </CardContent>
                   </Card>
                 </div>
-                <Card>
+                <Card className="shadow-sm ring-0">
                   <CardHeader>
                     <CardTitle>Task progress</CardTitle>
                     <CardDescription>Current requirements for this application.</CardDescription>
@@ -260,7 +257,7 @@ export function ApplicationDetail() {
               <ApplicationDocuments key={data.id} applicationId={data.id} />
             )}
             {selected === "checks" && (
-              <Card>
+              <Card className="shadow-sm ring-0">
                 <CardHeader>
                   <CardTitle>{tabs[selected]} are not available yet</CardTitle>
                 </CardHeader>
@@ -339,7 +336,7 @@ function Assignment({
   const [error, setError] = useState<unknown>(null);
   const [saved, setSaved] = useState(false);
   return (
-    <Card>
+    <Card className="shadow-sm ring-0">
       <CardHeader>
         <CardTitle>Staff assignment</CardTitle>
         <CardDescription>
@@ -486,7 +483,7 @@ function Notes({
   }
   return (
     <div className="space-y-6">
-      <Card>
+      <Card className="shadow-sm ring-0">
         <CardHeader>
           <CardTitle>Internal notes</CardTitle>
           <CardDescription>
@@ -533,7 +530,7 @@ function Notes({
       </Card>
       {workspace.notes.length ? (
         workspace.notes.map((note) => (
-          <Card key={note.id}>
+          <Card key={note.id} className="shadow-sm ring-0">
             <CardHeader>
               <CardTitle>{note.author.displayName}</CardTitle>
               <CardDescription>

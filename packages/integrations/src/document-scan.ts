@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
-import { auditEvents, type Database, documentVersions } from "@keycade/db";
-import { createDocumentsService } from "@keycade/domain";
+import { applications, auditEvents, type Database, documentVersions } from "@keycade/db";
+import { createDocumentsService, enqueueDocumentProcessing } from "@keycade/domain";
 import { and, eq, isNull, lte, or, sql } from "drizzle-orm";
 import { type PrivateDocumentStorage, webByteSource } from "./document-content.js";
 import { documentFixtureScenario } from "./document-fixtures.js";
@@ -81,6 +81,11 @@ export async function processDocumentScans(
       signal: options.signal,
     });
     await db.transaction(async (tx) => {
+      await tx
+        .select()
+        .from(applications)
+        .where(eq(applications.id, claim.applicationId))
+        .for("update");
       const changed = await tx
         .update(documentVersions)
         .set({
@@ -100,6 +105,11 @@ export async function processDocumentScans(
         )
         .returning({ id: documentVersions.id });
       if (!changed.length) return;
+      if (result.state === "clean")
+        await enqueueDocumentProcessing(tx, claim.id, {
+          now: clock.now(),
+          requestId: randomUUID(),
+        });
       await tx.insert(auditEvents).values({
         bankId: claim.bankId,
         applicationId: claim.applicationId,

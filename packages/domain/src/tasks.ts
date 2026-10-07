@@ -437,13 +437,7 @@ export function createTasksService(db: Database, options: { clock?: () => Date }
     if (mutation && closed.has(app.status)) invalid("This application is closed.");
     return { app, access, userId: actor.userId };
   }
-  async function summary(
-    tx: Tx,
-    actor: Actor,
-    access: ApplicationAccess,
-    task: Task,
-    status: string,
-  ) {
+  function summary(access: ApplicationAccess, task: Task, status: string, documentsReady: boolean) {
     const mutable = !closed.has(status) && task.state !== "cancelled";
     const own = hasCurrentAssignment(access, task);
     return {
@@ -469,7 +463,7 @@ export function createTasksService(db: Database, options: { clock?: () => Date }
         own &&
         evidenceEditable(status, task.stage) &&
         task.evidenceRevision > 0 &&
-        (await taskDocumentsReady(tx, task.id)) &&
+        documentsReady &&
         taskTransitionAllowed(task.state, "submit"),
       canReview: mutable && access.kind === "staff",
     };
@@ -494,32 +488,79 @@ export function createTasksService(db: Database, options: { clock?: () => Date }
         ),
       );
     if (!task || !taskIsVisible(actor, access, task)) return deny();
+    const [detail] = await details(tx, access, [task], status);
+    if (!detail) return deny();
+    return detail;
+  }
+  // Only hydrate authorized tasks, with one query per related table rather than per dropdown.
+  async function details(tx: Tx, access: ApplicationAccess, visible: Task[], status: string) {
+    if (!visible.length) return [];
+    const taskIds = visible.map((task) => task.id);
     const answers = await tx
       .select()
       .from(taskAnswers)
-      .where(eq(taskAnswers.taskId, task.id))
+      .where(inArray(taskAnswers.taskId, taskIds))
       .orderBy(desc(taskAnswers.evidenceRevision));
     const reviews = await tx
       .select()
       .from(taskReviews)
-      .where(eq(taskReviews.taskId, task.id))
+      .where(inArray(taskReviews.taskId, taskIds))
       .orderBy(desc(taskReviews.createdAt), desc(taskReviews.taskRevision));
     const assignments = await tx
       .select()
       .from(taskAssignments)
-      .where(eq(taskAssignments.taskId, task.id))
-      .orderBy(desc(taskAssignments.createdAt));
-    return taskViewSchema.parse({
-      ...(await summary(tx, actor, access, task, status)),
-      answer: answers[0]?.answer ?? null,
-      answers: answers.map((x) => ({ ...x, createdAt: x.createdAt.toISOString() })),
-      reviews: reviews.map((x) => ({ ...x, createdAt: x.createdAt.toISOString() })),
-      assignments: assignments.map((x) => ({
-        participantId: x.participantId,
-        createdAt: x.createdAt.toISOString(),
-      })),
+      .where(inArray(taskAssignments.taskId, taskIds))
+      .orderBy(desc(taskAssignments.createdAt), desc(taskAssignments.id));
+    const versions = await tx
+      .select({
+        taskId: documents.taskId,
+        uploadState: documentVersions.uploadState,
+        scanState: documentVersions.scanState,
+      })
+      .from(documents)
+      .innerJoin(
+        documentVersions,
+        and(
+          eq(documentVersions.documentId, documents.id),
+          eq(documentVersions.version, documents.currentVersion),
+        ),
+      )
+      .where(inArray(documents.taskId, taskIds));
+    function byTask<T extends { taskId: string }>(rows: T[]) {
+      const groups = new Map<string, T[]>();
+      for (const row of rows) {
+        const group = groups.get(row.taskId) ?? [];
+        group.push(row);
+        groups.set(row.taskId, group);
+      }
+      return groups;
+    }
+    const answersByTask = byTask(answers);
+    const reviewsByTask = byTask(reviews);
+    const assignmentsByTask = byTask(assignments);
+    const blockedTasks = new Set(
+      versions
+        .filter((version) => version.uploadState !== "uploaded" || version.scanState !== "clean")
+        .map((version) => version.taskId),
+    );
+    return visible.map((task) => {
+      const history = answersByTask.get(task.id) ?? [];
+      return taskViewSchema.parse({
+        ...summary(access, task, status, !blockedTasks.has(task.id)),
+        answer: history[0]?.answer ?? null,
+        answers: history.map((x) => ({ ...x, createdAt: x.createdAt.toISOString() })),
+        reviews: (reviewsByTask.get(task.id) ?? []).map((x) => ({
+          ...x,
+          createdAt: x.createdAt.toISOString(),
+        })),
+        assignments: (assignmentsByTask.get(task.id) ?? []).map((x) => ({
+          participantId: x.participantId,
+          createdAt: x.createdAt.toISOString(),
+        })),
+      });
     });
   }
+
   async function view(
     tx: Tx,
     actor: Actor,
@@ -558,7 +599,7 @@ export function createTasksService(db: Database, options: { clock?: () => Date }
       applicationId,
       simulation: true,
       canManage: access.kind === "staff" && !closed.has(status),
-      tasks: await Promise.all(visible.map((task) => summary(tx, actor, access, task, status))),
+      tasks: await details(tx, access, visible, status),
       progress: calculateTaskProgress(visible),
       assignees,
     });

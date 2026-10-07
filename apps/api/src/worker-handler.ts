@@ -9,12 +9,15 @@ import {
   applicationSetupSchema,
   assignStaffSchema,
   assignTaskSchema,
+  authorizeTaxSchema,
   authSessionSchema,
   bankParamsSchema,
   beginDocumentBatchSchema,
   claimApplicationSchema,
+  confirmEnrichmentFactSchema,
   consumeAccessLinkResponseSchema,
   consumeAccessLinkSchema,
+  correctDocumentCategorySchema,
   createDraftSchema,
   createInvitationSchema,
   createManualTaskSchema,
@@ -22,6 +25,8 @@ import {
   demoSignInSchema,
   documentsViewSchema,
   documentUploadResultSchema,
+  enrichmentSubjectSchema,
+  enrichmentViewSchema,
   errorSchema,
   finishApplicationSetupSchema,
   invitationViewSchema,
@@ -39,8 +44,11 @@ import {
   readinessSchema,
   requestAccessLinkResponseSchema,
   requestAccessLinkSchema,
+  requestEnrichmentSchema,
+  retryEnrichmentSchema,
   reviewTaskSchema,
   saveApplicationSetupSchema,
+  saveIdentifierSchema,
   saveTaskAnswerSchema,
   setRelationshipActiveSchema,
   staffApplicationPageSchema,
@@ -62,6 +70,8 @@ import {
   addStaffNote,
   assignApplicationStaff,
   createApplicationService,
+  createEnrichmentService,
+  createIdentifierCipher,
   createIdentityService,
   createParticipantsService,
   createTasksService,
@@ -99,6 +109,7 @@ import { isServiceUnavailable, serviceUnavailableMessage } from "./service-error
 
 export interface WorkerDependencies extends IdentityTransportOptions, DocumentTransportOptions {
   db: Database;
+  encryptionKey?: string;
   allowedOrigins: readonly string[];
   rateLimiter: { limit(input: { key: string }): Promise<{ success: boolean }> };
   readiness(): Promise<Readiness>;
@@ -200,6 +211,72 @@ export async function handleWorkerRequest(
               parameters,
               requestBody: requestBody(beginDocumentBatchSchema),
               responses: applicationResponses(documentUploadResultSchema),
+            },
+          },
+          "/api/v1/banks/{bankId}/applications/{applicationId}/documents/{documentId}/category": {
+            post: {
+              parameters: [
+                ...parameters,
+                {
+                  name: "documentId",
+                  in: "path",
+                  required: true,
+                  schema: { type: "string", format: "uuid" },
+                },
+              ],
+              requestBody: requestBody(correctDocumentCategorySchema),
+              responses: applicationResponses(z.object({ ok: z.literal(true) })),
+            },
+          },
+          "/api/v1/banks/{bankId}/applications/{applicationId}/documents/versions/{versionId}/retry-processing":
+            {
+              post: {
+                parameters: [
+                  ...parameters,
+                  {
+                    name: "versionId",
+                    in: "path",
+                    required: true,
+                    schema: { type: "string", format: "uuid" },
+                  },
+                ],
+                requestBody: requestBody(z.strictObject({})),
+                responses: applicationResponses(z.object({ ok: z.literal(true) })),
+              },
+            },
+          "/api/v1/banks/{bankId}/applications/{applicationId}/enrichment": {
+            get: { parameters, responses: applicationResponses(enrichmentViewSchema) },
+          },
+          ...Object.fromEntries(
+            [
+              ["identifier", saveIdentifierSchema],
+              ["tax-authorization", authorizeTaxSchema],
+              ["requests", requestEnrichmentSchema],
+              ["confirm-fact", confirmEnrichmentFactSchema],
+            ].map(([action, schema]) => [
+              `/api/v1/banks/{bankId}/applications/{applicationId}/enrichment/${action}`,
+              {
+                post: {
+                  parameters,
+                  requestBody: requestBody(schema as z.ZodType),
+                  responses: applicationResponses(enrichmentViewSchema),
+                },
+              },
+            ]),
+          ),
+          "/api/v1/banks/{bankId}/applications/{applicationId}/enrichment/runs/{runId}/retry": {
+            post: {
+              parameters: [
+                ...parameters,
+                {
+                  name: "runId",
+                  in: "path",
+                  required: true,
+                  schema: { type: "string", format: "uuid" },
+                },
+              ],
+              requestBody: requestBody(retryEnrichmentSchema),
+              responses: applicationResponses(enrichmentViewSchema),
             },
           },
           "/api/health": {
@@ -627,8 +704,105 @@ export async function handleWorkerRequest(
     ) {
       return failure(403, "FORBIDDEN", "Invalid request verification.");
     }
+    const enrichmentMatch =
+      /^\/api\/v1\/banks\/([^/]+)\/applications\/([^/]+)\/enrichment(?:\/(identifier|tax-authorization|requests|confirm-fact)|\/runs\/([^/]+)\/(retry))?$/.exec(
+        path,
+      );
+    if (enrichmentMatch) {
+      const { bankId, applicationId } = applicationParamsSchema.parse({
+        bankId: enrichmentMatch[1],
+        applicationId: enrichmentMatch[2],
+      });
+      assertSessionBank(authentication, bankId);
+      if (!deps.encryptionKey)
+        throw new DomainError(
+          "ENRICHMENT_UNAVAILABLE",
+          503,
+          "Private enrichment is unavailable in this environment.",
+        );
+      const service = createEnrichmentService(deps.db, {
+        cipher: createIdentifierCipher(deps.encryptionKey),
+      });
+      const actor = authentication.actor;
+      if (!enrichmentMatch[3] && !enrichmentMatch[4] && get)
+        return json(
+          enrichmentViewSchema.parse(
+            await service.read(
+              actor,
+              bankId,
+              applicationId,
+              enrichmentSubjectSchema.parse(Object.fromEntries(url.searchParams)),
+            ),
+          ),
+        );
+      if (request.method === "POST") {
+        const input = await readJsonBody(request);
+        if (enrichmentMatch[4])
+          return json(
+            enrichmentViewSchema.parse(
+              await service.retry(
+                actor,
+                bankId,
+                applicationId,
+                z.string().uuid().parse(enrichmentMatch[4]),
+                retryEnrichmentSchema.parse(input),
+                requestId,
+              ),
+            ),
+          );
+        if (enrichmentMatch[3] === "identifier")
+          return json(
+            enrichmentViewSchema.parse(
+              await service.saveIdentifier(
+                actor,
+                bankId,
+                applicationId,
+                saveIdentifierSchema.parse(input),
+                requestId,
+              ),
+            ),
+          );
+        if (enrichmentMatch[3] === "tax-authorization")
+          return json(
+            enrichmentViewSchema.parse(
+              await service.authorizeTax(
+                actor,
+                bankId,
+                applicationId,
+                authorizeTaxSchema.parse(input),
+                requestId,
+              ),
+            ),
+          );
+        if (enrichmentMatch[3] === "requests")
+          return json(
+            enrichmentViewSchema.parse(
+              await service.requestRun(
+                actor,
+                bankId,
+                applicationId,
+                requestEnrichmentSchema.parse(input),
+                requestId,
+              ),
+            ),
+          );
+        if (enrichmentMatch[3] === "confirm-fact")
+          return json(
+            enrichmentViewSchema.parse(
+              await service.confirmFact(
+                actor,
+                bankId,
+                applicationId,
+                confirmEnrichmentFactSchema.parse(input),
+                requestId,
+              ),
+            ),
+          );
+      }
+      return failure(404, "NOT_FOUND", "Resource not found.");
+    }
     const documentsMatch =
-      /^\/api\/v1\/banks\/([^/]+)\/applications\/([^/]+)\/documents(?:\/(uploads)(?:\/([^/]+)(\/content)?)?|\/(versions)\/([^/]+)\/(content|retry-scan))?$/.exec(
+      /^\/api\/v1\/banks\/([^/]+)\/applications\/([^/]+)\/documents(?:\/(uploads)(?:\/([^/]+)(\/content)?)?|\/(versions)\/([^/]+)\/(content|retry-scan|retry-processing)|\/([^/]+)\/(category))?$/.exec(
         path,
       );
     if (documentsMatch) {
@@ -639,7 +813,7 @@ export async function handleWorkerRequest(
       assertSessionBank(authentication, bankId);
       const documentTransport = createDocumentTransport(deps.db, deps);
       const actor = authentication.actor;
-      if (!documentsMatch[3] && !documentsMatch[6] && get)
+      if (!documentsMatch[3] && !documentsMatch[6] && !documentsMatch[9] && get)
         return json(
           documentsViewSchema.parse(await documentTransport.list(actor, bankId, applicationId)),
         );
@@ -674,6 +848,19 @@ export async function handleWorkerRequest(
             await documentTransport.cancel(actor, bankId, applicationId, uploadId, requestId),
           );
       }
+      if (documentsMatch[9] && request.method === "POST") {
+        const documentId = z.string().uuid().parse(documentsMatch[9]);
+        return json(
+          await documentTransport.correctCategory(
+            actor,
+            bankId,
+            applicationId,
+            documentId,
+            await readJsonBody(request),
+            requestId,
+          ),
+        );
+      }
       if (documentsMatch[7]) {
         const versionId = z.string().uuid().parse(documentsMatch[7]);
         if (documentsMatch[8] === "content" && get) {
@@ -682,6 +869,18 @@ export async function handleWorkerRequest(
           return new Response(request.method === "HEAD" ? null : content.body, {
             headers: { ...headers, ...content.headers },
           });
+        }
+        if (documentsMatch[8] === "retry-processing" && request.method === "POST") {
+          z.strictObject({}).parse(await readJsonBody(request));
+          return json(
+            await documentTransport.retryProcessing(
+              actor,
+              bankId,
+              applicationId,
+              versionId,
+              requestId,
+            ),
+          );
         }
         if (documentsMatch[8] === "retry-scan" && request.method === "POST") {
           z.strictObject({}).parse(await readJsonBody(request));

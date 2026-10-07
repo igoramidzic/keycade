@@ -8,7 +8,8 @@ export type DomainErrorCode =
   | "IDEMPOTENCY_CONFLICT"
   | "SETUP_REQUIRED"
   | "AUTH_DELIVERY_UNAVAILABLE"
-  | "DOCUMENT_STORAGE_UNAVAILABLE";
+  | "DOCUMENT_STORAGE_UNAVAILABLE"
+  | "ENRICHMENT_UNAVAILABLE";
 
 export class DomainError extends Error {
   constructor(

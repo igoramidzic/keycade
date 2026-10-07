@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  documentCategorySchema,
+  documentProcessingStateSchema,
+  documentProcessingViewSchema,
+} from "./document-processing.js";
 
 export const documentMimeTypes = ["application/pdf", "image/jpeg", "image/png"] as const;
 export const documentActionResultSchema = z.object({ ok: z.literal(true) });
@@ -51,6 +56,7 @@ export const documentVersionSchema = z.object({
   createdAt: z.string().datetime(),
   canDownload: z.boolean(),
   canRetryScan: z.boolean(),
+  processing: documentProcessingViewSchema.nullable().default(null),
 });
 export const documentViewSchema = z.object({
   id: z.string().uuid(),
@@ -60,6 +66,9 @@ export const documentViewSchema = z.object({
   currentVersionId: z.string().uuid().nullable(),
   versions: z.array(documentVersionSchema),
   canReplace: z.boolean(),
+  category: documentCategorySchema.default("other"),
+  processingState: documentProcessingStateSchema.nullable().default(null),
+  canCorrectCategory: z.boolean().default(false),
 });
 export const documentsViewSchema = z.object({
   applicationId: z.string().uuid(),

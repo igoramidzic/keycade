@@ -1,5 +1,6 @@
 import {
   beginDocumentUploadSchema,
+  correctDocumentCategorySchema,
   documentMimeTypes,
   documentsViewSchema,
 } from "@keycade/contracts";
@@ -9,6 +10,8 @@ import {
   auditEvents,
   type Database,
   type DatabaseTransaction,
+  documentCategoryOverrides,
+  documentProcessingRuns,
   documents,
   documentVersions,
   taskDocumentEvidence,
@@ -23,6 +26,7 @@ import {
   type ResourceScopePolicy,
   requireApplicantPortalAccess,
 } from "./authorization.js";
+import { enqueueDocumentProcessing, readDocumentProcessing } from "./document-processing.js";
 import { DomainError, deny } from "./errors.js";
 import { hashIdentityCredential } from "./identity.js";
 import { taskIsVisible } from "./tasks.js";
@@ -314,12 +318,9 @@ export function createDocumentsService(
           .where(eq(documentVersions.documentId, document.id))
           .orderBy(desc(documentVersions.version));
         const writable = await canWrite(tx, actor, access, document, app.status);
-        result.push({
-          ...document,
-          currentVersionId:
-            versions.find((version) => version.version === document.currentVersion)?.id ?? null,
-          canReplace: writable,
-          versions: versions.map((version) => ({
+        const versionViews = [];
+        for (const version of versions)
+          versionViews.push({
             ...version,
             createdAt: version.createdAt.toISOString(),
             canDownload: version.uploadState === "uploaded" && version.scanState === "clean",
@@ -328,7 +329,23 @@ export function createDocumentsService(
               version.uploadState === "uploaded" &&
               version.scanState === "error" &&
               version.version === document.currentVersion,
-          })),
+            processing: await readDocumentProcessing(tx, actor, access, document, version, {
+              writable: writable || access.kind === "staff",
+              closed: closed.has(app.status),
+            }),
+          });
+        const currentProcessing = versionViews.find(
+          (version) => version.version === document.currentVersion,
+        )?.processing;
+        result.push({
+          ...document,
+          currentVersionId:
+            versions.find((version) => version.version === document.currentVersion)?.id ?? null,
+          canReplace: writable,
+          category: currentProcessing?.manualCategory ?? currentProcessing?.category ?? "other",
+          processingState: currentProcessing?.state ?? null,
+          canCorrectCategory: currentProcessing?.canCorrectCategory ?? false,
+          versions: versionViews,
         });
       }
       return documentsViewSchema.parse({
@@ -752,6 +769,127 @@ export function createDocumentsService(
       .from(documentVersions)
       .where(eq(documentVersions.uploadState, "abandoned"));
   }
+  async function retryProcessing(
+    actor: Actor,
+    bankId: string,
+    applicationId: string,
+    versionId: string,
+    requestId: string,
+  ) {
+    await db.transaction(async (tx) => {
+      const { app, access, userId } = await context(tx, actor, bankId, applicationId, true);
+      const { version, document } = await loadVersion(
+        tx,
+        actor,
+        access,
+        bankId,
+        applicationId,
+        versionId,
+      );
+      if (access.kind !== "staff" && !(await canWrite(tx, actor, access, document, app.status)))
+        return deny();
+      if (
+        version.uploadState !== "uploaded" ||
+        version.scanState !== "clean" ||
+        document.currentVersion !== version.version
+      )
+        invalid("Only the current clean document can be processed.");
+      const [latest] = await tx
+        .select()
+        .from(documentProcessingRuns)
+        .where(eq(documentProcessingRuns.versionId, versionId))
+        .orderBy(desc(documentProcessingRuns.generation))
+        .limit(1);
+      if (
+        latest &&
+        ["classified", "needs_review"].includes(latest.state) &&
+        access.kind !== "staff"
+      )
+        return deny();
+      await enqueueDocumentProcessing(tx, versionId, {
+        now: clock(),
+        requestId,
+        requestedByUserId: userId,
+        reprocess: true,
+      });
+    });
+    return list(actor, bankId, applicationId);
+  }
+  async function correctCategory(
+    actor: Actor,
+    bankId: string,
+    applicationId: string,
+    documentId: string,
+    input: unknown,
+    requestId: string,
+  ) {
+    const parsed = correctDocumentCategorySchema.safeParse(input);
+    if (!parsed.success)
+      throw new DomainError(
+        "INVALID_INPUT",
+        400,
+        "Choose a document category and explain the correction.",
+      );
+    const data = parsed.data;
+    await db.transaction(async (tx) => {
+      const { access, userId } = await context(tx, actor, bankId, applicationId, true);
+      if (access.kind !== "staff") return deny();
+      const { version, document } = await loadVersion(
+        tx,
+        actor,
+        access,
+        bankId,
+        applicationId,
+        data.versionId,
+      );
+      if (document.id !== documentId) return deny();
+      if (document.currentVersion !== version.version)
+        throw new DomainError(
+          "REVISION_CONFLICT",
+          409,
+          "A newer version has arrived. Review that version before correcting its category.",
+        );
+      if (version.uploadState !== "uploaded" || version.scanState !== "clean")
+        invalid("Only a clean document can be categorized.");
+      const [previous] = await tx
+        .select()
+        .from(documentCategoryOverrides)
+        .where(eq(documentCategoryOverrides.versionId, version.id))
+        .orderBy(desc(documentCategoryOverrides.revision))
+        .limit(1);
+      if (previous?.category === data.category && previous.reason === data.reason) return;
+      const now = clock();
+      await enqueueDocumentProcessing(tx, version.id, { now, requestId });
+      await tx.insert(documentCategoryOverrides).values({
+        bankId,
+        applicationId,
+        versionId: version.id,
+        revision: (previous?.revision ?? 0) + 1,
+        category: data.category,
+        reason: data.reason,
+        actorUserId: userId,
+        createdAt: now,
+      });
+      await tx.insert(auditEvents).values({
+        bankId,
+        applicationId,
+        actorType: "user",
+        actorUserId: userId,
+        action: "document.category_corrected",
+        targetType: "document_version",
+        targetId: version.id,
+        requestId,
+        changedFields: ["manualCategory"],
+        metadata: {
+          category: data.category,
+          revision: (previous?.revision ?? 0) + 1,
+          simulated: true,
+        },
+        createdAt: now,
+      });
+    });
+    return list(actor, bankId, applicationId);
+  }
   return {
     limits,
     list,
@@ -764,5 +902,7 @@ export function createDocumentsService(
     retryScan,
     markMissing,
     cleanupAbandoned,
+    retryProcessing,
+    correctCategory,
   };
 }

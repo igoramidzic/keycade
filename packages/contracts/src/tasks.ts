@@ -66,16 +66,6 @@ export const taskProgressSchema = z.object({
   ...counts,
   byStage: z.array(z.object({ stage: taskStageSchema, ...counts })),
 });
-export const tasksViewSchema = z.object({
-  applicationId: z.string().uuid(),
-  simulation: z.literal(true),
-  canManage: z.boolean(),
-  tasks: z.array(taskSummarySchema),
-  progress: taskProgressSchema,
-  assignees: z.array(
-    z.object({ id: z.string().uuid(), userId: z.string().uuid(), displayName: z.string() }),
-  ),
-});
 export const taskViewSchema = taskSummarySchema.extend({
   answer: z.string().nullable(),
   answers: z.array(
@@ -98,6 +88,16 @@ export const taskViewSchema = taskSummarySchema.extend({
   ),
   assignments: z.array(
     z.object({ participantId: z.string().uuid().nullable(), createdAt: z.string().datetime() }),
+  ),
+});
+export const tasksViewSchema = z.object({
+  applicationId: z.string().uuid(),
+  simulation: z.literal(true),
+  canManage: z.boolean(),
+  tasks: z.array(taskViewSchema),
+  progress: taskProgressSchema,
+  assignees: z.array(
+    z.object({ id: z.string().uuid(), userId: z.string().uuid(), displayName: z.string() }),
   ),
 });
 export type TaskSummary = z.infer<typeof taskSummarySchema>;

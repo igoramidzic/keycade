@@ -1,5 +1,9 @@
 import { createDatabase } from "@keycade/db";
 import { assertWorkerSchemaReady } from "@keycade/db/cloudflare";
+import { createDocumentsService } from "@keycade/domain";
+import { processDocumentInterpretations } from "@keycade/integrations/document-processing";
+import { processDocumentScans } from "@keycade/integrations/document-scan";
+import { createR2DocumentStorage } from "@keycade/integrations/document-storage-r2";
 import {
   deliverOutbox,
   processOperation,
@@ -78,6 +82,22 @@ export default {
     const { db, pool } = createDatabase(env.HYPERDRIVE.connectionString, { max: 1 });
     try {
       const config = options(env);
+      if (env.DOCUMENTS) {
+        const storage = createR2DocumentStorage(
+          env.DOCUMENTS,
+          (size) => new FixedLengthStream(size),
+        );
+        const abandoned = await createDocumentsService(db).cleanupAbandoned();
+        for (const upload of abandoned) await storage.remove(upload.storageKey);
+        await processDocumentInterpretations(db, config);
+        await storage.cleanupStaging(new Date(Date.now() - 2 * 60 * 60_000));
+        // Bound each scheduled invocation; unclaimed records remain durable for the next tick.
+        for (
+          let count = 0;
+          count < 5 && (await processDocumentScans(db, storage, config));
+          count++
+        ) {}
+      }
       await recoverExpiredRuns(db, undefined, config.deadlineMs + 1000);
       await deliverOutbox(db, (message) => env.JOBS_QUEUE.send(message));
     } catch {

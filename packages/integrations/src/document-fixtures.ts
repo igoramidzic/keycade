@@ -31,6 +31,9 @@ export const documentFixtureScenarios = [
   "blocked",
   "scan-error",
   "scan-transient",
+  "processing-transient",
+  "processing-error",
+  "processing-timeout",
 ] as const;
 export type DocumentFixtureScenario = (typeof documentFixtureScenarios)[number];
 const fixtures = new Map(

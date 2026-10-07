@@ -240,6 +240,9 @@ importers:
       '@keycade/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@keycade/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
       '@keycade/integrations':
         specifier: workspace:*
         version: link:../../packages/integrations
@@ -326,6 +329,9 @@ importers:
         specifier: 4.6.5
         version: 4.6.5
     devDependencies:
+      '@cloudflare/workers-types':
+        specifier: 5.20261007.1
+        version: 5.20261007.1
       '@keycade/config':
         specifier: workspace:*
         version: link:../config

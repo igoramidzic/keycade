@@ -8,7 +8,11 @@
     "./document-storage-local": "./src/document-storage-local.ts",
     "./documents": "./src/document-content.ts",
     "./document-scan": "./src/document-scan.ts",
-    "./document-fixtures": "./src/document-fixtures.ts"
+    "./document-processing": "./src/document-processing.ts",
+    "./document-interpretation": "./src/document-interpretation.ts",
+    "./document-fixtures": "./src/document-fixtures.ts",
+    "./document-storage-r2": "./src/document-storage-r2.ts",
+    "./enrichment-jobs": "./src/enrichment-jobs.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",
@@ -25,6 +29,7 @@
   },
   "devDependencies": {
     "@keycade/config": "workspace:*",
-    "@types/nodemailer": "8.0.2"
+    "@types/nodemailer": "8.0.2",
+    "@cloudflare/workers-types": "5.20261007.1"
   }
 }

@@ -460,11 +460,7 @@ function WizardForm({
               aria-live="polite"
               className="text-xs text-muted-foreground empty:hidden"
             >
-              {busy
-                ? "Saving…"
-                : error || failedField || dirty
-                  ? "Unsaved changes. Your entered answer is still here."
-                  : null}
+              {busy ? "Saving…" : error || failedField || dirty ? null : null}
             </p>
             {step === "review" && (
               <p className="text-sm leading-6 text-muted-foreground">

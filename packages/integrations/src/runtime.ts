@@ -1,10 +1,12 @@
 import { createDatabase, type Database, workerHeartbeats } from "@keycade/db";
-import { createDocumentsService } from "@keycade/domain";
+import { createDocumentsService, type IdentifierCipher } from "@keycade/domain";
 import { eq } from "drizzle-orm";
 import type { PgBoss } from "pg-boss";
 import { dispatchAccessDeliveries, processAccessDelivery } from "./access-delivery.js";
 import { type PrivateDocumentStorage } from "./document-content.js";
+import { processDocumentInterpretations } from "./document-processing.js";
 import { processDocumentScans } from "./document-scan.js";
+import { processEnrichmentJobs } from "./enrichment-jobs.js";
 import type { AccessEmailAdapter } from "./mailpit.js";
 import {
   configured,
@@ -54,6 +56,7 @@ export async function startWorker(
   options: RuntimeOptions & {
     emailAdapter?: AccessEmailAdapter;
     documentStorage?: PrivateDocumentStorage;
+    identifierCipher?: IdentifierCipher;
   } = {},
 ) {
   await assertQueueReady(connectionString);
@@ -109,6 +112,13 @@ export async function startWorker(
     while (!abort.signal.aborted) {
       await recoverExpiredRuns(db, config.clock, config.leaseMs);
       await dispatchOutbox(db, boss, config.clock);
+      if (options.identifierCipher)
+        await processEnrichmentJobs(db, options.identifierCipher, {
+          clock: config.clock,
+          delayMs: config.delayMs,
+          deadlineMs: config.deadlineMs,
+          signal: abort.signal,
+        });
       if (options.documentStorage) {
         if (config.clock.now().getTime() >= nextDocumentCleanupAt) {
           const abandoned = await createDocumentsService(db, {
@@ -121,6 +131,12 @@ export async function startWorker(
           nextDocumentCleanupAt = config.clock.now().getTime() + 60_000;
         }
         try {
+          await processDocumentInterpretations(db, {
+            clock: config.clock,
+            delayMs: config.delayMs,
+            deadlineMs: config.deadlineMs,
+            signal: abort.signal,
+          });
           await processDocumentScans(db, options.documentStorage, {
             clock: config.clock,
             delayMs: config.delayMs,
