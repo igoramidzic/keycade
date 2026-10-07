@@ -15,6 +15,7 @@ Baseline recorded October 6, 2026. Update this document when a future instructio
 | Cloudflare deployment target; no Keycade Workers provisioned yet | Explicit user clarification on October 6, 2026. The user has a Cloudflare account and wants default `workers.dev` URLs initially, with no custom domain. Keep domain/outbox semantics reusable and verify Cloudflare runtime adapters before deployment. |
 | Neon for PostgreSQL only; R2 for documents | User selected this after creating the existing Neon project. The project is linked and read-only connectivity is verified. |
 | GitHub Actions applies hosted Drizzle migrations | Explicit user request. Keep hosted credentials and execution separate from local Podman initialization. See D01. |
+| Cloudflare's native Git integration builds and deploys app Workers on `main` | User's preferred push-to-deploy workflow. Connect the same repository to each app Worker; GitHub Actions remains responsible for Neon migrations. |
 | Passwordless, verified email before data access | User wants no password; verification-first is the initial implementation choice. |
 | Simulate all third-party services | Explicit user permission; preserve delays, failures, retries, and provenance. |
 | USD and US business terminology | Working assumption from EIN, SSN, NAICS, and dollar examples. No legal or regulatory rules are inferred. |
@@ -117,3 +118,13 @@ GitHub Actions remains the owner of hosted schema writes. Local setup performed 
 The user requested commenting out the separate tests to speed up deployment because this is a demo. The Neon workflow's PostgreSQL 18 validation job (checks, build and integration tests) and PR trigger are now commented out, and the migration job no longer depends on validation. The test source and local commands remain available. Workflow comments explain how to restore the job, PR trigger and dependency. This explicit CI exception supersedes the earlier requirement that hosted migration wait for full validation; it does not remove tests from implementation work.
 
 Eligible `main` pushes and manual runs install the locked dependencies and go straight to migrations, with pnpm caching enabled. SQL execution still runs transactionally, and target/TLS checks, migration-history checks, serialization and GitHub's main-only environment remain in place. Valid SQL that breaks application behavior may reach the demo database without the paused regression checks.
+
+## Cloudflare native Git deployment (October 6, 2026)
+
+The user clarified their preferred workflow: connect the repository directly to Cloudflare and build/deploy when pushing to `main`. Use Workers Builds with Cloudflare's GitHub integration for application deployments. GitHub Actions continues to own Neon migrations. This does not require a Cloudflare deployment token stored in GitHub; Workers Builds supplies its own build authentication.
+
+Connect `igoramidzic/keycade` to each of the three frontend Workers, the shared API Worker and the background-jobs Worker, with app-specific build/deploy commands and watch paths that include their shared package dependencies. The Worker entry points/configuration, Hyperdrive and queue bindings, hosted URLs and runtime adapters still need implementation before the first successful deployment. Grant the Cloudflare GitHub app access to this repository during setup if it does not already have access. Default `workers.dev` URLs remain selected; R2 waits for document uploads.
+
+Cloudflare builds and GitHub migration jobs are independent triggers. The deployment slice must account for schema-dependent releases explicitly; do not assume GitHub migrations finish before a Worker deployment.
+
+References: [Cloudflare GitHub integration](https://developers.cloudflare.com/workers/ci-cd/builds/git-integration/github-integration/), [monorepo setup](https://developers.cloudflare.com/workers/ci-cd/builds/advanced-setups/), and [build configuration and authentication](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/).

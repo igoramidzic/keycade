@@ -6,6 +6,8 @@ Cloudflare is the intended hosted platform (user clarification, October 6, 2026)
 
 ## Chosen starting architecture
 
+Hosted application deployments will use Cloudflare Workers Builds connected directly to `igoramidzic/keycade`, deploying from `main` with per-Worker build/deploy settings. GitHub Actions remains responsible for Neon migrations. The deployment implementation must coordinate schema-dependent releases because these systems trigger independently; see [the recorded choice](06-decisions-and-sources.md#cloudflare-native-git-deployment-october-6-2026).
+
 Use a TypeScript modular backend with three React/Vite frontends, one Fastify HTTP API, one independently runnable Node worker, and one PostgreSQL database. The API and worker share domain modules and database ownership. Split into more backend services only when a concrete requirement justifies it.
 
 | Layer | Choice | Purpose |

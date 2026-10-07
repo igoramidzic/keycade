@@ -6,6 +6,7 @@ T01–T05 are implemented and verified in [the local-foundation record](local-fo
 | --- | --- | --- |
 | Brand-new Keycade project; plan first | Root README, AGENTS.md, this plan | Planning baseline preserved; first local milestone subsequently authorized. |
 | Cloudflare deployment on default URLs; no existing Keycade Workers | Architecture, decisions, T01/T04/T05/T13 boundaries; future deployment slice | Account access and `workers.dev` subdomain verified; runtime and bindings remain to be implemented. |
+| Connect the repository directly to Cloudflare and deploy on pushes to `main` | Architecture, decisions; future deployment slice | Use native Workers Builds per app, with shared-package watch paths; repo connection and runtime deployment remain pending. GitHub retains Neon migrations. |
 | Neon PostgreSQL only; Cloudflare R2 for documents | D01, T13, decisions | Existing Neon project linked; verified TLS connection; local Podman settings preserved. |
 | GitHub jobs own changes pushed to Neon; pause separate validation for faster demo deployment | D01 | Main-only Actions migration job with approved encrypted environment credential; hosted apply (2 migrations) and repeat no-op passed. Test/build validation and PR trigger commented out; migration-only job completed in 18 seconds. |
 | Local PostgreSQL 18, with initial 17 data explicitly disposable | D01, T02 | Version-appropriate named-volume mount, ownership checks and user-authorized one-time reset; ordinary initialization remains non-destructive. |
