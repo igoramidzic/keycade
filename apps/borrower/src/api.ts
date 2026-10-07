@@ -22,7 +22,7 @@ export async function request<T>(
 ): Promise<T> {
   const method = options.method ?? "GET";
   let csrf: string | undefined;
-  if (method !== "GET") {
+  if (method !== "GET" || options.bankId || options.actorEmail) {
     const session = await request("/api/v1/auth/session", authSessionSchema);
     if (!session.authenticated)
       throw new ApiError(
@@ -37,9 +37,9 @@ export async function request<T>(
       throw new ApiError(
         "SESSION_CHANGED",
         401,
-        "Your sign-in changed. Return to your original account to save this answer.",
+        "Your sign-in changed. Return to your original account to continue.",
       );
-    csrf = session.csrfToken;
+    if (method !== "GET") csrf = session.csrfToken;
   }
   const response = await fetch(path, {
     method,

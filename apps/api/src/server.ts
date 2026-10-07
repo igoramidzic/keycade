@@ -5,6 +5,7 @@ import swagger from "@fastify/swagger";
 import {
   applicationPageSchema,
   applicationParamsSchema,
+  applicationPortalSchema,
   applicationSelectionSchema,
   applicationSetupSchema,
   authSessionSchema,
@@ -562,6 +563,23 @@ export async function buildServer(options: ServerOptions) {
     async (request) => {
       assertSessionBank(request.authentication, request.params.bankId);
       return applications.destination(
+        request.authentication.actor,
+        request.params.bankId,
+        request.params.applicationId,
+      );
+    },
+  );
+  app.get(
+    "/api/v1/banks/:bankId/applications/:applicationId/portal",
+    {
+      schema: {
+        params: applicationParamsSchema,
+        response: { 200: applicationPortalSchema, ...responses },
+      },
+    },
+    async (request) => {
+      assertSessionBank(request.authentication, request.params.bankId);
+      return applications.portal(
         request.authentication.actor,
         request.params.bankId,
         request.params.applicationId,

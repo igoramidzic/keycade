@@ -1,6 +1,6 @@
 # Local development and verification
 
-The command inventory is implemented for T01–T08. Passwordless identity is locally testable through [the identity guide](identity-validation.md); application creation and setup APIs are verified in [T07](tasks/T07-application-service.md#validation). The bank → setup → completion handoff is verified on desktop and mobile in [T08](tasks/T08-intake.md#implementation-record); later task-portal journeys remain planned. See the root README for the current startup path.
+The command inventory is implemented for T01–T09. Passwordless identity is locally testable through [the identity guide](identity-validation.md); application creation and setup APIs are verified in [T07](tasks/T07-application-service.md#validation). The bank → setup → completion handoff is verified on desktop and mobile in [T08](tasks/T08-intake.md#implementation-record); T09 adds [business selection and guarded portal navigation](tasks/T09-borrower-workspace.md#implementation-record). See the root README for the current startup path.
 
 ## Developer entry path
 

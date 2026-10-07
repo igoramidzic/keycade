@@ -58,7 +58,11 @@ export const claimApplicationSchema = z.strictObject({});
 export const applicationSelectionSchema = z.object({
   id: z.string().uuid(),
   bankId: z.string().uuid(),
+  businessId: z.string().uuid().nullable(),
   businessName: z.string().nullable(),
+  productName: z.string().nullable(),
+  updatedAt: z.string().datetime(),
+  accessScope: z.enum(["full", "assigned"]),
   productId: z.string().uuid().nullable(),
   requestedAmount: usdAmountSchema.nullable(),
   status: applicationStatusSchema,
@@ -79,6 +83,11 @@ export const applicationSetupSchema = applicationSelectionSchema.extend({
   skippedSteps: z.array(applicationSetupStepSchema),
   completedAt: z.string().datetime().nullable(),
 });
+// Requirement/task data is unavailable until T12; null must not imply zero outstanding work.
+export const applicationPortalSchema = applicationSelectionSchema.extend({
+  purpose: z.string().nullable(),
+  remainingTasks: z.null(),
+});
 export const applicationPageSchema = z.object({
   items: z.array(applicationSelectionSchema),
   nextCursor: z.string().uuid().nullable(),
@@ -92,3 +101,5 @@ export type FinishApplicationSetup = z.infer<typeof finishApplicationSetupSchema
 export type ApplicationSelection = z.infer<typeof applicationSelectionSchema>;
 export type ApplicationSetup = z.infer<typeof applicationSetupSchema>;
 export type ApplicationPage = z.infer<typeof applicationPageSchema>;
+
+export type ApplicationPortal = z.infer<typeof applicationPortalSchema>;

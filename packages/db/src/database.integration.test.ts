@@ -25,7 +25,7 @@ describe("committed migrations and synthetic data on PostgreSQL", () => {
     await seedDatabase(database.connectionString);
     await assertSchemaReady(database.connectionString);
     const result = await database.pool.query("SELECT count(*)::int AS count FROM applications");
-    expect(result.rows[0].count).toBe(5);
+    expect(result.rows[0].count).toBe(7);
     const [application] = await database.db
       .select()
       .from(applications)
@@ -103,7 +103,7 @@ describe("committed migrations and synthetic data on PostgreSQL", () => {
     ).rejects.toThrow();
   });
 
-  it("holds two explicit borrower grants without sharing other business applications", async () => {
+  it("holds explicit borrower grants without sharing other business applications", async () => {
     const grants = await database.pool.query(
       "SELECT application_id FROM application_participants WHERE user_id = $1 AND revoked_at IS NULL ORDER BY application_id",
       [seedIds.borrower],
@@ -111,6 +111,8 @@ describe("committed migrations and synthetic data on PostgreSQL", () => {
     expect(grants.rows.map((row) => row.application_id)).toEqual([
       seedIds.applicationSmall,
       seedIds.applicationLarge,
+      seedIds.applicationSetupDraft,
+      seedIds.applicationClosedDraft,
     ]);
     const unshared = await database.db
       .select()
@@ -133,7 +135,7 @@ describe("committed migrations and synthetic data on PostgreSQL", () => {
 
   it("seeds completed and incomplete setup fixtures without overwriting progress", async () => {
     const setups = await database.db.select().from(applicationSetups);
-    expect(setups).toHaveLength(5);
+    expect(setups).toHaveLength(7);
     expect(setups.find((row) => row.applicationId === seedIds.applicationSmall)).toMatchObject({
       currentStep: "review",
       completedByUserId: seedIds.borrower,
@@ -143,6 +145,19 @@ describe("committed migrations and synthetic data on PostgreSQL", () => {
       currentStep: "business_name",
       completedSteps: [],
       skippedSteps: [],
+      completedAt: null,
+      completedByUserId: null,
+    });
+    expect(setups.find((row) => row.applicationId === seedIds.applicationSetupDraft)).toMatchObject(
+      {
+        currentStep: "amount",
+        completedSteps: ["business_name"],
+        completedAt: null,
+      },
+    );
+    expect(
+      setups.find((row) => row.applicationId === seedIds.applicationClosedDraft),
+    ).toMatchObject({
       completedAt: null,
       completedByUserId: null,
     });

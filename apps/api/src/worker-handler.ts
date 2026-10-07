@@ -1,6 +1,7 @@
 import {
   applicationPageSchema,
   applicationParamsSchema,
+  applicationPortalSchema,
   applicationSelectionSchema,
   applicationSetupSchema,
   authSessionSchema,
@@ -288,6 +289,9 @@ export async function handleWorkerRequest(
           "/api/v1/banks/{bankId}/applications/{applicationId}/destination": {
             get: { parameters, responses: applicationResponses(applicationSelectionSchema) },
           },
+          "/api/v1/banks/{bankId}/applications/{applicationId}/portal": {
+            get: { parameters, responses: applicationResponses(applicationPortalSchema) },
+          },
           "/api/v1/banks/{bankId}/applications/{applicationId}": {
             get: { parameters, responses: { "200": response(publicApplicationSchema) } },
           },
@@ -433,7 +437,7 @@ export async function handleWorkerRequest(
       );
     }
     const setup =
-      /^\/api\/v1\/banks\/([^/]+)\/applications\/([^/]+)\/(setup(?:\/finish)?|claim|destination)$/.exec(
+      /^\/api\/v1\/banks\/([^/]+)\/applications\/([^/]+)\/(setup(?:\/finish)?|claim|destination|portal)$/.exec(
         path,
       );
     if (setup) {
@@ -443,6 +447,10 @@ export async function handleWorkerRequest(
       });
       assertSessionBank(authentication, bankId);
       const actor = authentication.actor;
+      if (setup[3] === "portal" && get)
+        return json(
+          applicationPortalSchema.parse(await applications.portal(actor, bankId, applicationId)),
+        );
       if (setup[3] === "destination" && get)
         return json(
           applicationSelectionSchema.parse(

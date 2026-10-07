@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import {
   applicationPageSchema,
+  applicationPortalSchema,
   applicationSelectionSchema,
   applicationSetupSchema,
   createDraftSchema,
@@ -28,7 +29,12 @@ import {
 } from "@keycade/db";
 import { and, asc, eq, gt, isNull, or, sql } from "drizzle-orm";
 import { claimApplicationInTransaction } from "./application-claims.js";
-import { type Actor, type ApplicationAccess, requireApplicationAccess } from "./authorization.js";
+import {
+  type Actor,
+  type ApplicationAccess,
+  requireApplicantPortalAccess,
+  requireApplicationAccess,
+} from "./authorization.js";
 import { DomainError, deny } from "./errors.js";
 
 const accepted = { message: "If the request is eligible, a continuation link will be sent." };
@@ -64,14 +70,25 @@ type Row = typeof applications.$inferSelect;
 type Setup = typeof applicationSetups.$inferSelect;
 type Access = ApplicationAccess;
 
-function selection(row: Row, setup: Setup, access: Access | null, claimRequired = false) {
+function selection(
+  row: Row,
+  setup: Setup,
+  access: Access | null,
+  claimRequired = false,
+  productName: string | null = null,
+) {
+  const accessScope = access?.kind === "participant" ? access.scope : "full";
   const closed = ["withdrawn", "declined", "funded"].includes(row.status);
   return applicationSelectionSchema.parse({
     id: row.id,
     bankId: row.bankId,
+    businessId: row.businessId,
     businessName: row.businessName,
+    productName,
+    updatedAt: row.updatedAt.toISOString(),
+    accessScope,
     productId: row.productId,
-    requestedAmount: row.requestedAmount,
+    requestedAmount: accessScope === "assigned" ? null : row.requestedAmount,
     status: row.status,
     revision: row.revision,
     synthetic: row.synthetic,
@@ -107,7 +124,7 @@ async function view(tx: Tx, row: Row, setup: Setup, access: Access) {
         .limit(1)
     : [];
   return applicationSetupSchema.parse({
-    ...selection(row, setup, access),
+    ...selection(row, setup, access, false, selectedProduct?.name ?? null),
     selectedProduct: selectedProduct ?? null,
     purpose: row.purpose,
     industryCode: row.industryCode,
@@ -117,6 +134,15 @@ async function view(tx: Tx, row: Row, setup: Setup, access: Access) {
     skippedSteps: setup.skippedSteps,
     completedAt: setup.completedAt?.toISOString() ?? null,
   });
+}
+async function summary(tx: Tx, row: Row, setup: Setup, access: Access) {
+  const [product] = row.productId
+    ? await tx
+        .select({ name: loanProducts.name })
+        .from(loanProducts)
+        .where(and(eq(loanProducts.id, row.productId), eq(loanProducts.bankId, row.bankId)))
+    : [];
+  return selection(row, setup, access, false, product?.name ?? null);
 }
 async function records(tx: Tx, bankId: string, applicationId: string) {
   const [result] = await tx
@@ -499,7 +525,19 @@ export function createApplicationService(db: Database, options: { clock?: () => 
     return db.transaction(async (tx) => {
       const { row, setup } = await records(tx, bankId, applicationId);
       const access = await requireApplicationAccess(tx, actor, bankId, applicationId);
-      return selection(row, setup, access);
+      return summary(tx, row, setup, access);
+    });
+  }
+  async function portal(actor: Actor, bankId: string, applicationId: string) {
+    return db.transaction(async (tx) => {
+      const { row, setup } = await records(tx, bankId, applicationId);
+      const access = await requireApplicantPortalAccess(tx, actor, bankId, applicationId);
+      const selected = await summary(tx, row, setup, access);
+      return applicationPortalSchema.parse({
+        ...selected,
+        purpose: selected.accessScope === "assigned" ? null : row.purpose,
+        remainingTasks: null,
+      });
     });
   }
   async function list(actor: Actor, bankId: string, query: unknown = {}) {
@@ -511,6 +549,7 @@ export function createApplicationService(db: Database, options: { clock?: () => 
           row: applications,
           setup: applicationSetups,
           participant: applicationParticipants,
+          productName: loanProducts.name,
         })
         .from(applications)
         .innerJoin(
@@ -518,6 +557,13 @@ export function createApplicationService(db: Database, options: { clock?: () => 
           and(
             eq(applicationSetups.applicationId, applications.id),
             eq(applicationSetups.bankId, applications.bankId),
+          ),
+        )
+        .leftJoin(
+          loanProducts,
+          and(
+            eq(loanProducts.id, applications.productId),
+            eq(loanProducts.bankId, applications.bankId),
           ),
         )
         .leftJoin(
@@ -564,7 +610,7 @@ export function createApplicationService(db: Database, options: { clock?: () => 
         .limit(parsed.limit + 1);
       const items = rows
         .slice(0, parsed.limit)
-        .map(({ row, setup, participant }) =>
+        .map(({ row, setup, participant, productName }) =>
           selection(
             row,
             setup,
@@ -574,6 +620,7 @@ export function createApplicationService(db: Database, options: { clock?: () => 
                 ? { kind: "participant", role: participant.role, scope: participant.scope }
                 : null,
             !membership && !participant,
+            productName,
           ),
         );
       return applicationPageSchema.parse({
@@ -803,5 +850,15 @@ export function createApplicationService(db: Database, options: { clock?: () => 
       return view(tx, updated, updatedSetup, access);
     });
   }
-  return { publicStart, create, list, readSetup, saveSetup, finishSetup, claim, destination };
+  return {
+    publicStart,
+    create,
+    list,
+    readSetup,
+    saveSetup,
+    finishSetup,
+    claim,
+    destination,
+    portal,
+  };
 }

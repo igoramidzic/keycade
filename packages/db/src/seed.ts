@@ -32,6 +32,8 @@ export const seedIds = {
   applicationUnshared: "60000000-0000-4000-8000-000000000003",
   applicationOtherBank: "60000000-0000-4000-8000-000000000004",
   applicationEmpty: "60000000-0000-4000-8000-000000000005",
+  applicationSetupDraft: "60000000-0000-4000-8000-000000000006",
+  applicationClosedDraft: "60000000-0000-4000-8000-000000000007",
 } as const;
 
 /** Insert missing synthetic fixtures only. Never resets or overwrites user edits. */
@@ -178,6 +180,28 @@ export async function seedDatabase(connectionString: string): Promise<void> {
             synthetic: true,
           },
           {
+            id: seedIds.applicationSetupDraft,
+            bankId: seedIds.bankA,
+            businessId: seedIds.businessA,
+            businessName: "Synthetic Cedar Workshop",
+            contactId: seedIds.contactA,
+            productId: seedIds.productA,
+            source: "seed",
+            synthetic: true,
+          },
+          {
+            id: seedIds.applicationClosedDraft,
+            bankId: seedIds.bankA,
+            businessId: seedIds.businessA,
+            businessName: "Synthetic Cedar Workshop",
+            contactId: seedIds.contactA,
+            productId: seedIds.productA,
+            requestedAmount: normalizeMoney("25000"),
+            status: "withdrawn",
+            source: "seed",
+            synthetic: true,
+          },
+          {
             id: seedIds.applicationEmpty,
             bankId: seedIds.bankA,
             productId: seedIds.productA,
@@ -201,6 +225,22 @@ export async function seedDatabase(connectionString: string): Promise<void> {
           {
             bankId: seedIds.bankA,
             applicationId: seedIds.applicationLarge,
+            userId: seedIds.borrower,
+            role: "applicant_admin",
+            scope: "full",
+            synthetic: true,
+          },
+          {
+            bankId: seedIds.bankA,
+            applicationId: seedIds.applicationSetupDraft,
+            userId: seedIds.borrower,
+            role: "applicant_admin",
+            scope: "full",
+            synthetic: true,
+          },
+          {
+            bankId: seedIds.bankA,
+            applicationId: seedIds.applicationClosedDraft,
             userId: seedIds.borrower,
             role: "applicant_admin",
             scope: "full",
@@ -235,19 +275,27 @@ export async function seedDatabase(connectionString: string): Promise<void> {
             seedIds.applicationUnshared,
             seedIds.applicationOtherBank,
             seedIds.applicationEmpty,
+            seedIds.applicationSetupDraft,
+            seedIds.applicationClosedDraft,
           ]),
         );
       await tx
         .insert(applicationSetups)
         .values(
           seededApplications.map((application) => {
-            const completed = application.status !== "draft";
+            const completed =
+              application.id !== seedIds.applicationClosedDraft && application.status !== "draft";
+            const namedDraft = application.id === seedIds.applicationSetupDraft;
             return {
               applicationId: application.id,
               bankId: application.bankId,
               revision: application.revision,
-              currentStep: completed ? "review" : "business_name",
-              completedSteps: completed ? ["business_name", "product", "amount", "purpose"] : [],
+              currentStep: completed ? "review" : namedDraft ? "amount" : "business_name",
+              completedSteps: completed
+                ? ["business_name", "product", "amount", "purpose"]
+                : namedDraft
+                  ? ["business_name"]
+                  : [],
               skippedSteps: completed ? ["industry"] : [],
               completedAt: completed ? application.updatedAt : null,
               completedByUserId: completed ? seedIds.borrower : null,

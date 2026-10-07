@@ -175,18 +175,14 @@ test("bank apply, saved edits, browser loss, and explicit completion use the sam
   expect((await setup(page)).setupStatus).toBe("in_progress");
   await page.unroute("**/setup/finish");
   await page.getByRole("button", { name: "Finish setup", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "Your setup is complete", exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText("Initial setup complete", { exact: true })).toBeVisible();
   await expect(page).toHaveURL(`${borrower}/applications/${original.id}?bank=bank-a`);
   expect(await api<Setup>(page, "GET", `/${original.id}/setup`)).toMatchObject({
     setupStatus: "completed",
     status: "collecting_information",
   });
   await page.reload();
-  await expect(
-    page.getByRole("heading", { name: "Your setup is complete", exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText("Initial setup complete", { exact: true })).toBeVisible();
   await context.clearCookies();
   await demoSignIn(page, email);
   await page.getByRole("button", { name: "Open application", exact: true }).click();
@@ -378,9 +374,7 @@ test("a staff-prefilled draft requires the applicant to review and explicitly fi
   await page.goto(`${borrower}/applications/${draft.id}`);
   await expect(page).toHaveURL(`${borrower}/applications/${draft.id}/setup?bank=bank-a`);
   await page.getByRole("button", { name: "Finish setup", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "Your setup is complete", exact: true }),
-  ).toBeVisible();
+  await expect(page.getByText("Initial setup complete", { exact: true })).toBeVisible();
 });
 
 test("session recovery keeps unsaved answers and another signed-in account cannot submit stale forms", async ({

@@ -16,8 +16,8 @@ import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router";
 import { ApiError, decimalAmount, errorMessage, formatAmount, request } from "./api";
-import { applicationPath, ErrorNotice } from "./app";
 import { answerKey, rememberAnswer, unsavedAnswer } from "./unsaved-answers";
+import { applicationPath, ErrorNotice } from "./workspace-ui";
 
 // Bounded synthetic fixture until T15 adds the industry lookup adapter.
 const industries = [

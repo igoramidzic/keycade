@@ -1,6 +1,8 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import {
   applicationPageSchema,
+  applicationPortalSchema,
+  applicationSelectionSchema,
   applicationSetupSchema,
   authSessionSchema,
 } from "@keycade/contracts";
@@ -137,6 +139,154 @@ for (const transport of ["fastify", "worker"] as const) {
       }
       return { app, call, credentials, demo, fill };
     }
+
+    it("paginates current grants with business/product summaries and guards portal entry", async () => {
+      const c = await client();
+      try {
+        const auth = await c.demo("borrower@example.test");
+        const first = applicationPageSchema.parse((await c.call(`${bankPath}?limit=2`, auth)).body);
+        expect(first.items.map((item) => item.id)).toEqual([
+          seedIds.applicationSmall,
+          seedIds.applicationLarge,
+        ]);
+        expect(first.nextCursor).toBe(seedIds.applicationLarge);
+        expect(first.items[0]).toMatchObject({
+          businessId: seedIds.businessA,
+          businessName: "Synthetic Cedar Workshop",
+          productName: "Synthetic Business Credit",
+          requestedAmount: "10000.00",
+          accessScope: "full",
+          setupStatus: "completed",
+          nextDestination: "portal",
+        });
+        expect(first.items[0]?.updatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+        expect(first.items[1]).toMatchObject({
+          businessId: seedIds.businessB,
+          requestedAmount: "5000000.00",
+        });
+        const second = applicationPageSchema.parse(
+          (await c.call(`${bankPath}?limit=2&after=${first.nextCursor}`, auth)).body,
+        );
+        expect(second.items.map((item) => item.id)).toEqual([
+          seedIds.applicationSetupDraft,
+          seedIds.applicationClosedDraft,
+        ]);
+        expect(second.nextCursor).toBeNull();
+        expect(second.items[0]).toMatchObject({
+          businessId: seedIds.businessA,
+          nextDestination: "setup",
+          currentStep: "amount",
+        });
+        expect(second.items[1]).toMatchObject({
+          status: "withdrawn",
+          setupStatus: "in_progress",
+          nextDestination: "closed",
+        });
+        const portal = await c.call(`${bankPath}/${seedIds.applicationSmall}/portal`, auth);
+        expect(portal.status).toBe(200);
+        expect(applicationPortalSchema.parse(portal.body)).toMatchObject({
+          id: seedIds.applicationSmall,
+          purpose: "Synthetic equipment purchase",
+          remainingTasks: null,
+          accessScope: "full",
+        });
+        for (const [applicationId, code] of [
+          [seedIds.applicationSetupDraft, "SETUP_REQUIRED"],
+          [seedIds.applicationClosedDraft, "INVALID_STATE"],
+        ]) {
+          const denied = await c.call(`${bankPath}/${applicationId}/portal`, auth);
+          expect(denied.status).toBe(409);
+          expect(denied.body.error.code).toBe(code);
+          expect((await c.call(`${bankPath}/${applicationId}/destination`, auth)).status).toBe(200);
+        }
+        for (const path of [
+          `${bankPath}/${seedIds.applicationUnshared}/portal`,
+          `${bankPath}/${randomUUID()}/portal`,
+          `/api/v1/banks/${seedIds.bankB}/applications/${seedIds.applicationOtherBank}/portal`,
+        ]) {
+          const denied = await c.call(path, auth);
+          expect(denied.status).toBe(404);
+          expect(denied.body.error.code).toBe("NOT_FOUND");
+        }
+        const empty = await c.demo(`no-grants-${randomUUID()}@example.test`);
+        expect(applicationPageSchema.parse((await c.call(bankPath, empty)).body)).toEqual({
+          items: [],
+          nextCursor: null,
+        });
+        const docs = await c.call("/api/openapi.json");
+        expect(
+          docs.body.paths["/api/v1/banks/{bankId}/applications/{applicationId}/portal"].get
+            .responses,
+        ).toHaveProperty("409");
+      } finally {
+        await c.app.close();
+      }
+    });
+
+    it("redacts assigned summaries, bypasses the applicant setup gate for invited participants, and rechecks grants", async () => {
+      const c = await client();
+      try {
+        const staff = await c.demo("officer-a@example.test", "staff");
+        const created = await c.call(bankPath, {
+          ...staff,
+          method: "POST",
+          body: { email: `limited-${randomUUID()}@example.test`, idempotencyKey: randomUUID() },
+        });
+        const draft = await c.fill(applicationSetupSchema.parse(created.body), staff);
+        await database.pool.query(
+          "INSERT INTO application_participants (bank_id,application_id,user_id,role,scope,synthetic) VALUES ($1,$2,$3,'adviser','assigned',true)",
+          [seedIds.bankA, draft.id, seedIds.adviser],
+        );
+        const adviser = await c.demo("adviser@example.test");
+        const page = applicationPageSchema.parse((await c.call(bankPath, adviser)).body);
+        expect(page.items.map((item) => item.id).sort()).toEqual(
+          [seedIds.applicationSmall, draft.id].sort(),
+        );
+        for (const item of page.items) {
+          expect(item.accessScope).toBe("assigned");
+          expect(item.requestedAmount).toBeNull();
+        }
+        const selected = applicationSelectionSchema.parse(
+          (await c.call(`${bankPath}/${draft.id}/destination`, adviser)).body,
+        );
+        expect(selected).toMatchObject({
+          nextDestination: "assigned",
+          setupStatus: "in_progress",
+          requestedAmount: null,
+          accessScope: "assigned",
+        });
+        const portal = await c.call(`${bankPath}/${draft.id}/portal`, adviser);
+        expect(portal.status).toBe(200);
+        expect(applicationPortalSchema.parse(portal.body)).toMatchObject({
+          purpose: null,
+          requestedAmount: null,
+          remainingTasks: null,
+          accessScope: "assigned",
+        });
+        expect((await c.call(`${bankPath}/${draft.id}`, adviser)).body).toMatchObject({
+          purpose: null,
+          requestedAmount: null,
+        });
+        expect((await c.call(`${bankPath}/${draft.id}/setup`, adviser)).status).toBe(404);
+        const staffPortal = await c.call(`${bankPath}/${draft.id}/portal`, staff);
+        expect(staffPortal.status).toBe(200);
+        expect(staffPortal.body).toMatchObject({
+          accessScope: "full",
+          purpose: "Synthetic equipment expansion",
+          requestedAmount: "7500000.00",
+        });
+        await database.pool.query(
+          "UPDATE application_participants SET revoked_at = now() WHERE application_id = $1 AND user_id = $2",
+          [draft.id, seedIds.adviser],
+        );
+        for (const suffix of ["portal", "destination"])
+          expect((await c.call(`${bankPath}/${draft.id}/${suffix}`, adviser)).status).toBe(404);
+        const afterRevocation = applicationPageSchema.parse((await c.call(bankPath, adviser)).body);
+        expect(afterRevocation.items.map((item) => item.id)).toEqual([seedIds.applicationSmall]);
+      } finally {
+        await c.app.close();
+      }
+    });
 
     it("persists demo setup across sessions and gates each portal until explicit idempotent completion", async () => {
       const c = await client();

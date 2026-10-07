@@ -29,8 +29,14 @@ export async function readApplication(
   bankId: string,
   applicationId: string,
 ) {
-  await requireApplicantPortalAccess(db, actor, bankId, applicationId);
-  return publicApplicationSchema.parse(await findApplication(db, bankId, applicationId));
+  const access = await requireApplicantPortalAccess(db, actor, bankId, applicationId);
+  const row = await findApplication(db, bankId, applicationId);
+  const assigned = access.kind === "participant" && access.scope === "assigned";
+  return publicApplicationSchema.parse({
+    ...row,
+    requestedAmount: assigned ? null : row.requestedAmount,
+    purpose: assigned ? null : row.purpose,
+  });
 }
 
 export async function readStaffApplication(
