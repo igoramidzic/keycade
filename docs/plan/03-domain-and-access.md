@@ -1,0 +1,119 @@
+# Domain, lifecycle, and access rules
+
+This is the target model, not a requirement to create every table in T03. Add each feature's records and migration in its owning task.
+
+## Core entities
+
+| Entity | Responsibility and key relationships |
+| --- | --- |
+| Bank | Tenant boundary, public slug, name, local product configuration. |
+| User / ApplicantContact | Verified identity versus a provisional email contact. Starting a lead does not verify or authenticate someone. |
+| Session / LoginToken | Revocable session and hashed, expiring, single-use email credential. |
+| BankMembership | Explicit staff role for one bank; distinct from application participation. |
+| Business | Applicant business belonging to one bank; may have many applications. A draft can initially have no business. |
+| BusinessRelationship | Person's owner/contact relationship and optional ownership percentage. Does not grant login or access. |
+| LoanProduct / RequirementSet | Versioned demo product and rules determining applicable information and tasks. |
+| Application | Bank, optional business, contact, product, requested amount, purpose, source, lifecycle, assigned staff, revision. |
+| ApplicationParticipant / Invitation | Verified application access and permitted scope; email invitation is a pending grant. |
+| Task | Stable requirement key or manual task, assignee, stage, visibility, evidence, due date, revision, review result. |
+| Document / DocumentVersion | Application-specific artifact and immutable uploaded versions, uploader, private storage key, scan/processing state. |
+| TaskEvidence | Links a specific document version, answer, or signature result to a task. No copying files to satisfy two tasks. |
+| SensitiveIdentifier | Encrypted identifier for its business/person, masked display, type, revision, limited access. |
+| IntegrationRun / CheckResult | Provider operation, input revision, attempts, execution status, separately typed outcome. |
+| SignatureEnvelope / Signer | Specific document version, intended verified signers, provider references, signed artifacts and events. |
+| Decision / ClosingCondition | Human-authored review result, reason, input snapshot, approved terms, and closing requirements. |
+| FundingRecord / LoanAccount | Explicit funded amount/date/reference and linked account, created only by the funding use case. |
+| OutboxEvent / Notification | Durable work intent and deduplicated delivery/suppression state. |
+| AuditEvent / ActivityProjection | Detailed safe internal event versus the filtered, human-readable history visible to each actor. |
+
+Every business record is bank-scoped. Tenant-bearing relationships must prevent cross-bank links with composite constraints or equivalent validated transactional checks. Test these invariants in the database as well as in routes. A single global user may participate in several banks, but user identity never implies permission in them.
+
+Use an explicit application participant grant for every non-staff reader. Do not automatically share all applications of a business. Initially a document belongs to one application; cross-application document reuse is deferred.
+
+## Application lifecycle
+
+“Ready to submit” is derived from requirements and checks. It is not a mutable status that can disagree with evidence.
+
+| From | To | Actor and guard |
+| --- | --- | --- |
+| New lead | `draft` | Public email-start or authorized staff creation; bank/product valid; idempotent. |
+| `draft` | `collecting_information` | Verified applicant supplies initial business details; staff can do so on behalf of the applicant. |
+| `collecting_information`, `needs_information` | `submitted` | Applicant administrator or staff explicitly submitting on behalf; submission gates pass; record submitting actor and current snapshot. |
+| `submitted` | `in_review` | Bank staff claims/starts review. |
+| `in_review` | `needs_information` | Bank staff records a reason and opens/returns relevant tasks. |
+| `in_review` | `approved`, `declined` | Bank staff records a reason and terms where applicable; approval gates pass against current versions. |
+| `approved` | `closing` | Staff starts closing against the approved snapshot; create closing conditions idempotently. |
+| `closing` | `funded` | Staff records simulated funding after all closing gates pass; one linked account. |
+| Any nonterminal state above | `withdrawn` | Applicant administrator or authorized staff, with reason; cancel pending reminders/work that no longer applies. |
+
+`funded`, `declined`, and `withdrawn` are terminal in this release. A new request uses a new application. Material applicant edits are allowed in `draft`, `collecting_information`, and `needs_information`; submitted/reviewed/approved snapshots are locked. Staff returns an in-review application to `needs_information` to request edits. Reopening approved or closing terms is deferred; do not silently mutate them. Closing-specific tasks remain editable in `closing`.
+
+Each submission freezes its application facts, business facts, applicable requirements, and references to specific identifier/document/check versions. A shared business profile is a source for editable drafts, not a live pointer that rewrites submitted facts. Editing that profile through application B must not change application A's submission/decision inputs or reveal A's existence. Drafts explicitly adopt newer shared facts with revision checks. Sensitive snapshots use encrypted version references rather than copying raw identifiers into ordinary JSON.
+
+Application status is independent from upload, job, task, and signature states. An OCR failure does not change the entire application to a nonexistent “failed” status.
+
+## Tasks and requirements
+
+Task states: `open`, `submitted`, `needs_changes`, `completed`, `waived`, `cancelled`. An authorized assignee submits evidence. A bank reviewer completes or returns it. A staff waiver requires a reason. System completion is permitted only for documented deterministic rules such as all intended signers finishing the required envelope; a generic AI confidence score is not such a rule.
+
+Requirements have stable keys, stage (`submission`, `approval`, `closing`), required/optional status, rule version, reason, visibility, and relevant input revision. Include the subject in each key, such as requirement type + owner ID, so two owners receive separate tasks. Reconcile rules idempotently when relevant facts change. Create new requirements once, preserve manual tasks and completed history, and mark no-longer-applicable requirements cancelled with an explanation. Do not silently delete evidence or undo a staff waiver.
+
+Material evidence changes reopen affected completion or mark it stale for review according to a documented rule. An officer explicitly re-evaluates a revised rule set; a product edit does not retroactively rewrite an application's pinned rule version. Missing identifiers can create a later-stage task without blocking the short initial application.
+
+If a cancelled requirement becomes applicable again, reactivate its stable requirement identity with a new occurrence/revision and preserve prior history. It starts open unless an explicit reuse policy proves that the same current evidence still satisfies it. A waiver is scoped to its requirement occurrence and policy version; reactivation requires renewed reviewer confirmation rather than silently reusing it. Test amount changes and owner removal/re-addition, not just the first rule evaluation.
+
+For a target gate, evaluate all active mandatory requirements/checks assigned to that stage or an earlier stage. Optional or later-stage items do not block it. A task passes only with current completed evidence or an allowed audited waiver. A required check passes only with a current successful execution and a clear outcome, or an explicit policy-permitted staff resolution; a resolution preserves the original finding. Waiting, failed, running, stale, and unresolved review outcomes block their assigned gate. Submission additionally requires verified authority and valid initial business/product/amount fields; approval requires an in-review application and a human decision; funding requires closing and current approved terms/signatures. Do not make every known identifier/check a submission prerequisite by default.
+
+## Independent processing states
+
+- File scanning: `pending`, `clean`, `blocked`, `error`. Unscanned or blocked content is quarantined and unavailable for normal download/ingestion.
+- Document interpretation: `queued`, `processing`, `classified`, `needs_review`, `failed`. Unknown content remains visible as a record and can be reviewed/reprocessed after a clean scan.
+- Integration execution: `waiting_for_input`, `queued`, `running`, `succeeded`, `retry_scheduled`, `failed`, `timed_out`, `cancelled`.
+- Check outcome: `clear`, `needs_review`, `unable_to_verify`, or provider-specific typed findings. A successfully executed fraud check may still have `needs_review` as its outcome.
+- Signature envelope: `draft`, `sent`, `partially_signed`, `completed`, `declined`, `expired`, `voided`. One signer completing does not complete a multi-signer envelope.
+
+## Access matrix
+
+All rows assume the same bank and an authorized application scope. “Assigned scope” means the intersection of the actor's current grant, task visibility, and document permissions.
+
+| Action/data | Applicant administrator | Invited owner | External adviser | Bank staff |
+| --- | --- | --- | --- | --- |
+| Application summary | Granted applications | Granted application summary | Limited granted summary | Bank applications |
+| Business form edits | Editable lifecycle stages | Explicitly assigned fields | Explicitly assigned fields | Bank-authorized workflow |
+| Invite/revoke collaborators | Application roles only | No by default | No | Yes within bank |
+| Owner relationship summary | Own application | Own relationship; others only if granted | No by default | Yes within bank |
+| Personal identifier entry | Own personal data; authorized business EIN | Own personal data | No by default | Designated staff workflow |
+| Read raw personal identifiers | No general raw-read endpoint | No general raw-read endpoint | No | Restricted server-side provider workflow; UI masked |
+| Upload files | Permitted application tasks/docs | Assigned scope | Assigned scope | Bank-authorized application |
+| Read files | Shared application docs; not another person's private identity evidence | Assigned scope | Assigned scope | Authorized bank scope |
+| Review/waive requirements | No | No | No | Yes, with reason/audit |
+| Internal notes/check evidence | No | No | No | Yes |
+| Submit application | Yes | No by default | No | On behalf, explicitly recorded |
+| Approve/decline/fund | No | No | No | Demo officer/admin role |
+
+The prototype gives active bank officers bank-wide application access; assignee is a workflow field, not a security boundary. Bank administrators additionally manage staff membership through seed/admin tooling. More granular staff teams and separate approval authority limits are later product decisions.
+
+Authorization applies to lists, counts, search, activity, direct record URLs, API calls, uploads, downloads, exports, retries, and subscriptions/polling. Reject cross-application evidence links. Enforce current membership on every request, including requests from sessions created before revocation. Do not issue durable public document URLs.
+
+## Identity and invitations
+
+- Email-start creates a pending contact/draft and sends a link; it reveals neither existing accounts nor application details. Creating another lead with the same email does not grant access or merge businesses.
+- Store only token hashes, use cryptographically random credentials, set expiry and single-use semantics, and consume links transactionally. A GET displays a confirmation page; a deliberate POST consumes the token so email scanners do not exhaust it.
+- Queue only an access-delivery request ID. The worker generates the raw credential in memory at delivery time, commits its hash/expiry/purpose/target, then sends it. No plaintext credential belongs in application tables, outbox/queue records, logs, or test reports. The local inbox necessarily contains the emailed bearer link and is development-only.
+- If delivery crashes or becomes ambiguous, a retry may issue a new token for the same request. Tokens for that request share one consumption record: any one successful consumption invalidates its siblings atomically. A retry skips an already consumed/revoked request. Previously sent siblings remain valid only until their normal expiry or that shared consumption/revocation, avoiding a broken link after an SMTP-accepted crash.
+- Use server-side, revocable sessions in HttpOnly cookies. Apply Secure cookies outside local HTTP development, SameSite settings, origin/CSRF protection, login/send rate limits, and approved return destinations.
+- Normalize email consistently without provider-specific assumptions such as removing dots or plus suffixes. Verify the exact invited address according to that normalization.
+- An invitation contains bank, application, role, scope, inviter, recipient, expiry, and status. Acceptance grants only that scope and cannot grant staff permissions.
+- Check delegation authority both at invitation creation and acceptance. If the inviter lost authority or the grant is no longer valid, invalidate/reissue the invitation through a current authorized actor. Scope can never expand to another person's private evidence merely because an applicant administrator sent the invite.
+- Removing a participant immediately denies future access through existing sessions. Remove their assignments or mark them unassigned for staff attention. Preserve audit and evidence authorship.
+- Repeated creation requests with the same idempotency key and payload return the same logical result. A changed payload for that key is a conflict. Use a new key for an intentional second application.
+
+“Continue an application” requests authentication and never creates an application. After verifying email in the selected bank, resolve an allowed target draft if one was recorded; otherwise list existing grants and pending borrower/contact drafts addressed to that verified email for explicit selection/claim. A claim is idempotent and restricted to that recipient and bank. Do not infer other business access or accept role-specific invitations through generic resume. Test loss of the original link/browser and multiple pending drafts for one email.
+
+## Data integrity and privacy
+
+Use decimal-string money, explicit USD currency, UTC dates/timestamps, and optimistic revisions. Do not infer an actual repayment balance from the funded amount. Never merge businesses on names alone.
+
+Encrypt stored EIN/SSN values using authenticated encryption behind a server-side interface; the prototype uses generated local keys and synthetic values. General DTOs expose only presence and masking. Real-data handling and production key management remain separate work.
+
+Audit consequential changes with actor/system identity, bank, application, action, target, safe changed-field metadata, correlation ID, and timestamp. Never put raw identifiers, auth tokens, file contents, or provider secrets in event payloads. Audit records are append-only through application interfaces; the prototype does not claim external tamper-proof storage.

@@ -1,0 +1,64 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/.env"],
+      "env": ["BANK_SITE_PORT", "BORROWER_PORT", "BANK_CONSOLE_PORT", "API_PORT", "NODE_ENV"]
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": [
+        "NODE_ENV",
+        "PROJECT_NAME",
+        "PODMAN_MACHINE",
+        "DB_HOST",
+        "DB_PORT",
+        "DB_NAME",
+        "DB_USER",
+        "DB_PASSWORD",
+        "DATABASE_URL",
+        "POSTGRES_IMAGE",
+        "MAILPIT_IMAGE",
+        "MAILPIT_SMTP_PORT",
+        "MAILPIT_UI_PORT",
+        "API_PORT",
+        "BANK_SITE_PORT",
+        "BORROWER_PORT",
+        "BANK_CONSOLE_PORT",
+        "SESSION_SECRET",
+        "ENCRYPTION_KEY",
+        "PRIVATE_STORAGE_PATH",
+        "SIMULATION_DELAY_MS",
+        "PROVIDER_DEADLINE_MS",
+        "JOB_MAX_ATTEMPTS",
+        "WORKER_POLL_MS",
+        "WORKER_HEARTBEAT_MS",
+        "WORKER_STALE_MS"
+      ]
+    },
+    "@keycade/bank-site#build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/.env"],
+      "env": ["BANK_SITE_PORT", "BORROWER_PORT", "BANK_CONSOLE_PORT", "API_PORT", "NODE_ENV"]
+    },
+    "@keycade/borrower#build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/.env"],
+      "env": ["BANK_SITE_PORT", "BORROWER_PORT", "BANK_CONSOLE_PORT", "API_PORT", "NODE_ENV"]
+    },
+    "@keycade/bank-console#build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/.env"],
+      "env": ["BANK_SITE_PORT", "BORROWER_PORT", "BANK_CONSOLE_PORT", "API_PORT", "NODE_ENV"]
+    }
+  }
+}

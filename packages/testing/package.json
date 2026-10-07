@@ -1,0 +1,19 @@
+{
+  "name": "@keycade/testing",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@keycade/db": "workspace:*",
+    "pg": "8.23.1"
+  },
+  "devDependencies": {
+    "@keycade/config": "workspace:*"
+  }
+}

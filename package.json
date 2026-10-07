@@ -1,0 +1,51 @@
+{
+  "name": "keycade",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.34.6",
+  "engines": {
+    "node": ">=24 <25",
+    "pnpm": ">=10 <11"
+  },
+  "scripts": {
+    "initialize": "tsx scripts/local.ts initialize",
+    "dev": "tsx scripts/dev.ts",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck && tsc --noEmit",
+    "lint": "biome check . && tsx scripts/boundaries.ts",
+    "format": "biome check --write .",
+    "test": "vitest run --exclude '**/*.integration.test.ts'",
+    "test:integration": "tsx scripts/integration.ts",
+    "test:e2e": "playwright test",
+    "check": "pnpm lint && pnpm typecheck && pnpm test",
+    "db:start": "tsx scripts/local.ts db:start",
+    "db:stop": "tsx scripts/local.ts db:stop",
+    "db:status": "tsx scripts/local.ts db:status",
+    "infra:start": "tsx scripts/local.ts infra:start",
+    "infra:stop": "tsx scripts/local.ts infra:stop",
+    "db:generate": "pnpm --filter @keycade/db generate",
+    "db:migrate": "tsx scripts/local.ts db:migrate",
+    "db:seed": "tsx scripts/local.ts db:seed",
+    "db:studio": "tsx scripts/local.ts db:studio",
+    "jobs:demo": "tsx scripts/jobs-demo.ts"
+  },
+  "dependencies": {
+    "@keycade/config": "workspace:*",
+    "@keycade/db": "workspace:*",
+    "@keycade/integrations": "workspace:*",
+    "@keycade/testing": "workspace:*",
+    "pg": "8.23.1",
+    "dotenv": "18.0.6"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.15",
+    "@playwright/test": "1.63.0",
+    "@types/node": "24.19.1",
+    "@types/pg": "8.23.1",
+    "node": "24.21.0",
+    "tsx": "4.23.15",
+    "turbo": "2.11.7",
+    "typescript": "5.9.3",
+    "vitest": "5.0.3"
+  }
+}

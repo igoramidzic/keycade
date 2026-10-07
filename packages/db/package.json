@@ -1,0 +1,30 @@
+{
+  "name": "@keycade/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema.ts",
+    "./seed": "./src/seed.ts",
+    "./migrate": "./src/migrate.ts",
+    "./testing": "./src/testing.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run src/money.test.ts",
+    "test:integration": "vitest run src/database.integration.test.ts",
+    "db:generate": "drizzle-kit generate --config drizzle.config.ts",
+    "generate": "drizzle-kit generate --config drizzle.config.ts"
+  },
+  "dependencies": {
+    "drizzle-orm": "0.45.3",
+    "pg": "8.23.1"
+  },
+  "devDependencies": {
+    "@keycade/config": "workspace:*",
+    "@types/pg": "8.23.1",
+    "drizzle-kit": "0.31.11"
+  }
+}

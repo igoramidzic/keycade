@@ -1,0 +1,21 @@
+{
+  "name": "@keycade/config",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./tsconfig.json": "./tsconfig.json",
+    "./server": "./src/server.ts",
+    "./vite": "./src/vite.ts"
+  },
+  "dependencies": {
+    "dotenv": "18.0.6",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "vite": "8.3.3"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit"
+  }
+}

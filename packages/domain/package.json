@@ -1,0 +1,23 @@
+{
+  "name": "@keycade/domain",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --exclude '**/*.integration.test.ts' --passWithNoTests",
+    "test:integration": "vitest run test/*.integration.test.ts"
+  },
+  "dependencies": {
+    "@keycade/contracts": "workspace:*",
+    "@keycade/db": "workspace:*",
+    "drizzle-orm": "0.45.3"
+  },
+  "devDependencies": {
+    "@keycade/config": "workspace:*"
+  }
+}

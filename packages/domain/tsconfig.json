@@ -1,0 +1,1 @@
+{ "extends": "@keycade/config/tsconfig.json", "include": ["src", "test"] }

@@ -1,0 +1,164 @@
+import { randomUUID } from "node:crypto";
+import { eq } from "drizzle-orm";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { assertSchemaReady, migrateDatabase } from "./migrate.js";
+import { applications, auditEvents, businesses } from "./schema.js";
+import { seedDatabase, seedIds } from "./seed.js";
+import { createTestDatabase } from "./testing.js";
+
+let database: Awaited<ReturnType<typeof createTestDatabase>>;
+beforeAll(async () => {
+  database = await createTestDatabase();
+  await seedDatabase(database.connectionString);
+}, 30_000);
+afterAll(async () => {
+  await database?.cleanup();
+});
+
+describe("committed migrations and synthetic data on PostgreSQL", () => {
+  it("migrates and seeds repeatedly without duplicates or overwriting edits", async () => {
+    await database.db
+      .update(applications)
+      .set({ purpose: "Changed by integration test" })
+      .where(eq(applications.id, seedIds.applicationSmall));
+    await migrateDatabase(database.connectionString);
+    await seedDatabase(database.connectionString);
+    await assertSchemaReady(database.connectionString);
+    const result = await database.pool.query("SELECT count(*)::int AS count FROM applications");
+    expect(result.rows[0].count).toBe(5);
+    const [application] = await database.db
+      .select()
+      .from(applications)
+      .where(eq(applications.id, seedIds.applicationSmall));
+    expect(application?.purpose).toBe("Changed by integration test");
+  });
+
+  it("preserves exact decimal-string amounts and incomplete draft fields", async () => {
+    const seeded = await database.db.select().from(applications);
+    expect(seeded.map((row) => row.requestedAmount)).toEqual(
+      expect.arrayContaining(["10000.00", "5000000.00", "7500000.00"]),
+    );
+    const empty = seeded.find((row) => row.id === seedIds.applicationEmpty);
+    expect(empty).toMatchObject({
+      businessId: null,
+      requestedAmount: null,
+      productId: null,
+      purpose: null,
+    });
+    const [exact] = await database.db
+      .insert(applications)
+      .values({
+        bankId: seedIds.bankA,
+        source: "seed",
+        requestedAmount: "999999999999999999.99",
+      })
+      .returning();
+    expect(exact?.requestedAmount).toBe("999999999999999999.99");
+  });
+
+  it.each(["-1.00", "0.00", "NaN", "Infinity", "1000000000000000000.00"])(
+    "rejects invalid SQL money %s",
+    async (value) => {
+      await expect(
+        database.pool.query(
+          "INSERT INTO applications (bank_id, source, requested_amount) VALUES ($1, 'seed', $2)",
+          [seedIds.bankA, value],
+        ),
+      ).rejects.toThrow();
+    },
+  );
+
+  it.each([
+    ["business_id", seedIds.businessOtherBank],
+    ["contact_id", seedIds.contactA],
+    ["product_id", seedIds.productB],
+    ["assigned_staff_id", seedIds.officerB],
+  ])("rejects cross-bank %s", async (column, targetId) => {
+    // Column names come exclusively from this fixed test matrix.
+    const bankId = column === "contact_id" ? seedIds.bankB : seedIds.bankA;
+    await expect(
+      database.pool.query(
+        `INSERT INTO applications (bank_id, source, ${column}) VALUES ($1, 'seed', $2)`,
+        [bankId, targetId],
+      ),
+    ).rejects.toThrow();
+  });
+
+  it("rejects cross-bank grants and audit links", async () => {
+    await expect(
+      database.pool.query(
+        "INSERT INTO application_participants (bank_id, application_id, user_id, role) VALUES ($1, $2, $3, 'adviser')",
+        [seedIds.bankB, seedIds.applicationSmall, seedIds.officerB],
+      ),
+    ).rejects.toThrow();
+    await expect(
+      database.db.insert(auditEvents).values({
+        bankId: seedIds.bankB,
+        applicationId: seedIds.applicationSmall,
+        actorType: "system",
+        action: "test",
+        targetType: "application",
+        requestId: "synthetic-test",
+      }),
+    ).rejects.toThrow();
+  });
+
+  it("holds two explicit borrower grants without sharing other business applications", async () => {
+    const grants = await database.pool.query(
+      "SELECT application_id FROM application_participants WHERE user_id = $1 AND revoked_at IS NULL ORDER BY application_id",
+      [seedIds.borrower],
+    );
+    expect(grants.rows.map((row) => row.application_id)).toEqual([
+      seedIds.applicationSmall,
+      seedIds.applicationLarge,
+    ]);
+    const unshared = await database.db
+      .select()
+      .from(applications)
+      .where(eq(applications.id, seedIds.applicationUnshared));
+    expect(unshared[0]?.businessId).toBe(seedIds.businessA);
+  });
+
+  it("enforces uniqueness and positive revisions", async () => {
+    await expect(
+      database.pool.query("INSERT INTO banks (slug, name) VALUES ('bank-a', 'Duplicate')"),
+    ).rejects.toThrow();
+    await expect(
+      database.db
+        .update(applications)
+        .set({ revision: 0 })
+        .where(eq(applications.id, seedIds.applicationSmall)),
+    ).rejects.toThrow();
+  });
+
+  it("rolls back prior writes when a later operation fails", async () => {
+    const id = randomUUID();
+    await expect(
+      database.db.transaction(async (tx) => {
+        await tx
+          .insert(businesses)
+          .values({ id, bankId: seedIds.bankA, legalName: "Synthetic rollback business" });
+        await tx
+          .insert(applications)
+          .values({ bankId: seedIds.bankB, businessId: id, source: "seed" });
+      }),
+    ).rejects.toThrow();
+    expect(await database.db.select().from(businesses).where(eq(businesses.id, id))).toHaveLength(
+      0,
+    );
+  });
+
+  it("reports unusable or behind schema without mutating it", async () => {
+    await database.pool.query(
+      "ALTER TABLE applications RENAME COLUMN revision TO revision_temporarily_missing",
+    );
+    try {
+      await expect(assertSchemaReady(database.connectionString)).rejects.toThrow("pnpm db:migrate");
+    } finally {
+      await database.pool.query(
+        "ALTER TABLE applications RENAME COLUMN revision_temporarily_missing TO revision",
+      );
+    }
+    await assertSchemaReady(database.connectionString);
+  });
+});
