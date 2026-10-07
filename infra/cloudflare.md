@@ -30,6 +30,6 @@ GitHub's `neon-production` environment owns migrations and the optional runtime-
 
 Application builds and GitHub migrations run independently. Use additive schema changes, wait for the GitHub migration run, and check `/api/ready` before testing a release. Missing required schema produces a 503; Workers do not apply migrations themselves. Separate CI regression checks remain paused for this demo at the user's request.
 
-R2 and email credentials wait for their feature tasks. The hosted foundation has no seeded records and no login/intake flow yet. There is nothing to configure manually for database access once the five builds succeed with these committed bindings.
+R2 and email credentials wait for their feature tasks. The hosted foundation has no seeded records and no login/intake flow yet. All five builds succeeded and hosted database/jobs readiness passed. No manual database connection setup remains.
 
 For local deployment checks, build the UIs with `KEYCADE_DEPLOYMENT=cloudflare`, then run each deploy command with `--dry-run`. Generate binding types after configuration changes using `wrangler types --include-runtime false --env-interface ApiBindings` (or `JobsBindings`) with the matching config and output path. Local Hyperdrive emulation accepts `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE`; supply the recognized local database URL privately through the environment.

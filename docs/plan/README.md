@@ -1,6 +1,6 @@
 # Keycade implementation plan
 
-Planning baseline: October 6, 2026. The first local-foundation milestone (T01–T05) is complete and verified. Cloudflare is the intended deployment target; five Keycade Workers have been created and their deployment adapters are being verified. Neon PostgreSQL is linked and migrated through GitHub Actions; the initial apply and repeat no-op run passed. Separate CI validation is paused for faster demo deployment at the user's request.
+Planning baseline: October 6, 2026. The first local-foundation milestone (T01–T05) is complete and verified. Cloudflare is the intended deployment target; five Keycade Workers are deployed and their Neon/Hyperdrive connections are verified. Neon PostgreSQL is linked and migrated through GitHub Actions; the initial apply and repeat no-op run passed. Separate CI validation is paused for faster demo deployment at the user's request.
 
 Current handoff: [local-foundation validation and test guide](local-foundation-validation.md). Next unfinished task: **T06 — Passwordless identity and sessions**; next coherent milestone: T06–T10.
 
@@ -38,8 +38,8 @@ Use `Not started`, `In progress`, `Blocked — reason`, or `Done — evidence`. 
 | T04 | [API boundaries, authorization, and audit foundation](tasks/T04-api-foundation.md) | T03 | Done — [validated](local-foundation-validation.md) |
 | T05 | [Durable jobs and provider contracts](tasks/T05-jobs.md) | T04 | Done — [validated](local-foundation-validation.md) |
 | D01 | [Neon connection and GitHub migrations](tasks/D01-neon-migrations.md) | T03, T05 | Done — first hosted apply and faster demo no-op run passed; [evidence](tasks/D01-neon-migrations.md) |
-| D02 | [Cloudflare deployment and Neon runtime connection](tasks/D02-cloudflare-deployment.md) | D01, T04, T05 | In progress — Hyperdrive and Queue created; native builds pending verification |
-| T06 | [Passwordless identity and sessions](tasks/T06-identity.md) | T05 | Not started |
+| D02 | [Cloudflare deployment and Neon runtime connection](tasks/D02-cloudflare-deployment.md) | D01, T04, T05 | Done — all five native builds and hosted readiness passed; [evidence](tasks/D02-cloudflare-deployment.md) |
+| T06 | [Passwordless identity and sessions](tasks/T06-identity.md) | T05, D02 | Not started |
 | T07 | [Application creation and draft service](tasks/T07-application-service.md) | T06 | Not started |
 | T08 | [Mock bank and short application flow](tasks/T08-intake.md) | T07 | Not started |
 | T09 | [Borrower dashboard and application workspace](tasks/T09-borrower-workspace.md) | T08 | Not started |

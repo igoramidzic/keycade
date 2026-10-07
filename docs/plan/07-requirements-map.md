@@ -1,12 +1,12 @@
 # Requirement coverage
 
-T01–T05 are implemented and verified in [the local-foundation record](local-foundation-validation.md); rows covering later tasks remain planned. Use this map to check scope when implementing or revising the plan. Task IDs resolve through the [backlog](README.md#backlog).
+T01–T05 and D01–D02 are implemented and verified in [the local-foundation record](local-foundation-validation.md); rows covering later tasks remain planned. Use this map to check scope when implementing or revising the plan. Task IDs resolve through the [backlog](README.md#backlog).
 
 | User requirement | Planned coverage | Key proof |
 | --- | --- | --- |
 | Brand-new Keycade project; plan first | Root README, AGENTS.md, this plan | Planning baseline preserved; first local milestone subsequently authorized. |
-| Cloudflare deployment on default URLs | D02, T13 | Five Workers created; Hyperdrive/runtime login and Queue provisioned; hosted verification in progress. R2 waits for T13. |
-| Connect the repository directly to Cloudflare and deploy on pushes to `main` | D02 | Five native build triggers verified at repository root `/` on `main`, watching all paths. GitHub retains Neon migrations and runtime-login setup. |
+| Cloudflare deployment on default URLs | D02, T13 | Five Workers created; Hyperdrive/runtime login and Queue provisioned; all native builds and hosted readiness passed. R2 waits for T13. |
+| Connect the repository directly to Cloudflare and deploy on pushes to `main` | D02 | Five native builds passed on `main` from repository root `/`, watching all paths. Hosted UI/API/Neon readiness passed. GitHub retains Neon migrations and runtime-login setup. |
 | Neon PostgreSQL only; Cloudflare R2 for documents | D01, T13, decisions | Existing Neon project linked; verified TLS connection; local Podman settings preserved. |
 | GitHub jobs own changes pushed to Neon; pause separate validation for faster demo deployment | D01 | Main-only Actions migration job with approved encrypted environment credential; hosted apply (2 migrations) and repeat no-op passed. Test/build validation and PR trigger commented out; migration-only job completed in 18 seconds. |
 | Local PostgreSQL 18, with initial 17 data explicitly disposable | D01, T02 | Version-appropriate named-volume mount, ownership checks and user-authorized one-time reset; ordinary initialization remains non-destructive. |

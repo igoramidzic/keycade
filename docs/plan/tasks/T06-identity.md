@@ -1,6 +1,6 @@
 # T06 — Passwordless identity and sessions
 
-Dependencies: T05. Read [identity rules](../03-domain-and-access.md#identity-and-invitations).
+Dependencies: T05, D02. Read [identity rules](../03-domain-and-access.md#identity-and-invitations).
 
 ## Outcome
 
