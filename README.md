@@ -2,7 +2,7 @@
 
 Keycade is a synthetic bank-operated business lending demo, from initial application through human review, closing and one recorded funding event. It includes a mock bank website, a borrower portal and a bank staff console. **Every environment, including the public hosted URLs, is a simulation.** Use fictional people, businesses, documents and identifiers. Checks, document interpretation, signatures and funding make no real financial or identity determination; no money moves and no external email is sent.
 
-The implementation includes resumable one-question setup, scoped collaborators and private tasks, private document uploads and interpretation, simulated checks, contextual notifications, review decisions, closing conditions, funded-account summaries, activity and operations diagnostics. The [plan index](docs/plan/README.md) records each feature's validation and remaining work. [T22 integrated acceptance](docs/plan/tasks/T22-acceptance.md) is not complete. D03's [hosted acceptance](docs/plan/tasks/D03-hosted-demo-parity.md#hosted-acceptance--october-7-2026) has verified sign-in, saved setup, scoped invitation, private R2 documents and two-person simulated signing on the deployed URLs.
+The implementation includes resumable one-question setup, scoped collaborators and private tasks, private document uploads and interpretation, simulated checks, contextual notifications, review decisions, closing conditions, funded-account summaries, activity and operations diagnostics. [T22 integrated acceptance](docs/plan/tasks/T22-acceptance.md) is complete: all eight required journeys are covered, including clean initialization/restart, 140 core local browser cases and an actual hosted journey through recorded simulated funding. The [plan index](docs/plan/README.md) links feature validation and follow-up work.
 
 ## Start locally
 
@@ -113,7 +113,7 @@ These commands target a known local synthetic application and print persisted tr
 
 Install Chromium once if needed with `pnpm exec playwright install chromium`. The local browser runner requires initialized PostgreSQL and Mailpit, creates a disposable database and private upload directory, starts owned app processes on free loopback ports, and runs sequential shards with real rate limits enabled. It removes its database and stops only its own processes. Reports remain in ignored `.local/e2e-*` directories. Filter with `pnpm test:e2e tests/e2e/closing.spec.ts --project=desktop` or `pnpm test:e2e --grep 'saved setup'`. Use `pnpm exec playwright test` for interactive runs against an existing local stack.
 
-Integration tests do not reset the development database. The maintainer probe `pnpm exec tsx scripts/verify-local.ts` verifies repeated initialization and database stop/start persistence; stop dev and Studio first because that probe intentionally stops the project database briefly. T22 must record the final clean-clone and combined acceptance results rather than infer them from individual feature tests.
+Integration tests do not reset the development database. The maintainer probe `pnpm exec tsx scripts/verify-local.ts` verifies repeated initialization and database stop/start persistence; stop dev and Studio first because that probe intentionally stops the project database briefly. T22 records the separate disposable-copy initialization/restart checks and the combined acceptance evidence.
 
 ## Hosted demo and deployment
 
@@ -141,7 +141,7 @@ KEYCADE_E2E_STAFF_ORIGIN=https://keycade-bank-console.kualia.workers.dev \
 pnpm exec playwright test --config=playwright.hosted.config.ts
 ```
 
-This uses one desktop worker, paced API requests and new synthetic identities. It preserves shared data and disables authentication traces, videos and automatic screenshots. The hosted API allows 120 requests per minute; avoid concurrent acceptance runs. Full T22 hosted closing/funding acceptance remains to be recorded after its deployment.
+This uses one desktop worker, paced API requests and new synthetic identities. It preserves shared data and disables authentication traces, videos and automatic screenshots. The hosted API allows 120 requests per minute; avoid concurrent acceptance runs. [T22's hosted record](docs/plan/tasks/T22-acceptance.md#hosted-funding-and-final-handoff) verifies exact simulated funding, duplicate protection, scoped accounts, activity and operations against the deployed demo.
 
 ## Troubleshooting and boundaries
 

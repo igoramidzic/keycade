@@ -2,7 +2,7 @@
 
 Dependencies: D02, D03, T12, T16. Read [architecture](../02-architecture.md), [access rules](../03-domain-and-access.md), and [development/testing](../05-development-and-testing.md).
 
-Status: In progress — October 7, 2026. The production bottleneck is reproduced; local request-efficiency changes are implemented. Hosted improvement must be measured after deployment before claiming a production speedup.
+Status: Done — October 7, 2026. Request-efficiency, session-binding and placement changes passed local validation, and serial/concurrent production reads were repeated after deployment. The [hosted remeasurement](#hosted-remeasurement--october-7-2026) records the different-fixture limitation and remaining concurrent review latency.
 
 ## User request and bounded change
 
@@ -15,7 +15,7 @@ Investigate several-second startup/task/readiness loads, slower saves, and repea
 - Task saves and the existing conflict, navigation, private-access and revocation regressions remain correct. Existing mutation-driven invalidation remains authoritative for local edits.
 - Configure API placement near the existing Neon AWS Ohio database and publish safe response timing/log metadata. Keep Hyperdrive query caching disabled; do not cache authorization on the server.
 - Verify the native Worker bundle and record local type/lint/build, unit, PostgreSQL, and desktop/mobile request-count checks.
-- After a requested deployment, repeat production serial/concurrent reads and report actual before/after timings. This criterion remains pending.
+- After a requested deployment, repeat production serial/concurrent reads and report actual before/after timings. Verified in the hosted remeasurement below.
 
 ## Production diagnosis — October 7
 
@@ -53,7 +53,7 @@ The source explains the request amplification: borrower and staff clients fetche
 - Initial unit checkpoint: 278 tests passed. The nine new focused borrower/staff request and refresh-policy tests pass; final whole-suite checkpoint is recorded below.
 - `pnpm test:integration`: 350 tests in 39 real PostgreSQL suites pass. The two new transport cases cover bound reads, same-bank account changes, mismatched writes, anonymous binding attempts, logout and immediate revocation. Existing identity tests cover active membership revocation.
 - Desktop navigation/account-switch/save/conflict regression subset: 12/12 existing cases pass in `.local/e2e-H1vaxn`. The first request-count assertion counted an extra aborted React development StrictMode mount fetch; the final test counts completed responses and still asserts no new idle responses through 12 seconds. Final desktop/mobile results follow below.
-- Production after-change timings remain unverified. No deployment, commit or push is part of this diagnostic change.
+- The original diagnostic validation preceded deployment. After-change production timings are recorded below for deployed checkpoint `d7a6597`.
 
 ### Final local checkpoint
 
@@ -62,3 +62,29 @@ The source explains the request amplification: borrower and staff clients fetche
 - Desktop navigation/account-switch coverage: nine existing cases pass in `.local/e2e-H1vaxn`; final borrower/staff save-conflict and stale-answer cases plus desktop idle-network acceptance pass **4/4** in `.local/e2e-hPXyYc`. Final mobile idle-network acceptance passes **1/1** in `.local/e2e-dcZRfp`. The combined selected coverage is 14 applicable cases with no outstanding failures.
 - The idle-network test observes one completed session read, one tasks/documents/readiness read each, no hidden review request, and no further completed resource/session responses through 12 seconds of browser clock advancement. This verifies request reduction without promising a production latency threshold.
 - Final types, lint/boundaries, all 12 builds, `git diff --check`, and native API deployment dry run pass. Native bundle evidence is under `apps/api/.local/d04-api-dryrun`; the dry run uploads nothing and verifies placement/bindings. No migrations were introduced.
+
+### Hosted remeasurement — October 7, 2026
+
+After checkpoint `d7a6597` deployed, the production borrower API was measured at **20:33:35 UTC** with the original request sequence: three serial samples for each of six endpoints, then one concurrent batch of tasks/documents/readiness/review. All **22 protected reads returned 200**, and every response included `Server-Timing: api;dur=...`. The only explicit write was ordinary demo-session sign-in; application reads retained their normal authorized requirement reconciliation. Credentials and cookies stayed in memory, and no business command, identifier entry, external provider or financial action was performed by the benchmark.
+
+The original audit did not retain its fixture ID. This run therefore pinned the application created by this implementation chat's hosted enrichment test: a synthetic $10,000 application with completed setup and status `collecting_information`, **seven visible open tasks**, zero documents, one active fraud check with one current succeeded run and three stale cancelled runs, and no signature envelopes. The baseline had **eight visible tasks**; its other workload counts were not retained. These are comparable endpoint observations on different fixtures, not a controlled same-fixture comparison or proof that a particular change caused the difference.
+
+| Read | Baseline serial HTTP | Deployed serial HTTP | Deployed API duration |
+| --- | --- | --- | --- |
+| Session | 155–160 ms | 127–138 ms | 20–27 ms |
+| Application portal | 1,542–1,935 ms | 567–651 ms | 441–512 ms |
+| Tasks | 1,827–1,842 ms | 867–896 ms | 691–736 ms |
+| Documents | 707–723 ms | 325–366 ms | 217–236 ms |
+| Readiness | 1,998–2,803 ms | 753–1,096 ms | 614–745 ms |
+| Review | 2,141–3,788 ms | 870–935 ms | 725–760 ms |
+
+| Concurrent read | Baseline HTTP | Deployed HTTP | Deployed API duration |
+| --- | --- | --- | --- |
+| Tasks | 3,750 ms | 1,046 ms | 889 ms |
+| Documents | 6,029 ms | 305 ms | 188 ms |
+| Readiness | 5,547 ms | 1,638 ms | 1,264 ms |
+| Review | 2,151 ms | 2,382 ms | 2,215 ms |
+
+All serial ranges were lower in this run. Concurrent review remained over two seconds and was slightly higher than its baseline sample, so the evidence does not claim that every request became faster. Shared application locking and sequential authorization/reconciliation queries remain; the measured concurrent readiness/review durations are consistent with that serialization. Server-Timing reports the API handler's elapsed duration, not CPU time. These few samples from one host establish neither latency percentiles nor a general service-level guarantee.
+
+The direct Neon diagnostic remained `BEGIN READ ONLY`: three warm `SELECT 1` round trips took **48–49 ms**, versus 52–53 ms previously. The point-in-time activity snapshot again showed one active diagnostic connection and five idle connections, with no observed lock wait. Safe aggregate timings and workload counts are in `.local/d04-latency-recheck.json`; the pinned private wrapper is `.local/d04-latency-recheck.mjs`. Neither file contains database credentials, session values, response bodies or applicant identities. No hosted browser run overlapped this benchmark.

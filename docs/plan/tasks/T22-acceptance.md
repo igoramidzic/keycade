@@ -34,7 +34,7 @@ This is integration verification, not permission to postpone earlier task tests.
 
 ## Implementation record
 
-In progress — October 7, 2026. The complete local browser suite, disposable-checkout initialization/restart checks, and hosted enrichment pass. D03's deployed synthetic inbox, setup resume, private document upload/scan, scoped invitation and two-person signing journey passed at `b9c679d`. Final hosted closing/funding verification follows a latency fix discovered during acceptance. Separate CI validation remains paused by the user's explicit decision; this is an agreed deviation from the original T22 CI scope, not a missing implementation task.
+Done — October 7, 2026. The complete local browser suite, disposable-checkout initialization/restart checks, hosted enrichment, and the hosted journey through one recorded simulated funding event pass. Acceptance found and resolved repeated closing reads and a browser-fixture request burst; evidence and limitations are recorded below. Separate CI validation remains paused by the user's explicit decision; this is an agreed deviation from the original T22 CI scope, not a missing implementation task.
 
 ### Reproducible local setup
 
@@ -48,7 +48,7 @@ Bad credentials stopped `pnpm dev` in 1.68 seconds; a stopped owned database sto
 
 Commit `5a3c1a5` passed lint/boundaries, all workspace/root types, 272 unit tests, 347 PostgreSQL tests in 39 suites, all 12 builds and native API/jobs deployment dry runs. Final closing passed 2/2 desktop/mobile journeys (`.local/e2e-vjG36g`), activity/operations 4/4 (`.local/e2e-D7lQlU`), and borrower navigation 18/18 (`.local/e2e-vkqQST`). The additive migration also applied locally; readiness reports database and worker ready.
 
-All five native Cloudflare builds deployed `5a3c1a5`; [Neon migration run 37676993377](https://github.com/igoramidzic/keycade/actions/runs/37676993377) succeeded. Complete local browser regressions are recorded below; hosted closing/funding remains to be confirmed before T22 completion.
+All five native Cloudflare builds deployed `5a3c1a5`; [Neon migration run 37676993377](https://github.com/igoramidzic/keycade/actions/runs/37676993377) succeeded. Complete local browser regressions and subsequent hosted closing/funding confirmation are recorded below.
 
 ### Complete local browser acceptance
 
@@ -78,4 +78,28 @@ The portal now returns its existing review permission as a fail-closed `canRevie
 
 Checkpoint `4ecc0a3` contains this bounded read optimization separately from the other chat's session/polling changes. A disposable source copy with exactly this checkpoint's runtime changes, its own installed workspace graph and its own Podman project passed lint/boundaries, all types, **272 unit tests in 22 suites, 348 PostgreSQL tests in 39 suites, all 12 builds, and 18/18 borrower desktop/mobile cases**. The browser regression includes zero background review reads on unrelated sections. Safe evidence is retained in `.local/checkpoint-validation-vj0l2afe`; temporary resources were removed after validation. All five native Cloudflare builds succeeded for `4ecc0a3`. There was no schema change, so the path-filtered Neon workflow correctly did not rerun; the successful `5a3c1a5` migration remains current.
 
-An earlier overlapping browser run encountered a transient authentication-hook ordering defect in the other chat's in-progress edits; the final isolated checkpoint excludes those changes and its full borrower rerun passes. Final review regressions and deployed timing/funding confirmation are pending.
+An earlier overlapping browser run encountered a transient authentication-hook ordering defect in the other chat's in-progress edits; the final isolated checkpoint excludes those changes and its full borrower rerun passes. The review fixture also exceeded the unchanged API request budget when executing its multi-actor journey at machine speed. Matching the existing closing test's pacing and parking inactive pages fixed that test-only burst: all six review cases pass in `.local/e2e-Bsuobh`, with no rate-limit/server errors, skipped cases or flaky outcomes.
+
+The identical read-only probe then measured the same two-signer application before funding. All responses were successful, and each probe used the same deliberate 850 ms dispatch pacing to stay within the shared hosted demo's limit:
+
+| Deployed checkpoint | Closing page visible | Closing request after dispatch | Portal request after dispatch |
+| --- | --- | --- | --- |
+| `5a3c1a5`, original | 28.211 s | 7.958 s | 4.965 s |
+| `4ecc0a3`, bounded read reuse | 18.080 s | 3.338 s | 0.975 s |
+| `d7a6597`, including session/polling/placement improvements | 10.550 s | 1.527 s | 0.454 s |
+
+The `4ecc0a3` probe finished at 20:25:03 UTC, before the next commit existed. All five `d7a6597` native builds finished by 20:26:53 UTC; its probe ran from 20:29:02 to 20:29:17 UTC. That final probe made 12 completed API requests versus 20 at the preceding checkpoint, with no hidden review fetch. Its closing response reports 1.330 seconds of API time and its portal response 0.324 seconds. Maximum artificial queue wait stayed approximately three seconds in each run. These are individual paced acceptance observations, not unpaced page-load guarantees or production percentiles. Safe reports are under `.local/hosted-closing-{5a3c1a5,4ecc0a3,d7a6597}/`.
+
+### Hosted funding and final handoff
+
+The continuation of the same synthetic application, `64f59404-8456-4ff9-8a82-9c3b9fdcfa9b`, passed against `d7a6597` from 20:29:35 to 20:32:00 UTC: **1/1, no failures, skips or flaky outcomes**, with the existing 25-second action timeout unchanged. Its earlier application/setup/checks/approval/R2/invitation/two-signer steps were completed against `5a3c1a5`; the continuation verified those saved current signatures before any funding action. This is a preserved, resumed journey across the release checkpoints, not a claim that the entire journey ran again from scratch on the final commit.
+
+- The applicant explicitly completed the funding acknowledgement and staff reviewed it. Funding required the deliberate simulation checkbox and the exact approved USD amount, $19,000.25.
+- Funding created one simulated account, `a9867d5d-456c-4ff8-8128-8c3597d477f3`, dated October 7, 2026 UTC. Replaying the identical command returned that same account.
+- Borrower and staff dashboards each displayed one correctly grouped account. The assigned signer had an empty account list, no account UI and a direct closing read returned 404.
+- Borrower activity displayed funding without internal support metadata. Staff Operations displayed its healthy worker and current application operations.
+- Four deliberate synthetic screenshots were inspected for readable labels, controls and overflow. Authentication traces, videos and automatic failure screenshots stayed disabled. All hosted browser contexts closed after completion.
+
+Report: `.local/hosted-closing-d7a6597/resume-report.json`; screenshots in its `resume-artifacts/` directory. No real external email/provider, legally effective signature or movement of money occurred, and unrelated hosted applications were preserved.
+
+The final combined implementation at `d7a6597` also has **283 unit tests, 350 PostgreSQL tests, all 12 builds, and desktop/mobile request-efficiency and account-switch regressions** recorded in [D04](D04-hosted-performance.md#final-local-checkpoint). The original 140-case local acceptance, subsequent affected borrower/review regressions, clean initialization/restart checks and actual hosted demonstrations together satisfy the eight required journeys. [The root README](../../../README.md) provides setup, fixture identities, inbox choices, demo steps, commands and troubleshooting. Live providers, real authentication/email, SSO, production banking controls and all servicing remain explicitly deferred.
