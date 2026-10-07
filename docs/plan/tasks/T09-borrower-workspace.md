@@ -6,6 +6,12 @@ Dependencies: T08. Read [product](../01-product.md) and [access rules](../03-dom
 
 A borrower who has completed initial setup enters a portal showing that application's remaining tasks. Authorized application selection keeps unfinished setups resumable and other applications independently accessible.
 
+## T08 handoff
+
+T08 provides React Router routes `/apply`, `/applications/:applicationId/setup`, and `/applications/:applicationId`, plus a minimal paginated selector at `/`. Expand the completed-application handoff in `apps/borrower/src/app.tsx`. The server's `nextDestination` remains authoritative; wait for a fresh destination response before redirecting so cached incomplete/completed values cannot loop. Setup and destination caches are scoped by bank, user, and application. Mutation preflight also checks the current session's bank and email before sending an answer.
+
+Retain the synthetic distinction, explicit pending-draft claims, no-create generic resume, and existing desktop/mobile regression journeys. The selector does not yet group businesses or show the full product/status/update summaries; those remain this task's acceptance criteria. Do not replace the wizard with a task dashboard before server-confirmed completion.
+
 ## Scope
 
 - Build business-grouped application cards/list with product, exact requested amount, status, last update, and permitted next actions.

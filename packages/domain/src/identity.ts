@@ -13,6 +13,7 @@ import {
   users,
 } from "@keycade/db";
 import { and, eq, gt, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { claimApplicationInTransaction } from "./application-claims.js";
 import { DomainError, deny } from "./errors.js";
 
 export type IdentityPortal = "borrower" | "staff";
@@ -483,6 +484,16 @@ export function createIdentityService(
         )
         .for("share");
       if (delivery.portal === "staff" && !membership) return invalidLink();
+      if (delivery.applicationId && delivery.portal === "borrower") {
+        await claimApplicationInTransaction(
+          tx,
+          { kind: "user", userId: user.id },
+          bank.id,
+          delivery.applicationId,
+          input.requestId,
+          now,
+        );
+      }
       await tx
         .update(applicantContacts)
         .set({ userId: user.id, updatedAt: now })

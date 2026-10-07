@@ -61,8 +61,11 @@ test("Cron dispatch and queue delivery preserve durable retries and one effect a
         ])
       ).rows[0].dispatched_at,
     ).toBeNull();
-    await database.pool.query("UPDATE integration_runs SET available_at = now() WHERE id=$1", [
+    // The dispatcher uses the runtime clock; PostgreSQL may run a few milliseconds ahead
+    // in its VM. Make the retry unambiguously due without depending on either wall clock.
+    await database.pool.query("UPDATE integration_runs SET available_at = $2 WHERE id=$1", [
       operationId,
+      new Date(0),
     ]);
     await worker.scheduled({} as ScheduledController, env);
     expect(delivered).toEqual([{ operationId }]);

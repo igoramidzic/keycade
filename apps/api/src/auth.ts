@@ -54,5 +54,10 @@ export async function readStaffSession(db: Database, authentication: Authenticat
   return { bank: session.bank, role: membership.role };
 }
 
+/** A session established for one bank cannot select another bank through a route parameter. */
+export function assertSessionBank(authentication: Authentication, bankId: string): void {
+  if (authentication.session && authentication.session.bank.id !== bankId) deny();
+}
+
 export const accessLinkMessage =
   "If this address can access this portal, an email link is on its way.";

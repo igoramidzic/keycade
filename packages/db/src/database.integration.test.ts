@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { assertSchemaReady, migrateDatabase } from "./migrate.js";
-import { applications, auditEvents, businesses } from "./schema.js";
+import { applicationSetups, applications, auditEvents, businesses } from "./schema.js";
 import { seedDatabase, seedIds } from "./seed.js";
 import { createTestDatabase } from "./testing.js";
 
@@ -129,6 +129,82 @@ describe("committed migrations and synthetic data on PostgreSQL", () => {
         .set({ revision: 0 })
         .where(eq(applications.id, seedIds.applicationSmall)),
     ).rejects.toThrow();
+  });
+
+  it("seeds completed and incomplete setup fixtures without overwriting progress", async () => {
+    const setups = await database.db.select().from(applicationSetups);
+    expect(setups).toHaveLength(5);
+    expect(setups.find((row) => row.applicationId === seedIds.applicationSmall)).toMatchObject({
+      currentStep: "review",
+      completedByUserId: seedIds.borrower,
+      skippedSteps: ["industry"],
+    });
+    expect(setups.find((row) => row.applicationId === seedIds.applicationEmpty)).toMatchObject({
+      currentStep: "business_name",
+      completedSteps: [],
+      skippedSteps: [],
+      completedAt: null,
+      completedByUserId: null,
+    });
+    await database.db
+      .update(applicationSetups)
+      .set({ currentStep: "product", completedSteps: ["business_name"] })
+      .where(eq(applicationSetups.applicationId, seedIds.applicationEmpty));
+    await seedDatabase(database.connectionString);
+    const [resumed] = await database.db
+      .select()
+      .from(applicationSetups)
+      .where(eq(applicationSetups.applicationId, seedIds.applicationEmpty));
+    expect(resumed?.currentStep).toBe("product");
+    expect(resumed?.completedSteps).toEqual(["business_name"]);
+  });
+
+  it("rejects cross-bank setup, request, and continuation links", async () => {
+    await expect(
+      database.pool.query("UPDATE application_setups SET bank_id = $1 WHERE application_id = $2", [
+        seedIds.bankB,
+        seedIds.applicationSmall,
+      ]),
+    ).rejects.toThrow();
+    await expect(
+      database.pool.query(
+        "INSERT INTO application_requests (bank_id, scope, operation, key_hash, payload_hash, application_id) VALUES ($1, 'test', 'create', $2, $2, $3)",
+        [seedIds.bankB, "a".repeat(64), seedIds.applicationSmall],
+      ),
+    ).rejects.toThrow();
+    await expect(
+      database.pool.query(
+        "INSERT INTO access_delivery_requests (bank_id, contact_id, application_id, portal, origin, return_path, expires_at, request_id) VALUES ($1, $2, $3, 'borrower', 'http://localhost:3001', '/', now() + interval '1 hour', 'synthetic-test')",
+        [seedIds.bankA, seedIds.contactA, seedIds.applicationOtherBank],
+      ),
+    ).rejects.toThrow();
+  });
+
+  it("constrains setup steps, positive revisions, and request idempotency scope", async () => {
+    for (const changes of [
+      { revision: 0 },
+      { definitionVersion: 0 },
+      { currentStep: "nonexistent" },
+      { completedSteps: ["nonexistent"] },
+      { skippedSteps: ["product"] },
+      { completedSteps: ["industry"], skippedSteps: ["industry"] },
+    ]) {
+      await expect(
+        database.db
+          .update(applicationSetups)
+          .set(changes)
+          .where(eq(applicationSetups.applicationId, seedIds.applicationEmpty)),
+      ).rejects.toThrow();
+    }
+    const insertRequest = (scope: string, operation: string) =>
+      database.pool.query(
+        "INSERT INTO application_requests (bank_id, scope, operation, key_hash, payload_hash, application_id) VALUES ($1, $2, $3, $4, $4, $5)",
+        [seedIds.bankA, scope, operation, "b".repeat(64), seedIds.applicationSmall],
+      );
+    await insertRequest("actor-a", "create");
+    await expect(insertRequest("actor-a", "create")).rejects.toThrow();
+    await insertRequest("actor-b", "create");
+    await insertRequest("actor-a", "finish");
   });
 
   it("rolls back prior writes when a later operation fails", async () => {

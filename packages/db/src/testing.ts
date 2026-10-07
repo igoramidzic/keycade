@@ -3,7 +3,10 @@ import { createDatabase } from "./index.js";
 import { migrateDatabase } from "./migrate.js";
 
 /** Fresh real PostgreSQL database per suite; never resets or drops the configured database. */
-export async function createTestDatabase(adminConnectionString = process.env.TEST_DATABASE_URL) {
+export async function createTestDatabase(
+  adminConnectionString = process.env.TEST_DATABASE_URL,
+  options: { migrate?: boolean } = {},
+) {
   if (!adminConnectionString)
     throw new Error(
       "TEST_DATABASE_URL is required. Run pnpm test:integration from the repository root.",
@@ -30,7 +33,7 @@ export async function createTestDatabase(adminConnectionString = process.env.TES
     const testUrl = new URL(adminUrl);
     testUrl.pathname = `/${databaseName}`;
     const connectionString = testUrl.toString();
-    await migrateDatabase(connectionString);
+    if (options.migrate !== false) await migrateDatabase(connectionString);
     const { db, pool } = createDatabase(connectionString);
     let cleaned = false;
     return {

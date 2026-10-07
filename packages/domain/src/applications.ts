@@ -3,11 +3,12 @@ import {
   staffApplicationSchema,
   updatePurposeSchema,
 } from "@keycade/contracts";
-import { applications, auditEvents, type Database } from "@keycade/db";
+import { applicationSetups, applications, auditEvents, type Database } from "@keycade/db";
 import { and, eq, sql } from "drizzle-orm";
 import {
   type Actor,
   type QueryDatabase,
+  requireApplicantPortalAccess,
   requireApplicationAccess,
   requireBankStaff,
 } from "./authorization.js";
@@ -28,7 +29,7 @@ export async function readApplication(
   bankId: string,
   applicationId: string,
 ) {
-  await requireApplicationAccess(db, actor, bankId, applicationId);
+  await requireApplicantPortalAccess(db, actor, bankId, applicationId);
   return publicApplicationSchema.parse(await findApplication(db, bankId, applicationId));
 }
 
@@ -39,6 +40,7 @@ export async function readStaffApplication(
   applicationId: string,
 ) {
   await requireBankStaff(db, actor, bankId);
+  await requireApplicationAccess(db, actor, bankId, applicationId);
   const row = await findApplication(db, bankId, applicationId);
   return staffApplicationSchema.parse({
     ...row,
@@ -60,7 +62,7 @@ export async function updateApplicationPurpose(
   const parsed = updatePurposeSchema.safeParse(input);
   if (!parsed.success) throw new DomainError("INVALID_INPUT", 400, "Invalid request.");
   return db.transaction(async (tx) => {
-    const access = await requireApplicationAccess(tx, actor, bankId, applicationId);
+    const access = await requireApplicantPortalAccess(tx, actor, bankId, applicationId);
     if (
       actor.kind !== "user" ||
       (access.kind !== "staff" &&
@@ -106,6 +108,13 @@ export async function updateApplicationPurpose(
         409,
         "The application changed. Reload and try again.",
       );
+    await tx
+      .update(applicationSetups)
+      .set({
+        revision: updated.revision,
+        completedSteps: sql`CASE WHEN ${applicationSetups.completedAt} IS NULL THEN array_remove(${applicationSetups.completedSteps}, 'purpose') ELSE ${applicationSetups.completedSteps} END`,
+      })
+      .where(eq(applicationSetups.applicationId, applicationId));
     await tx.insert(auditEvents).values({
       bankId,
       applicationId,

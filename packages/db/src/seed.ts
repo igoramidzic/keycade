@@ -1,8 +1,10 @@
+import { inArray } from "drizzle-orm";
 import { createDatabase } from "./index.js";
 import { normalizeMoney } from "./money.js";
 import {
   applicantContacts,
   applicationParticipants,
+  applicationSetups,
   applications,
   bankMemberships,
   banks,
@@ -131,28 +133,33 @@ export async function seedDatabase(connectionString: string): Promise<void> {
             id: seedIds.applicationSmall,
             bankId: seedIds.bankA,
             businessId: seedIds.businessA,
+            businessName: "Synthetic Cedar Workshop",
             contactId: seedIds.contactA,
             productId: seedIds.productA,
             requestedAmount: normalizeMoney("10000"),
             purpose: "Synthetic equipment purchase",
             source: "seed",
+            status: "collecting_information",
             synthetic: true,
           },
           {
             id: seedIds.applicationLarge,
             bankId: seedIds.bankA,
             businessId: seedIds.businessB,
+            businessName: "Synthetic Maple Supply",
             contactId: seedIds.contactA,
             productId: seedIds.productA,
             requestedAmount: normalizeMoney("5000000"),
             purpose: "Synthetic expansion",
             source: "seed",
+            status: "collecting_information",
             synthetic: true,
           },
           {
             id: seedIds.applicationUnshared,
             bankId: seedIds.bankA,
             businessId: seedIds.businessA,
+            businessName: "Synthetic Cedar Workshop",
             productId: seedIds.productA,
             requestedAmount: normalizeMoney("7500000"),
             purpose: "Synthetic separate request; no borrower grant",
@@ -163,6 +170,7 @@ export async function seedDatabase(connectionString: string): Promise<void> {
             id: seedIds.applicationOtherBank,
             bankId: seedIds.bankB,
             businessId: seedIds.businessOtherBank,
+            businessName: "Synthetic Birch Services",
             productId: seedIds.productB,
             requestedAmount: normalizeMoney("10000"),
             purpose: "Synthetic isolated bank request",
@@ -215,6 +223,36 @@ export async function seedDatabase(connectionString: string): Promise<void> {
             synthetic: true,
           },
         ])
+        .onConflictDoNothing();
+      const seededApplications = await tx
+        .select()
+        .from(applications)
+        .where(
+          inArray(applications.id, [
+            seedIds.applicationSmall,
+            seedIds.applicationLarge,
+            seedIds.applicationUnshared,
+            seedIds.applicationOtherBank,
+            seedIds.applicationEmpty,
+          ]),
+        );
+      await tx
+        .insert(applicationSetups)
+        .values(
+          seededApplications.map((application) => {
+            const completed = application.status !== "draft";
+            return {
+              applicationId: application.id,
+              bankId: application.bankId,
+              revision: application.revision,
+              currentStep: completed ? "review" : "business_name",
+              completedSteps: completed ? ["business_name", "product", "amount", "purpose"] : [],
+              skippedSteps: completed ? ["industry"] : [],
+              completedAt: completed ? application.updatedAt : null,
+              completedByUserId: completed ? seedIds.borrower : null,
+            };
+          }),
+        )
         .onConflictDoNothing();
     });
   } finally {

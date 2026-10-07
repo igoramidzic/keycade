@@ -6,6 +6,10 @@ Dependencies: T07, including persisted setup state and completion guards. Read [
 
 A borrower starts from a fictional bank site, completes a dedicated one-question-at-a-time setup wizard, and enters the task portal only after setup is complete. Leaving partway through preserves progress for later resume. Local demo mode signs in immediately; the optional email-link path verifies the address.
 
+## Backend handoff
+
+T07 is complete. Use its [API contracts and error semantics](T07-application-service.md#api-handoff), including the server-provided next destination, explicit pending-draft claim, and revision returned after each save. Generate a fresh 256-bit hexadecimal key for a public start and UUID keys for authenticated creation/completion; preserve keys across retries. Generic resume must never call create.
+
 ## Scope
 
 - Build a small mock bank page with apply and resume actions; carry a public bank slug/product hint to the separate borrower app.
@@ -37,6 +41,23 @@ Defer the full dashboard, collaborators, and evidence collection to subsequent t
 
 ## Implementation record
 
-Not started. Record date, commands/results, and deviations when implemented.
+Implemented October 7, 2026.
 
-Planning clarification — October 6, 2026: updated the wizard contract, T07 persistence/guards, T09 portal handoff, related tasks, decisions, and requirement map. Documentation validation passed: `git diff --check` and a local Markdown path/heading check (110 links across 36 files). Implementation acceptance tests were not run for this documentation-only change; the wizard remains not started.
+- Mock bank apply/resume actions pass public bank/product context to the separate borrower app. Demo access defaults to immediate email entry; the Mailpit option creates a pending draft before verification and supports expired/fresh links.
+- React Router routes isolate the setup wizard from the completion handoff. A minimal paginated selector routes each application using its current server destination, including pending claims, closed applications, and limited assigned access. It does not implement T09's dashboard.
+- React Hook Form renders one answer per screen with Back/Continue, optional industry skip, acknowledged step progress, summary corrections, Continue later, and explicit Finish setup. Default shadcn Alert and Native Select were added through `npx shadcn@latest add alert native-select --cwd apps/borrower --yes`; one pnpm lockfile remains.
+- TanStack Query keys include bank, email, and application. Fresh destination/setup reads prevent stale cached redirects. Failed saves/completion retain input; stale revisions show the latest saved answer for deliberate retry. An in-memory buffer preserves unsaved answers across same-tab reauthentication/product correction; only server-acknowledged answers survive closing a tab. No local/session storage is used for application state.
+- Both HTTP transports expose `GET /api/v1/public/banks/:bankSlug/intake`. Bank/product hints cannot grant participation or cross tenant boundaries. Setup carries the selected product's actual version and limits, even when newer catalog versions exist. Retired-product recovery navigates to a replacement without bypassing answer/completion validation.
+
+Validation:
+
+- `pnpm check`: Biome, package boundaries, all workspace/root TypeScript checks, and **129 unit tests** passed.
+- `pnpm build`: all 12 workspace builds/checks passed. Vite reports an advisory about the borrower entry chunk exceeding 500 kB; route splitting is a later optimization, not a failed build.
+- `pnpm test:integration`: **123 tests across 15 files** passed using fresh real PostgreSQL databases. Coverage includes public catalog validation/HTTP parity, bank isolation, older product descriptors, and retired-product recovery through amount correction and completion.
+- `pnpm test:e2e` uses the isolated runner with real runtime limits, private logs, owned-process cleanup, and disposable database teardown. Browser journeys: **28 passed, 2 intentional mobile duplicates skipped** across desktop/mobile. The seeded staff identity and staff-prefill cases execute on desktop; other journeys execute on both. Coverage includes bank navigation, keyboard focus/tab order, mobile overflow, demo/Mailpit starts, storage loss, a separate browser device, fresh/expired/replayed links, failed saves/completion, lost creation acknowledgment, stale revisions, staff prefill, direct portal guards, later sign-in, failed sign-out, same-tab reauthentication, and same-bank account switching in another tab.
+- Final focused browser rerun after recovery hardening: **4 passed**, including product correction preserving an unsaved amount while the server stores only the requested navigation.
+- Manual in-app browser review confirmed bank/unknown-product/unknown-bank states, readable default styling, heading focus, product correction, and Continue later. `git diff --check` and local documentation links passed.
+
+The industry choices are intentionally a bounded synthetic fixture until T15. T09 owns business grouping, portal navigation, and remaining-task empty states; T10 owns bank queue/prefill screens. No hosted migration or deployment was performed.
+
+Planning clarification — October 6, 2026: updated the wizard contract, T07 persistence/guards, T09 portal handoff, related tasks, decisions, and requirement map. Documentation validation passed: `git diff --check` and a local Markdown path/heading check (110 links across 36 files). Implementation acceptance tests were not run for this documentation-only change; the wizard was not started at that time.

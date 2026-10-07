@@ -160,6 +160,14 @@ describe("HTTP foundation", () => {
     expect(reply.body).not.toMatch(/credential|stack|secret/);
     const spec = (await app.inject("/api/openapi.json")).json();
     expect(spec.paths["/api/v1/banks/{bankId}/applications/{applicationId}"]).toHaveProperty("get");
+    expect(spec.paths["/api/v1/applications/start"]).toHaveProperty("post");
+    expect(spec.paths["/api/v1/banks/{bankId}/applications"]).toHaveProperty("post");
+    expect(spec.paths["/api/v1/banks/{bankId}/applications/{applicationId}/setup"]).toHaveProperty(
+      "patch",
+    );
+    expect(
+      spec.paths["/api/v1/banks/{bankId}/applications/{applicationId}/setup/finish"],
+    ).toHaveProperty("post");
   });
 });
 
@@ -208,6 +216,30 @@ describe("identity HTTP security", () => {
       });
     for (let i = 0; i < 30; i++) expect((await attempt()).statusCode).toBe(400);
     expect((await attempt()).statusCode).toBe(429);
+  });
+  it("throttles public application start before parsing and only accepts borrower origins", async () => {
+    const app = await server();
+    const attempt = () =>
+      app.inject({
+        method: "POST",
+        url: "/api/v1/applications/start",
+        headers: { origin: "http://localhost:3001" },
+        payload: { email: "invalid" },
+      });
+    for (let i = 0; i < 20; i++) expect((await attempt()).statusCode).toBe(400);
+    expect((await attempt()).statusCode).toBe(429);
+    const other = await server();
+    const reply = await other.inject({
+      method: "POST",
+      url: "/api/v1/applications/start",
+      headers: { origin: "http://localhost:3001" },
+      payload: {
+        email: "synthetic@example.test",
+        bankSlug: "bank-a",
+        idempotencyKey: "a".repeat(64),
+      },
+    });
+    expect(reply.statusCode).toBe(403);
   });
 });
 

@@ -3,28 +3,43 @@ import cookie from "@fastify/cookie";
 import rateLimit from "@fastify/rate-limit";
 import swagger from "@fastify/swagger";
 import {
+  applicationPageSchema,
   applicationParamsSchema,
+  applicationSelectionSchema,
+  applicationSetupSchema,
   authSessionSchema,
+  bankParamsSchema,
+  claimApplicationSchema,
   consumeAccessLinkResponseSchema,
   consumeAccessLinkSchema,
+  createDraftSchema,
   demoSignInResponseSchema,
   demoSignInSchema,
   errorSchema,
+  finishApplicationSetupSchema,
   logoutResponseSchema,
+  pageQuerySchema,
   publicApplicationSchema,
+  publicIntakeParamsSchema,
+  publicIntakeQuerySchema,
+  publicIntakeSchema,
+  publicStartApplicationSchema,
   type Readiness,
   readinessSchema,
   requestAccessLinkResponseSchema,
   requestAccessLinkSchema,
+  saveApplicationSetupSchema,
   staffApplicationSchema,
   staffSessionSchema,
   updatePurposeSchema,
 } from "@keycade/contracts";
 import type { Database } from "@keycade/db";
 import {
+  createApplicationService,
   createIdentityService,
   DomainError,
   readApplication,
+  readPublicIntake,
   readStaffApplication,
   updateApplicationPurpose,
 } from "@keycade/domain";
@@ -39,6 +54,7 @@ import { z } from "zod";
 import {
   type Authentication,
   accessLinkMessage,
+  assertSessionBank,
   authenticateSession,
   type IdentityTransportOptions,
   publicSession,
@@ -71,6 +87,7 @@ export interface ServerOptions extends IdentityTransportOptions {
 
 export async function buildServer(options: ServerOptions) {
   const identity = createIdentityService(options.db);
+  const applications = createApplicationService(options.db);
   const originFor = (request: FastifyRequest) =>
     configuredRequestOrigin(
       request.headers.origin,
@@ -122,7 +139,12 @@ export async function buildServer(options: ServerOptions) {
   });
   app.addHook("preHandler", async (request, reply) => {
     if (
-      ["/api/health", "/api/ready", "/api/openapi.json"].includes(request.routeOptions.url ?? "")
+      [
+        "/api/health",
+        "/api/ready",
+        "/api/openapi.json",
+        "/api/v1/public/banks/:bankSlug/intake",
+      ].includes(request.routeOptions.url ?? "")
     ) {
       request.authentication = { actor: { kind: "anonymous" } };
       return;
@@ -224,6 +246,23 @@ export async function buildServer(options: ServerOptions) {
   );
   app.get("/api/openapi.json", { config: { rateLimit: false }, schema: { hide: true } }, async () =>
     app.swagger(),
+  );
+  app.get(
+    "/api/v1/public/banks/:bankSlug/intake",
+    {
+      schema: {
+        params: publicIntakeParamsSchema,
+        querystring: publicIntakeQuerySchema,
+        response: {
+          200: publicIntakeSchema,
+          400: errorSchema,
+          404: errorSchema,
+          429: errorSchema,
+          500: errorSchema,
+        },
+      },
+    },
+    async (request) => readPublicIntake(options.db, request.params),
   );
   const responses = {
     400: errorSchema,
@@ -367,6 +406,168 @@ export async function buildServer(options: ServerOptions) {
       return { ok: true as const };
     },
   );
+  app.post(
+    "/api/v1/applications/start",
+    {
+      config: { rateLimit: authSendRateLimit },
+      schema: {
+        body: publicStartApplicationSchema,
+        response: { 202: requestAccessLinkResponseSchema, ...responses },
+      },
+    },
+    async (request, reply) => {
+      if (options.authDeliveryEnabled === false)
+        return reply.code(503).send({
+          error: {
+            code: "AUTH_DELIVERY_UNAVAILABLE",
+            message:
+              "Email sign-in is available in the local demo. Hosted email delivery is not configured.",
+            requestId: request.id,
+          },
+        });
+      const origin = request.headers.origin;
+      if (!origin || !isAllowedOrigin(origin, options.portalOrigins?.borrower ?? []))
+        return reply.code(403).send({
+          error: {
+            code: "FORBIDDEN",
+            message: "Request origin is not allowed for this portal.",
+            requestId: request.id,
+          },
+        });
+      const result = await applications.publicStart(request.body, {
+        origin,
+        requestId: request.id,
+        rateLimitKey: request.ip,
+      });
+      return reply.code(202).send(result);
+    },
+  );
+  app.get(
+    "/api/v1/banks/:bankId/applications",
+    {
+      schema: {
+        params: bankParamsSchema,
+        querystring: pageQuerySchema,
+        response: { 200: applicationPageSchema, ...responses },
+      },
+    },
+    async (request) => {
+      assertSessionBank(request.authentication, request.params.bankId);
+      return applications.list(request.authentication.actor, request.params.bankId, request.query);
+    },
+  );
+  app.post(
+    "/api/v1/banks/:bankId/applications",
+    {
+      schema: {
+        params: bankParamsSchema,
+        body: createDraftSchema,
+        response: { 200: applicationSetupSchema, ...responses },
+      },
+    },
+    async (request) => {
+      assertSessionBank(request.authentication, request.params.bankId);
+      return applications.create(
+        request.authentication.actor,
+        request.params.bankId,
+        request.body,
+        request.id,
+      );
+    },
+  );
+  app.get(
+    "/api/v1/banks/:bankId/applications/:applicationId/setup",
+    {
+      schema: {
+        params: applicationParamsSchema,
+        response: { 200: applicationSetupSchema, ...responses },
+      },
+    },
+    async (request) => {
+      assertSessionBank(request.authentication, request.params.bankId);
+      return applications.readSetup(
+        request.authentication.actor,
+        request.params.bankId,
+        request.params.applicationId,
+      );
+    },
+  );
+  app.patch(
+    "/api/v1/banks/:bankId/applications/:applicationId/setup",
+    {
+      schema: {
+        params: applicationParamsSchema,
+        body: saveApplicationSetupSchema,
+        response: { 200: applicationSetupSchema, ...responses },
+      },
+    },
+    async (request) => {
+      assertSessionBank(request.authentication, request.params.bankId);
+      return applications.saveSetup(
+        request.authentication.actor,
+        request.params.bankId,
+        request.params.applicationId,
+        request.body,
+        request.id,
+      );
+    },
+  );
+  app.post(
+    "/api/v1/banks/:bankId/applications/:applicationId/setup/finish",
+    {
+      schema: {
+        params: applicationParamsSchema,
+        body: finishApplicationSetupSchema,
+        response: { 200: applicationSetupSchema, ...responses },
+      },
+    },
+    async (request) => {
+      assertSessionBank(request.authentication, request.params.bankId);
+      return applications.finishSetup(
+        request.authentication.actor,
+        request.params.bankId,
+        request.params.applicationId,
+        request.body,
+        request.id,
+      );
+    },
+  );
+  app.post(
+    "/api/v1/banks/:bankId/applications/:applicationId/claim",
+    {
+      schema: {
+        params: applicationParamsSchema,
+        body: claimApplicationSchema,
+        response: { 200: applicationSetupSchema, ...responses },
+      },
+    },
+    async (request) => {
+      assertSessionBank(request.authentication, request.params.bankId);
+      return applications.claim(
+        request.authentication.actor,
+        request.params.bankId,
+        request.params.applicationId,
+        request.id,
+      );
+    },
+  );
+  app.get(
+    "/api/v1/banks/:bankId/applications/:applicationId/destination",
+    {
+      schema: {
+        params: applicationParamsSchema,
+        response: { 200: applicationSelectionSchema, ...responses },
+      },
+    },
+    async (request) => {
+      assertSessionBank(request.authentication, request.params.bankId);
+      return applications.destination(
+        request.authentication.actor,
+        request.params.bankId,
+        request.params.applicationId,
+      );
+    },
+  );
   app.get(
     "/api/v1/banks/:bankId/applications/:applicationId",
     {
@@ -375,13 +576,15 @@ export async function buildServer(options: ServerOptions) {
         response: { 200: publicApplicationSchema, ...responses },
       },
     },
-    async (request) =>
-      readApplication(
+    async (request) => {
+      assertSessionBank(request.authentication, request.params.bankId);
+      return readApplication(
         options.db,
         request.authentication.actor,
         request.params.bankId,
         request.params.applicationId,
-      ),
+      );
+    },
   );
   app.get(
     "/api/v1/banks/:bankId/staff/applications/:applicationId",
@@ -391,13 +594,15 @@ export async function buildServer(options: ServerOptions) {
         response: { 200: staffApplicationSchema, ...responses },
       },
     },
-    async (request) =>
-      readStaffApplication(
+    async (request) => {
+      assertSessionBank(request.authentication, request.params.bankId);
+      return readStaffApplication(
         options.db,
         request.authentication.actor,
         request.params.bankId,
         request.params.applicationId,
-      ),
+      );
+    },
   );
   app.patch(
     "/api/v1/banks/:bankId/applications/:applicationId/purpose",
@@ -408,15 +613,17 @@ export async function buildServer(options: ServerOptions) {
         response: { 200: publicApplicationSchema, ...responses },
       },
     },
-    async (request) =>
-      updateApplicationPurpose(
+    async (request) => {
+      assertSessionBank(request.authentication, request.params.bankId);
+      return updateApplicationPurpose(
         options.db,
         request.authentication.actor,
         request.params.bankId,
         request.params.applicationId,
         request.body,
         request.id,
-      ),
+      );
+    },
   );
   return app;
 }

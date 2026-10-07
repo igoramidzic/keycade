@@ -40,4 +40,39 @@ Keep the creation service callable by a future authenticated bank integration; d
 
 ## Implementation record
 
-Not started. Record date, commands/results, and deviations when implemented.
+Implemented October 7, 2026. Final validation is recorded below.
+
+- Shared application service covers public email-start, authenticated borrower/demo and staff creation, minimal lists, explicit pending-draft claim, setup reads/saves/completion, and destination resolution. New routes are available in Fastify and the native Worker transport and described by OpenAPI.
+- Migration `0004_mysterious_black_knight.sql` adds application answers/provenance, per-application setup, request deduplication, and targeted access delivery. Fresh migrations and an upgrade from 0000–0003 preserve historical drafts, lifecycle state, amounts, names, and revisions; repeat migration is a no-op.
+- Backend guards protect existing application reads/purpose writes and future task/document policies. Staff retains draft access; scoped collaborators retain their separate journey. Completion creates neither submission nor provider/check outcomes.
+- See [implementation choices](../06-decisions-and-sources.md#application-setup-backend--october-7-2026) for public keys, cursor order, historical migration policy, and completion's lack of a background effect at this milestone.
+
+### API handoff
+
+All authenticated routes require the current session's bank, current authorization, and CSRF proof for writes. `bankId` and `applicationId` below are UUIDs.
+
+| Method and path | Purpose |
+| --- | --- |
+| `POST /api/v1/applications/start` | Public email/bank slug and optional product slug; 64-character random hexadecimal request key; generic acknowledgment and durable continuation intent. |
+| `GET /api/v1/banks/:bankId/applications` | Minimal authorized and claimable summaries; optional `after` UUID and `limit` (1–100). |
+| `POST /api/v1/banks/:bankId/applications` | Authenticated create; UUID request key, optional product, staff recipient email/authorized business. |
+| `POST /api/v1/banks/:bankId/applications/:applicationId/claim` | Explicit eligible pending-contact claim; empty object body. |
+| `GET /api/v1/banks/:bankId/applications/:applicationId/setup` | Authorized answers and persisted setup progress. |
+| `PATCH /api/v1/banks/:bankId/applications/:applicationId/setup` | Revision-checked strict `answers`, `currentStep`, optional validated `step`/`skip`. |
+| `POST /api/v1/banks/:bankId/applications/:applicationId/setup/finish` | Explicit applicant confirmation with expected revision and UUID request key. |
+| `GET /api/v1/banks/:bankId/applications/:applicationId/destination` | Safe `setup`, `portal`, `assigned`, or `closed` result from current server state. |
+
+`SETUP_REQUIRED` blocks premature applicant portal access; `REVISION_CONFLICT` requires reloading current saved state; `IDEMPOTENCY_CONFLICT` rejects reuse with changed input. General draft DTOs reject EIN/SSN, lifecycle, permission, and completion fields. Amounts are decimal strings with exactly two fractional digits. Industry code and taxonomy version are supplied together or explicitly skipped.
+
+### Validation
+
+Validation used the installed Node 24.21.0 and repository binaries directly because the host pnpm launcher attempted package-manager registry verification and stalled in this environment; no dependency or lockfile change was needed. Normal repository commands remain `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm test:integration`, and `pnpm build`.
+
+- `node_modules/node/bin/node node_modules/@biomejs/biome/bin/biome check .`, browser boundary script, root TypeScript, and each workspace's typecheck/build script: passed.
+- `node_modules/node/bin/node node_modules/vitest/vitest.mjs run --exclude '**/*.integration.test.ts'`: 129 tests passed.
+- PostgreSQL integration runner (the same owned-local-target checks and `vitest run .integration.test.ts` as `pnpm test:integration`): 114 tests passed across 13 files. Includes 25 T07 domain tests, six HTTP journeys covering both transports, database constraints, historical upgrade, identity, and durable jobs. A prior queue-test clock race was corrected by setting its retry fixture explicitly in the past; no queue runtime behavior changed.
+- After the final closed-application guard, the focused domain + HTTP suites passed again: 31 tests; domain/API types remained clean. Final Biome, `git diff --check`, and plan Markdown path checks passed.
+- `node_modules/node/bin/node --import tsx scripts/local.ts db:migrate` and `db:status`: local migration applied; authenticated query and readiness passed without reset.
+- Wrangler 4.148.0 API `deploy --dry-run`: bundled successfully. This is a local bundle check, not a hosted compatibility/deployment claim.
+
+Wizard UI, borrower dashboard, staff screens, invitation workflows, and evidence/check tasks remain their owning tasks. T07 acceptance is demonstrated through real PostgreSQL service/HTTP tests; browser wizard journeys begin in T08.

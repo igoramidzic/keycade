@@ -166,16 +166,20 @@ export const applications = pgTable(
       .notNull()
       .references(() => banks.id),
     businessId: uuid("business_id"),
+    businessName: text("business_name"),
     contactId: uuid("contact_id"),
     productId: uuid("product_id"),
     requestedAmount: numeric("requested_amount", { precision: 20, scale: 2 }),
     currency: text("currency").notNull().default("USD"),
     purpose: text("purpose"),
+    industryCode: text("industry_code"),
+    industryTaxonomyVersion: text("industry_taxonomy_version"),
     source: applicationSource("source").notNull(),
     status: applicationStatus("status").notNull().default("draft"),
     assignedStaffId: uuid("assigned_staff_id"),
     createdByUserId: uuid("created_by_user_id").references(() => users.id),
     revision: integer("revision").notNull().default(1),
+    demoCreated: boolean("demo_created").notNull().default(false),
     synthetic: synthetic(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -209,6 +213,64 @@ export const applications = pgTable(
     check("applications_currency_usd", sql`${t.currency} = 'USD'`),
     check("applications_revision_positive", sql`${t.revision} > 0`),
     index("applications_bank_created_id").on(t.bankId, t.createdAt, t.id),
+  ],
+);
+
+export const applicationSetups = pgTable(
+  "application_setups",
+  {
+    applicationId: uuid("application_id").primaryKey(),
+    bankId: uuid("bank_id").notNull(),
+    definitionVersion: integer("definition_version").notNull().default(1),
+    currentStep: text("current_step").notNull().default("business_name"),
+    completedSteps: text("completed_steps").array().notNull().default(sql`ARRAY[]::text[]`),
+    skippedSteps: text("skipped_steps").array().notNull().default(sql`ARRAY[]::text[]`),
+    revision: integer("revision").notNull().default(1),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    completedByUserId: uuid("completed_by_user_id").references(() => users.id),
+  },
+  (t) => [
+    foreignKey({
+      name: "setups_application_bank_fk",
+      columns: [t.bankId, t.applicationId],
+      foreignColumns: [applications.bankId, applications.id],
+    }),
+    check("setups_definition_version_positive", sql`${t.definitionVersion} > 0`),
+    check("setups_revision_positive", sql`${t.revision} > 0`),
+    check(
+      "setups_current_step_valid",
+      sql`${t.currentStep} IN ('business_name', 'product', 'amount', 'purpose', 'industry', 'review')`,
+    ),
+    check(
+      "setups_completed_steps_valid",
+      sql`${t.completedSteps} <@ ARRAY['business_name', 'product', 'amount', 'purpose', 'industry', 'review']::text[]`,
+    ),
+    check("setups_skipped_steps_optional", sql`${t.skippedSteps} <@ ARRAY['industry']::text[]`),
+    check("setups_steps_disjoint", sql`NOT (${t.completedSteps} && ${t.skippedSteps})`),
+  ],
+);
+
+export const applicationRequests = pgTable(
+  "application_requests",
+  {
+    id: id(),
+    bankId: uuid("bank_id").notNull(),
+    scope: text("scope").notNull(),
+    keyHash: text("key_hash").notNull(),
+    payloadHash: text("payload_hash").notNull(),
+    applicationId: uuid("application_id").notNull(),
+    operation: text("operation").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    unique("application_requests_scope_key").on(t.bankId, t.scope, t.operation, t.keyHash),
+    foreignKey({
+      name: "requests_application_bank_fk",
+      columns: [t.bankId, t.applicationId],
+      foreignColumns: [applications.bankId, applications.id],
+    }),
+    check("application_requests_key_hash_sha256", sql`${t.keyHash} ~ '^[a-f0-9]{64}$'`),
+    check("application_requests_payload_hash_sha256", sql`${t.payloadHash} ~ '^[a-f0-9]{64}$'`),
   ],
 );
 

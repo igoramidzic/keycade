@@ -87,6 +87,8 @@ test("Worker publishes the same public application contract without administrati
   expect(response.status).toBe(200);
   expect(document).toContain('"openapi":"3.1.0"');
   expect(document).toContain('"expectedRevision"');
+  expect(document).toContain('"/api/v1/applications/start"');
+  expect(document).toContain('"/api/v1/banks/{bankId}/applications/{applicationId}/setup/finish"');
   expect(document).not.toContain("DATABASE_URL");
 });
 
@@ -138,11 +140,15 @@ test("Worker explicitly reports unavailable hosted email and enforces CSRF for a
     "/api/v1/auth/demo-sign-in",
     "/api/v1/auth/request-link",
     "/api/v1/auth/consume",
+    "/api/v1/applications/start",
+    application + "/claim",
+    application + "/setup/finish",
+    application + "/setup",
     application + "/purpose",
   ]) {
     const denied = await handleWorkerRequest(
       request(path, {
-        method: path.endsWith("purpose") ? "PATCH" : "POST",
+        method: path.endsWith("purpose") || path.endsWith("setup") ? "PATCH" : "POST",
         headers: { origin: "https://borrower.example", "content-type": "application/json" },
         body: "{}",
       }),

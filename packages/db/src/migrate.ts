@@ -34,14 +34,22 @@ export async function assertSchemaReady(connectionString: string): Promise<void>
     await pool.query("SELECT run_id, dispatched_at FROM outbox_events LIMIT 0");
     await pool.query("SELECT operation_id FROM effect_deduplications LIMIT 0");
     await pool.query("SELECT worker_id, seen_at FROM worker_heartbeats LIMIT 0");
-    await pool.query("SELECT id, consumed_at, expires_at FROM access_delivery_requests LIMIT 0");
+    await pool.query(
+      "SELECT id, application_id, consumed_at, expires_at FROM access_delivery_requests LIMIT 0",
+    );
     await pool.query("SELECT delivery_request_id, token_hash FROM login_tokens LIMIT 0");
     await pool.query(
       "SELECT token_hash, origin, authentication_method, revoked_at FROM sessions LIMIT 0",
     );
     await pool.query("SELECT key_hash, reset_at FROM identity_rate_limits LIMIT 0");
-    await pool.query(`SELECT a.id, a.bank_id, a.revision, a.requested_amount, p.user_id, p.revoked_at
+    await pool.query(`SELECT a.id, a.bank_id, a.revision, a.requested_amount, a.business_name, a.industry_code, a.industry_taxonomy_version, a.demo_created, p.user_id, p.revoked_at
       FROM applications a LEFT JOIN application_participants p ON p.application_id = a.id AND p.bank_id = a.bank_id LIMIT 0`);
+    await pool.query(
+      "SELECT application_id, bank_id, definition_version, current_step, completed_steps, skipped_steps, revision, completed_at, completed_by_user_id FROM application_setups LIMIT 0",
+    );
+    await pool.query(
+      "SELECT bank_id, scope, operation, key_hash, payload_hash, application_id FROM application_requests LIMIT 0",
+    );
   } catch {
     throw new Error(
       "Database schema is missing, behind, or unusable. Run pnpm db:migrate against the project local database.",

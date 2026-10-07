@@ -1,6 +1,14 @@
-import { applicationParticipants, applications, bankMemberships, type Database } from "@keycade/db";
+import {
+  applicationParticipants,
+  applicationSetups,
+  applications,
+  bankMemberships,
+  banks,
+  type Database,
+  users,
+} from "@keycade/db";
 import { and, eq, isNull } from "drizzle-orm";
-import { deny } from "./errors.js";
+import { DomainError, deny } from "./errors.js";
 
 export type Actor =
   | { kind: "anonymous" }
@@ -24,6 +32,11 @@ export type ApplicationAccess =
 export async function requireBankStaff(db: QueryDatabase, actor: Actor, bankId: string) {
   if (actor.kind !== "user") return deny();
   if (actor.demoBankId && actor.demoBankId !== bankId) return deny();
+  if (actor.demoBankId) {
+    const [bank] = await db.select().from(banks).where(eq(banks.id, bankId));
+    const [user] = await db.select().from(users).where(eq(users.id, actor.userId));
+    if (!bank?.synthetic || !user?.synthetic) return deny();
+  }
   const [membership] = await db
     .select()
     .from(bankMemberships)
@@ -49,11 +62,16 @@ export async function requireApplicationAccess(
   if (actor.kind === "anonymous") return deny();
   if (actor.kind === "user" && actor.demoBankId && actor.demoBankId !== bankId) return deny();
   const [application] = await db
-    .select({ id: applications.id })
+    .select({ id: applications.id, synthetic: applications.synthetic })
     .from(applications)
     .where(and(eq(applications.id, applicationId), eq(applications.bankId, bankId)))
     .limit(1);
   if (!application) return deny();
+  if (actor.kind === "user" && actor.demoBankId) {
+    const [bank] = await db.select().from(banks).where(eq(banks.id, bankId));
+    const [user] = await db.select().from(users).where(eq(users.id, actor.userId));
+    if (!application.synthetic || !bank?.synthetic || !user?.synthetic) return deny();
+  }
   if (actor.kind === "system") {
     if (
       actor.bankId !== bankId ||
@@ -93,6 +111,41 @@ export async function requireApplicationAccess(
   return { kind: "participant", role: participant.role, scope: participant.scope };
 }
 
+/** Applicant workflow prerequisite; collaborator resource scopes remain separately enforced. */
+export async function requireApplicantPortalAccess(
+  db: QueryDatabase,
+  actor: Actor,
+  bankId: string,
+  applicationId: string,
+) {
+  const access = await requireApplicationAccess(db, actor, bankId, applicationId);
+  if (access.kind === "participant" && access.role === "applicant_admin") {
+    const [setup] = await db
+      .select()
+      .from(applicationSetups)
+      .where(
+        and(
+          eq(applicationSetups.bankId, bankId),
+          eq(applicationSetups.applicationId, applicationId),
+        ),
+      );
+    if (!setup?.completedAt) {
+      const [application] = await db
+        .select({ status: applications.status })
+        .from(applications)
+        .where(and(eq(applications.bankId, bankId), eq(applications.id, applicationId)));
+      if (application && ["withdrawn", "declined", "funded"].includes(application.status))
+        throw new DomainError("INVALID_STATE", 409, "This application is closed.");
+      throw new DomainError(
+        "SETUP_REQUIRED",
+        409,
+        "Finish initial setup before opening the application portal.",
+      );
+    }
+  }
+  return access;
+}
+
 // T12/T13 supply implementations using current resource records and assignments.
 // Participation alone never grants access to private tasks/documents.
 export interface ResourceScopePolicy {
@@ -111,7 +164,12 @@ export async function requireResourceAccess(
   resource: { bankId: string; applicationId: string; resourceId: string },
   policy: ResourceScopePolicy = denyResourcePolicy,
 ): Promise<void> {
-  const access = await requireApplicationAccess(db, actor, resource.bankId, resource.applicationId);
+  const access = await requireApplicantPortalAccess(
+    db,
+    actor,
+    resource.bankId,
+    resource.applicationId,
+  );
   if (!(await policy.allows({ ...resource, actor, access }))) deny();
 }
 export const requireTaskAccess = requireResourceAccess;

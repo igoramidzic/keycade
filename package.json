@@ -16,7 +16,7 @@
     "format": "biome check --write .",
     "test": "vitest run --exclude '**/*.integration.test.ts'",
     "test:integration": "tsx scripts/integration.ts",
-    "test:e2e": "playwright test",
+    "test:e2e": "tsx scripts/e2e.ts",
     "check": "pnpm lint && pnpm typecheck && pnpm test",
     "db:start": "tsx scripts/local.ts db:start",
     "db:stop": "tsx scripts/local.ts db:stop",

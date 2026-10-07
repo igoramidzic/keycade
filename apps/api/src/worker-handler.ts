@@ -1,26 +1,41 @@
 import {
+  applicationPageSchema,
   applicationParamsSchema,
+  applicationSelectionSchema,
+  applicationSetupSchema,
   authSessionSchema,
+  bankParamsSchema,
+  claimApplicationSchema,
   consumeAccessLinkResponseSchema,
   consumeAccessLinkSchema,
+  createDraftSchema,
   demoSignInResponseSchema,
   demoSignInSchema,
   errorSchema,
+  finishApplicationSetupSchema,
   logoutResponseSchema,
+  pageQuerySchema,
   publicApplicationSchema,
+  publicIntakeParamsSchema,
+  publicIntakeQuerySchema,
+  publicIntakeSchema,
+  publicStartApplicationSchema,
   type Readiness,
   readinessSchema,
   requestAccessLinkResponseSchema,
   requestAccessLinkSchema,
+  saveApplicationSetupSchema,
   staffApplicationSchema,
   staffSessionSchema,
   updatePurposeSchema,
 } from "@keycade/contracts";
 import type { Database } from "@keycade/db";
 import {
+  createApplicationService,
   createIdentityService,
   DomainError,
   readApplication,
+  readPublicIntake,
   readStaffApplication,
   updateApplicationPurpose,
 } from "@keycade/domain";
@@ -28,6 +43,7 @@ import { z } from "zod";
 import {
   type Authentication,
   accessLinkMessage,
+  assertSessionBank,
   authenticateSession,
   type IdentityTransportOptions,
   publicSession,
@@ -76,6 +92,7 @@ export async function handleWorkerRequest(
     const originHeader = request.headers.get("origin") ?? undefined;
     const origin = configuredRequestOrigin(originHeader, url.origin, deps.allowedOrigins);
     const identity = createIdentityService(deps.db);
+    const applications = createApplicationService(deps.db);
     if (
       !["GET", "HEAD", "OPTIONS"].includes(request.method) &&
       !isAllowedOrigin(request.headers.get("origin") ?? undefined, deps.allowedOrigins)
@@ -112,6 +129,16 @@ export async function handleWorkerRequest(
         description: "Success",
         content: { "application/json": { schema: z.toJSONSchema(schema) } },
       });
+      const requestBody = (schema: z.ZodType) => ({
+        required: true,
+        content: { "application/json": { schema: z.toJSONSchema(schema) } },
+      });
+      const applicationResponses = (schema: z.ZodType) => ({
+        "200": response(schema),
+        ...Object.fromEntries(
+          [400, 403, 404, 409, 429, 500].map((code) => [code, response(errorSchema)]),
+        ),
+      });
       return json({
         openapi: "3.1.0",
         info: { title: "Keycade simulation API", version: "0.1.0" },
@@ -129,6 +156,24 @@ export async function handleWorkerRequest(
             },
           },
           "/api/v1/auth/session": { get: { responses: { "200": response(authSessionSchema) } } },
+          "/api/v1/public/banks/{bankSlug}/intake": {
+            get: {
+              parameters: [
+                {
+                  name: "bankSlug",
+                  in: "path",
+                  required: true,
+                  schema: z.toJSONSchema(publicIntakeParamsSchema.shape.bankSlug),
+                },
+              ],
+              responses: {
+                "200": response(publicIntakeSchema),
+                ...Object.fromEntries(
+                  [400, 404, 429, 500].map((code) => [code, response(errorSchema)]),
+                ),
+              },
+            },
+          },
           "/api/v1/auth/staff": {
             get: {
               responses: { "200": response(staffSessionSchema), "404": response(errorSchema) },
@@ -188,6 +233,61 @@ export async function handleWorkerRequest(
               responses: { "200": response(logoutResponseSchema), "403": response(errorSchema) },
             },
           },
+          "/api/v1/applications/start": {
+            post: {
+              requestBody: requestBody(publicStartApplicationSchema),
+              responses: {
+                "202": response(requestAccessLinkResponseSchema),
+                ...Object.fromEntries(
+                  [400, 403, 409, 429, 500, 503].map((code) => [code, response(errorSchema)]),
+                ),
+              },
+            },
+          },
+          "/api/v1/banks/{bankId}/applications": {
+            get: {
+              parameters: [
+                parameters[0],
+                { name: "after", in: "query", schema: { type: "string", format: "uuid" } },
+                {
+                  name: "limit",
+                  in: "query",
+                  schema: { type: "integer", minimum: 1, maximum: 100, default: 25 },
+                },
+              ],
+              responses: applicationResponses(applicationPageSchema),
+            },
+            post: {
+              parameters: [parameters[0]],
+              requestBody: requestBody(createDraftSchema),
+              responses: applicationResponses(applicationSetupSchema),
+            },
+          },
+          "/api/v1/banks/{bankId}/applications/{applicationId}/setup": {
+            get: { parameters, responses: applicationResponses(applicationSetupSchema) },
+            patch: {
+              parameters,
+              requestBody: requestBody(saveApplicationSetupSchema),
+              responses: applicationResponses(applicationSetupSchema),
+            },
+          },
+          "/api/v1/banks/{bankId}/applications/{applicationId}/setup/finish": {
+            post: {
+              parameters,
+              requestBody: requestBody(finishApplicationSetupSchema),
+              responses: applicationResponses(applicationSetupSchema),
+            },
+          },
+          "/api/v1/banks/{bankId}/applications/{applicationId}/claim": {
+            post: {
+              parameters,
+              requestBody: requestBody(claimApplicationSchema),
+              responses: applicationResponses(applicationSetupSchema),
+            },
+          },
+          "/api/v1/banks/{bankId}/applications/{applicationId}/destination": {
+            get: { parameters, responses: applicationResponses(applicationSelectionSchema) },
+          },
           "/api/v1/banks/{bankId}/applications/{applicationId}": {
             get: { parameters, responses: { "200": response(publicApplicationSchema) } },
           },
@@ -206,6 +306,12 @@ export async function handleWorkerRequest(
           },
         },
       });
+    }
+    const intake = /^\/api\/v1\/public\/banks\/([^/]+)\/intake$/.exec(path);
+    if (get && intake) {
+      const params = publicIntakeParamsSchema.parse({ bankSlug: intake[1] });
+      publicIntakeQuerySchema.parse(Object.fromEntries(url.searchParams));
+      return json(publicIntakeSchema.parse(await readPublicIntake(deps.db, params)));
     }
     const authentication = deps.authenticate
       ? await deps.authenticate(request)
@@ -292,6 +398,87 @@ export async function handleWorkerRequest(
         serializeSessionCookie(originHeader, "", deps.nodeEnv ?? "production"),
       );
     }
+    if (request.method === "POST" && path === "/api/v1/applications/start") {
+      const body = publicStartApplicationSchema.parse(await readJsonBody(request));
+      if (deps.authDeliveryEnabled === false)
+        return failure(
+          503,
+          "AUTH_DELIVERY_UNAVAILABLE",
+          "Email sign-in is available in the local demo. Hosted email delivery is not configured.",
+        );
+      if (!originHeader || !isAllowedOrigin(originHeader, deps.portalOrigins?.borrower ?? []))
+        return failure(403, "FORBIDDEN", "Request origin is not allowed for this portal.");
+      const result = await applications.publicStart(body, {
+        origin: originHeader,
+        requestId,
+        rateLimitKey: request.headers.get("cf-connecting-ip") ?? "unknown",
+      });
+      return json(requestAccessLinkResponseSchema.parse(result), 202);
+    }
+    const collection = /^\/api\/v1\/banks\/([^/]+)\/applications$/.exec(path);
+    if (collection && (get || request.method === "POST")) {
+      const { bankId } = bankParamsSchema.parse({ bankId: collection[1] });
+      assertSessionBank(authentication, bankId);
+      if (get) {
+        const query = pageQuerySchema.parse(Object.fromEntries(url.searchParams));
+        return json(
+          applicationPageSchema.parse(await applications.list(authentication.actor, bankId, query)),
+        );
+      }
+      const body = createDraftSchema.parse(await readJsonBody(request));
+      return json(
+        applicationSetupSchema.parse(
+          await applications.create(authentication.actor, bankId, body, requestId),
+        ),
+      );
+    }
+    const setup =
+      /^\/api\/v1\/banks\/([^/]+)\/applications\/([^/]+)\/(setup(?:\/finish)?|claim|destination)$/.exec(
+        path,
+      );
+    if (setup) {
+      const { bankId, applicationId } = applicationParamsSchema.parse({
+        bankId: setup[1],
+        applicationId: setup[2],
+      });
+      assertSessionBank(authentication, bankId);
+      const actor = authentication.actor;
+      if (setup[3] === "destination" && get)
+        return json(
+          applicationSelectionSchema.parse(
+            await applications.destination(actor, bankId, applicationId),
+          ),
+        );
+      if (setup[3] === "setup" && get)
+        return json(
+          applicationSetupSchema.parse(await applications.readSetup(actor, bankId, applicationId)),
+        );
+      if (setup[3] === "setup" && request.method === "PATCH") {
+        const body = saveApplicationSetupSchema.parse(await readJsonBody(request));
+        return json(
+          applicationSetupSchema.parse(
+            await applications.saveSetup(actor, bankId, applicationId, body, requestId),
+          ),
+        );
+      }
+      if (setup[3] === "setup/finish" && request.method === "POST") {
+        const body = finishApplicationSetupSchema.parse(await readJsonBody(request));
+        return json(
+          applicationSetupSchema.parse(
+            await applications.finishSetup(actor, bankId, applicationId, body, requestId),
+          ),
+        );
+      }
+      if (setup[3] === "claim" && request.method === "POST") {
+        claimApplicationSchema.parse(await readJsonBody(request));
+        return json(
+          applicationSetupSchema.parse(
+            await applications.claim(actor, bankId, applicationId, requestId),
+          ),
+        );
+      }
+      return failure(404, "NOT_FOUND", "Resource not found.");
+    }
     const match = /^\/api\/v1\/banks\/([^/]+)\/(staff\/)?applications\/([^/]+)(\/purpose)?$/.exec(
       path,
     );
@@ -306,6 +493,7 @@ export async function handleWorkerRequest(
     if (!params.success) return failure(400, "INVALID_INPUT", "Invalid request.");
     const actor = authentication.actor;
     const { bankId, applicationId } = params.data;
+    assertSessionBank(authentication, bankId);
     if (get) {
       if (match[2])
         return json(

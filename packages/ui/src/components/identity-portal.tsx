@@ -9,7 +9,7 @@ import {
 } from "@keycade/ui/components/card";
 import { Input } from "@keycade/ui/components/input";
 import { Check, CircleAlert, LoaderCircle, LockKeyhole, Mail } from "lucide-react";
-import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { type FormEvent, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 declare const __KEYCADE_PUBLIC__: { hosted: boolean; mailpitUrl: string | null };
 
@@ -36,6 +36,13 @@ type Session = { demoSignInEnabled: boolean } & (
       authenticationMethod: "demo" | "email_link";
     }
 );
+export type AuthenticatedSession = Extract<Session, { authenticated: true }>;
+export type IdentityControls = {
+  signOut: () => Promise<boolean>;
+  refreshSession: () => Promise<void>;
+  busy: boolean;
+  error: string | null;
+};
 type Screen =
   | "loading"
   | "request"
@@ -66,9 +73,25 @@ async function fetchSession(signal?: AbortSignal): Promise<Session> {
 export function IdentityPortal({
   portal,
   confirmation,
+  bankSlug = "bank-a",
+  bankName = "Synthetic Bank A",
+  intent = "resume",
+  productSlug,
+  productId,
+  onApplicationCreated,
+  onSignedIn,
+  renderAuthenticated,
 }: {
   portal: "borrower" | "staff";
   confirmation?: Confirmation;
+  bankSlug?: string;
+  bankName?: string;
+  intent?: "start" | "resume";
+  productSlug?: string;
+  productId?: string;
+  onApplicationCreated?: (id: string) => void;
+  onSignedIn?: () => void;
+  renderAuthenticated?: (session: AuthenticatedSession, controls: IdentityControls) => ReactNode;
 }) {
   const credential = useRef(confirmation?.token ?? null);
   const confirmationPending = useRef(confirmation?.page ?? false);
@@ -81,7 +104,11 @@ export function IdentityPortal({
   const [emailLinkMode, setEmailLinkMode] = useState(confirmation?.page ?? false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resumeAfterStart, setResumeAfterStart] = useState(false);
+  const startKey = useRef<{ payload: string; key: string } | null>(null);
+  const createKey = useRef<{ payload: string; key: string } | null>(null);
   const isStaff = portal === "staff";
+  const isStarting = !isStaff && intent === "start" && !resumeAfterStart;
   const useDemo = session.demoSignInEnabled && !emailLinkMode;
 
   const loadSession = useCallback(
@@ -128,10 +155,22 @@ export function IdentityPortal({
     return () => controller.abort();
   }, [loadSession]);
 
-  async function post(path: string, body: object) {
+  async function post(
+    path: string,
+    body: object,
+    expectedActor?: { bankId: string; email: string },
+  ) {
     // Another tab may have refreshed or revoked this browser's session since mount.
     const current = await fetchSession();
-    return fetch(`/api/v1/auth/${path}`, {
+    if (
+      expectedActor &&
+      (!current.authenticated ||
+        current.bank.id !== expectedActor.bankId ||
+        current.user.email !== expectedActor.email)
+    ) {
+      throw new Error("Your sign-in changed. Please try again.");
+    }
+    return fetch(path.startsWith("/") ? path : `/api/v1/auth/${path}`, {
       method: "POST",
       credentials: "same-origin",
       headers: {
@@ -148,12 +187,34 @@ export function IdentityPortal({
     setBusy(true);
     setError(null);
     try {
-      const response = await post(useDemo ? "demo-sign-in" : "request-link", {
-        email,
-        bankSlug: "bank-a",
-        portal,
-        returnPath: "/",
-      });
+      let response: Response;
+      if (isStarting && !useDemo) {
+        const payload = JSON.stringify({
+          email: email.trim().toLowerCase(),
+          bankSlug,
+          productSlug,
+        });
+        if (startKey.current?.payload !== payload) {
+          const bytes = crypto.getRandomValues(new Uint8Array(32));
+          startKey.current = {
+            payload,
+            key: Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(""),
+          };
+        }
+        response = await post("/api/v1/applications/start", {
+          email,
+          bankSlug,
+          ...(productSlug ? { productSlug } : {}),
+          idempotencyKey: startKey.current.key,
+        });
+      } else {
+        response = await post(useDemo ? "demo-sign-in" : "request-link", {
+          email,
+          bankSlug,
+          portal,
+          returnPath: "/",
+        });
+      }
       if (response.status === 429) {
         setError("Too many requests. Please wait a few minutes before trying again.");
       } else if (useDemo && [403, 404].includes(response.status)) {
@@ -169,9 +230,52 @@ export function IdentityPortal({
             : "We couldn’t request your link. Check your email address and try again.",
         );
       } else if (useDemo) {
+        if (isStarting) {
+          const current = await fetchSession();
+          if (
+            !current.authenticated ||
+            current.bank.slug !== bankSlug ||
+            current.user.email !== email.trim().toLowerCase()
+          ) {
+            setError(
+              "We couldn’t confirm access to this bank. Your email is still here; try again.",
+            );
+            return;
+          }
+          const payload = JSON.stringify({
+            email: current.user.email,
+            bankId: current.bank.id,
+            productId,
+          });
+          if (createKey.current?.payload !== payload) {
+            createKey.current = { payload, key: crypto.randomUUID() };
+          }
+          const created = await post(
+            `/api/v1/banks/${current.bank.id}/applications`,
+            {
+              ...(productId ? { productId } : {}),
+              idempotencyKey: createKey.current.key,
+            },
+            { bankId: current.bank.id, email: current.user.email },
+          );
+          if (!created.ok) {
+            setError("We couldn’t start your application. Your email is still here; try again.");
+            return;
+          }
+          const draft: unknown = await created.json();
+          if (
+            !draft ||
+            typeof draft !== "object" ||
+            !("id" in draft) ||
+            typeof draft.id !== "string"
+          ) {
+            throw new Error("Application unavailable");
+          }
+          onApplicationCreated?.(draft.id);
+        }
         credential.current = null;
         confirmationPending.current = false;
-        window.history.replaceState(null, "", "/");
+        if (!renderAuthenticated) window.history.replaceState(null, "", "/");
         await loadSession().catch(() => setScreen("unavailable"));
       } else {
         setScreen("inbox");
@@ -202,7 +306,8 @@ export function IdentityPortal({
         credential.current = null;
         confirmationPending.current = false;
         // Only the approved internal destination is supported in this milestone.
-        window.history.replaceState(null, "", "/");
+        if (renderAuthenticated) onSignedIn?.();
+        else window.history.replaceState(null, "", "/");
         await loadSession().catch(() => setScreen("unavailable"));
       }
     } catch {
@@ -219,17 +324,22 @@ export function IdentityPortal({
       const response = await post("logout", {});
       if (!response.ok && response.status !== 401) {
         setError("We couldn’t sign you out. Please try again.");
-        return;
+        return false;
       }
       credential.current = null;
       confirmationPending.current = false;
+      startKey.current = null;
+      createKey.current = null;
       setSession({ authenticated: false, demoSignInEnabled: session.demoSignInEnabled });
       setEmail("");
       setEmailLinkMode(false);
+      setResumeAfterStart(false);
       setScreen("request");
-      window.history.replaceState(null, "", "/");
+      if (!renderAuthenticated) window.history.replaceState(null, "", "/");
+      return true;
     } catch {
       setError("We couldn’t connect to sign you out. Please try again.");
+      return false;
     } finally {
       setBusy(false);
     }
@@ -240,13 +350,29 @@ export function IdentityPortal({
     confirmationPending.current = false;
     setError(null);
     setEmailLinkMode(true);
+    // Once a public start was acknowledged, a fresh link is generic resume and must
+    // neither create another application nor rely on the original browser key.
+    if (screen === "inbox" && isStarting) setResumeAfterStart(true);
     setScreen("request");
-    window.history.replaceState(null, "", "/");
+    if (!renderAuthenticated) window.history.replaceState(null, "", "/");
+  }
+
+  if (screen === "signed-in" && session.authenticated && renderAuthenticated) {
+    return renderAuthenticated(session, {
+      signOut: logout,
+      refreshSession: () => loadSession(),
+      busy,
+      error,
+    });
   }
 
   const titles: Record<Screen, string> = {
     loading: "Checking your session…",
-    request: isStaff ? "Sign in to the bank console" : "Sign in to your borrower portal",
+    request: isStaff
+      ? "Sign in to the bank console"
+      : isStarting
+        ? "Start with your email"
+        : "Continue your application",
     inbox: "Check your inbox",
     confirm: "Confirm your sign-in",
     expired: "This link can’t be used",
@@ -260,7 +386,7 @@ export function IdentityPortal({
       <CardHeader>
         <div className="mb-2 flex items-center gap-2 text-muted-foreground">
           <LockKeyhole aria-hidden="true" className="size-5" />
-          <span className="text-sm">Synthetic Bank A</span>
+          <span className="text-sm">{bankName}</span>
           <Badge variant="outline">Demo</Badge>
         </div>
         <CardTitle className="text-xl" aria-live="polite">
@@ -270,10 +396,14 @@ export function IdentityPortal({
           {useDemo
             ? isStaff
               ? "Enter a seeded staff email to open the local demo immediately. Bank membership is still required."
-              : "Enter a synthetic email to open the local demo immediately. No password or email confirmation needed."
+              : isStarting
+                ? "Enter a synthetic email to start your application. No password or inbox visit needed."
+                : "Enter a synthetic email to continue the local demo immediately. No password or email confirmation needed."
             : isStaff
               ? "Use your bank staff email address. Your bank membership is checked when you sign in."
-              : "Get a one-time email link. You don’t need a password."}
+              : isStarting
+                ? "We’ll save your application and email a one-time link so you can continue. You don’t need a password."
+                : "Get a one-time email link. You don’t need a password."}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -302,18 +432,24 @@ export function IdentityPortal({
                 aria-describedby="email-help"
               />
               <p id="email-help" className="text-xs leading-5 text-muted-foreground">
-                Requesting access won’t start a new application.
+                {isStarting
+                  ? "Use synthetic information only. You can save your progress and return later."
+                  : "Requesting access won’t start a new application."}
               </p>
             </div>
             <Button type="submit" disabled={busy} className="w-full">
               {useDemo ? <LockKeyhole aria-hidden="true" /> : <Mail aria-hidden="true" />}
-              {useDemo
+              {isStarting
                 ? busy
-                  ? "Signing in…"
-                  : "Sign in to demo"
-                : busy
-                  ? "Requesting link…"
-                  : "Send sign-in link"}
+                  ? "Starting application…"
+                  : "Start application"
+                : useDemo
+                  ? busy
+                    ? "Signing in…"
+                    : "Sign in to demo"
+                  : busy
+                    ? "Requesting link…"
+                    : "Send sign-in link"}
             </Button>
             {session.demoSignInEnabled && (
               <Button
@@ -346,7 +482,9 @@ export function IdentityPortal({
               className="h-auto w-full whitespace-normal py-2"
               onClick={startAgain}
             >
-              Use another email or request a new link
+              {isStarting
+                ? "Request a fresh sign-in link"
+                : "Use another email or request a new link"}
             </Button>
           </div>
         )}
@@ -439,7 +577,7 @@ export function IdentityPortal({
             </p>
             <p>
               {useDemo
-                ? "Demo sign-in opens the portal immediately. Use synthetic information only."
+                ? "Demo sign-in needs no inbox visit. Use synthetic information only."
                 : "Emails are delivered to the local inbox only. Use synthetic information."}
             </p>
             {!useDemo && __KEYCADE_PUBLIC__.mailpitUrl && (

@@ -1,19 +1,10 @@
 import { z } from "zod";
+import { applicationStatusSchema, usdAmountSchema } from "./common.js";
 
+export * from "./applications.js";
 // Browser-safe wire contracts. Never import database or server configuration here.
-export const applicationStatusSchema = z.enum([
-  "draft",
-  "collecting_information",
-  "needs_information",
-  "submitted",
-  "in_review",
-  "approved",
-  "declined",
-  "closing",
-  "funded",
-  "withdrawn",
-]);
-export const usdAmountSchema = z.string().regex(/^(?:0|[1-9]\d{0,17})\.\d{2}$/);
+export { applicationStatusSchema, usdAmountSchema } from "./common.js";
+export * from "./intake.js";
 export const errorSchema = z.object({
   error: z.object({ code: z.string(), message: z.string(), requestId: z.string().uuid() }),
 });

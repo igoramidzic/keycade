@@ -1,10 +1,10 @@
 # Keycade
 
-Keycade is a bank-operated business lending prototype. **T01–T06 are implemented locally**: three React apps, repeatable infrastructure, a seeded PostgreSQL schema, backend authorization, durable simulated jobs, and passwordless access.
+Keycade is a bank-operated business lending prototype. **T01–T08 are implemented locally**: three React apps, repeatable infrastructure, a seeded PostgreSQL schema, backend authorization, durable simulated jobs, passwordless access, a mock bank page, and a resumable one-question application setup wizard.
 
-The current test point is immediate demo sign-in: enter an email to get in, then reload or sign out. The optional email-link flow also supports confirmation and recovery. Application intake and workspaces are next (T07–T10). All records and provider results are synthetic. No financial or identity determination is real. See the [passwordless test guide](docs/plan/identity-validation.md).
+Start at the mock bank, choose **Apply for business financing**, and enter a fictional email. The default local demo opens setup immediately. Answer one question per screen, use **Continue later**, then sign in with the same email to resume the same application. **Finish setup** confirms the answers and opens the completion-to-portal handoff. The full borrower workspace is next in T09; bank staff screens follow in T10.
 
-The planned borrower journey starts with a required [initial setup wizard](docs/plan/01-product.md#initial-setup-wizard-and-portal-entry): one simple question per screen, saved progress, and resume at the saved step. Completing setup opens that application's portal with its remaining tasks. This flow is specified for T07–T09 and is not implemented yet.
+The optional email-link path supports Mailpit verification, expired links, and fresh-link resume. Saved answers and progress live on the server; browser storage is not required. All records and provider results are synthetic. See [T08's implementation and validation](docs/plan/tasks/T08-intake.md#implementation-record) and the [identity test guide](docs/plan/identity-validation.md).
 
 ## Start locally
 
@@ -24,8 +24,8 @@ Initialization creates a private ignored `.env`, starts project-owned PostgreSQL
 
 | Surface | Default URL | What to test now |
 | --- | --- | --- |
-| Mock bank shell | http://127.0.0.1:3000 | Shared UI, links, API/service status |
-| Borrower portal | http://127.0.0.1:3001 | Sign in as `borrower@example.test`, reload, sign out, request a fresh link |
+| Mock bank site | http://127.0.0.1:3000 | Apply for financing or continue an application |
+| Borrower portal | http://127.0.0.1:3001 | Resume setup, review answers, and explicitly finish; `borrower@example.test` has seeded applications |
 | Bank console | http://127.0.0.1:3002 | Sign in as `officer-a@example.test`; nonstaff addresses cannot gain access |
 | API liveness / readiness | http://127.0.0.1:4000/api/health · http://127.0.0.1:4000/api/ready | Process health vs database/worker readiness |
 | OpenAPI | http://127.0.0.1:4000/api/openapi.json | Validated initial API contract |
@@ -57,7 +57,7 @@ Change `SIMULATION_DELAY_MS`, `PROVIDER_DEADLINE_MS`, or `JOB_MAX_ATTEMPTS` in `
 | `pnpm check` | Biome, browser/server boundary check, strict types, unit tests |
 | `pnpm build` | Production Vite output and server/shared-package compile checks; local servers execute TS with tsx |
 | `pnpm test:integration` | Fresh disposable real PostgreSQL databases; migrations, isolation, transactions, queue recovery, and an actual SIGKILL/restart |
-| `pnpm test:e2e` | Playwright desktop/mobile against initialized local services; starts dev when needed |
+| `pnpm test:e2e` | Isolated desktop/mobile browser suite with disposable PostgreSQL and owned app processes |
 | `pnpm format` | Apply Biome formatting and safe fixes |
 | `pnpm db:generate` | Generate a Drizzle migration from schema changes for review |
 | `pnpm db:migrate` / `pnpm db:seed` | Apply committed schema / insert missing synthetic fixtures on the recognized local target |
@@ -65,7 +65,7 @@ Change `SIMULATION_DELAY_MS`, `PROVIDER_DEADLINE_MS`, or `JOB_MAX_ATTEMPTS` in `
 | `pnpm db:start` / `pnpm db:stop` / `pnpm db:status` | Persistent project database lifecycle and authenticated status |
 | `pnpm infra:start` / `pnpm infra:stop` | Database and Mailpit lifecycle |
 
-If Playwright Chromium is missing, run `pnpm exec playwright install chromium` once. Integration tests require initialized Podman infrastructure and delete only the fresh test databases they create, never the developer database. The optional maintainer probe `pnpm exec tsx scripts/verify-local.ts` checks repeated initialization and database stop/start persistence; stop dev and Studio first because the probe intentionally stops the project database briefly.
+If Playwright Chromium is missing, run `pnpm exec playwright install chromium` once. `pnpm test:e2e` requires initialized PostgreSQL/Mailpit, creates a disposable database, and starts its own apps on free loopback ports. It runs one test per shard so normal runtime rate limits remain enabled, then stops only its own processes and removes its database. Logs/reports stay in a private ignored `.local/e2e-*` directory. Filter with `pnpm test:e2e -- --project=desktop --grep "bank apply"`; use `pnpm exec playwright test` for advanced interactive runs against your existing development stack. Integration tests require initialized Podman infrastructure and delete only the fresh test databases they create, never the developer database. The optional maintainer probe `pnpm exec tsx scripts/verify-local.ts` checks repeated initialization and database stop/start persistence; stop dev and Studio first because the probe intentionally stops the project database briefly.
 
 Invalid credentials or an unavailable database stop development before apps launch. A behind/unusable schema points to `pnpm db:migrate`. Port collisions and unfamiliar database targets fail without stopping or changing their owners. Preserve your `.env` and volume rather than resetting either to fix a configuration mismatch.
 
@@ -81,4 +81,4 @@ API and jobs connect to Neon PostgreSQL through `keycade-db` Hyperdrive with que
 
 For faster demo deployment, automatic test/build validation and the PR trigger remain commented out in the Neon workflow. Tests remain available locally. Application builds and migrations trigger independently; readiness fails until required migrations are present. Use additive schema changes and wait for the GitHub migration run before testing a schema-dependent release.
 
-Document storage remains planned for Cloudflare R2 in T13. T06 sign-in is testable locally. Hosted email delivery is explicitly unavailable until a simulated hosted delivery destination is configured; no public inbox, real email provider, or hosted seeds were added. This change has not been deployed. Application intake and workspaces remain T07–T10.
+Document storage remains planned for Cloudflare R2 in T13. T06 sign-in is testable locally. Hosted email delivery is explicitly unavailable until a simulated hosted delivery destination is configured; no public inbox, real email provider, or hosted seeds were added. This change has not been deployed. T07–T08 setup and intake are locally verified. The full borrower and bank workspaces remain T09–T10.

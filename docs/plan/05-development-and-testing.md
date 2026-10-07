@@ -1,6 +1,6 @@
 # Local development and verification
 
-The command inventory is implemented for T01–T06. Passwordless identity is locally testable through [the identity guide](identity-validation.md); lending acceptance journeys below remain planned until their owning tasks are complete. See the root README for the current startup path.
+The command inventory is implemented for T01–T08. Passwordless identity is locally testable through [the identity guide](identity-validation.md); application creation and setup APIs are verified in [T07](tasks/T07-application-service.md#validation). The bank → setup → completion handoff is verified on desktop and mobile in [T08](tasks/T08-intake.md#implementation-record); later task-portal journeys remain planned. See the root README for the current startup path.
 
 ## Developer entry path
 
@@ -45,6 +45,8 @@ Development startup does not silently generate new migrations or reset data. Use
 | `pnpm check` | Aggregate non-mutating lint, type, and unit checks. |
 
 If a reset command is added, it is separately named, explicitly confirmed, limited to a known disposable local/test database, and never a dependency of the above commands. Tests must refuse to reset an unrecognized database.
+
+`pnpm test:e2e` owns a disposable database and separate API/worker/frontend processes on free loopback ports. Sequential test shards restart only the owned API and expire only the generated database's identity rate windows between tests. The actual runtime rate limits stay enabled. The runner handles teardown on success, failure, and interruption; PostgreSQL/Mailpit and any developer app processes remain running. Private logs/reports are retained under ignored `.local/e2e-*` directories. Direct Playwright remains available for interactive development, but a large burst against a shared dev stack can exhaust its rate limits.
 
 ## Environment boundaries
 

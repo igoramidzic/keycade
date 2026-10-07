@@ -4,7 +4,9 @@ export type DomainErrorCode =
   | "INVALID_STATE"
   | "INVALID_INPUT"
   | "INVALID_ACCESS_LINK"
-  | "RATE_LIMITED";
+  | "RATE_LIMITED"
+  | "IDEMPOTENCY_CONFLICT"
+  | "SETUP_REQUIRED";
 
 export class DomainError extends Error {
   constructor(

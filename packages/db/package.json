@@ -15,7 +15,7 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run src/money.test.ts",
-    "test:integration": "vitest run src/database.integration.test.ts",
+    "test:integration": "vitest run src/database.integration.test.ts src/upgrade.integration.test.ts",
     "db:generate": "drizzle-kit generate --config drizzle.config.ts",
     "generate": "drizzle-kit generate --config drizzle.config.ts"
   },
