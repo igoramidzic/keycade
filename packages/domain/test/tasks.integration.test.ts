@@ -341,11 +341,13 @@ describe("task workflow on PostgreSQL", () => {
     await service().read(officer, ids.bankA, ids.applicationSmall);
     const v1 = await service().read(one.actor, ids.bankA, ids.applicationSmall),
       v2 = await service().read(two.actor, ids.bankA, ids.applicationSmall);
-    expect(v1.tasks).toHaveLength(1);
-    expect(v1.progress.total).toBe(1);
-    expect(v2.tasks).toHaveLength(1);
+    expect(v1.tasks).toHaveLength(3);
+    expect(v1.tasks.every((task) => task.subjectUserId === one.userId)).toBe(true);
+    expect(v1.progress.total).toBe(3);
+    expect(v2.tasks).toHaveLength(3);
+    expect(v2.tasks.every((task) => task.subjectUserId === two.userId)).toBe(true);
     expect(v1.tasks[0]?.id).not.toBe(v2.tasks[0]?.id);
-    const task = v1.tasks[0];
+    const task = v1.tasks.find((task) => task.stableKey.startsWith("owner-confirmation:"));
     if (!task) throw new Error("owner task missing");
     await expect(
       service().detail(two.actor, ids.bankA, ids.applicationSmall, task.id),
@@ -383,7 +385,9 @@ describe("task workflow on PostgreSQL", () => {
   });
   it("renews a removed/re-added owner occurrence without reusing answers or waiver", async () => {
     const person = await owner();
-    const task = (await service().read(person.actor, ids.bankA, ids.applicationSmall)).tasks[0];
+    const task = (await service().read(person.actor, ids.bankA, ids.applicationSmall)).tasks.find(
+      (task) => task.stableKey.startsWith("owner-confirmation:") && task.state !== "cancelled",
+    );
     if (!task) throw new Error("owner task missing");
     let detail = await service().saveAnswer(
       person.actor,
@@ -412,7 +416,7 @@ describe("task workflow on PostgreSQL", () => {
       .where(eq(businessRelationships.id, person.relationshipId));
     const current = (
       await service().read(person.actor, ids.bankA, ids.applicationSmall)
-    ).tasks.find((x) => x.state !== "cancelled");
+    ).tasks.find((x) => x.stableKey === task.stableKey && x.state !== "cancelled");
     expect(current).toMatchObject({
       stableKey: task.stableKey,
       occurrence: 2,
@@ -425,7 +429,9 @@ describe("task workflow on PostgreSQL", () => {
   });
   it("unassigns unfinished work on removal and does not restore assignment on reinvite", async () => {
     const person = await owner();
-    const task = (await service().read(person.actor, ids.bankA, ids.applicationSmall)).tasks[0];
+    const task = (await service().read(person.actor, ids.bankA, ids.applicationSmall)).tasks.find(
+      (task) => task.stableKey.startsWith("owner-confirmation:") && task.state !== "cancelled",
+    );
     if (!task) throw new Error("owner task missing");
     const detail = await service().saveAnswer(
       person.actor,
@@ -475,7 +481,9 @@ describe("task workflow on PostgreSQL", () => {
   });
   it("accepts a fresh assignment in the current lifecycle even with an unchanged injected clock", async () => {
     const person = await owner();
-    const task = (await service().read(person.actor, ids.bankA, ids.applicationSmall)).tasks[0];
+    const task = (await service().read(person.actor, ids.bankA, ids.applicationSmall)).tasks.find(
+      (task) => task.stableKey.startsWith("owner-confirmation:") && task.state !== "cancelled",
+    );
     if (!task) throw new Error("owner task missing");
     await database.db.transaction(async (tx) => {
       await tx
@@ -530,7 +538,9 @@ describe("task workflow on PostgreSQL", () => {
   });
   it("validates delegated task grants against current bank/application and private recipient", async () => {
     const person = await owner();
-    const task = (await service().read(person.actor, ids.bankA, ids.applicationSmall)).tasks[0];
+    const task = (await service().read(person.actor, ids.bankA, ids.applicationSmall)).tasks.find(
+      (task) => task.stableKey.startsWith("owner-confirmation:") && task.state !== "cancelled",
+    );
     if (!task) throw new Error("owner task missing");
     await expect(
       database.db.transaction((tx) =>
@@ -643,7 +653,9 @@ describe("task workflow on PostgreSQL", () => {
   });
   it("preserves completed work and authorship when a participant is removed", async () => {
     const person = await owner();
-    const task = (await service().read(person.actor, ids.bankA, ids.applicationSmall)).tasks[0];
+    const task = (await service().read(person.actor, ids.bankA, ids.applicationSmall)).tasks.find(
+      (task) => task.stableKey.startsWith("owner-confirmation:") && task.state !== "cancelled",
+    );
     if (!task) throw new Error("owner task missing");
     let detail = await service().saveAnswer(
       person.actor,

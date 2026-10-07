@@ -4,6 +4,7 @@ T01–T05 and D01–D02 are implemented and verified in [the local-foundation re
 
 | User requirement | Planned coverage | Key proof |
 | --- | --- | --- |
+| Entire app, including production, is a demo with local-equivalent access/email | T06, T18, D03, T22 | October 7 explicit user instruction. No real auth/email/external services; preserve synthetic labels and bank/resource guards. D03 tracks the current hosted AUTH_DELIVERY_UNAVAILABLE failure and must validate hosted demo sign-in, intake, invitations, reminders and signing without external email. |
 | Brand-new Keycade project; plan first | Root README, AGENTS.md, this plan | Planning baseline preserved; first local milestone subsequently authorized. |
 | Cloudflare deployment on default URLs | D02, T13 | Five Workers created; Hyperdrive/runtime login and Queue provisioned; all native builds and hosted readiness passed. T13 local uploads/native transport checks pass; the private R2 bucket and bindings are prepared, the adapter passes local workerd testing, and API/jobs deployment dry runs pass. Live hosted R2/enrichment deployment acceptance remains unverified. |
 | Connect the repository directly to Cloudflare and deploy on pushes to `main` | D02 | Five native builds passed on `main` from repository root `/`, watching all paths. Hosted UI/API/Neon readiness passed. GitHub retains Neon migrations and runtime-login setup. |
@@ -18,7 +19,7 @@ T01–T05 and D01–D02 are implemented and verified in [the local-foundation re
 | shadcn via npx; default styles; Tailwind | T01, UI tasks | CLI-generated shared components rendered in borrower/staff shells. |
 | Podman DB, simple initialization/env setup | T02–T03 | Initialize twice without loss; env creation and DB access. |
 | pnpm dev starts projects and checks DB | T02, T05, T22 | Bad credentials prevent launch; all processes start with healthy DB. |
-| Mock existing bank site with apply button | T08 | T08 browser tests verify bank apply/resume links, public context, and separate borrower origin. |
+| Mock existing bank site with apply button | T08, D02 | T08 browser tests verify bank apply/resume links, public context, and separate borrower origin. D02's October 7 hosted intake recovery adds explicit synthetic bank/product configuration; live borrower catalog returns 200 and unknown-bank catalog remains 404. |
 | Minimal application and early email capture | T06–T08 | T06 records a pending contact and verifies email without creating an application. T07 public starts atomically record pending drafts and continuation intent; targeted verification and explicit fresh-resume claims grant only the selected application. T08 verifies email-first demo and Mailpit starts, retry-safe creation, and generic resume without duplicate drafts. |
 | Business name, industry code, amount, later fields | T07–T08, T12, T15 | T07 stores canonical per-application business name, exact amount, purpose, and optional versioned industry; rejects raw EIN/SSN. T08 screens validate exact amounts, automatically assign fixed Synthetic Business Credit, prohibit product changes, and offer optional industry skips. T15 replaces the temporary select with an accessible in-picker combobox over hundreds of versioned NAICS entries, including code/synonym/fuzzy search such as “dentistry office”; the 1,012-entry Census 2022 catalog, source evaluation and desktop/mobile keyboard tests are implemented. T15 also validates encrypted synthetic identifier capture and masked protected API responses; private task-entry presentation remains T16. |
 | Required initial setup page before the borrower portal | T07–T09, T22 | T07 verifies required answers and explicit applicant completion before portal APIs; staff prefill alone cannot finish. T08 browser tests verify one-question screens, acknowledged progress, explicit finish, and early-portal redirects. |
@@ -43,3 +44,6 @@ T01–T05 and D01–D02 are implemented and verified in [the local-foundation re
 | Servicing later | Product scope and decisions | No balances/repayment/collections logic in initial backlog. |
 | Small, understandable, testable work units | T01–T22 | Dependencies, acceptance criteria, targeted checks, implementation record. |
 | Agents know where to find instructions | Root AGENTS.md | Links to plan index, task process, conventions, and reference documents. |
+
+
+October 7 T16–T18 validation: private identifier entry and stage-aware readiness, protected simulated signing and artifacts, and current-state notification/reminder suppression are implemented with PostgreSQL and desktop/mobile browser coverage. Their task records contain checkpoint evidence. T19/T20 command guards and T21 operations remain separate planned work; D03 owns hosted demo authentication/delivery parity.

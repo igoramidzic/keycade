@@ -61,6 +61,9 @@ export function ApplicationTasks({
       {tasks.error && <ErrorNotice error={tasks.error} onRetry={() => void tasks.refetch()} />}
       <TasksManager
         data={tasks.data}
+        signatureHref={(envelopeId) =>
+          `/applications/${applicationId}/signatures?bank=${encodeURIComponent(session.bank.slug)}${envelopeId ? `#envelope-${envelopeId}` : ""}`
+        }
         errorMessage={errorMessage}
         renderDocuments={documents.render}
         reload={async () => {
@@ -81,6 +84,25 @@ export function ApplicationTasks({
                 queryKey: ["portal", session.bank.id, session.user.email, applicationId],
               });
               return updated;
+            }
+            if (/\/(identifier|tax-authorization)$/.test(path)) {
+              const updated = await request(`${base}${path}`, tasksViewSchema, {
+                ...options,
+                method,
+                body,
+              });
+              client.setQueryData(queryKey, updated);
+              await client.invalidateQueries({
+                queryKey: ["documents", session.bank.id, session.user.email, applicationId],
+              });
+              await client.invalidateQueries({
+                queryKey: ["portal", session.bank.id, session.user.email, applicationId],
+              });
+              await client.invalidateQueries({ queryKey: ["applications"] });
+              await client.invalidateQueries({
+                queryKey: ["readiness", session.bank.id, session.user.email, applicationId],
+              });
+              return updated.tasks.find((task) => path.startsWith(`/${task.id}/`)) ?? updated;
             }
             const updated = await request(`${base}${path}`, taskViewSchema, {
               ...options,

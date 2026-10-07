@@ -223,7 +223,12 @@ export function IdentityPortal({
           email,
           bankSlug,
           portal,
-          returnPath: /^\/invitations\/[0-9a-f-]{36}$/i.test(returnPath) ? returnPath : "/",
+          returnPath:
+            /^\/(?:invitations|signatures|applications)\/[0-9a-f-]{36}(?:\/setup)?$/i.test(
+              returnPath,
+            )
+              ? returnPath
+              : "/",
         });
       }
       if (response.status === 429) {
@@ -317,7 +322,10 @@ export function IdentityPortal({
         const requestedPath =
           result && typeof result === "object" && "returnPath" in result ? result.returnPath : "/";
         const returnPath =
-          typeof requestedPath === "string" && /^\/invitations\/[0-9a-f-]{36}$/i.test(requestedPath)
+          typeof requestedPath === "string" &&
+          /^\/(?:invitations|signatures|applications)\/[0-9a-f-]{36}(?:\/setup)?$/i.test(
+            requestedPath,
+          )
             ? requestedPath
             : "/";
         clearConfirmation();

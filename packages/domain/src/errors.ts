@@ -1,4 +1,5 @@
 export type DomainErrorCode =
+  | "FORBIDDEN"
   | "NOT_FOUND"
   | "REVISION_CONFLICT"
   | "INVALID_STATE"

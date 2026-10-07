@@ -55,6 +55,9 @@ export function ApplicationTasks({ applicationId }: { applicationId: string }) {
       {tasks.error && <ErrorNotice error={tasks.error} onRetry={() => void tasks.refetch()} />}
       <TasksManager
         data={tasks.data}
+        signatureHref={(envelopeId) =>
+          `/applications/${applicationId}/signatures${window.location.search}${envelopeId ? `#envelope-${envelopeId}` : ""}`
+        }
         renderDocuments={documents.render}
         errorMessage={(error) =>
           error instanceof ApiError
@@ -76,6 +79,19 @@ export function ApplicationTasks({ applicationId }: { applicationId: string }) {
               await client.invalidateQueries({ queryKey: ["staff-workspace", applicationId] });
               await client.invalidateQueries({ queryKey: ["staff-queue"] });
               return updated;
+            }
+            if (/\/(identifier|tax-authorization)$/.test(path)) {
+              const updated = await api.participantRequest(`${base}${path}`, tasksViewSchema, {
+                method,
+                body,
+              });
+              client.setQueryData(queryKey, updated);
+              await client.invalidateQueries({ queryKey: ["staff-documents", applicationId] });
+              await client.invalidateQueries({ queryKey: ["staff-workspace", applicationId] });
+              await client.invalidateQueries({ queryKey: ["staff-queue"] });
+              await client.invalidateQueries({ queryKey: ["staff-checks", applicationId] });
+              await client.invalidateQueries({ queryKey: ["staff-readiness", applicationId] });
+              return updated.tasks.find((task) => path.startsWith(`/${task.id}/`)) ?? updated;
             }
             const updated = await api.participantRequest(`${base}${path}`, taskViewSchema, {
               method,

@@ -2,6 +2,8 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import {
   accessDeliveryRequests,
   applicantContacts,
+  applicationSetups,
+  applications,
   auditEvents,
   bankMemberships,
   banks,
@@ -9,12 +11,17 @@ import {
   type DatabaseTransaction,
   identityRateLimits,
   loginTokens,
+  type NotificationKind,
+  notifications,
   sessions,
   users,
 } from "@keycade/db";
 import { and, eq, gt, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { claimApplicationInTransaction } from "./application-claims.js";
 import { DomainError, deny } from "./errors.js";
+import { notificationSuppression, requestedAccessKinds } from "./notification-access.js";
+import { recordApplicantActivity } from "./notification-intents.js";
+import { notificationParticipantPresent } from "./notifications.js";
 
 export type IdentityPortal = "borrower" | "staff";
 export type IdentitySession = {
@@ -44,6 +51,7 @@ export type PreparedAccessDelivery = {
   confirmUrl: string;
   messageId: string;
   attempt: number;
+  notification: { kind: NotificationKind; applicationReference: string | null };
 };
 
 const accepted = { status: "accepted" as const };
@@ -72,7 +80,9 @@ export function normalizeIdentityEmail(email: string): string {
 }
 export function normalizeIdentityReturnPath(path: string): string {
   return path === "/" ||
-    /^\/invitations\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(path)
+    /^\/(?:invitations|signatures|applications)\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/setup)?$/.test(
+      path,
+    )
     ? path
     : "/";
 }
@@ -255,6 +265,42 @@ export function createIdentityService(
           ),
         );
       if (!contact) throw new Error("Access delivery contact unavailable.");
+      let [notification] = await tx
+        .select()
+        .from(notifications)
+        .where(eq(notifications.deliveryRequestId, delivery.id));
+      if (!notification) {
+        const [application] = delivery.applicationId
+          ? await tx.select().from(applications).where(eq(applications.id, delivery.applicationId))
+          : [];
+        [notification] = await tx
+          .insert(notifications)
+          .values({
+            bankId: delivery.bankId,
+            applicationId: delivery.applicationId,
+            contactId: contact.id,
+            kind: delivery.invitationId
+              ? "invitation"
+              : application
+                ? application.createdAt.getTime() === delivery.createdAt.getTime()
+                  ? "application_started"
+                  : "application_resume"
+                : "access_requested",
+            deduplicationKey: `access:${delivery.id}`,
+            state: "queued",
+            deliveryRequestId: delivery.id,
+            availableAt: delivery.availableAt,
+            createdAt: delivery.createdAt,
+          })
+          .onConflictDoNothing()
+          .returning();
+      }
+      if (!notification) throw new Error("Notification record unavailable.");
+      const suppression = await notificationSuppression(tx, notification, now);
+      if (suppression) {
+        await suppressDelivery(tx, delivery.id, notification.id, suppression, now);
+        return null;
+      }
       const token = credential();
       const claimToken = randomUUID();
       await tx.insert(loginTokens).values({
@@ -280,7 +326,63 @@ export function createIdentityService(
         confirmUrl: `${delivery.origin}/auth/confirm#token=${token}`,
         messageId: `<keycade-access-${id}@keycade.local>`,
         attempt: delivery.attempts + 1,
+        notification: {
+          kind: notification.kind,
+          applicationReference: delivery.applicationId?.slice(-8) ?? null,
+        },
       };
+    });
+  }
+
+  async function suppressDelivery(
+    tx: DatabaseTransaction,
+    deliveryId: string,
+    notificationId: string,
+    reason: string,
+    now: Date,
+  ) {
+    await tx
+      .update(notifications)
+      .set({ state: "suppressed", suppressedAt: now, suppressionReason: reason })
+      .where(eq(notifications.id, notificationId));
+    await tx
+      .update(accessDeliveryRequests)
+      .set({
+        status: "failed",
+        revokedAt: now,
+        claimToken: null,
+        leaseUntil: null,
+        lastErrorCode: "NOTIFICATION_SUPPRESSED",
+        updatedAt: now,
+      })
+      .where(eq(accessDeliveryRequests.id, deliveryId));
+  }
+  async function deliveryStillEligible(id: string, claimToken: string) {
+    return db.transaction(async (tx) => {
+      const [delivery] = await tx
+        .select()
+        .from(accessDeliveryRequests)
+        .where(
+          and(eq(accessDeliveryRequests.id, id), eq(accessDeliveryRequests.claimToken, claimToken)),
+        )
+        .for("update");
+      if (!delivery || delivery.status !== "sending" || delivery.revokedAt || delivery.consumedAt)
+        return false;
+      const [notification] = await tx
+        .select()
+        .from(notifications)
+        .where(eq(notifications.deliveryRequestId, id));
+      if (!notification) return false;
+      const now = clock();
+      const reason =
+        delivery.expiresAt <= now
+          ? "delivery_expired"
+          : await notificationSuppression(tx, notification, now);
+      if (reason) {
+        await suppressDelivery(tx, id, notification.id, reason, now);
+        return false;
+      }
+      return true;
     });
   }
 
@@ -487,7 +589,24 @@ export function createIdentityService(
         )
         .for("share");
       if (delivery.portal === "staff" && !membership) return invalidLink();
-      if (delivery.applicationId && delivery.portal === "borrower" && !delivery.invitationId) {
+      const [notification] = await tx
+        .select()
+        .from(notifications)
+        .where(eq(notifications.deliveryRequestId, delivery.id));
+      const automated = notification && !requestedAccessKinds.has(notification.kind);
+      if (
+        automated &&
+        (notification.recipientUserId !== user.id ||
+          !delivery.applicationId ||
+          !(await notificationParticipantPresent(tx, bank.id, delivery.applicationId, user.id)))
+      )
+        return invalidLink();
+      if (
+        delivery.applicationId &&
+        delivery.portal === "borrower" &&
+        !delivery.invitationId &&
+        !automated
+      ) {
         await claimApplicationInTransaction(
           tx,
           { kind: "user", userId: user.id },
@@ -541,10 +660,27 @@ export function createIdentityService(
         staffRole: membership?.role ?? null,
         actor: { kind: "user", userId: user.id },
       };
+      let returnPath = delivery.returnPath;
+      if (
+        delivery.applicationId &&
+        !delivery.invitationId &&
+        !returnPath.startsWith("/signatures/")
+      ) {
+        const [setup] = await tx
+          .select()
+          .from(applicationSetups)
+          .where(eq(applicationSetups.applicationId, delivery.applicationId));
+        const [application] = await tx
+          .select()
+          .from(applications)
+          .where(eq(applications.id, delivery.applicationId));
+        returnPath = `/applications/${delivery.applicationId}${!setup?.completedAt && application?.status === "draft" ? "/setup" : ""}`;
+        await recordApplicantActivity(tx, bank.id, delivery.applicationId, user.id, now);
+      }
       return {
         sessionToken,
         csrfToken: sessionView.csrfToken,
-        returnPath: delivery.returnPath,
+        returnPath,
         session: sessionView,
       };
     });
@@ -684,6 +820,7 @@ export function createIdentityService(
     signInDemo,
     requestAccessLink,
     prepareDelivery,
+    deliveryStillEligible,
     completeDelivery,
     failDelivery,
     consumeAccessLink,

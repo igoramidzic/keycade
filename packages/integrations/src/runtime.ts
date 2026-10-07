@@ -3,11 +3,13 @@ import { createDocumentsService, type IdentifierCipher } from "@keycade/domain";
 import { eq } from "drizzle-orm";
 import type { PgBoss } from "pg-boss";
 import { dispatchAccessDeliveries, processAccessDelivery } from "./access-delivery.js";
+import { processCheckJobs } from "./check-jobs.js";
 import { type PrivateDocumentStorage } from "./document-content.js";
 import { processDocumentInterpretations } from "./document-processing.js";
 import { processDocumentScans } from "./document-scan.js";
 import { processEnrichmentJobs } from "./enrichment-jobs.js";
 import type { AccessEmailAdapter } from "./mailpit.js";
+import { dispatchNotifications, scheduleApplicationReminders } from "./notification-jobs.js";
 import {
   configured,
   deliverOutbox,
@@ -17,6 +19,7 @@ import {
 } from "./operations.js";
 import { type Clock, systemClock } from "./provider.js";
 import { accessQueue, assertQueueReady, createQueueClient, demoQueue } from "./queue.js";
+import { processSignatureJobs } from "./signatures-jobs.js";
 
 export { processOperation, type RuntimeOptions, recoverExpiredRuns } from "./operations.js";
 
@@ -57,6 +60,9 @@ export async function startWorker(
     emailAdapter?: AccessEmailAdapter;
     documentStorage?: PrivateDocumentStorage;
     identifierCipher?: IdentifierCipher;
+    borrowerOrigin?: string;
+    reminderFirstDelayMs?: number;
+    reminderSecondDelayMs?: number;
   } = {},
 ) {
   await assertQueueReady(connectionString);
@@ -108,17 +114,31 @@ export async function startWorker(
       });
   }, config.heartbeatMs);
   let nextDocumentCleanupAt = 0;
+  let nextReminderScheduleAt = 0;
   const done = (async () => {
     while (!abort.signal.aborted) {
       await recoverExpiredRuns(db, config.clock, config.leaseMs);
       await dispatchOutbox(db, boss, config.clock);
-      if (options.identifierCipher)
+      if (options.identifierCipher) {
         await processEnrichmentJobs(db, options.identifierCipher, {
           clock: config.clock,
           delayMs: config.delayMs,
           deadlineMs: config.deadlineMs,
           signal: abort.signal,
         });
+        await processCheckJobs(db, options.identifierCipher, {
+          clock: config.clock,
+          delayMs: config.delayMs,
+          deadlineMs: config.deadlineMs,
+          signal: abort.signal,
+        });
+      }
+      await processSignatureJobs(db, {
+        clock: config.clock,
+        delayMs: config.delayMs,
+        deadlineMs: config.deadlineMs,
+        signal: abort.signal,
+      });
       if (options.documentStorage) {
         if (config.clock.now().getTime() >= nextDocumentCleanupAt) {
           const abandoned = await createDocumentsService(db, {
@@ -148,6 +168,20 @@ export async function startWorker(
         }
       }
       if (options.emailAdapter) {
+        if (options.borrowerOrigin) {
+          if (config.clock.now().getTime() >= nextReminderScheduleAt) {
+            await scheduleApplicationReminders(db, {
+              clock: config.clock,
+              firstDelayMs: options.reminderFirstDelayMs,
+              secondDelayMs: options.reminderSecondDelayMs,
+            });
+            nextReminderScheduleAt = config.clock.now().getTime() + 60_000;
+          }
+          await dispatchNotifications(db, {
+            borrowerOrigin: options.borrowerOrigin,
+            clock: config.clock,
+          });
+        }
         await dispatchAccessDeliveries(
           db,
           async (message) => {

@@ -24,6 +24,7 @@ import {
   taskAnswers,
   taskAssignments,
   taskReviews,
+  taskSignaturePolicies,
   users,
 } from "@keycade/db";
 import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
@@ -35,8 +36,11 @@ import {
   type ResourceScopePolicy,
   requireApplicantPortalAccess,
 } from "./authorization.js";
+import { hydrateSecureTaskInputs, reconcileChecks } from "./checks.js";
 import { DomainError, deny } from "./errors.js";
 import { hashIdentityCredential } from "./identity.js";
+import { queueTaskNotification, recordApplicantActivity } from "./notification-intents.js";
+import { requireNonSignatureTask } from "./signatures.js";
 import {
   calculateTaskProgress,
   demoRequirementRules,
@@ -100,6 +104,9 @@ async function audit(
   now: Date,
   changedFields: string[],
 ) {
+  if (actorUserId && ["task.answer", "task.submit"].includes(action))
+    await recordApplicantActivity(tx, task.bankId, task.applicationId, actorUserId, now);
+  await queueTaskNotification(tx, task, action, now);
   await tx.insert(auditEvents).values({
     bankId: task.bankId,
     applicationId: task.applicationId,
@@ -221,7 +228,10 @@ export async function reconcileTasks(
   now: Date,
 ) {
   const app = await lockApplication(tx, bankId, applicationId);
-  if (!app.productId || closed.has(app.status)) return;
+  if (!app.productId || closed.has(app.status)) {
+    await reconcileChecks(tx, bankId, applicationId, requestId, now);
+    return;
+  }
   let [policy] = await tx
     .select()
     .from(applicationRequirementPolicies)
@@ -298,7 +308,9 @@ export async function reconcileTasks(
     )
     .orderBy(desc(applicationTasks.occurrence));
   const latest = new Map<string, Task>();
-  for (const task of existing) if (!latest.has(task.stableKey)) latest.set(task.stableKey, task);
+  for (const task of existing)
+    if (!task.stableKey.startsWith("check-input:") && !latest.has(task.stableKey))
+      latest.set(task.stableKey, task);
   const desired = new Map(required.map((rule) => [rule.stableKey, rule]));
   for (const task of latest.values()) {
     const rule = desired.get(task.stableKey);
@@ -376,6 +388,7 @@ export async function reconcileTasks(
       });
     await audit(tx, task, null, "task.created", requestId, now, ["state", "assignment"]);
   }
+  await reconcileChecks(tx, bankId, applicationId, requestId, now);
 }
 export async function unassignParticipantTasks(
   tx: Tx,
@@ -422,7 +435,10 @@ export async function unassignParticipantTasks(
       ]);
   }
 }
-export function createTasksService(db: Database, options: { clock?: () => Date } = {}) {
+export function createTasksService(
+  db: Pick<Database, "transaction">,
+  options: { clock?: () => Date } = {},
+) {
   const clock = options.clock ?? (() => new Date());
   async function context(
     tx: Tx,
@@ -495,7 +511,15 @@ export function createTasksService(db: Database, options: { clock?: () => Date }
   // Only hydrate authorized tasks, with one query per related table rather than per dropdown.
   async function details(tx: Tx, access: ApplicationAccess, visible: Task[], status: string) {
     if (!visible.length) return [];
+    const secureInputs = await hydrateSecureTaskInputs(tx, { status }, access, visible);
     const taskIds = visible.map((task) => task.id);
+    const signaturePolicies = await tx
+      .select()
+      .from(taskSignaturePolicies)
+      .where(inArray(taskSignaturePolicies.taskId, taskIds));
+    const signaturesByTask = new Map(
+      signaturePolicies.map((policy) => [policy.taskId, policy.envelopeId]),
+    );
     const answers = await tx
       .select()
       .from(taskAnswers)
@@ -545,8 +569,15 @@ export function createTasksService(db: Database, options: { clock?: () => Date }
     );
     return visible.map((task) => {
       const history = answersByTask.get(task.id) ?? [];
+      const secure = secureInputs.get(task.id);
+      const signatureEnvelopeId = signaturesByTask.get(task.id) ?? null;
       return taskViewSchema.parse({
         ...summary(access, task, status, !blockedTasks.has(task.id)),
+        inputKind: signatureEnvelopeId ? "signature" : (secure?.inputKind ?? "answer"),
+        signatureEnvelopeId,
+        secureInput: secure?.secureInput ?? null,
+        ...(secure ? { canEdit: false, canSubmit: false, canReview: false } : {}),
+        ...(signatureEnvelopeId ? { canEdit: false, canSubmit: false, canReview: false } : {}),
         answer: history[0]?.answer ?? null,
         answers: history.map((x) => ({ ...x, createdAt: x.createdAt.toISOString() })),
         reviews: (reviewsByTask.get(task.id) ?? []).map((x) => ({
@@ -755,6 +786,11 @@ export function createTasksService(db: Database, options: { clock?: () => Date }
       if (operation === "assign" || operation === "review" || operation === "waive") {
         if (access.kind !== "staff") return deny();
       } else if (!hasCurrentAssignment(access, task)) return deny();
+      if (operation !== "assign") {
+        await requireNonSignatureTask(tx, task.id);
+        if (task.stableKey.startsWith("check-input:"))
+          invalid("Use the private identifier or authorization action for this task.");
+      }
       if (task.revision !== parsed.expectedRevision) conflict();
       if (
         (operation === "answer" || operation === "submit") &&

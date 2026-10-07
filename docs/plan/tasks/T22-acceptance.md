@@ -1,6 +1,6 @@
 # T22 — Integrated acceptance and developer handoff
 
-Dependencies: T01–T21. Read [development/testing](../05-development-and-testing.md) and [coverage map](../07-requirements-map.md).
+Dependencies: T01–T21, D03. Read [development/testing](../05-development-and-testing.md) and [coverage map](../07-requirements-map.md).
 
 ## Outcome
 
@@ -15,6 +15,8 @@ The complete local prototype is reproducible, demonstrable, and clearly bounded.
 - Update the root README with exact setup/demo commands, synthetic identities/inbox access, fixture controls, known limitations, and troubleshooting.
 
 ## Acceptance criteria
+
+- Repeat the core demo journeys on the hosted production URL using simulated authentication/delivery and synthetic fixtures. No real auth/email provider, external email or real financial action is required or performed; D03 removes hosted-only access blockers.
 
 - All eight journeys in the development guide pass, including amounts $10k/$5m/$7.5m, multiple applications, restricted adviser access, delayed processing, and recorded funding.
 - Borrower setup asks one question per screen, persists answers/step state, resumes after browser/session loss, and blocks portal entry until explicit completion. Verify failed saves/completion, staff-prefilled drafts, per-application isolation, and correct return to the remaining-task portal after completion.

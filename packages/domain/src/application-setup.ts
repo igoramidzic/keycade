@@ -37,6 +37,7 @@ import {
   requireApplicationAccess,
 } from "./authorization.js";
 import { DomainError, deny } from "./errors.js";
+import { recordApplicantActivity } from "./notification-intents.js";
 import { readTaskProgress, reconcileTasks } from "./tasks.js";
 
 const accepted = { message: "If the request is eligible, a continuation link will be sent." };
@@ -239,6 +240,11 @@ async function audit(
   requestId: string,
   now: Date,
 ) {
+  if (
+    actor.kind === "user" &&
+    ["application.setup_saved", "application.setup_completed"].includes(action)
+  )
+    await recordApplicantActivity(tx, row.bankId, row.id, actor.userId, now);
   await tx.insert(auditEvents).values({
     bankId: row.bankId,
     applicationId: row.id,

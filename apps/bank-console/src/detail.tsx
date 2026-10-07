@@ -21,9 +21,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router";
 import { ApiError, formatAmount, useStaffApi } from "./api";
+import { ApplicationChecks } from "./checks";
 import { ApplicationDocuments } from "./documents";
 import { PrefillForm } from "./forms";
 import { ApplicationParticipants } from "./participants";
+import { ApplicationSignatures } from "./signatures";
 import { ApplicationTasks } from "./tasks";
 import {
   ErrorNotice,
@@ -41,6 +43,7 @@ const tabs = {
   tasks: "Tasks",
   documents: "Documents",
   checks: "Checks",
+  signatures: "Signatures",
   notes: "Internal notes",
 };
 export function ApplicationDetail() {
@@ -256,18 +259,9 @@ export function ApplicationDetail() {
             {selected === "documents" && (
               <ApplicationDocuments key={data.id} applicationId={data.id} />
             )}
-            {selected === "checks" && (
-              <Card className="shadow-sm ring-0">
-                <CardHeader>
-                  <CardTitle>{tabs[selected]} are not available yet</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm leading-6 text-muted-foreground">
-                    Simulated identity, business, and fraud checks will appear here when checks are
-                    available. No checks have been run or passed.
-                  </p>
-                </CardContent>
-              </Card>
+            {selected === "checks" && <ApplicationChecks key={data.id} applicationId={data.id} />}
+            {selected === "signatures" && (
+              <ApplicationSignatures key={data.id} applicationId={data.id} />
             )}
             {selected === "notes" && (
               <Notes key={data.id} workspace={data} mutate={mutation} reload={reload} />

@@ -43,6 +43,8 @@ const schema = z.object({
   SIMULATION_DELAY_MS: z.coerce.number().int().min(0).max(60000),
   PROVIDER_DEADLINE_MS: positive.max(120000),
   JOB_MAX_ATTEMPTS: positive.max(10),
+  REMINDER_FIRST_DELAY_MS: positive.default(24 * 60 * 60_000),
+  REMINDER_SECOND_DELAY_MS: positive.default(72 * 60 * 60_000),
   WORKER_POLL_MS: positive.min(100).max(10000),
   WORKER_HEARTBEAT_MS: positive.min(100),
   WORKER_STALE_MS: positive.min(1000),
@@ -55,6 +57,8 @@ export function loadServerEnv(values = readEnvironment()) {
     );
   }
   const env = parsed.data;
+  if (env.REMINDER_SECOND_DELAY_MS <= env.REMINDER_FIRST_DELAY_MS)
+    throw new Error("The second reminder threshold must follow the first.");
   const ports = [
     env.DB_PORT,
     env.MAILPIT_SMTP_PORT,

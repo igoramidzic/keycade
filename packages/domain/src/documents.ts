@@ -29,6 +29,8 @@ import {
 import { enqueueDocumentProcessing, readDocumentProcessing } from "./document-processing.js";
 import { DomainError, deny } from "./errors.js";
 import { hashIdentityCredential } from "./identity.js";
+import { recordApplicantActivity } from "./notification-intents.js";
+import { invalidateDocumentSignatures } from "./signatures.js";
 import { taskIsVisible } from "./tasks.js";
 
 type Tx = DatabaseTransaction;
@@ -262,6 +264,8 @@ export function createDocumentsService(
     now: Date,
     version: Version,
   ) {
+    if (userId && action === "document.upload_finished")
+      await recordApplicantActivity(tx, document.bankId, document.applicationId, userId, now);
     await tx.insert(auditEvents).values({
       bankId: document.bankId,
       applicationId: document.applicationId,
@@ -604,6 +608,7 @@ export function createDocumentsService(
           createdAt: now,
         });
       }
+      await invalidateDocumentSignatures(tx, document.id, now);
       await audit(tx, document, userId, "document.upload_finished", requestId, now, updated);
       return descriptor(updated);
     });
@@ -734,6 +739,7 @@ export function createDocumentsService(
             })
             .where(eq(applicationTasks.id, task.id));
       }
+      await invalidateDocumentSignatures(tx, document.id, now);
       await audit(tx, document, null, "document.bytes_missing", crypto.randomUUID(), now, version);
     });
   }

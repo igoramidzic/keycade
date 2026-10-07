@@ -107,6 +107,13 @@ import {
 } from "./security.js";
 import { isServiceUnavailable, serviceUnavailableMessage } from "./service-errors.js";
 
+import {
+  createWorkflowTransport,
+  signatureWebhookContentType,
+  signatureWebhookPath,
+  workflowOpenApi,
+} from "./workflows.js";
+
 export interface WorkerDependencies extends IdentityTransportOptions, DocumentTransportOptions {
   db: Database;
   encryptionKey?: string;
@@ -153,8 +160,10 @@ export async function handleWorkerRequest(
       deliveryEnabled: deps.authDeliveryEnabled !== false && !!deps.portalOrigins?.borrower?.[0],
     });
     const tasks = createTasksService(deps.db);
+    const workflows = createWorkflowTransport(deps.db, deps);
     if (
       !["GET", "HEAD", "OPTIONS"].includes(request.method) &&
+      !(request.method === "POST" && path === signatureWebhookPath) &&
       !isAllowedOrigin(request.headers.get("origin") ?? undefined, deps.allowedOrigins)
     )
       return failure(403, "FORBIDDEN", "Request origin is not allowed.");
@@ -164,6 +173,20 @@ export async function handleWorkerRequest(
       });
       if (!limit.success)
         return failure(429, "RATE_LIMITED", "Too many requests. Try again later.");
+    }
+    if (request.method === "POST" && path === signatureWebhookPath) {
+      if (
+        request.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase() !==
+        signatureWebhookContentType
+      )
+        throw new DomainError("INVALID_INPUT", 400, "Invalid simulated provider event.");
+      return json(
+        await workflows.webhook(
+          await readRawBody(request),
+          request.headers.get("x-keycade-signature") ?? undefined,
+          requestId,
+        ),
+      );
     }
     const get = request.method === "GET" || request.method === "HEAD";
     if (get && path === "/api/health") return json({ status: "ok", simulation: true });
@@ -203,6 +226,7 @@ export async function handleWorkerRequest(
         openapi: "3.1.0",
         info: { title: "Keycade simulation API", version: "0.1.0" },
         paths: {
+          ...workflowOpenApi(workflows.routes),
           "/api/v1/banks/{bankId}/applications/{applicationId}/documents": {
             get: { parameters, responses: applicationResponses(documentsViewSchema) },
           },
@@ -703,6 +727,25 @@ export async function handleWorkerRequest(
       !validCsrfToken(request.headers.get("x-csrf-token"), authentication.csrfToken)
     ) {
       return failure(403, "FORBIDDEN", "Invalid request verification.");
+    }
+    const workflow = workflows.match(path, request.method);
+    if (workflow) {
+      const { route, params } = workflow;
+      assertSessionBank(authentication, params.bankId);
+      const input = route.body ? route.body.parse(await readJsonBody(request)) : undefined;
+      const result = route.response.parse(
+        await route.handle({ actor: authentication.actor, params, input, requestId }),
+      );
+      if (route.download)
+        return new Response(request.method === "HEAD" ? null : String(result), {
+          headers: {
+            ...headers,
+            "content-type": "text/plain; charset=utf-8",
+            "content-disposition": 'attachment; filename="simulated-signature.txt"',
+            "content-security-policy": "sandbox",
+          },
+        });
+      return json(result);
     }
     const enrichmentMatch =
       /^\/api\/v1\/banks\/([^/]+)\/applications\/([^/]+)\/enrichment(?:\/(identifier|tax-authorization|requests|confirm-fact)|\/runs\/([^/]+)\/(retry))?$/.exec(
@@ -1373,6 +1416,15 @@ export async function handleWorkerRequest(
 async function readJsonBody(request: Request): Promise<unknown> {
   if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json"))
     throw new DomainError("INVALID_INPUT", 400, "Invalid request.");
+  try {
+    return JSON.parse(await readRawBody(request));
+  } catch (error) {
+    if (error instanceof DomainError) throw error;
+    throw new DomainError("INVALID_INPUT", 400, "Invalid request.");
+  }
+}
+
+async function readRawBody(request: Request): Promise<string> {
   const reader = request.body?.getReader();
   if (!reader) throw new DomainError("INVALID_INPUT", 400, "Invalid request.");
   const chunks: Uint8Array[] = [];
@@ -1391,9 +1443,5 @@ async function readJsonBody(request: Request): Promise<unknown> {
   } finally {
     reader.releaseLock();
   }
-  try {
-    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
-  } catch {
-    throw new DomainError("INVALID_INPUT", 400, "Invalid request.");
-  }
+  return Buffer.concat(chunks).toString("utf8");
 }

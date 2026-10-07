@@ -10,6 +10,7 @@ import {
 import { and, eq } from "drizzle-orm";
 import type { Actor } from "./authorization.js";
 import { deny } from "./errors.js";
+import { recordApplicantActivity } from "./notification-intents.js";
 
 /** Explicit contact-draft claim only. Never accepts an invitation or restores a revoked grant. */
 export async function claimApplicationInTransaction(
@@ -74,6 +75,7 @@ export async function claimApplicationInTransaction(
     .update(applicantContacts)
     .set({ userId: actor.userId, updatedAt: now })
     .where(eq(applicantContacts.id, contact.id));
+  await recordApplicantActivity(tx, bankId, applicationId, actor.userId, now);
   await tx.insert(auditEvents).values({
     bankId,
     applicationId,

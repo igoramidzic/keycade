@@ -25,8 +25,10 @@ import {
 } from "@keycade/db";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { type Actor, requireApplicantPortalAccess } from "./authorization.js";
+import { materialInputsEditable, reconcileChecks } from "./checks.js";
 import { DomainError, deny } from "./errors.js";
 import type { IdentifierCipher } from "./identifier-cipher.js";
+import { recordApplicantActivity } from "./notification-intents.js";
 
 type Tx = DatabaseTransaction;
 type Input = typeof enrichmentInputs.$inferSelect;
@@ -202,6 +204,15 @@ async function audit(
   changedFields: string[] = [],
   reason?: string,
 ) {
+  if (
+    [
+      "identifier.saved",
+      "tax.authorized",
+      "tax.authorization_revoked",
+      "enrichment.fact_confirmed",
+    ].includes(action)
+  )
+    await recordApplicantActivity(tx, app.bankId, app.id, actorUserId, now);
   await tx.insert(auditEvents).values({
     bankId: app.bankId,
     applicationId: app.id,
@@ -348,7 +359,7 @@ async function view(tx: Tx, app: App, subject: EnrichmentSubject, input: Input |
 }
 
 export function createEnrichmentService(
-  db: Database,
+  db: Pick<Database, "transaction">,
   options: { cipher: IdentifierCipher; clock?: () => Date },
 ) {
   const clock = options.clock ?? (() => new Date());
@@ -385,6 +396,8 @@ export function createEnrichmentService(
       const parsed = parse(saveIdentifierSchema, raw);
       return db.transaction(async (tx) => {
         const { app, input, actorUserId } = await locked(tx, actor, bankId, applicationId, parsed);
+        if (!materialInputsEditable(app.status))
+          invalid("This application is not accepting identifier changes.");
         if (input.revision !== parsed.expectedRevision) return conflict();
         const revision = input.identifierRevision + 1;
         const now = clock();
@@ -423,6 +436,7 @@ export function createEnrichmentService(
           .returning();
         if (!next) throw new Error("Input revision was not stored.");
         await supersede(tx, app, next, requestId, now);
+        await reconcileChecks(tx, bankId, applicationId, requestId, now);
         await audit(tx, app, actorUserId, "identifier.saved", identifier.id, requestId, now, [
           "identifier",
           "taxAuthorization",
@@ -440,6 +454,8 @@ export function createEnrichmentService(
       const parsed = parse(authorizeTaxSchema, raw);
       return db.transaction(async (tx) => {
         const { app, input, actorUserId } = await locked(tx, actor, bankId, applicationId, parsed);
+        if (!materialInputsEditable(app.status))
+          invalid("This application is not accepting authorization changes.");
         if (input.revision !== parsed.expectedRevision) return conflict();
         if (parsed.authorized && !input.identifierId)
           invalid("Add a synthetic identifier before authorizing sample tax records.");
@@ -457,6 +473,7 @@ export function createEnrichmentService(
           .returning();
         if (!next) throw new Error("Authorization was not stored.");
         await supersede(tx, app, next, requestId, now);
+        await reconcileChecks(tx, bankId, applicationId, requestId, now);
         await audit(
           tx,
           app,
@@ -560,6 +577,8 @@ export function createEnrichmentService(
       const parsed = parse(confirmEnrichmentFactSchema, raw);
       return db.transaction(async (tx) => {
         const { app, input, actorUserId } = await locked(tx, actor, bankId, applicationId, parsed);
+        if (!materialInputsEditable(app.status))
+          invalid("This application is not accepting fact changes.");
         if (input.revision !== parsed.expectedRevision) return conflict();
         const [run] = await tx
           .select()

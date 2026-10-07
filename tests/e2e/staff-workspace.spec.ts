@@ -294,17 +294,18 @@ test("staff workspace sections stay scoped and explain unavailable capabilities"
   await expect(page.getByRole("heading", { name: "Tasks", exact: true })).toBeVisible();
   for (const section of [
     { path: "documents", label: "Documents", empty: null },
-    { path: "checks", label: "Checks", empty: "Checks are not available yet" },
+    { path: "checks", label: "Checks", empty: "Simulated checks" },
   ]) {
     await page.getByRole("link", { name: section.label, exact: true }).click();
     await expect(page).toHaveURL(workspaceUrl(ids.small, section.path));
-    if (section.empty) await expect(page.getByText(section.empty, { exact: true })).toBeVisible();
+    if (section.empty)
+      await expect(page.getByRole("heading", { name: section.empty, exact: true })).toBeVisible();
     else
       await expect(page.getByRole("region", { name: "Document upload drop area" })).toBeVisible();
     await noOverflow(page);
   }
   await page.reload();
-  await expect(page.getByText("Checks are not available yet", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Simulated checks", exact: true })).toBeVisible();
   await page.goto(workspaceUrl(ids.otherBank));
   await expect(page.getByRole("alert")).toContainText("unavailable");
   await expect(page.getByText("Synthetic Birch Services", { exact: true })).toHaveCount(0);

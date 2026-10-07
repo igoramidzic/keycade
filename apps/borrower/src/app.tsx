@@ -21,6 +21,8 @@ import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-r
 import { ApiError, request } from "./api";
 import { ApplicationList, ApplicationRoute } from "./application-workspace";
 import { InvitationAcceptance } from "./participants";
+import { ReminderPreferences } from "./reminder-preferences";
+import { SignatureContinuation } from "./signatures";
 import { clearUnsavedAnswers } from "./unsaved-answers";
 import { applicationPath, ErrorNotice, Loading } from "./workspace-ui";
 
@@ -90,7 +92,10 @@ export function BorrowerApp({ confirmation }: { confirmation: Confirmation }) {
               }
               onSignedIn={(returnPath) =>
                 navigate(
-                  returnPath?.startsWith("/invitations/")
+                  returnPath &&
+                    /^\/(?:invitations|signatures|applications)\/[0-9a-f-]{36}(?:\/setup)?$/i.test(
+                      returnPath,
+                    )
                     ? `${returnPath}?bank=${encodeURIComponent(bankSlug)}`
                     : `/?bank=${encodeURIComponent(bankSlug)}`,
                   { replace: true },
@@ -140,6 +145,7 @@ function Workspace({
           <Badge variant="secondary">
             {session.authenticationMethod === "demo" ? "Demo access" : "Email verified"}
           </Badge>
+          <ReminderPreferences key={`${session.bank.id}:${session.user.email}`} session={session} />
         </div>
         <Button
           variant="outline"
@@ -162,6 +168,10 @@ function Workspace({
       ) : (
         catalog.data && (
           <Routes>
+            <Route
+              path="/signatures/:envelopeId"
+              element={<SignatureContinuation session={session} />}
+            />
             <Route
               path="/invitations/:invitationId"
               element={<InvitationAcceptance session={session} />}

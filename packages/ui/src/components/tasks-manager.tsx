@@ -10,6 +10,11 @@ import {
 } from "@keycade/ui/components/card";
 import { Input } from "@keycade/ui/components/input";
 import { NativeSelect } from "@keycade/ui/components/native-select";
+import {
+  SecureTaskInput,
+  type SecureTaskInputData,
+  type TaskInputKind,
+} from "@keycade/ui/components/secure-task-input";
 import { ChevronDown, Circle, CircleAlert, CircleCheck, CircleMinus, Clock3 } from "lucide-react";
 import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
 
@@ -35,6 +40,9 @@ export type TaskSummary = {
   canEdit: boolean;
   canSubmit: boolean;
   canReview: boolean;
+  inputKind?: TaskInputKind;
+  signatureEnvelopeId?: string | null;
+  secureInput?: SecureTaskInputData | null;
 };
 export type TaskDetailData = TaskSummary & {
   answer: string | null;
@@ -133,6 +141,7 @@ export function TasksManager({
   reload,
   errorMessage,
   renderDocuments,
+  signatureHref,
 }: {
   data: TasksData;
   mutate: (
@@ -143,6 +152,7 @@ export function TasksManager({
   reload: () => Promise<TasksData>;
   errorMessage: (error: unknown) => string;
   renderDocuments?: (taskId: string, onBusyChange: (busy: boolean) => void) => ReactNode;
+  signatureHref?: (envelopeId: string | null) => string;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [detail, setDetail] = useState<TaskDetailData | null>(null);
@@ -406,6 +416,7 @@ export function TasksManager({
                                 <TaskDetail
                                   key={`${detail.id}:${reloadCount}`}
                                   task={detail}
+                                  signatureHref={signatureHref}
                                   data={data}
                                   busy={busy}
                                   // List refreshes can observe our write before mutate returns
@@ -441,11 +452,12 @@ export function TasksManager({
                                     return updated;
                                   }}
                                 />
-                                {renderDocuments && (
-                                  <div className="p-4 pt-0 sm:p-5 sm:pt-0">
-                                    {renderDocuments(task.id, setUploading)}
-                                  </div>
-                                )}
+                                {renderDocuments &&
+                                  ["answer", "signature"].includes(task.inputKind ?? "answer") && (
+                                    <div className="p-4 pt-0 sm:p-5 sm:pt-0">
+                                      {renderDocuments(task.id, setUploading)}
+                                    </div>
+                                  )}
                               </>
                             )}
                           </div>
@@ -481,6 +493,7 @@ function TaskDetail({
   onReload,
   onDirtyChange,
   assigneeName,
+  signatureHref,
 }: {
   task: TaskDetailData;
   data: TasksData;
@@ -496,15 +509,18 @@ function TaskDetail({
   onReload: () => void;
   onDirtyChange: (dirty: boolean) => void;
   assigneeName: string;
+  signatureHref?: (envelopeId: string | null) => string;
 }) {
   const [answer, setAnswer] = useState(task.answer ?? "");
   const [participantId, setParticipantId] = useState(task.assigneeParticipantId ?? "");
   const [dueAt, setDueAt] = useState(dateInput(task.dueAt));
   const [reason, setReason] = useState("");
+  const [secureDirty, setSecureDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const dirty = answer !== (task.answer ?? "");
   const hasUnsavedChanges =
+    secureDirty ||
     dirty ||
     participantId !== (task.assigneeParticipantId ?? "") ||
     dueAt !== dateInput(task.dueAt) ||
@@ -529,15 +545,19 @@ function TaskDetail({
       }
       setNotice(message);
       setReason("");
+      return true;
     } catch (failure) {
       setError(errorMessage(failure));
+      return false;
     } finally {
       onBusy(false);
     }
   }
   return (
     <div className="space-y-5 p-4 sm:p-5">
-      <p className="text-sm leading-6 text-muted-foreground">{task.description}</p>
+      {task.inputKind !== "tax_authorization" && (
+        <p className="text-sm leading-6 text-muted-foreground">{task.description}</p>
+      )}
       <p className="text-xs text-muted-foreground">
         {task.source === "manual" ? "Staff requested" : "Product requirement"} ·{" "}
         {task.required ? "Required" : "Optional"} · {assigneeName}
@@ -582,144 +602,187 @@ function TaskDetail({
           ))}
         </div>
       )}
-      <form
-        className="space-y-3"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void save(
-            "answer",
-            { answer: answer.trim() },
-            "PATCH",
-            "Answer saved. Submit it when you are ready for bank review.",
-          );
-        }}
-      >
-        <label htmlFor={`answer-${task.id}`} className="block text-sm font-medium">
-          Your answer
-        </label>
-        {task.visibility === "private" || task.stableKey.startsWith("tax-document-readiness:") ? (
-          <NativeSelect
-            id={`answer-${task.id}`}
-            className="w-full"
-            required
-            value={answer}
-            disabled={busy || !task.canEdit}
-            onChange={(event) => setAnswer(event.target.value)}
-          >
-            <option value="">Choose an answer</option>
-            <option value="confirmed">I confirm readiness to provide fictional information</option>
-            <option value="needs_help">I need help with this confirmation</option>
-          </NativeSelect>
-        ) : (
-          <textarea
-            id={`answer-${task.id}`}
-            className={textareaClass}
-            required
-            maxLength={4000}
-            value={answer}
-            disabled={busy || !task.canEdit}
-            onChange={(event) => setAnswer(event.target.value)}
-          />
-        )}
-        <p className="text-xs leading-5 text-muted-foreground">
-          Use fictional details only. Do not enter real EINs, SSNs, or other identifiers. Saving an
-          answer does not submit it or approve the task.
-        </p>
-        {task.canEdit && ["completed", "waived", "submitted"].includes(task.state) && (
-          <p className="text-sm text-muted-foreground">
-            Changing a saved answer reopens this task and requires a new submission and bank review.
+      {task.inputKind === "signature" ? (
+        <div className="space-y-3 text-sm">
+          <p>
+            This task is managed by a simulated signature request. All intended signers must sign
+            its current document before it can be completed.
           </p>
-        )}
-        <div className="flex flex-wrap gap-2">
-          {task.canEdit && (
-            <Button
-              type="submit"
-              variant="outline"
-              disabled={busy || !answer.trim() || !dirty || stale}
+          {signatureHref && (
+            <a
+              className="font-medium underline underline-offset-4"
+              href={signatureHref(task.signatureEnvelopeId ?? null)}
             >
-              {busy ? "Saving…" : "Save answer"}
-            </Button>
+              View simulated signature request
+            </a>
           )}
+        </div>
+      ) : (task.inputKind ?? "answer") !== "answer" ? (
+        <div className="space-y-3">
+          <SecureTaskInput
+            taskId={task.id}
+            kind={task.inputKind as Exclude<TaskInputKind, "answer" | "signature">}
+            data={task.secureInput ?? null}
+            disabled={busy || stale}
+            onDirtyChange={setSecureDirty}
+            save={(action, body, message) => save(action, body, "POST", message)}
+          />
           {task.canSubmit && (
             <Button
-              type="button"
-              disabled={busy || dirty || !task.answer || stale}
-              onClick={() => void save("submit", {}, "POST", "Answer submitted for bank review.")}
+              disabled={busy || stale || secureDirty || task.evidenceRevision === 0}
+              onClick={() =>
+                void save("submit", {}, "POST", "Private task evidence submitted for bank review.")
+              }
             >
               Submit for review
             </Button>
           )}
         </div>
-        {dirty && task.canSubmit && (
-          <p className="text-sm text-muted-foreground">Save your answer before submitting it.</p>
-        )}
-        {!task.canEdit && !task.canSubmit && (
-          <p className="text-sm text-muted-foreground">
-            {task.state === "submitted"
-              ? "This answer is waiting for bank review."
-              : task.state === "cancelled"
-                ? "This requirement no longer applies. Its history is preserved."
-                : "Only the authorized assignee can answer and submit this task."}
-          </p>
-        )}
-      </form>
-      {data.canManage && !["completed", "waived", "cancelled"].includes(task.state) && (
+      ) : (
         <form
-          className="space-y-4 pt-3"
+          className="space-y-3"
           onSubmit={(event) => {
             event.preventDefault();
             void save(
-              "assignment",
-              { participantId: participantId || null, dueAt: dueDate(dueAt) },
+              "answer",
+              { answer: answer.trim() },
               "PATCH",
-              "Assignment and due date saved.",
+              "Answer saved. Submit it when you are ready for bank review.",
             );
           }}
         >
-          <h4 className="font-medium">Assignment</h4>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <label className="text-sm" htmlFor={`assignee-${task.id}`}>
-                Assigned participant
-              </label>
-              <NativeSelect
-                id={`assignee-${task.id}`}
-                className="w-full"
-                value={participantId}
-                disabled={busy || stale}
-                onChange={(event) => setParticipantId(event.target.value)}
+          <label htmlFor={`answer-${task.id}`} className="block text-sm font-medium">
+            Your answer
+          </label>
+          {task.visibility === "private" || task.stableKey.startsWith("tax-document-readiness:") ? (
+            <NativeSelect
+              id={`answer-${task.id}`}
+              className="w-full"
+              required
+              value={answer}
+              disabled={busy || !task.canEdit}
+              onChange={(event) => setAnswer(event.target.value)}
+            >
+              <option value="">Choose an answer</option>
+              <option value="confirmed">
+                I confirm readiness to provide fictional information
+              </option>
+              <option value="needs_help">I need help with this confirmation</option>
+            </NativeSelect>
+          ) : (
+            <textarea
+              id={`answer-${task.id}`}
+              className={textareaClass}
+              required
+              maxLength={4000}
+              value={answer}
+              disabled={busy || !task.canEdit}
+              onChange={(event) => setAnswer(event.target.value)}
+            />
+          )}
+          <p className="text-xs leading-5 text-muted-foreground">
+            Use fictional details only. Do not enter real EINs, SSNs, or other identifiers. Saving
+            an answer does not submit it or approve the task.
+          </p>
+          {task.canEdit && ["completed", "waived", "submitted"].includes(task.state) && (
+            <p className="text-sm text-muted-foreground">
+              Changing a saved answer reopens this task and requires a new submission and bank
+              review.
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            {task.canEdit && (
+              <Button
+                type="submit"
+                variant="outline"
+                disabled={busy || !answer.trim() || !dirty || stale}
               >
-                <option value="">Unassigned</option>
-                {data.assignees
-                  .filter(
-                    (person) =>
-                      task.visibility !== "private" || person.userId === task.subjectUserId,
-                  )
-                  .map((person) => (
-                    <option key={person.id} value={person.id}>
-                      {person.displayName}
-                    </option>
-                  ))}
-              </NativeSelect>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm" htmlFor={`due-${task.id}`}>
-                Due date (optional)
-              </label>
-              <Input
-                id={`due-${task.id}`}
-                type="date"
-                value={dueAt}
-                disabled={busy || stale}
-                onChange={(event) => setDueAt(event.target.value)}
-              />
-            </div>
+                {busy ? "Saving…" : "Save answer"}
+              </Button>
+            )}
+            {task.canSubmit && (
+              <Button
+                type="button"
+                disabled={busy || dirty || !task.answer || stale}
+                onClick={() => void save("submit", {}, "POST", "Answer submitted for bank review.")}
+              >
+                Submit for review
+              </Button>
+            )}
           </div>
-          <Button type="submit" variant="outline" disabled={busy || stale}>
-            Save assignment
-          </Button>
+          {dirty && task.canSubmit && (
+            <p className="text-sm text-muted-foreground">Save your answer before submitting it.</p>
+          )}
+          {!task.canEdit && !task.canSubmit && (
+            <p className="text-sm text-muted-foreground">
+              {task.state === "submitted"
+                ? "This answer is waiting for bank review."
+                : task.state === "cancelled"
+                  ? "This requirement no longer applies. Its history is preserved."
+                  : "Only the authorized assignee can answer and submit this task."}
+            </p>
+          )}
         </form>
       )}
+      {data.canManage &&
+        (task.inputKind ?? "answer") === "answer" &&
+        !["completed", "waived", "cancelled"].includes(task.state) && (
+          <form
+            className="space-y-4 pt-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void save(
+                "assignment",
+                { participantId: participantId || null, dueAt: dueDate(dueAt) },
+                "PATCH",
+                "Assignment and due date saved.",
+              );
+            }}
+          >
+            <h4 className="font-medium">Assignment</h4>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <label className="text-sm" htmlFor={`assignee-${task.id}`}>
+                  Assigned participant
+                </label>
+                <NativeSelect
+                  id={`assignee-${task.id}`}
+                  className="w-full"
+                  value={participantId}
+                  disabled={busy || stale}
+                  onChange={(event) => setParticipantId(event.target.value)}
+                >
+                  <option value="">Unassigned</option>
+                  {data.assignees
+                    .filter(
+                      (person) =>
+                        task.visibility !== "private" || person.userId === task.subjectUserId,
+                    )
+                    .map((person) => (
+                      <option key={person.id} value={person.id}>
+                        {person.displayName}
+                      </option>
+                    ))}
+                </NativeSelect>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm" htmlFor={`due-${task.id}`}>
+                  Due date (optional)
+                </label>
+                <Input
+                  id={`due-${task.id}`}
+                  type="date"
+                  value={dueAt}
+                  disabled={busy || stale}
+                  onChange={(event) => setDueAt(event.target.value)}
+                />
+              </div>
+            </div>
+            <Button type="submit" variant="outline" disabled={busy || stale}>
+              Save assignment
+            </Button>
+          </form>
+        )}
       {task.canReview && !["completed", "waived", "cancelled"].includes(task.state) && (
         <div className="space-y-3 pt-3">
           <h4 className="font-medium">Review task</h4>

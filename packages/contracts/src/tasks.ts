@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { secureTaskInputSchema } from "./checks.js";
 
 export const taskStageSchema = z.enum(["submission", "approval", "closing"]);
 export const taskStateSchema = z.enum([
@@ -67,6 +68,15 @@ export const taskProgressSchema = z.object({
   byStage: z.array(z.object({ stage: taskStageSchema, ...counts })),
 });
 export const taskViewSchema = taskSummarySchema.extend({
+  inputKind: z.enum([
+    "answer",
+    "synthetic_business_identifier",
+    "synthetic_personal_identifier",
+    "tax_authorization",
+    "signature",
+  ]),
+  signatureEnvelopeId: z.string().uuid().nullable().default(null),
+  secureInput: secureTaskInputSchema.nullable(),
   answer: z.string().nullable(),
   answers: z.array(
     z.object({

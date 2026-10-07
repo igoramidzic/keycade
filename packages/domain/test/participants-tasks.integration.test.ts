@@ -489,8 +489,12 @@ describe("participant task grants and owner facts on PostgreSQL", () => {
       .select()
       .from(applicationTasks)
       .where(eq(applicationTasks.subjectRelationshipId, relationship.id));
-    expect(rows).toHaveLength(2);
-    const linked = rows.find((row) => row.state !== "cancelled");
+    const confirmations = rows.filter((row) => row.stableKey.startsWith("owner-confirmation:"));
+    expect(confirmations).toHaveLength(2);
+    expect(
+      rows.filter((row) => row.stableKey.startsWith("check-input:") && row.state !== "cancelled"),
+    ).toHaveLength(2);
+    const linked = confirmations.find((row) => row.state !== "cancelled");
     expect(linked).toMatchObject({ subjectUserId: target.id, state: "open", evidenceRevision: 0 });
     const tasks = createTasksService(database.db);
     await expect(

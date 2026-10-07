@@ -25,7 +25,9 @@ import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { ApiError, formatAmount, request } from "./api";
 import { ApplicationDocuments } from "./documents";
 import { ApplicationPeople } from "./participants";
+import { ApplicationReadiness } from "./readiness";
 import { SetupWizard } from "./setup-wizard";
+import { ApplicationSignatures } from "./signatures";
 import { ApplicationTasks } from "./tasks";
 import { applicationPath, ErrorNotice, Loading } from "./workspace-ui";
 
@@ -391,7 +393,7 @@ function ClosedApplication({ data, bankSlug }: { data: ApplicationSelection; ban
   );
 }
 
-const views = ["Overview", "Tasks", "Documents", "People", "Activity"] as const;
+const views = ["Overview", "Tasks", "Documents", "Signatures", "People", "Activity"] as const;
 const emptyViews = {
   activity: [
     "Activity is not available yet",
@@ -534,6 +536,7 @@ function ApplicationPortal({
                 </p>
               </CardContent>
             </Card>
+            <ApplicationReadiness session={session} applicationId={applicationId} />
             <section aria-label="Application documents" className="space-y-3 px-4">
               <h2 className="text-sm font-semibold">Documents</h2>
               <p className="text-sm leading-6 text-muted-foreground">
@@ -552,6 +555,8 @@ function ApplicationPortal({
         <ApplicationPeople session={session} applicationId={applicationId} />
       ) : active === "documents" ? (
         <ApplicationDocuments session={session} applicationId={applicationId} />
+      ) : active === "signatures" ? (
+        <ApplicationSignatures session={session} applicationId={applicationId} />
       ) : empty ? (
         <Card className="shadow-sm ring-0">
           <CardHeader>

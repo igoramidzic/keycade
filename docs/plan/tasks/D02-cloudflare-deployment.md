@@ -16,7 +16,7 @@ Deploy the current foundation through native Cloudflare Git builds on `main`, wi
 - API and jobs use request-scoped Hyperdrive connections with query caching disabled; schema readiness is verified without running migrations from Workers.
 - GitHub Actions configures a separate runtime login without schema/role administration or audit update/delete privileges.
 - Queues deliver operation IDs; transactional outbox, idempotence, stale-input and lease recovery semantics remain in place. Cron recovers pending work without a persistent Node polling loop.
-- Database credentials remain ignored locally and encrypted in GitHub/Cloudflare; hosted setup never invokes local initialization or seeds.
+- Database credentials remain ignored locally and encrypted in GitHub/Cloudflare; hosted setup never invokes local initialization or full local fixture seeds. Explicit demo bank/product configuration is separate from schema migrations.
 
 ## Implementation record
 
@@ -40,3 +40,11 @@ Hosted acceptance passed on implementation commit `9eb09517c5f31d0c8bd6c246c4ad9
 - Final workspace types, Biome/browser boundaries, 110 unit checks and 44 real PostgreSQL integration checks passed. Temporary workerd verification server stopped; original local development services remain available.
 
 Handoff: [Cloudflare settings](../../../infra/cloudflare.md). The current three UIs are foundation shells; passwordless identity and application intake remain T06–T10. R2 remains T13. Native build and GitHub migration triggers are independent, so schema-dependent releases require additive migrations and readiness checks. Separate CI regression validation remains paused by explicit user request.
+
+## Hosted intake recovery — October 7, 2026
+
+The user reported 404 from the deployed borrower `GET /api/v1/public/banks/bank-a/intake`. Reproduced the response while `/api/ready` returned 200. A read-only Neon query confirmed zero banks and zero products; `readPublicIntake` returns the generic not-found response for an absent bank. Local initialization had supplied the missing configuration only to Podman.
+
+Applied [bootstrap-demo-intake.sql](../../../infra/bootstrap-demo-intake.sql) explicitly to the configured Neon database with verified TLS. It creates only synthetic `bank-a` and its fixed business-credit product, transactionally and without overwriting existing rows. Repeated the bootstrap and compared configuration: unchanged. Read-back confirmed one bank, one product, zero users and zero applications.
+
+Live acceptance: the exact reported borrower endpoint returned 200 with the bank and product ($10,000–$7,500,000 USD); unknown-bank intake returned 404; database/jobs readiness remained 200. No Worker redeployment was necessary. Full hosted authentication and application creation remain outside this targeted validation.

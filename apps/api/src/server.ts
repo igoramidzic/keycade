@@ -121,6 +121,12 @@ import {
 } from "./security.js";
 import { isServiceUnavailable, serviceUnavailableMessage } from "./service-errors.js";
 
+import {
+  createWorkflowTransport,
+  signatureWebhookContentType,
+  signatureWebhookPath,
+} from "./workflows.js";
+
 declare module "fastify" {
   interface FastifyRequest {
     authentication: Authentication;
@@ -150,6 +156,7 @@ export async function buildServer(options: ServerOptions) {
       options.authDeliveryEnabled !== false && !!options.portalOrigins?.borrower?.[0],
   });
   const tasks = createTasksService(options.db);
+  const workflows = createWorkflowTransport(options.db, options);
   const documentTransport = createDocumentTransport(options.db, options);
   const enrichment = () => {
     if (!options.encryptionKey)
@@ -187,6 +194,11 @@ export async function buildServer(options: ServerOptions) {
   app.addContentTypeParser("application/octet-stream", (_request, payload, done) =>
     done(null, payload),
   );
+  app.addContentTypeParser(
+    signatureWebhookContentType,
+    { parseAs: "string" },
+    (_request, body, done) => done(null, body),
+  );
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
   app.decorateRequest("authentication");
@@ -203,6 +215,7 @@ export async function buildServer(options: ServerOptions) {
     reply.header("referrer-policy", "no-referrer");
     if (
       !["GET", "HEAD", "OPTIONS"].includes(request.method) &&
+      !(request.method === "POST" && request.url.split("?")[0] === signatureWebhookPath) &&
       !isAllowedOrigin(request.headers.origin, options.allowedOrigins)
     ) {
       return reply.code(403).send({
@@ -217,6 +230,7 @@ export async function buildServer(options: ServerOptions) {
   app.addHook("preHandler", async (request, reply) => {
     if (
       [
+        signatureWebhookPath,
         "/api/health",
         "/api/ready",
         "/api/openapi.json",
@@ -355,6 +369,52 @@ export async function buildServer(options: ServerOptions) {
     500: errorSchema,
     503: errorSchema,
   };
+  app.post(
+    signatureWebhookPath,
+    {
+      schema: {
+        body: z.string(),
+        response: { 200: z.object({ ok: z.literal(true) }), ...responses },
+      },
+    },
+    async (request) => {
+      const signature = request.headers["x-keycade-signature"];
+      return workflows.webhook(
+        request.body,
+        typeof signature === "string" ? signature : undefined,
+        request.id,
+      );
+    },
+  );
+  for (const route of workflows.routes) {
+    app.route({
+      method: route.method,
+      url: route.path,
+      schema: {
+        params: route.params,
+        ...(route.body ? { body: route.body } : {}),
+        response: { 200: route.response, ...responses },
+      },
+      handler: async (request, reply) => {
+        const params = route.params.parse(request.params);
+        assertSessionBank(request.authentication, params.bankId);
+        const result = route.response.parse(
+          await route.handle({
+            actor: request.authentication.actor,
+            params,
+            input: request.body,
+            requestId: request.id,
+          }),
+        );
+        if (route.download)
+          reply
+            .type("text/plain; charset=utf-8")
+            .header("content-disposition", 'attachment; filename="simulated-signature.txt"')
+            .header("content-security-policy", "sandbox");
+        return reply.send(result);
+      },
+    });
+  }
   app.get(
     "/api/v1/auth/session",
     {

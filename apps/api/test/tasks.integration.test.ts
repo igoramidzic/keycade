@@ -208,7 +208,9 @@ for (const transport of ["fastify", "worker"] as const) {
         expect(linked.status).toBe(200);
         const tasks = tasksViewSchema.parse((await borrower.call(base)).body).tasks;
         const task = tasks.find(
-          (item) => item.stableKey.endsWith(relationship.id) && item.state !== "cancelled",
+          (item) =>
+            item.stableKey === `owner-confirmation:${relationship.id}` &&
+            item.state !== "cancelled",
         );
         if (!task) throw new Error("Expected private synthetic owner task.");
         expect(task.visibility).toBe("private");

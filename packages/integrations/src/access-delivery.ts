@@ -62,6 +62,7 @@ export async function processAccessDelivery(
   if (!delivery) return;
   try {
     await clock.sleep(options.delayMs ?? 500);
+    if (!(await identity.deliveryStillEligible(deliveryRequestId, delivery.claimToken))) return;
     await adapter.send(delivery);
   } catch {
     await identity.failDelivery(deliveryRequestId, delivery.claimToken, "smtp_unavailable");

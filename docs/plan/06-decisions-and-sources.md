@@ -2,6 +2,10 @@
 
 Baseline recorded October 6, 2026. Update this document when a future instruction changes an architectural or product assumption.
 
+## Hosted demo intake configuration — October 7, 2026
+
+The reported deployed intake 404 exposed missing operational configuration: the hosted database had no banks or products, although local initialization seeds them. Repair the hosted demo with an explicit, transactional, repeatable bank/product-only bootstrap, separate from schema migrations and full local fixtures. The bootstrap creates synthetic `bank-a` and its Synthetic Business Credit product without creating users, permissions, or applications or overwriting existing records. D02 dependencies are unchanged; its acceptance criteria now distinguish this explicit configuration from local fixture seeding. See [the verified recovery](tasks/D02-cloudflare-deployment.md#hosted-intake-recovery--october-7-2026).
+
 ## Decisions already made
 
 | Decision | Status / rationale |
@@ -274,3 +278,18 @@ The private R2 bucket is provisioned with its managed public URL disabled. The a
 The user requested all tasks up front and a clearer visual hierarchy with fewer card outlines and horizontal rules. T12's list response now includes full details for permitted tasks using batched history queries. Both dashboards preload permitted document metadata at the same time; task expansion is a local selection rather than a fetch. The selected detail remains an editing snapshot so background polling cannot replace an unsaved answer; explicit reload and current server mutation guards remain authoritative.
 
 Use the existing shadcn neutral palette: muted page background, white primary task/details panels, spacing between rows, and subtle expansion/selection surfaces. Remove redundant nested containers and separators, and leave the document shortcut unboxed. This refines T09/T12 without changing their dependencies or the default component styling.
+
+## All environments are demos — October 7, 2026
+
+The user explicitly clarified that the whole application, including the production deployment, is a demo and should work like local. This supersedes earlier decisions that disabled hosted demo entry or treated missing hosted email as an acceptable final boundary. Never infer real authentication, real email delivery, real provider verification, signatures, lending decisions or money movement from deployment to production.
+
+The reported hosted failure is `AUTH_DELIVERY_UNAVAILABLE`: “Email sign-in is available in the local demo. Hosted email delivery is not configured.” [D03](tasks/D03-hosted-demo-parity.md) will replace this blocker with explicitly simulated hosted access/delivery and synthetic fixtures. Preserve current bank/application/resource authorization, session/CSRF/revocation controls, safe demo labels and retry/idempotency behavior. The local Mailpit workflow and hosted simulated inbox/access path must exercise the same application journeys; neither sends external email. This instruction records the correction now; D03 remains unimplemented until its hosted acceptance checks pass.
+
+
+## Checks, signing and notification policy — October 7, 2026
+
+T16 uses immutable synthetic input generations and required approval-stage identity/fraud policies. Missing identifiers never prevent minimal intake. Secure input tasks use encrypted identifier/explicit authorization endpoints; generic answers, reviews and signatures cannot substitute for these inputs. Material input changes are frozen during submission/review and later decisions. Only a successful current `needs_review` check permits the configured, audited human resolution; failed, stale, unknown and unable-to-verify results remain blockers.
+
+T17 envelopes bind a current immutable clean document version, task policy and intended participant grants. Completion requires every intended signer and publishes one clearly synthetic artifact/task evidence record. Source replacement and access changes invalidate applicability. A purpose-derived HMAC verifies exact raw callback bytes; simulated browser signing still requires a protected current intended-signer session.
+
+T18 persists meaningful applicant inactivity independently from background/staff updates. Default reminders are due at 24 and 72 hours, at most two per episode; a first scheduler visit after 72 hours sends only the later reminder. Current activity, access, recipient verification, lifecycle and opt-out are rechecked before delivery. Existing SMTP crash ambiguity retains a stable message ID and replay-safe sibling credentials. Local links use the API's primary loopback origin consistently. Status-change intent is available for T19 to call transactionally; its absence before lifecycle implementation is explicit. All hosted email remains simulated under D03.

@@ -10,6 +10,7 @@ export * from "./enrichment.js";
 export * from "./industry.js";
 export * from "./intake.js";
 export * from "./participants.js";
+export * from "./signatures.js";
 export * from "./staff.js";
 export const errorSchema = z.object({
   error: z.object({ code: z.string(), message: z.string(), requestId: z.string().uuid() }),
@@ -58,7 +59,11 @@ export const authPortalSchema = z.enum(["borrower", "staff"]);
 // Only destinations implemented by this release can be preserved across authentication.
 export const authReturnPathSchema = z.union([
   z.literal("/"),
-  z.string().regex(/^\/invitations\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/),
+  z
+    .string()
+    .regex(
+      /^\/(?:invitations|signatures|applications)\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:\/setup)?$/,
+    ),
 ]);
 export const requestAccessLinkSchema = z.strictObject({
   email: z.string().trim().email().max(254),
@@ -100,4 +105,6 @@ export const staffSessionSchema = z.object({
 export const logoutResponseSchema = z.object({ ok: z.literal(true) });
 export type AuthSession = z.infer<typeof authSessionSchema>;
 export type AuthPortal = z.infer<typeof authPortalSchema>;
+export * from "./checks.js";
+export * from "./notifications.js";
 export * from "./tasks.js";

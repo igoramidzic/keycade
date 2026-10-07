@@ -46,7 +46,7 @@ export function demoRequirementRules(productSlug: string): RequirementRule[] {
       key: "tax-document-readiness",
       title: "Confirm business identifier readiness",
       description:
-        "Enter confirmed or needs_help to indicate whether synthetic business identifier documentation will be available later. Do not enter an EIN, SSN, or other identifier. Secure document collection arrives in a later release.",
+        "Enter confirmed or needs_help to indicate whether synthetic business identifier documentation is available. Use the separate private identifier task to provide registered demo input; never enter an EIN or SSN here.",
       reason:
         "Initial setup does not collect business identifiers; this later approval requirement keeps intake short.",
       stage: "approval",

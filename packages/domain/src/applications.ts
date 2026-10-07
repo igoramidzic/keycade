@@ -13,6 +13,7 @@ import {
   requireBankStaff,
 } from "./authorization.js";
 import { DomainError, deny } from "./errors.js";
+import { recordApplicantActivity } from "./notification-intents.js";
 import { reconcileTasks } from "./tasks.js";
 
 async function findApplication(db: QueryDatabase, bankId: string, applicationId: string) {
@@ -123,6 +124,7 @@ export async function updateApplicationPurpose(
         completedSteps: sql`CASE WHEN ${applicationSetups.completedAt} IS NULL THEN array_remove(${applicationSetups.completedSteps}, 'purpose') ELSE ${applicationSetups.completedSteps} END`,
       })
       .where(eq(applicationSetups.applicationId, applicationId));
+    await recordApplicantActivity(tx, bankId, applicationId, actor.userId, updated.updatedAt);
     await tx.insert(auditEvents).values({
       bankId,
       applicationId,
