@@ -26,6 +26,9 @@ export type ApplicationAccess =
       kind: "participant";
       role: "applicant_admin" | "owner" | "adviser";
       scope: "full" | "assigned";
+      participantId?: string;
+      taskIds?: readonly string[];
+      documentIds?: readonly string[];
     }
   | { kind: "system" };
 
@@ -108,7 +111,51 @@ export async function requireApplicationAccess(
     .limit(1)
     .for("share");
   if (!participant) return deny();
-  return { kind: "participant", role: participant.role, scope: participant.scope };
+  return {
+    kind: "participant",
+    role: participant.role,
+    scope: participant.scope,
+    participantId: participant.id,
+    taskIds: participant.taskIds,
+    documentIds: participant.documentIds,
+  };
+}
+
+/** Resource adapters must load current visibility and subject from the database, never request data. */
+export function participantResourceAllowed(input: {
+  actorUserId: string;
+  access: ApplicationAccess;
+  resource: {
+    id: string;
+    kind: "task" | "document";
+    visibility: "shared" | "assigned" | "private";
+    subjectUserId?: string | null;
+  };
+}): boolean {
+  const { access, resource, actorUserId } = input;
+  if (access.kind === "staff") return true;
+  if (access.kind !== "participant") return false;
+  const assigned =
+    (resource.kind === "task" ? access.taskIds : access.documentIds)?.includes(resource.id) ??
+    false;
+  if (resource.visibility === "private")
+    return resource.subjectUserId === actorUserId && (access.scope === "full" || assigned);
+  if (resource.visibility === "assigned") return assigned;
+  return access.scope === "full" || assigned;
+}
+
+export function canDelegateParticipantGrant(
+  access: ApplicationAccess,
+  grant: { role: "applicant_admin" | "owner" | "adviser"; scope: "full" | "assigned" },
+): boolean {
+  if (grant.role === "applicant_admin" && grant.scope !== "full") return false;
+  if (access.kind === "staff") return true;
+  return (
+    access.kind === "participant" &&
+    access.role === "applicant_admin" &&
+    access.scope === "full" &&
+    (grant.role === "applicant_admin" || grant.scope === "assigned")
+  );
 }
 
 /** Applicant workflow prerequisite; collaborator resource scopes remain separately enforced. */

@@ -68,6 +68,13 @@ export async function updateApplicationPurpose(
   const parsed = updatePurposeSchema.safeParse(input);
   if (!parsed.success) throw new DomainError("INVALID_INPUT", 400, "Invalid request.");
   return db.transaction(async (tx) => {
+    // Match participant removal's application-before-membership lock order.
+    const [current] = await tx
+      .select()
+      .from(applications)
+      .where(and(eq(applications.id, applicationId), eq(applications.bankId, bankId)))
+      .for("update");
+    if (!current) return deny();
     const access = await requireApplicantPortalAccess(tx, actor, bankId, applicationId);
     if (
       actor.kind !== "user" ||
@@ -79,12 +86,6 @@ export async function updateApplicationPurpose(
         ))
     )
       return deny();
-    const [current] = await tx
-      .select()
-      .from(applications)
-      .where(and(eq(applications.id, applicationId), eq(applications.bankId, bankId)))
-      .for("update");
-    if (!current) return deny();
     if (current.revision !== parsed.data.expectedRevision)
       throw new DomainError(
         "REVISION_CONFLICT",

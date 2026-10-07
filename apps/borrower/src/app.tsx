@@ -20,6 +20,7 @@ import { useRef, useState } from "react";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router";
 import { ApiError, request } from "./api";
 import { ApplicationList, ApplicationRoute } from "./application-workspace";
+import { InvitationAcceptance } from "./participants";
 import { clearUnsavedAnswers } from "./unsaved-answers";
 import { applicationPath, ErrorNotice, Loading } from "./workspace-ui";
 
@@ -83,11 +84,17 @@ export function BorrowerApp({ confirmation }: { confirmation: Confirmation }) {
               bankSlug={bankSlug}
               bankName={catalog.data.bank.name}
               intent={starting ? "start" : "resume"}
+              returnPath={location.pathname}
               onApplicationCreated={(id) =>
                 navigate(applicationPath(id, bankSlug, true), { replace: true })
               }
-              onSignedIn={() =>
-                navigate(`/?bank=${encodeURIComponent(bankSlug)}`, { replace: true })
+              onSignedIn={(returnPath) =>
+                navigate(
+                  returnPath?.startsWith("/invitations/")
+                    ? `${returnPath}?bank=${encodeURIComponent(bankSlug)}`
+                    : `/?bank=${encodeURIComponent(bankSlug)}`,
+                  { replace: true },
+                )
               }
               renderAuthenticated={(session, controls) => (
                 <Workspace session={session} controls={controls} targetCatalog={catalog.data} />
@@ -156,6 +163,10 @@ function Workspace({
       ) : (
         catalog.data && (
           <Routes>
+            <Route
+              path="/invitations/:invitationId"
+              element={<InvitationAcceptance session={session} />}
+            />
             <Route
               path="/apply"
               element={

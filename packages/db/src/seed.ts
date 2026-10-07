@@ -9,6 +9,7 @@ import {
   bankMemberships,
   banks,
   businesses,
+  businessRelationships,
   loanProducts,
   users,
 } from "./schema.js";
@@ -34,6 +35,7 @@ export const seedIds = {
   applicationEmpty: "60000000-0000-4000-8000-000000000005",
   applicationSetupDraft: "60000000-0000-4000-8000-000000000006",
   applicationClosedDraft: "60000000-0000-4000-8000-000000000007",
+  ownerRelationship: "70000000-0000-4000-8000-000000000001",
 } as const;
 
 /** Insert missing synthetic fixtures only. Never resets or overwrites user edits. */
@@ -264,6 +266,20 @@ export async function seedDatabase(connectionString: string): Promise<void> {
             synthetic: true,
           },
         ])
+        .onConflictDoNothing();
+      await tx
+        .insert(businessRelationships)
+        .values({
+          id: seedIds.ownerRelationship,
+          bankId: seedIds.bankA,
+          applicationId: seedIds.applicationSmall,
+          businessId: seedIds.businessA,
+          displayName: "Synthetic Non-portal Owner",
+          kind: "owner",
+          ownershipPercent: "25.00",
+          createdByUserId: seedIds.officerA,
+          synthetic: true,
+        })
         .onConflictDoNothing();
       const seededApplications = await tx
         .select()

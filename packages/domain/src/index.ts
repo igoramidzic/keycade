@@ -4,4 +4,5 @@ export * from "./authorization.js";
 export * from "./errors.js";
 export * from "./identity.js";
 export * from "./intake.js";
+export * from "./participants.js";
 export * from "./staff.js";

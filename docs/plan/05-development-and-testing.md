@@ -1,6 +1,6 @@
 # Local development and verification
 
-The command inventory is implemented for T01–T10. Passwordless identity is locally testable through [the identity guide](identity-validation.md); application creation and setup APIs are verified in [T07](tasks/T07-application-service.md#validation). The bank → setup → completion handoff is verified on desktop and mobile in [T08](tasks/T08-intake.md#implementation-record); T09 adds [business selection and guarded portal navigation](tasks/T09-borrower-workspace.md#implementation-record). T10 adds the [staff queue and local continuation journey](tasks/T10-bank-workspace.md#try-it-locally). See the root README for the current startup path.
+The command inventory is implemented for T01–T11. Passwordless identity is locally testable through [the identity guide](identity-validation.md); application creation and setup APIs are verified in [T07](tasks/T07-application-service.md#validation). The bank → setup → completion handoff is verified on desktop and mobile in [T08](tasks/T08-intake.md#implementation-record); T09 adds [business selection and guarded portal navigation](tasks/T09-borrower-workspace.md#implementation-record). T10 adds the [staff queue and local continuation journey](tasks/T10-bank-workspace.md#try-it-locally). T11 adds [owner records, invitation acceptance, and participant revocation](tasks/T11-participants.md#try-it-locally), using Mailpit for verified acceptance even when demo sign-in is enabled. See the root README for the current startup path.
 
 ## Developer entry path
 

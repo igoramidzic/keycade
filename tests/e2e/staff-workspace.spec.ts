@@ -278,7 +278,18 @@ test("staff workspace sections stay scoped and explain unavailable capabilities"
     page.getByRole("heading", { name: "Synthetic Cedar Workshop", exact: true }),
   ).toBeVisible();
   await page.getByRole("link", { name: "Participants", exact: true }).click();
+  await expect(page).toHaveURL(workspaceUrl(ids.small, "participants"));
+  await expect(
+    page.getByRole("heading", { name: "People with portal access", exact: true }),
+  ).toBeVisible();
   await expect(page.getByText("borrower@example.test", { exact: true }).first()).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Invite a collaborator", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Save owner", exact: true })).toBeVisible();
+  await expect(page.getByLabel("Role", { exact: true })).toHaveValue("adviser");
+  await expect(page.getByLabel("Access scope", { exact: true })).toHaveValue("assigned");
+  await noOverflow(page);
   for (const section of [
     { path: "tasks", label: "Tasks", empty: "Tasks are not available yet" },
     { path: "documents", label: "Documents", empty: "Documents are not available yet" },

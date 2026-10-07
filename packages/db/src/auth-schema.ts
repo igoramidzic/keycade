@@ -10,7 +10,7 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
-import { applicantContacts, applications, banks, users } from "./schema.js";
+import { applicantContacts, applications, banks, invitations, users } from "./schema.js";
 
 export const identityPortal = pgEnum("identity_portal", ["borrower", "staff"]);
 export const sessionAuthenticationMethod = pgEnum("session_authentication_method", [
@@ -35,6 +35,7 @@ export const accessDeliveryRequests = pgTable(
       .references(() => banks.id),
     contactId: uuid("contact_id").notNull(),
     applicationId: uuid("application_id"),
+    invitationId: uuid("invitation_id"),
     portal: identityPortal("portal").notNull(),
     origin: text("origin").notNull(),
     returnPath: text("return_path").notNull(),
@@ -58,6 +59,11 @@ export const accessDeliveryRequests = pgTable(
       name: "access_delivery_application_bank_fk",
       columns: [t.bankId, t.applicationId],
       foreignColumns: [applications.bankId, applications.id],
+    }),
+    foreignKey({
+      name: "access_delivery_invitation_bank_fk",
+      columns: [t.bankId, t.invitationId],
+      foreignColumns: [invitations.bankId, invitations.id],
     }),
     foreignKey({
       name: "access_delivery_contact_bank_fk",

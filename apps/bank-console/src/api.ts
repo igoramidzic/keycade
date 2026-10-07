@@ -19,7 +19,7 @@ export function useStaffApi() {
   return api;
 }
 export function createStaffApi(session: AuthenticatedSession, onDenied: () => void) {
-  const base = `/api/v1/banks/${session.bank.id}/staff`;
+  const bankBase = `/api/v1/banks/${session.bank.id}`;
   async function verify(signal?: AbortSignal) {
     const response = await fetch("/api/v1/auth/session", {
       credentials: "same-origin",
@@ -45,7 +45,8 @@ export function createStaffApi(session: AuthenticatedSession, onDenied: () => vo
     }
     return current;
   }
-  async function request<T>(
+  async function send<T>(
+    base: string,
     path: string,
     schema: { parse(value: unknown): T },
     options: {
@@ -85,7 +86,14 @@ export function createStaffApi(session: AuthenticatedSession, onDenied: () => vo
     await verify(signal);
     return schema.parse(data);
   }
-  return { request, verify };
+  const request: <T>(
+    path: string,
+    schema: { parse(value: unknown): T },
+    options?: { method?: "GET" | "POST" | "PATCH"; body?: object; signal?: AbortSignal },
+  ) => Promise<T> = (path, schema, options) => send(`${bankBase}/staff`, path, schema, options);
+  const participantRequest: typeof request = (path, schema, options) =>
+    send(bankBase, path, schema, options);
+  return { request, participantRequest, verify };
 }
 export function formatAmount(amount: string | null) {
   if (!amount) return "Not provided";

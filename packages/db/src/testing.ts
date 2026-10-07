@@ -43,13 +43,17 @@ export async function createTestDatabase(
       async cleanup() {
         if (cleaned) return;
         await pool.end();
-        await adminPool.query(`DROP DATABASE "${databaseName}" WITH (FORCE)`);
+        // pg-pool can resolve end() before retiring clients finish their socket close.
+        // A normal drop lets PostgreSQL wait for that graceful exit; FORCE can emit
+        // an unhandled 57P01 on a client that is still closing. Real leaked sessions
+        // should fail teardown instead of being hidden by server-side termination.
+        await adminPool.query(`DROP DATABASE "${databaseName}"`);
         cleaned = true;
         await adminPool.end();
       },
     };
   } catch (error) {
-    if (created) await adminPool.query(`DROP DATABASE "${databaseName}" WITH (FORCE)`);
+    if (created) await adminPool.query(`DROP DATABASE "${databaseName}"`);
     await adminPool.end();
     throw error;
   }

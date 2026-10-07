@@ -1,4 +1,6 @@
 import {
+  acceptInvitationResponseSchema,
+  addBusinessRelationshipSchema,
   addStaffNoteSchema,
   applicationPageSchema,
   applicationParamsSchema,
@@ -12,12 +14,16 @@ import {
   consumeAccessLinkResponseSchema,
   consumeAccessLinkSchema,
   createDraftSchema,
+  createInvitationSchema,
   demoSignInResponseSchema,
   demoSignInSchema,
   errorSchema,
   finishApplicationSetupSchema,
+  invitationViewSchema,
   logoutResponseSchema,
   pageQuerySchema,
+  participantCommandSchema,
+  participantsWorkspaceSchema,
   publicApplicationSchema,
   publicIntakeParamsSchema,
   publicIntakeQuerySchema,
@@ -44,6 +50,7 @@ import {
   assignApplicationStaff,
   createApplicationService,
   createIdentityService,
+  createParticipantsService,
   DomainError,
   listStaffApplications,
   readApplication,
@@ -113,6 +120,10 @@ export async function handleWorkerRequest(
       requireStaffContinuation: true,
       staffContinuationOrigin:
         deps.authDeliveryEnabled === false ? undefined : deps.portalOrigins?.borrower?.[0],
+    });
+    const participants = createParticipantsService(deps.db, {
+      borrowerOrigin: deps.portalOrigins?.borrower?.[0] ?? "http://localhost:3001",
+      deliveryEnabled: deps.authDeliveryEnabled !== false && !!deps.portalOrigins?.borrower?.[0],
     });
     if (
       !["GET", "HEAD", "OPTIONS"].includes(request.method) &&
@@ -382,6 +393,103 @@ export async function handleWorkerRequest(
               responses: applicationResponses(staffWorkspaceSchema),
             },
           },
+          "/api/v1/banks/{bankId}/applications/{applicationId}/participants": {
+            get: {
+              parameters: parameters,
+              responses: applicationResponses(participantsWorkspaceSchema),
+            },
+          },
+          "/api/v1/banks/{bankId}/applications/{applicationId}/participants/relationships": {
+            post: {
+              parameters: parameters,
+              responses: applicationResponses(participantsWorkspaceSchema),
+              requestBody: requestBody(addBusinessRelationshipSchema),
+            },
+          },
+          "/api/v1/banks/{bankId}/applications/{applicationId}/participants/invitations": {
+            post: {
+              parameters: parameters,
+              responses: applicationResponses(participantsWorkspaceSchema),
+              requestBody: requestBody(createInvitationSchema),
+            },
+          },
+          "/api/v1/banks/{bankId}/applications/{applicationId}/participants/invitations/{invitationId}/resend":
+            {
+              post: {
+                parameters: [
+                  ...parameters,
+                  {
+                    name: "invitationId",
+                    in: "path",
+                    required: true,
+                    schema: { type: "string", format: "uuid" },
+                  },
+                ],
+                responses: applicationResponses(participantsWorkspaceSchema),
+                requestBody: requestBody(participantCommandSchema),
+              },
+            },
+          "/api/v1/banks/{bankId}/applications/{applicationId}/participants/invitations/{invitationId}/revoke":
+            {
+              post: {
+                parameters: [
+                  ...parameters,
+                  {
+                    name: "invitationId",
+                    in: "path",
+                    required: true,
+                    schema: { type: "string", format: "uuid" },
+                  },
+                ],
+                responses: applicationResponses(participantsWorkspaceSchema),
+                requestBody: requestBody(participantCommandSchema),
+              },
+            },
+          "/api/v1/banks/{bankId}/applications/{applicationId}/participants/{participantId}/remove":
+            {
+              post: {
+                parameters: [
+                  ...parameters,
+                  {
+                    name: "participantId",
+                    in: "path",
+                    required: true,
+                    schema: { type: "string", format: "uuid" },
+                  },
+                ],
+                responses: applicationResponses(participantsWorkspaceSchema),
+                requestBody: requestBody(participantCommandSchema),
+              },
+            },
+          "/api/v1/banks/{bankId}/invitations/{invitationId}": {
+            get: {
+              parameters: [
+                parameters[0],
+                {
+                  name: "invitationId",
+                  in: "path",
+                  required: true,
+                  schema: { type: "string", format: "uuid" },
+                },
+              ],
+              responses: applicationResponses(invitationViewSchema),
+            },
+          },
+          "/api/v1/banks/{bankId}/invitations/{invitationId}/accept": {
+            post: {
+              parameters: [
+                parameters[0],
+                {
+                  name: "invitationId",
+                  in: "path",
+                  required: true,
+                  schema: { type: "string", format: "uuid" },
+                },
+              ],
+              responses: applicationResponses(acceptInvitationResponseSchema),
+              requestBody: requestBody(z.strictObject({})),
+            },
+          },
           "/api/v1/banks/{bankId}/applications/{applicationId}/purpose": {
             patch: {
               parameters,
@@ -502,6 +610,101 @@ export async function handleWorkerRequest(
         rateLimitKey: request.headers.get("cf-connecting-ip") ?? "unknown",
       });
       return json(requestAccessLinkResponseSchema.parse(result), 202);
+    }
+    const recipient = /^\/api\/v1\/banks\/([^/]+)\/invitations\/([^/]+)(\/accept)?$/.exec(path);
+    if (recipient) {
+      const { bankId, invitationId } = bankParamsSchema
+        .extend({ invitationId: z.string().uuid() })
+        .parse({
+          bankId: recipient[1],
+          invitationId: recipient[2],
+        });
+      assertSessionBank(authentication, bankId);
+      if (get && !recipient[3])
+        return json(
+          invitationViewSchema.parse(
+            await participants.readInvitation(authentication.actor, bankId, invitationId),
+          ),
+        );
+      if (request.method === "POST" && recipient[3]) {
+        z.strictObject({}).parse(await readJsonBody(request));
+        return json(
+          acceptInvitationResponseSchema.parse(
+            await participants.acceptInvitation(
+              authentication.actor,
+              bankId,
+              invitationId,
+              requestId,
+            ),
+          ),
+        );
+      }
+      return failure(404, "NOT_FOUND", "Resource not found.");
+    }
+    const people =
+      /^\/api\/v1\/banks\/([^/]+)\/applications\/([^/]+)\/participants(?:\/(.*))?$/.exec(path);
+    if (people) {
+      const { bankId, applicationId } = applicationParamsSchema.parse({
+        bankId: people[1],
+        applicationId: people[2],
+      });
+      assertSessionBank(authentication, bankId);
+      const actor = authentication.actor;
+      const suffix = people[3];
+      if (get && !suffix)
+        return json(
+          participantsWorkspaceSchema.parse(await participants.read(actor, bankId, applicationId)),
+        );
+      if (request.method === "POST") {
+        if (suffix === "relationships") {
+          const body = addBusinessRelationshipSchema.parse(await readJsonBody(request));
+          return json(
+            participantsWorkspaceSchema.parse(
+              await participants.addRelationship(actor, bankId, applicationId, body, requestId),
+            ),
+          );
+        }
+        if (suffix === "invitations") {
+          const body = createInvitationSchema.parse(await readJsonBody(request));
+          return json(
+            participantsWorkspaceSchema.parse(
+              await participants.createInvitation(actor, bankId, applicationId, body, requestId),
+            ),
+          );
+        }
+        const invitationAction = /^invitations\/([^/]+)\/(resend|revoke)$/.exec(suffix ?? "");
+        if (invitationAction) {
+          const invitationId = z.string().uuid().parse(invitationAction[1]);
+          const body = participantCommandSchema.parse(await readJsonBody(request));
+          const command =
+            invitationAction[2] === "resend"
+              ? participants.resendInvitation
+              : participants.revokeInvitation;
+          return json(
+            participantsWorkspaceSchema.parse(
+              await command(actor, bankId, applicationId, invitationId, body, requestId),
+            ),
+          );
+        }
+        const remove = /^([^/]+)\/remove$/.exec(suffix ?? "");
+        if (remove) {
+          const participantId = z.string().uuid().parse(remove[1]);
+          const body = participantCommandSchema.parse(await readJsonBody(request));
+          return json(
+            participantsWorkspaceSchema.parse(
+              await participants.removeParticipant(
+                actor,
+                bankId,
+                applicationId,
+                participantId,
+                body,
+                requestId,
+              ),
+            ),
+          );
+        }
+      }
+      return failure(404, "NOT_FOUND", "Resource not found.");
     }
     const staffCollection = /^\/api\/v1\/banks\/([^/]+)\/staff\/(applications|options)$/.exec(path);
     if (staffCollection) {

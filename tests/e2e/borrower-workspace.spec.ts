@@ -114,7 +114,6 @@ test("business groups show granted applications and portal navigation keeps appl
   await expect(page.getByText("Tasks are not available yet", { exact: true })).toBeVisible();
   for (const section of [
     { path: "documents", label: "Documents", empty: "Documents are not available yet" },
-    { path: "people", label: "People", empty: "People management is not available yet" },
     { path: "activity", label: "Activity", empty: "Activity is not available yet" },
   ]) {
     await page.getByRole("link", { name: section.label, exact: true }).click();
@@ -124,6 +123,18 @@ test("business groups show granted applications and portal navigation keeps appl
   }
   await page.reload();
   await expect(page.getByText("Activity is not available yet", { exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "People", exact: true }).click();
+  await expect(page).toHaveURL(applicationUrl(ids.small, "people"));
+  await expect(
+    page.getByRole("heading", { name: "People with portal access", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Invite a collaborator", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Role", { exact: true })).toHaveValue("adviser");
+  await expect(page.getByLabel("Access scope", { exact: true })).toHaveValue("assigned");
+  await expect(page.getByRole("button", { name: "Send invitation", exact: true })).toBeVisible();
+  await noOverflow(page);
   await page.getByRole("link", { name: "Your applications", exact: true }).click();
   await card(page, ids.large)
     .getByRole("button", { name: "Open application", exact: true })
@@ -215,6 +226,19 @@ test("limited invited participants see scoped summaries without applicant setup 
   await expect(page.getByText("Tasks are not available yet", { exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByText("Limited access", { exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "People", exact: true }).click();
+  await expect(page).toHaveURL(applicationUrl(ids.small, "people"));
+  await expect(
+    page.getByRole("heading", { name: "People with portal access", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Your application access", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /send invitation|remove access|save owner/i }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: "Business owners and contacts", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByText("borrower@example.test", { exact: true })).toHaveCount(0);
   await noOverflow(page);
   await page.goto(applicationUrl(ids.large));
   await expect(page.getByRole("alert")).toContainText("unavailable for your account");

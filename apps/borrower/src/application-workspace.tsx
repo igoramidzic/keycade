@@ -23,6 +23,7 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { ApiError, formatAmount, request } from "./api";
+import { ApplicationPeople } from "./participants";
 import { SetupWizard } from "./setup-wizard";
 import { applicationPath, ErrorNotice, Loading } from "./workspace-ui";
 
@@ -384,10 +385,6 @@ const emptyViews = {
     "Documents are not available yet",
     "Document uploads are not enabled in this demo yet. No documents have been requested through this workspace.",
   ],
-  people: [
-    "People management is not available yet",
-    "Participant invitations and permissions will appear here when available.",
-  ],
   activity: [
     "Activity is not available yet",
     "An application activity feed is not enabled in this demo yet.",
@@ -518,6 +515,8 @@ function ApplicationPortal({
             </CardContent>
           </Card>
         </div>
+      ) : active === "people" ? (
+        <ApplicationPeople session={session} applicationId={applicationId} />
       ) : empty ? (
         <Card>
           <CardHeader>
@@ -529,7 +528,7 @@ function ApplicationPortal({
             <h3 className="font-medium">{empty[0]}</h3>
             <p className="text-sm leading-6 text-muted-foreground">
               {limited
-                ? `${active === "people" ? "Participant management is not available to your role." : "Only your explicitly permitted information will appear here."} This feature is not enabled in the demo yet.`
+                ? "Only your explicitly permitted information will appear here. This feature is not enabled in the demo yet."
                 : empty[1]}
             </p>
           </CardContent>

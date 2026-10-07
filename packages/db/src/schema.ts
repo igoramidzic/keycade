@@ -288,6 +288,9 @@ export const applicationParticipants = pgTable(
       .references(() => users.id),
     role: participantRole("role").notNull(),
     scope: participantScope("scope").notNull().default("assigned"),
+    taskIds: uuid("task_ids").array().notNull().default(sql`ARRAY[]::uuid[]`),
+    documentIds: uuid("document_ids").array().notNull().default(sql`ARRAY[]::uuid[]`),
+    unassignedAt: timestamp("unassigned_at", { withTimezone: true }),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
     synthetic: synthetic(),
     createdAt: createdAt(),
@@ -301,6 +304,129 @@ export const applicationParticipants = pgTable(
       foreignColumns: [applications.bankId, applications.id],
     }),
     index("participants_user_bank").on(t.userId, t.bankId),
+  ],
+);
+
+// A business relationship records a person; it never creates an identity or portal grant.
+// applicationId is the disclosure boundary, even when the business has multiple applications.
+export const businessRelationships = pgTable(
+  "business_relationships",
+  {
+    id: id(),
+    bankId: uuid("bank_id").notNull(),
+    applicationId: uuid("application_id").notNull(),
+    businessId: uuid("business_id").notNull(),
+    displayName: text("display_name").notNull(),
+    kind: text("kind").$type<"owner" | "contact">().notNull(),
+    ownershipPercent: numeric("ownership_percent", { precision: 5, scale: 2 }),
+    userId: uuid("user_id").references(() => users.id),
+    createdByUserId: uuid("created_by_user_id")
+      .notNull()
+      .references(() => users.id),
+    synthetic: synthetic(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    foreignKey({
+      name: "relationships_application_bank_fk",
+      columns: [t.bankId, t.applicationId],
+      foreignColumns: [applications.bankId, applications.id],
+    }),
+    foreignKey({
+      name: "relationships_business_bank_fk",
+      columns: [t.bankId, t.businessId],
+      foreignColumns: [businesses.bankId, businesses.id],
+    }),
+    check("relationships_kind_valid", sql`${t.kind} IN ('owner', 'contact')`),
+    check("relationships_name_valid", sql`length(btrim(${t.displayName})) BETWEEN 1 AND 160`),
+    check(
+      "relationships_percentage_valid",
+      sql`${t.ownershipPercent} IS NULL OR (${t.kind} = 'owner' AND ${t.ownershipPercent} >= 0 AND ${t.ownershipPercent} <= 100)`,
+    ),
+    index("relationships_application").on(t.bankId, t.applicationId),
+  ],
+);
+
+export const invitations = pgTable(
+  "invitations",
+  {
+    id: id(),
+    bankId: uuid("bank_id").notNull(),
+    applicationId: uuid("application_id").notNull(),
+    email: text("email").notNull(),
+    role: participantRole("role").notNull(),
+    scope: participantScope("scope").notNull().default("assigned"),
+    taskIds: uuid("task_ids").array().notNull().default(sql`ARRAY[]::uuid[]`),
+    documentIds: uuid("document_ids").array().notNull().default(sql`ARRAY[]::uuid[]`),
+    inviterUserId: uuid("inviter_user_id")
+      .notNull()
+      .references(() => users.id),
+    inviterKind: text("inviter_kind").$type<"staff" | "participant">().notNull(),
+    // A removed/reinstated grant is a new authority generation; it cannot revive old invitations.
+    inviterGrantId: uuid("inviter_grant_id").notNull(),
+    inviterGrantUpdatedAt: timestamp("inviter_grant_updated_at", { withTimezone: true }).notNull(),
+    status: text("status").$type<"pending" | "accepted" | "revoked">().notNull().default("pending"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    acceptedByUserId: uuid("accepted_by_user_id").references(() => users.id),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    synthetic: synthetic(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    unique("invitations_bank_id_id").on(t.bankId, t.id),
+    foreignKey({
+      name: "invitations_application_bank_fk",
+      columns: [t.bankId, t.applicationId],
+      foreignColumns: [applications.bankId, applications.id],
+    }),
+    check(
+      "invitations_email_normalized",
+      sql`${t.email} = lower(btrim(${t.email})) AND length(${t.email}) > 3`,
+    ),
+    check("invitations_status_valid", sql`${t.status} IN ('pending', 'accepted', 'revoked')`),
+    check("invitations_inviter_kind_valid", sql`${t.inviterKind} IN ('staff', 'participant')`),
+    check(
+      "invitations_admin_scope_valid",
+      sql`${t.role} <> 'applicant_admin' OR ${t.scope} = 'full'`,
+    ),
+    index("invitations_application").on(t.bankId, t.applicationId),
+  ],
+);
+
+// Payload/key hashes prevent retries from sending duplicate emails or reinterpreting commands.
+export const participantCommands = pgTable(
+  "participant_commands",
+  {
+    id: id(),
+    bankId: uuid("bank_id").notNull(),
+    applicationId: uuid("application_id").notNull(),
+    actorUserId: uuid("actor_user_id")
+      .notNull()
+      .references(() => users.id),
+    operation: text("operation").notNull(),
+    keyHash: text("key_hash").notNull(),
+    payloadHash: text("payload_hash").notNull(),
+    resultId: uuid("result_id").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    foreignKey({
+      name: "participant_commands_application_bank_fk",
+      columns: [t.bankId, t.applicationId],
+      foreignColumns: [applications.bankId, applications.id],
+    }),
+    unique("participant_commands_scope_key").on(
+      t.bankId,
+      t.applicationId,
+      t.actorUserId,
+      t.operation,
+      t.keyHash,
+    ),
+    check("participant_commands_key_hash_valid", sql`${t.keyHash} ~ '^[a-f0-9]{64}$'`),
+    check("participant_commands_payload_hash_valid", sql`${t.payloadHash} ~ '^[a-f0-9]{64}$'`),
   ],
 );
 

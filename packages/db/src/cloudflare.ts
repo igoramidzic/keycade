@@ -35,4 +35,15 @@ export async function assertWorkerSchemaReady(pool: pg.Pool): Promise<void> {
   await pool.query(
     "SELECT id, bank_id, application_id, body, author_user_id, updated_by_user_id, created_at, updated_at FROM staff_notes LIMIT 0",
   );
+  await pool.query(
+    "SELECT task_ids, document_ids, unassigned_at FROM application_participants LIMIT 0",
+  );
+  await pool.query("SELECT invitation_id FROM access_delivery_requests LIMIT 0");
+  await pool.query(
+    "SELECT id, inviter_grant_id, inviter_grant_updated_at, status FROM invitations LIMIT 0",
+  );
+  await pool.query(
+    "SELECT id, bank_id, application_id, business_id FROM business_relationships LIMIT 0",
+  );
+  await pool.query("SELECT key_hash, payload_hash, result_id FROM participant_commands LIMIT 0");
 }

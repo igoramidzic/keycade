@@ -71,7 +71,10 @@ export function normalizeIdentityEmail(email: string): string {
   return normalized;
 }
 export function normalizeIdentityReturnPath(path: string): string {
-  return path === "/" ? path : "/";
+  return path === "/" ||
+    /^\/invitations\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(path)
+    ? path
+    : "/";
 }
 function normalizeOrigin(origin: string): string {
   try {
@@ -484,7 +487,7 @@ export function createIdentityService(
         )
         .for("share");
       if (delivery.portal === "staff" && !membership) return invalidLink();
-      if (delivery.applicationId && delivery.portal === "borrower") {
+      if (delivery.applicationId && delivery.portal === "borrower" && !delivery.invitationId) {
         await claimApplicationInTransaction(
           tx,
           { kind: "user", userId: user.id },

@@ -5,6 +5,7 @@ export * from "./applications.js";
 // Browser-safe wire contracts. Never import database or server configuration here.
 export { applicationStatusSchema, usdAmountSchema } from "./common.js";
 export * from "./intake.js";
+export * from "./participants.js";
 export * from "./staff.js";
 export const errorSchema = z.object({
   error: z.object({ code: z.string(), message: z.string(), requestId: z.string().uuid() }),
@@ -51,7 +52,10 @@ export type Readiness = z.infer<typeof readinessSchema>;
 
 export const authPortalSchema = z.enum(["borrower", "staff"]);
 // Only destinations implemented by this release can be preserved across authentication.
-export const authReturnPathSchema = z.literal("/");
+export const authReturnPathSchema = z.union([
+  z.literal("/"),
+  z.string().regex(/^\/invitations\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/),
+]);
 export const requestAccessLinkSchema = z.strictObject({
   email: z.string().trim().email().max(254),
   bankSlug: z

@@ -3,6 +3,8 @@ import cookie from "@fastify/cookie";
 import rateLimit from "@fastify/rate-limit";
 import swagger from "@fastify/swagger";
 import {
+  acceptInvitationResponseSchema,
+  addBusinessRelationshipSchema,
   addStaffNoteSchema,
   applicationPageSchema,
   applicationParamsSchema,
@@ -16,12 +18,16 @@ import {
   consumeAccessLinkResponseSchema,
   consumeAccessLinkSchema,
   createDraftSchema,
+  createInvitationSchema,
   demoSignInResponseSchema,
   demoSignInSchema,
   errorSchema,
   finishApplicationSetupSchema,
+  invitationViewSchema,
   logoutResponseSchema,
   pageQuerySchema,
+  participantCommandSchema,
+  participantsWorkspaceSchema,
   publicApplicationSchema,
   publicIntakeParamsSchema,
   publicIntakeQuerySchema,
@@ -48,6 +54,7 @@ import {
   assignApplicationStaff,
   createApplicationService,
   createIdentityService,
+  createParticipantsService,
   DomainError,
   listStaffApplications,
   readApplication,
@@ -108,6 +115,11 @@ export async function buildServer(options: ServerOptions) {
     requireStaffContinuation: true,
     staffContinuationOrigin:
       options.authDeliveryEnabled === false ? undefined : options.portalOrigins?.borrower?.[0],
+  });
+  const participants = createParticipantsService(options.db, {
+    borrowerOrigin: options.portalOrigins?.borrower?.[0] ?? "http://localhost:3001",
+    deliveryEnabled:
+      options.authDeliveryEnabled !== false && !!options.portalOrigins?.borrower?.[0],
   });
   const originFor = (request: FastifyRequest) =>
     configuredRequestOrigin(
@@ -839,6 +851,144 @@ export async function buildServer(options: ServerOptions) {
         request.params.applicationId,
         request.params.noteId,
         request.body,
+        request.id,
+      );
+    },
+  );
+  const peopleBase = "/api/v1/banks/:bankId/applications/:applicationId/participants";
+  const invitationParams = applicationParamsSchema.extend({ invitationId: z.string().uuid() });
+  const recipientParams = bankParamsSchema.extend({ invitationId: z.string().uuid() });
+  app.get(
+    peopleBase,
+    {
+      schema: {
+        params: applicationParamsSchema,
+        response: { 200: participantsWorkspaceSchema, ...responses },
+      },
+    },
+    async (request) => {
+      const { bankId, applicationId } = request.params;
+      assertSessionBank(request.authentication, bankId);
+      return participants.read(request.authentication.actor, bankId, applicationId);
+    },
+  );
+  app.post(
+    `${peopleBase}/relationships`,
+    {
+      schema: {
+        params: applicationParamsSchema,
+        body: addBusinessRelationshipSchema,
+        response: { 200: participantsWorkspaceSchema, ...responses },
+      },
+    },
+    async (request) => {
+      const { bankId, applicationId } = request.params;
+      assertSessionBank(request.authentication, bankId);
+      return participants.addRelationship(
+        request.authentication.actor,
+        bankId,
+        applicationId,
+        request.body,
+        request.id,
+      );
+    },
+  );
+  app.post(
+    `${peopleBase}/invitations`,
+    {
+      schema: {
+        params: applicationParamsSchema,
+        body: createInvitationSchema,
+        response: { 200: participantsWorkspaceSchema, ...responses },
+      },
+    },
+    async (request) => {
+      const { bankId, applicationId } = request.params;
+      assertSessionBank(request.authentication, bankId);
+      return participants.createInvitation(
+        request.authentication.actor,
+        bankId,
+        applicationId,
+        request.body,
+        request.id,
+      );
+    },
+  );
+  for (const action of ["resend", "revoke"] as const) {
+    app.post(
+      `${peopleBase}/invitations/:invitationId/${action}`,
+      {
+        schema: {
+          params: invitationParams,
+          body: participantCommandSchema,
+          response: { 200: participantsWorkspaceSchema, ...responses },
+        },
+      },
+      async (request) => {
+        const { bankId, applicationId, invitationId } = request.params;
+        assertSessionBank(request.authentication, bankId);
+        const command =
+          action === "resend" ? participants.resendInvitation : participants.revokeInvitation;
+        return command(
+          request.authentication.actor,
+          bankId,
+          applicationId,
+          invitationId,
+          request.body,
+          request.id,
+        );
+      },
+    );
+  }
+  app.post(
+    `${peopleBase}/:participantId/remove`,
+    {
+      schema: {
+        params: applicationParamsSchema.extend({ participantId: z.string().uuid() }),
+        body: participantCommandSchema,
+        response: { 200: participantsWorkspaceSchema, ...responses },
+      },
+    },
+    async (request) => {
+      const { bankId, applicationId, participantId } = request.params;
+      assertSessionBank(request.authentication, bankId);
+      return participants.removeParticipant(
+        request.authentication.actor,
+        bankId,
+        applicationId,
+        participantId,
+        request.body,
+        request.id,
+      );
+    },
+  );
+  app.get(
+    "/api/v1/banks/:bankId/invitations/:invitationId",
+    {
+      schema: { params: recipientParams, response: { 200: invitationViewSchema, ...responses } },
+    },
+    async (request) => {
+      const { bankId, invitationId } = request.params;
+      assertSessionBank(request.authentication, bankId);
+      return participants.readInvitation(request.authentication.actor, bankId, invitationId);
+    },
+  );
+  app.post(
+    "/api/v1/banks/:bankId/invitations/:invitationId/accept",
+    {
+      schema: {
+        params: recipientParams,
+        body: z.strictObject({}),
+        response: { 200: acceptInvitationResponseSchema, ...responses },
+      },
+    },
+    async (request) => {
+      const { bankId, invitationId } = request.params;
+      assertSessionBank(request.authentication, bankId);
+      return participants.acceptInvitation(
+        request.authentication.actor,
+        bankId,
+        invitationId,
         request.id,
       );
     },

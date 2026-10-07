@@ -9,6 +9,7 @@ Authorized users upload and retrieve evidence safely from either application wor
 ## Scope
 
 - Add document/version/storage metadata, checksums, task-evidence links, and a private local storage adapter.
+- Wire T11’s document scope policy to persisted document visibility and subject ownership. Validate delegated document IDs against the same bank/application and current inviter permissions before allowing nonempty document grants.
 - Add streaming uploads with allowlisted MIME/content checks, configurable size/batch limits, safe filenames, and immutable versions.
 - Build a shared drop area/file picker, per-file progress, cancellation/retry UI, and authorized file list/download routes.
 - Add a delayed simulated scan adapter: pending → clean/blocked/error. Quarantine files until clean; processing/download permissions do not depend on uploader-chosen filenames.

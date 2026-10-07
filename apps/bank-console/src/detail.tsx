@@ -21,6 +21,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router";
 import { ApiError, formatAmount, useStaffApi } from "./api";
 import { PrefillForm } from "./forms";
+import { ApplicationParticipants } from "./participants";
 import {
   ErrorNotice,
   Field,
@@ -234,57 +235,7 @@ export function ApplicationDetail() {
               </div>
             )}
             {selected === "participants" && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Participants</CardTitle>
-                  <CardDescription>
-                    Application access is separate from business ownership. Invitations and
-                    participant editing are not available yet.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-5">
-                  <Contact workspace={data} />
-                  {data.participants.length ? (
-                    <ul className="divide-y">
-                      {data.participants.map((participant) => (
-                        <li
-                          key={`${participant.id}:${participant.role}`}
-                          className="space-y-2 py-4"
-                        >
-                          <p className="font-medium">{participant.displayName}</p>
-                          <p className="break-all text-sm text-muted-foreground">
-                            {participant.email}
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            <Badge variant="outline">
-                              {participant.role === "applicant_admin"
-                                ? "Applicant administrator"
-                                : participant.role === "owner"
-                                  ? "Owner"
-                                  : "Adviser"}
-                            </Badge>
-                            <Badge variant="outline">
-                              {participant.scope === "full"
-                                ? "Full application access"
-                                : "Assigned access"}
-                            </Badge>
-                            <Badge variant="secondary">
-                              {participant.status === "active" ? "Active" : "Revoked"}
-                            </Badge>
-                            <Badge variant="outline">
-                              {participant.emailVerified ? "Email verified" : "Email unverified"}
-                            </Badge>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      No participants have application access yet.
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
+              <ApplicationParticipants key={data.id} applicationId={data.id} />
             )}
             {(selected === "tasks" || selected === "documents" || selected === "checks") && (
               <Card>

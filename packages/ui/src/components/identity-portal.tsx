@@ -14,6 +14,9 @@ import { type FormEvent, type ReactNode, useCallback, useEffect, useRef, useStat
 declare const __KEYCADE_PUBLIC__: { hosted: boolean; mailpitUrl: string | null };
 
 export type Confirmation = { page: boolean; token: string | null };
+// The app captures each email link once before mounting. Remember when that capture
+// has been handled so a cache-driven unmount cannot revive a consumed credential.
+const handledConfirmations = new WeakSet<Confirmation>();
 
 // Capture once, before React mounts: StrictMode may run state initializers twice.
 // Credentials remain only in memory and are removed from browser history immediately.
@@ -21,7 +24,12 @@ export function captureConfirmation(): Confirmation {
   const page = window.location.pathname === "/auth/confirm";
   if (!page) return { page: false, token: null };
   const token = new URLSearchParams(window.location.hash.slice(1)).get("token");
-  window.history.replaceState(null, "", "/auth/confirm");
+  const bankSlug = new URLSearchParams(window.location.search).get("bank");
+  const bankQuery =
+    bankSlug && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(bankSlug)
+      ? `?bank=${encodeURIComponent(bankSlug)}`
+      : "";
+  window.history.replaceState(null, "", `/auth/confirm${bankQuery}`);
   return { page: true, token };
 }
 
@@ -76,6 +84,7 @@ export function IdentityPortal({
   bankSlug = "bank-a",
   bankName = "Synthetic Bank A",
   intent = "resume",
+  returnPath = "/",
   onApplicationCreated,
   onSignedIn,
   renderAuthenticated,
@@ -85,19 +94,22 @@ export function IdentityPortal({
   bankSlug?: string;
   bankName?: string;
   intent?: "start" | "resume";
+  returnPath?: string;
   onApplicationCreated?: (id: string) => void;
-  onSignedIn?: () => void;
+  onSignedIn?: (returnPath?: string) => void;
   renderAuthenticated?: (session: AuthenticatedSession, controls: IdentityControls) => ReactNode;
 }) {
-  const credential = useRef(confirmation?.token ?? null);
-  const confirmationPending = useRef(confirmation?.page ?? false);
+  const initialConfirmation =
+    confirmation && !handledConfirmations.has(confirmation) ? confirmation : undefined;
+  const credential = useRef(initialConfirmation?.token ?? null);
+  const confirmationPending = useRef(initialConfirmation?.page ?? false);
   const [screen, setScreen] = useState<Screen>("loading");
   const [session, setSession] = useState<Session>({
     authenticated: false,
     demoSignInEnabled: false,
   });
   const [email, setEmail] = useState("");
-  const [emailLinkMode, setEmailLinkMode] = useState(confirmation?.page ?? false);
+  const [emailLinkMode, setEmailLinkMode] = useState(initialConfirmation?.page ?? false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resumeAfterStart, setResumeAfterStart] = useState(false);
@@ -106,6 +118,11 @@ export function IdentityPortal({
   const isStaff = portal === "staff";
   const isStarting = !isStaff && intent === "start" && !resumeAfterStart;
   const useDemo = session.demoSignInEnabled && !emailLinkMode;
+  function clearConfirmation() {
+    credential.current = null;
+    confirmationPending.current = false;
+    if (confirmation) handledConfirmations.add(confirmation);
+  }
 
   const loadSession = useCallback(
     async (signal?: AbortSignal, showConfirmation = false) => {
@@ -206,7 +223,7 @@ export function IdentityPortal({
           email,
           bankSlug,
           portal,
-          returnPath: "/",
+          returnPath: /^\/invitations\/[0-9a-f-]{36}$/i.test(returnPath) ? returnPath : "/",
         });
       }
       if (response.status === 429) {
@@ -267,8 +284,7 @@ export function IdentityPortal({
           }
           onApplicationCreated?.(draft.id);
         }
-        credential.current = null;
-        confirmationPending.current = false;
+        clearConfirmation();
         if (!renderAuthenticated) window.history.replaceState(null, "", "/");
         await loadSession().catch(() => setScreen("unavailable"));
       } else {
@@ -292,16 +308,21 @@ export function IdentityPortal({
       } else if (response.status === 403) {
         setError("We couldn’t verify this request. Please try again.");
       } else if ([400, 401, 409, 410].includes(response.status)) {
-        credential.current = null;
+        clearConfirmation();
         setScreen("expired");
       } else if (!response.ok) {
         setError("We couldn’t confirm your link. Please try again.");
       } else {
-        credential.current = null;
-        confirmationPending.current = false;
-        // Only the approved internal destination is supported in this milestone.
-        if (renderAuthenticated) onSignedIn?.();
-        else window.history.replaceState(null, "", "/");
+        const result: unknown = await response.json();
+        const requestedPath =
+          result && typeof result === "object" && "returnPath" in result ? result.returnPath : "/";
+        const returnPath =
+          typeof requestedPath === "string" && /^\/invitations\/[0-9a-f-]{36}$/i.test(requestedPath)
+            ? requestedPath
+            : "/";
+        clearConfirmation();
+        if (renderAuthenticated) onSignedIn?.(returnPath);
+        else window.history.replaceState(null, "", returnPath);
         await loadSession().catch(() => setScreen("unavailable"));
       }
     } catch {
@@ -320,8 +341,7 @@ export function IdentityPortal({
         setError("We couldn’t sign you out. Please try again.");
         return false;
       }
-      credential.current = null;
-      confirmationPending.current = false;
+      clearConfirmation();
       startKey.current = null;
       createKey.current = null;
       setSession({ authenticated: false, demoSignInEnabled: session.demoSignInEnabled });
@@ -340,8 +360,7 @@ export function IdentityPortal({
   }
 
   function startAgain() {
-    credential.current = null;
-    confirmationPending.current = false;
+    clearConfirmation();
     setError(null);
     setEmailLinkMode(true);
     // Once a public start was acknowledged, a fresh link is generic resume and must

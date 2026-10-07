@@ -5,8 +5,81 @@ import { join } from "node:path";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { expect, it } from "vitest";
 import { assertSchemaReady, migrateDatabase, migrationsFolder } from "./migrate.js";
-import { seedDatabase, seedIds } from "./seed.js";
+import { seedIds } from "./seed.js";
 import { createTestDatabase } from "./testing.js";
+
+// Deliberately use only the SQL columns present in migration 0004. Importing the current
+// ORM/seed would silently couple historical fixtures to later schema additions.
+async function seedHistoricalDatabase(database: Awaited<ReturnType<typeof createTestDatabase>>) {
+  await database.pool.query(
+    "INSERT INTO banks (id, slug, name, synthetic) VALUES ($1,'bank-a','Synthetic Historical A',true), ($2,'bank-b','Synthetic Historical B',true)",
+    [seedIds.bankA, seedIds.bankB],
+  );
+  await database.pool.query(
+    `INSERT INTO users (id,email,display_name,email_verified_at,synthetic) VALUES
+    ($1,'borrower@example.test','Synthetic Historical Borrower','2026-01-01',true),
+    ($2,'officer-a@example.test','Synthetic Historical Officer','2026-01-01',true),
+    ($3,'adviser@example.test','Synthetic Historical Adviser','2026-01-01',true),
+    ($4,'revoked-owner@example.test','Synthetic Historical Revoked Owner','2026-01-01',true)`,
+    [seedIds.borrower, seedIds.officerA, seedIds.adviser, seedIds.revokedOwner],
+  );
+  await database.pool.query(
+    "INSERT INTO bank_memberships (bank_id,user_id,role,synthetic) VALUES ($1,$2,'officer',true)",
+    [seedIds.bankA, seedIds.officerA],
+  );
+  await database.pool.query(
+    "INSERT INTO applicant_contacts (id,bank_id,email,user_id,synthetic) VALUES ($1,$2,'borrower@example.test',$3,true)",
+    [seedIds.contactA, seedIds.bankA, seedIds.borrower],
+  );
+  await database.pool.query(
+    `INSERT INTO loan_products (id,bank_id,slug,name,minimum_amount,maximum_amount,synthetic) VALUES
+    ($1,$2,'business-credit','Synthetic Business Credit',10000,7500000,true),
+    ($3,$4,'business-credit','Synthetic Business Credit',10000,7500000,true)`,
+    [seedIds.productA, seedIds.bankA, seedIds.productB, seedIds.bankB],
+  );
+  await database.pool.query(
+    `INSERT INTO applications (id,bank_id,product_id,source,status,business_name,synthetic) VALUES
+    ($1,$2,$3,'seed','collecting_information','Synthetic Historical Business',true),
+    ($4,$2,$3,'seed','draft',NULL,true),
+    ($5,$6,$7,'seed','draft','Synthetic Other Bank Business',true)`,
+    [
+      seedIds.applicationSmall,
+      seedIds.bankA,
+      seedIds.productA,
+      seedIds.applicationEmpty,
+      seedIds.applicationOtherBank,
+      seedIds.bankB,
+      seedIds.productB,
+    ],
+  );
+  await database.pool.query(
+    `INSERT INTO application_setups (application_id,bank_id,current_step,completed_steps,skipped_steps,completed_at,completed_by_user_id) VALUES
+    ($1,$2,'review',ARRAY['business_name','product','amount','purpose'],ARRAY['industry'],'2026-01-01',$3),
+    ($4,$2,'business_name',ARRAY[]::text[],ARRAY[]::text[],NULL,NULL),
+    ($5,$6,'business_name',ARRAY[]::text[],ARRAY[]::text[],NULL,NULL)`,
+    [
+      seedIds.applicationSmall,
+      seedIds.bankA,
+      seedIds.borrower,
+      seedIds.applicationEmpty,
+      seedIds.applicationOtherBank,
+      seedIds.bankB,
+    ],
+  );
+  await database.pool.query(
+    `INSERT INTO application_participants (bank_id,application_id,user_id,role,scope,revoked_at,synthetic) VALUES
+    ($1,$2,$3,'applicant_admin','full',NULL,true),
+    ($1,$2,$4,'adviser','assigned',NULL,true),
+    ($1,$2,$5,'owner','assigned','2026-01-01',true)`,
+    [
+      seedIds.bankA,
+      seedIds.applicationSmall,
+      seedIds.borrower,
+      seedIds.adviser,
+      seedIds.revokedOwner,
+    ],
+  );
+}
 
 it("upgrades historical drafts and later lifecycle applications without inventing confirmation", async () => {
   const earlierMigrations = await mkdtemp(join(tmpdir(), "keycade-prior-migrations-"));
@@ -104,7 +177,7 @@ it("assigns the fixed bank product to legacy drafts and resumes past product sel
       ),
     );
     await migrate(database.db, { migrationsFolder: folder });
-    await seedDatabase(database.connectionString);
+    await seedHistoricalDatabase(database);
     await database.pool.query(
       "UPDATE applications SET product_id = NULL, business_name = 'Synthetic saved draft', revision = 7 WHERE id = $1",
       [seedIds.applicationEmpty],
@@ -159,7 +232,7 @@ it("adds internal staff notes without altering pre-T10 applications and enforces
       ),
     );
     await migrate(database.db, { migrationsFolder: folder });
-    await seedDatabase(database.connectionString);
+    await seedHistoricalDatabase(database);
     const before = (await database.pool.query("SELECT * FROM applications ORDER BY id")).rows;
     await migrateDatabase(database.connectionString);
     await assertSchemaReady(database.connectionString);
@@ -181,6 +254,86 @@ it("adds internal staff notes without altering pre-T10 applications and enforces
     expect((await database.pool.query("SELECT body FROM staff_notes")).rows).toEqual([
       { body: "Synthetic retained note" },
     ]);
+  } finally {
+    await database.cleanup();
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
+it("upgrades pre-T11 grants and auth deliveries without granting additional access", async () => {
+  const folder = await mkdtemp(join(tmpdir(), "keycade-before-participants-"));
+  const database = await createTestDatabase(undefined, { migrate: false });
+  try {
+    const journal = JSON.parse(
+      await readFile(join(migrationsFolder, "meta/_journal.json"), "utf8"),
+    ) as { entries: { idx: number; tag: string }[] };
+    journal.entries = journal.entries.filter((entry) => entry.idx < 7);
+    await mkdir(join(folder, "meta"));
+    await writeFile(join(folder, "meta/_journal.json"), JSON.stringify(journal));
+    await Promise.all(
+      journal.entries.map((entry) =>
+        copyFile(join(migrationsFolder, `${entry.tag}.sql`), join(folder, `${entry.tag}.sql`)),
+      ),
+    );
+    await migrate(database.db, { migrationsFolder: folder });
+    await seedHistoricalDatabase(database);
+    const deliveryId = randomUUID();
+    await database.pool.query(
+      `INSERT INTO access_delivery_requests (id,bank_id,application_id,contact_id,portal,origin,return_path,expires_at,request_id)
+      VALUES ($1,$2,$3,$4,'borrower','http://localhost:3001','/','2026-10-08', $5)`,
+      [deliveryId, seedIds.bankA, seedIds.applicationSmall, seedIds.contactA, randomUUID()],
+    );
+    const tokenHash = "a".repeat(64);
+    await database.pool.query(
+      "INSERT INTO login_tokens (delivery_request_id,token_hash,expires_at) VALUES ($1,$2,'2026-10-08')",
+      [deliveryId, tokenHash],
+    );
+    const beforeApplications = (await database.pool.query("SELECT * FROM applications ORDER BY id"))
+      .rows;
+    const beforeParticipants = (
+      await database.pool.query("SELECT * FROM application_participants ORDER BY id")
+    ).rows;
+    const beforeDeliveries = (
+      await database.pool.query("SELECT * FROM access_delivery_requests ORDER BY id")
+    ).rows;
+    const beforeTokens = (await database.pool.query("SELECT * FROM login_tokens ORDER BY id")).rows;
+    await migrateDatabase(database.connectionString);
+    await assertSchemaReady(database.connectionString);
+    expect((await database.pool.query("SELECT * FROM applications ORDER BY id")).rows).toEqual(
+      beforeApplications,
+    );
+    const afterParticipants = (
+      await database.pool.query("SELECT * FROM application_participants ORDER BY id")
+    ).rows;
+    expect(afterParticipants).toEqual(
+      beforeParticipants.map((row) => ({
+        ...row,
+        task_ids: [],
+        document_ids: [],
+        unassigned_at: null,
+      })),
+    );
+    expect(
+      afterParticipants.find((row) => row.user_id === seedIds.revokedOwner)?.revoked_at,
+    ).toEqual(new Date("2026-01-01T00:00:00Z"));
+    const afterDeliveries = (
+      await database.pool.query("SELECT * FROM access_delivery_requests ORDER BY id")
+    ).rows;
+    expect(afterDeliveries).toEqual(
+      beforeDeliveries.map((row) => ({ ...row, invitation_id: null })),
+    );
+    expect((await database.pool.query("SELECT * FROM login_tokens ORDER BY id")).rows).toEqual(
+      beforeTokens,
+    );
+    for (const table of ["invitations", "business_relationships", "participant_commands"])
+      expect((await database.pool.query(`SELECT * FROM ${table}`)).rows).toEqual([]);
+    await migrateDatabase(database.connectionString);
+    expect(
+      (await database.pool.query("SELECT * FROM application_participants ORDER BY id")).rows,
+    ).toEqual(afterParticipants);
+    expect(
+      (await database.pool.query("SELECT * FROM access_delivery_requests ORDER BY id")).rows,
+    ).toEqual(afterDeliveries);
   } finally {
     await database.cleanup();
     await rm(folder, { recursive: true, force: true });
