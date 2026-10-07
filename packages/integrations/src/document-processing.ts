@@ -176,6 +176,7 @@ export async function processDocumentInterpretations(
           applicationId: claim.applicationId,
           sha256: input.version.sha256 ?? "",
           attempt: claim.attempt,
+          businessName: input.application.businessName,
         },
         { clock, delayMs, deadlineMs, signal: options.signal },
       ),
@@ -206,7 +207,10 @@ export async function processDocumentInterpretations(
         .orderBy(desc(documentProcessingRuns.generation))
         .limit(1);
       const current = await currentInput(tx, claim.versionId);
-      const stale = !current || latest?.id !== claim.id;
+      const nameChanged =
+        result.comparedApplicationBusinessName !== null &&
+        current?.application.businessName !== input.application.businessName;
+      const stale = !current || latest?.id !== claim.id || nameChanged;
       const state =
         result.needsReview || result.confidence < 0.8
           ? ("needs_review" as const)
@@ -217,7 +221,11 @@ export async function processDocumentInterpretations(
           state,
           result,
           stale,
-          lastErrorCode: stale ? "stale_input" : null,
+          lastErrorCode: stale
+            ? nameChanged && current
+              ? "stale_business_name"
+              : "stale_input"
+            : null,
           claimToken: null,
           leaseUntil: null,
           updatedAt: clock.now(),

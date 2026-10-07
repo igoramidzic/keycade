@@ -32,6 +32,13 @@ export type DocumentInterpretationResult = {
   confidence: number;
   needsReview: boolean;
   extractedFields: { key: string; label: string; value: string; kind: "text" | "money" | "year" }[];
+  findings?: {
+    code: "business_name_match" | "business_name_mismatch" | "cash_flow" | "document_review";
+    severity: "clear" | "warning";
+    title: string;
+    detail: string;
+  }[];
+  comparedApplicationBusinessName?: string | null;
   completedAt: string;
 };
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();

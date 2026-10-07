@@ -41,6 +41,12 @@ export const extractedDocumentFieldSchema = z
           : true,
     "Extracted values must match their declared type.",
   );
+export const documentFindingSchema = z.strictObject({
+  code: z.enum(["business_name_match", "business_name_mismatch", "cash_flow", "document_review"]),
+  severity: z.enum(["clear", "warning"]),
+  title: z.string().min(1).max(120),
+  detail: z.string().min(1).max(1000),
+});
 export const documentInterpretationResultSchema = z.strictObject({
   provider: z.literal("keycade-document-interpretation-v1"),
   simulated: z.literal(true),
@@ -50,6 +56,8 @@ export const documentInterpretationResultSchema = z.strictObject({
   confidence: z.number().min(0).max(1),
   needsReview: z.boolean(),
   extractedFields: z.array(extractedDocumentFieldSchema).max(25),
+  findings: z.array(documentFindingSchema).max(10).default([]),
+  comparedApplicationBusinessName: z.string().min(1).max(200).nullable().default(null),
   completedAt: z.string().datetime(),
 });
 export const correctDocumentCategorySchema = z.strictObject({
@@ -83,6 +91,7 @@ export const documentProcessingViewSchema = z.object({
   category: documentCategorySchema.nullable(),
   confidence: z.number().min(0).max(1).nullable(),
   extractedFields: z.array(extractedDocumentFieldSchema),
+  findings: z.array(documentFindingSchema).max(10).default([]),
   suggestedTasks: z.array(z.object({ id: z.string().uuid(), title: z.string() })),
   manualCategory: documentCategorySchema.nullable(),
   overrides: z.array(documentCategoryOverrideSchema),
@@ -92,6 +101,7 @@ export const documentProcessingViewSchema = z.object({
   canCorrectCategory: z.boolean(),
 });
 export type DocumentCategory = z.infer<typeof documentCategorySchema>;
+export type DocumentFinding = z.infer<typeof documentFindingSchema>;
 export type DocumentInterpretationResult = z.infer<typeof documentInterpretationResultSchema>;
 export type DocumentProcessingView = z.infer<typeof documentProcessingViewSchema>;
 export type CorrectDocumentCategory = z.infer<typeof correctDocumentCategorySchema>;

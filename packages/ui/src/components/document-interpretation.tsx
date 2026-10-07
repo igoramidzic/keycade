@@ -28,12 +28,19 @@ type ExtractedField = {
   value: string;
   kind: "text" | "money" | "year";
 };
+type DocumentFinding = {
+  code: "business_name_match" | "business_name_mismatch" | "cash_flow" | "document_review";
+  severity: "clear" | "warning";
+  title: string;
+  detail: string;
+};
 export type DocumentProcessingData = {
   runId: string;
   state: ProcessingState;
   category: DocumentCategory | null;
   confidence: number | null;
   extractedFields: ExtractedField[];
+  findings?: DocumentFinding[];
   suggestedTasks: { id: string; title: string }[];
   manualCategory: DocumentCategory | null;
   overrides: {
@@ -53,6 +60,7 @@ export type DocumentProcessingData = {
       category: DocumentCategory;
       confidence: number;
       extractedFields: ExtractedField[];
+      findings?: DocumentFinding[];
       completedAt: string;
     } | null;
     errorCode: string | null;
@@ -80,6 +88,33 @@ function SuggestedFields({ fields }: { fields: ExtractedField[] }) {
         </div>
       ))}
     </dl>
+  );
+}
+
+function SimulatedFindings({ findings }: { findings: DocumentFinding[] }) {
+  return (
+    <section aria-label="Simulated document checks" className="space-y-3">
+      <h5 className="text-sm font-medium">Simulated document checks</h5>
+      {findings.map((finding) => (
+        <div
+          key={`${finding.code}-${finding.title}`}
+          className={`space-y-1 rounded-lg border p-3 text-sm ${
+            finding.severity === "clear"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-950"
+              : "border-amber-200 bg-amber-50 text-amber-950"
+          }`}
+        >
+          <p className="font-medium">
+            {finding.title} · {finding.severity === "clear" ? "Clear" : "Review needed"}
+          </p>
+          <p className="whitespace-pre-wrap break-words">{finding.detail}</p>
+        </div>
+      ))}
+      <p className="text-xs leading-5 text-muted-foreground">
+        These checks are simulated and unverified. They do not confirm authenticity, verify
+        identity, complete a requirement, or approve a loan.
+      </p>
+    </section>
   );
 }
 
@@ -163,7 +198,9 @@ export function DocumentInterpretation({
             ? processing.manualCategory
               ? "The simulated interpreter could not identify this content. Its original result remains available for review."
               : "The simulated interpreter could not identify this content. It stays in Other for review."
-            : "The suggested category has low confidence. Review the original file before relying on its suggested values."}
+            : processing.findings?.some((finding) => finding.severity === "warning")
+              ? "The simulated checks found an issue. Review the original file and suggested findings before accepting this evidence."
+              : "The suggested category has low confidence. Review the original file before relying on its suggested values."}
         </p>
       )}
       {processing.category && (
@@ -185,6 +222,7 @@ export function DocumentInterpretation({
           <span className="font-medium">{categoryLabels[processing.manualCategory]}</span>
         </p>
       )}
+      {!!processing.findings?.length && <SimulatedFindings findings={processing.findings} />}
       {processing.extractedFields.length > 0 && (
         <div className="space-y-3 rounded-lg bg-muted/40 p-3">
           <h5 className="text-sm font-medium">Suggested fields · Simulated, unverified</h5>
@@ -329,6 +367,9 @@ export function DocumentInterpretation({
                         </p>
                         {run.result.extractedFields.length > 0 && (
                           <SuggestedFields fields={run.result.extractedFields} />
+                        )}
+                        {!!run.result.findings?.length && (
+                          <SimulatedFindings findings={run.result.findings} />
                         )}
                       </>
                     )}

@@ -230,6 +230,138 @@ describe("staff queue and workspace on PostgreSQL", () => {
       ),
     ).rejects.toMatchObject(notFound);
   });
+  it("creates partial staff prefills atomically without completing or sharing another business", async () => {
+    const input = {
+      email: `${randomUUID()}@example.test`,
+      idempotencyKey: randomUUID(),
+      answers: { businessName: "Synthetic Cedar Workshop" },
+    };
+    const [created, retry] = await Promise.all([
+      service().create(officer, ids.bankA, input, randomUUID()),
+      service().create(officer, ids.bankA, input, randomUUID()),
+    ]);
+    expect(retry.id).toBe(created.id);
+    expect(created).toMatchObject({
+      businessName: input.answers.businessName,
+      businessId: null,
+      requestedAmount: null,
+      purpose: null,
+      status: "draft",
+      revision: 1,
+      setupStatus: "in_progress",
+      currentStep: "business_name",
+      completedSteps: [],
+      skippedSteps: [],
+      completedAt: null,
+    });
+    expect((await read(created.id)).createdBy?.id).toBe(ids.officerA);
+    expect(
+      await database.db
+        .select()
+        .from(accessDeliveryRequests)
+        .where(eq(accessDeliveryRequests.applicationId, created.id)),
+    ).toHaveLength(1);
+    expect(await service().create(officer, ids.bankA, input, randomUUID())).toEqual(created);
+    await expect(
+      service().create(
+        officer,
+        ids.bankA,
+        { ...input, answers: { businessName: "Synthetic changed request" } },
+        randomUUID(),
+      ),
+    ).rejects.toMatchObject({ code: "IDEMPOTENCY_CONFLICT", statusCode: 409 });
+    await expect(
+      service().create(officer, ids.bankB, input, randomUUID()),
+    ).rejects.toMatchObject(notFound);
+    await expect(
+      service().create(
+        { ...borrower, demoBankId: ids.bankA },
+        ids.bankA,
+        { idempotencyKey: randomUUID(), answers: input.answers },
+        randomUUID(),
+      ),
+    ).rejects.toMatchObject(notFound);
+  });
+  it.each(["10000.00", "5000000.00", "7500000.00"])(
+    "persists the complete staff prefill and exact amount %s before queuing continuation",
+    async (requestedAmount) => {
+      const created = await service().create(
+        officer,
+        ids.bankA,
+        {
+          email: `${randomUUID()}@example.test`,
+          idempotencyKey: randomUUID(),
+          answers: {
+            businessName: "Synthetic Prefilled Workshop",
+            requestedAmount,
+            purpose: "Synthetic equipment",
+          },
+        },
+        randomUUID(),
+      );
+      expect(created).toMatchObject({
+        businessName: "Synthetic Prefilled Workshop",
+        requestedAmount,
+        purpose: "Synthetic equipment",
+        status: "draft",
+        currentStep: "business_name",
+        completedSteps: [],
+        setupStatus: "in_progress",
+      });
+      const [audit] = await database.db
+        .select()
+        .from(auditEvents)
+        .where(
+          and(eq(auditEvents.applicationId, created.id), eq(auditEvents.action, "application.created")),
+        );
+      expect(audit?.changedFields).toEqual(["businessName", "requestedAmount", "purpose"]);
+      expect(JSON.stringify(audit)).not.toContain("Synthetic equipment");
+      const [persisted] = await database.db
+        .select({ application: applications, setup: applicationSetups, delivery: accessDeliveryRequests })
+        .from(applications)
+        .innerJoin(applicationSetups, eq(applicationSetups.applicationId, applications.id))
+        .innerJoin(accessDeliveryRequests, eq(accessDeliveryRequests.applicationId, applications.id))
+        .where(eq(applications.id, created.id));
+      expect(persisted?.application).toMatchObject({ requestedAmount, source: "staff" });
+      expect(persisted?.setup.completedAt).toBeNull();
+      expect(persisted?.delivery).toMatchObject({ status: "queued", origin });
+    },
+  );
+  it.each(["0.00", "9999.99", "7500000.01"])(
+    "rejects amount %s without a contact, draft, audit, or continuation and allows a corrected retry",
+    async (requestedAmount) => {
+      const input = {
+        email: `${randomUUID()}@example.test`,
+        idempotencyKey: randomUUID(),
+        answers: { businessName: "Synthetic Invalid Amount", requestedAmount },
+      };
+      const requestId = randomUUID();
+      const before = await listStaffApplications(database.db, officer, ids.bankA);
+      await expect(
+        service().create(officer, ids.bankA, input, requestId),
+      ).rejects.toMatchObject({ code: "INVALID_INPUT", statusCode: 400 });
+      expect((await listStaffApplications(database.db, officer, ids.bankA)).total).toBe(before.total);
+      expect(
+        await database.db.select().from(applicantContacts).where(eq(applicantContacts.email, input.email)),
+      ).toHaveLength(0);
+      expect(
+        await database.db.select().from(auditEvents).where(eq(auditEvents.requestId, requestId)),
+      ).toHaveLength(0);
+      expect(
+        await database.db
+          .select()
+          .from(accessDeliveryRequests)
+          .where(eq(accessDeliveryRequests.requestId, requestId)),
+      ).toHaveLength(0);
+      const corrected = await service().create(
+        officer,
+        ids.bankA,
+        { ...input, answers: { ...input.answers, requestedAmount: "10000.00" } },
+        randomUUID(),
+      );
+      expect(corrected.requestedAmount).toBe("10000.00");
+    },
+  );
   it("requires continuation for staff HTTP-style creation without blocking borrower drafts", async () => {
     const unavailable = createApplicationService(database.db, {
       clock,

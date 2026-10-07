@@ -1,9 +1,7 @@
 import {
-  type ApplicationSetup,
   applicationSetupSchema,
   type StaffWorkspace,
 } from "@keycade/contracts";
-import { Alert, AlertDescription, AlertTitle } from "@keycade/ui/components/alert";
 import { Button, buttonVariants } from "@keycade/ui/components/button";
 import {
   Card,
@@ -84,10 +82,7 @@ export function CreateApplication() {
     requestedAmount: "",
     purpose: "",
   });
-  const attempt = useRef<{ email: string; key: string; draft: ApplicationSetup | null } | null>(
-    null,
-  );
-  const [created, setCreated] = useState<ApplicationSetup | null>(null);
+  const attempt = useRef<{ payload: string; key: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   async function submit(event: FormEvent) {
@@ -97,30 +92,19 @@ export function CreateApplication() {
     try {
       const prefill = answersPayload(answers);
       const normalized = email.trim().toLowerCase();
-      if (!attempt.current || attempt.current.email !== normalized)
-        attempt.current = { email: normalized, key: crypto.randomUUID(), draft: null };
-      const current = attempt.current;
-      if (!current.draft)
-        current.draft = await api.request("/applications", applicationSetupSchema, {
-          method: "POST",
-          body: { email: normalized, idempotencyKey: current.key },
-        });
-      setCreated(current.draft);
-      if (Object.keys(prefill).length)
-        current.draft = await api.request(
-          `/applications/${current.draft.id}/setup`,
-          applicationSetupSchema,
-          {
-            method: "PATCH",
-            body: {
-              expectedRevision: current.draft.revision,
-              currentStep: current.draft.currentStep,
-              answers: prefill,
-            },
-          },
-        );
+      const body = {
+        email: normalized,
+        ...(Object.keys(prefill).length ? { answers: prefill } : {}),
+      };
+      const payload = JSON.stringify(body);
+      if (!attempt.current || attempt.current.payload !== payload)
+        attempt.current = { payload, key: crypto.randomUUID() };
+      const created = await api.request("/applications", applicationSetupSchema, {
+        method: "POST",
+        body: { ...body, idempotencyKey: attempt.current.key },
+      });
       await client.invalidateQueries({ queryKey: ["staff-queue"] });
-      navigate(`/applications/${current.draft.id}/overview${bankQuery}`, {
+      navigate(`/applications/${created.id}/overview${bankQuery}`, {
         replace: true,
         state: { created: true },
       });
@@ -139,7 +123,8 @@ export function CreateApplication() {
         <CardHeader>
           <CardTitle className="text-2xl">Create an application</CardTitle>
           <CardDescription>
-            Create a draft for a borrower and send a continuation link to the local inbox.
+            Start an application for your bank and invite the borrower to finish it. Only their
+            email is required.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -152,65 +137,25 @@ export function CreateApplication() {
                 maxLength={254}
                 required
                 value={email}
-                disabled={busy || Boolean(created)}
+                disabled={busy}
                 onChange={(event) => setEmail(event.target.value)}
               />
             </Field>
             <div className="space-y-4">
               <h2 className="text-sm font-medium">Prefill answers (optional)</h2>
               <p className="text-sm text-muted-foreground">
-                The product is Synthetic Business Credit. The borrower must confirm these answers
-                and finish initial setup.
+                Add any details you already know for Synthetic Business Credit. The borrower will
+                confirm these answers and finish the remaining setup questions.
               </p>
               <AnswerFields answers={answers} setAnswers={setAnswers} disabled={busy} />
             </div>
+            <p className="text-sm text-muted-foreground">
+              A simulated continuation email will invite the borrower to this application.
+            </p>
             {Boolean(error) && <ErrorNotice error={error} />}
-            {created && (
-              <Alert>
-                <AlertTitle>The draft was created</AlertTitle>
-                <AlertDescription>
-                  <p>
-                    Your prefilled answers have not been confirmed as saved. Retry with the same
-                    draft or open it to inspect the saved record.
-                  </p>
-                  <Link
-                    className="underline"
-                    to={`/applications/${created.id}/overview${bankQuery}`}
-                  >
-                    Open created draft
-                  </Link>
-                </AlertDescription>
-              </Alert>
-            )}
-            {created && error instanceof ApiError && error.status === 409 && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={async () => {
-                  try {
-                    const latest = await api.request(
-                      `/applications/${created.id}/setup`,
-                      applicationSetupSchema,
-                    );
-                    if (attempt.current) attempt.current.draft = latest;
-                    setCreated(latest);
-                    setAnswers({
-                      businessName: latest.businessName ?? "",
-                      requestedAmount: latest.requestedAmount ?? "",
-                      purpose: latest.purpose ?? "",
-                    });
-                    setError(null);
-                  } catch (nextError) {
-                    setError(nextError);
-                  }
-                }}
-              >
-                Reload saved record and replace edits
-              </Button>
-            )}
             <div className="flex flex-wrap gap-3">
               <Button type="submit" disabled={busy}>
-                {busy ? "Saving…" : created ? "Retry prefill" : "Create draft"}
+                {busy ? "Creating and inviting…" : "Create and invite borrower"}
               </Button>
               <Link to={`/${bankQuery}`} className={buttonVariants({ variant: "outline" })}>
                 Cancel

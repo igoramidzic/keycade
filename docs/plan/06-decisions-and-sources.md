@@ -1,5 +1,13 @@
 # Decisions, assumptions, and reference sources
 
+## Interactive demo scenarios — October 7, 2026
+
+The user requested a fixed, distinctly colored right-hand demo panel with fictional business, client, guarantor, and document material that can be dragged into the application's upload areas. They explicitly withdrew the OpenAI/API-key request in the same instruction. D05 therefore uses deterministic simulated document findings and requires no OpenAI credential or external model call.
+
+The kit is public synthetic material, separate from saved application participants and permissions. Its three guided scenarios cover matching evidence, human-review issues, and failures/recovery. Matching PDFs use the open application's saved business name; one review fixture deliberately uses another fictional business name. Finite generated content hashes select fixture behavior, with name comparisons against the current application. Unknown or modified content remains reviewable. Findings stay suggestions and do not complete tasks, replace confirmed data, approve an application, or verify identity.
+
+Panel uploads use T13's existing reservation/streaming/quarantine path. Personal sample evidence requires a private task upload area, and every API operation retains its current bank/application/resource guards. Desktop reserves space for the fixed panel; small screens use a closable dialog and explicit Upload controls. D05 is an additive requested demonstration slice; existing task dependencies remain unchanged and hosted compatibility is not claimed without deployment acceptance.
+
 Baseline recorded October 6, 2026. Update this document when a future instruction changes an architectural or product assumption.
 
 ## Hosted demo intake configuration — October 7, 2026

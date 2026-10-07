@@ -334,6 +334,9 @@ async function createApplication(
     productId?: string;
     businessId?: string;
     businessName?: string;
+    requestedAmount?: string;
+    purpose?: string;
+    prefilledFields?: string[];
     actor: Actor;
     source: "borrower" | "staff";
     synthetic: boolean;
@@ -349,6 +352,8 @@ async function createApplication(
       productId: input.productId,
       businessId: input.businessId,
       businessName: input.businessName,
+      requestedAmount: input.requestedAmount,
+      purpose: input.purpose,
       source: input.source,
       synthetic: input.synthetic,
       demoCreated: input.actor.kind === "user" && Boolean(input.actor.demoBankId),
@@ -363,7 +368,16 @@ async function createApplication(
     .values({ bankId: row.bankId, applicationId: row.id })
     .returning();
   if (!setup) throw new Error("Setup creation failed.");
-  await audit(tx, row, input.actor, "application.created", [], input.requestId, input.now);
+  await validateAmount(tx, row, false);
+  await audit(
+    tx,
+    row,
+    input.actor,
+    "application.created",
+    input.prefilledFields ?? [],
+    input.requestId,
+    input.now,
+  );
   return { row, setup };
 }
 
@@ -474,6 +488,7 @@ export function createApplicationService(
       const { bank, user, membership } = await identity(tx, actor, bankId);
       const email = parsed.email?.trim().toLowerCase() ?? user.email;
       if (membership ? !parsed.email : email !== user.email || parsed.businessId) return deny();
+      if (parsed.answers && !membership) return deny();
       if (membership && options.requireStaffContinuation && !options.staffContinuationOrigin)
         throw new DomainError(
           "AUTH_DELIVERY_UNAVAILABLE",
@@ -518,7 +533,10 @@ export function createApplicationService(
         contactId: pending.id,
         productId: selected.id,
         businessId: parsed.businessId,
-        businessName,
+        businessName: parsed.answers?.businessName ?? businessName,
+        requestedAmount: parsed.answers?.requestedAmount,
+        purpose: parsed.answers?.purpose,
+        prefilledFields: Object.keys(parsed.answers ?? {}),
         actor,
         source: membership ? "staff" : "borrower",
         synthetic: bank.synthetic,

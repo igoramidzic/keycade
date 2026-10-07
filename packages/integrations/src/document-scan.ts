@@ -3,21 +3,22 @@ import { applications, auditEvents, type Database, documentVersions } from "@key
 import { createDocumentsService, enqueueDocumentProcessing } from "@keycade/domain";
 import { and, eq, isNull, lte, or, sql } from "drizzle-orm";
 import { type PrivateDocumentStorage, webByteSource } from "./document-content.js";
-import { documentFixtureScenario } from "./document-fixtures.js";
+import { demoDocumentFixture, documentFixtureScenario } from "./document-fixtures.js";
 import { type Clock, systemClock } from "./provider.js";
 
 export async function simulateDocumentScan(
   sha256: string,
   attempt: number,
-  options: { clock: Clock; delayMs: number; signal?: AbortSignal },
+  options: { clock: Clock; delayMs: number; signal?: AbortSignal; businessName?: string | null },
 ) {
   await options.clock.sleep(options.delayMs, options.signal);
   const scenario = documentFixtureScenario(sha256);
+  const demo = demoDocumentFixture(sha256, options.businessName);
   return {
     simulated: true as const,
     provider: "keycade-file-scan-v1" as const,
     state:
-      scenario === "blocked"
+      scenario === "blocked" || demo?.document.outcome === "scan_blocked"
         ? ("blocked" as const)
         : scenario === "scan-error" || (scenario === "scan-transient" && attempt === 1)
           ? ("error" as const)
@@ -75,10 +76,15 @@ export async function processDocumentScans(
       await createDocumentsService(db).markMissing(claim.id);
       return true;
     }
+    const [application] = await db
+      .select({ businessName: applications.businessName })
+      .from(applications)
+      .where(eq(applications.id, claim.applicationId));
     const result = await simulateDocumentScan(claim.sha256 ?? "", claim.attempt, {
       clock,
       delayMs,
       signal: options.signal,
+      businessName: application?.businessName,
     });
     await db.transaction(async (tx) => {
       await tx

@@ -1,4 +1,5 @@
 import "@keycade/ui/styles.css";
+import { DemoKitProvider } from "@keycade/ui/components/demo-kit";
 import { captureConfirmation } from "@keycade/ui/components/identity-portal";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
@@ -16,7 +17,9 @@ createRoot(root).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <BorrowerApp confirmation={confirmation} />
+        <DemoKitProvider>
+          <BorrowerApp confirmation={confirmation} />
+        </DemoKitProvider>
       </BrowserRouter>
     </QueryClientProvider>
   </StrictMode>,

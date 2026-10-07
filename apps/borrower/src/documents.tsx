@@ -77,7 +77,11 @@ export function useApplicationDocuments({
       client.invalidateQueries({ queryKey: ["applications"] }),
     ]);
   }
-  function render(taskId?: string, onBusyChange?: (busy: boolean) => void) {
+  function render(
+    taskId?: string,
+    onBusyChange?: (busy: boolean) => void,
+    taskVisibility?: "shared" | "assigned" | "private",
+  ) {
     if (accessError)
       return (
         <ErrorNotice
@@ -103,8 +107,10 @@ export function useApplicationDocuments({
           <ErrorNotice error={documents.error} onRetry={() => void documents.refetch()} />
         )}
         <DocumentsManager
+          key={taskId ?? "application"}
           data={documents.data}
           taskId={taskId}
+          taskVisibility={taskVisibility}
           onBusyChange={onBusyChange}
           errorMessage={errorMessage}
           reload={reload}

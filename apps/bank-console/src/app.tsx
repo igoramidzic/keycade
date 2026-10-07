@@ -1,6 +1,7 @@
 import { staffOptionsSchema } from "@keycade/contracts";
 import { Badge } from "@keycade/ui/components/badge";
 import { Button } from "@keycade/ui/components/button";
+import { useDemoUploadAvailability } from "@keycade/ui/components/demo-kit";
 import {
   type AuthenticatedSession,
   type Confirmation,
@@ -82,6 +83,7 @@ function Workspace({
   controlsRef.current = controls;
   const [checking, setChecking] = useState(false);
   const [denied, setDenied] = useState(false);
+  useDemoUploadAvailability(!checking && !denied);
   const [checkError, setCheckError] = useState<unknown>(null);
   const onDenied = useCallback(() => {
     setDenied(true);

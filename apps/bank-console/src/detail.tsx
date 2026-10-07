@@ -15,6 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@keycade/ui/components/card";
+import { useDemoApplication } from "@keycade/ui/components/demo-kit";
 import { NativeSelect } from "@keycade/ui/components/native-select";
 import { TaskProgress } from "@keycade/ui/components/tasks-manager";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -89,6 +90,7 @@ export function ApplicationDetail() {
     return updated;
   }
   const data = detail.data;
+  useDemoApplication(id ?? "", detail.error ? null : data?.businessName);
   return (
     <div className="space-y-6">
       <Link to={`/${bankQuery}`} className="text-sm underline underline-offset-4">
@@ -108,8 +110,8 @@ export function ApplicationDetail() {
               <Alert>
                 <AlertTitle>Draft created</AlertTitle>
                 <AlertDescription>
-                  A continuation email is queued for the local inbox. The borrower must confirm the
-                  prefilled answers and finish setup.
+                  Your draft and prefilled details are saved. A simulated continuation email is
+                  queued for the borrower, who must confirm the answers and finish setup.
                 </AlertDescription>
               </Alert>
             )}

@@ -26,7 +26,11 @@ import {
   type ResourceScopePolicy,
   requireApplicantPortalAccess,
 } from "./authorization.js";
-import { enqueueDocumentProcessing, readDocumentProcessing } from "./document-processing.js";
+import {
+  documentNameComparisonIsStale,
+  enqueueDocumentProcessing,
+  readDocumentProcessing,
+} from "./document-processing.js";
 import { DomainError, deny } from "./errors.js";
 import { hashIdentityCredential } from "./identity.js";
 import { recordApplicantActivity } from "./notification-intents.js";
@@ -336,6 +340,7 @@ export function createDocumentsService(
             processing: await readDocumentProcessing(tx, actor, access, document, version, {
               writable: writable || access.kind === "staff",
               closed: closed.has(app.status),
+              businessName: app.businessName,
             }),
           });
         const currentProcessing = versionViews.find(
@@ -809,7 +814,9 @@ export function createDocumentsService(
       if (
         latest &&
         ["classified", "needs_review"].includes(latest.state) &&
-        access.kind !== "staff"
+        access.kind !== "staff" &&
+        latest.lastErrorCode !== "stale_business_name" &&
+        !documentNameComparisonIsStale(latest.result, app.businessName)
       )
         return deny();
       await enqueueDocumentProcessing(tx, versionId, {

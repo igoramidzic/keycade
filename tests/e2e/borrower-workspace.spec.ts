@@ -158,7 +158,9 @@ test("business groups show granted applications and portal navigation keeps appl
     page.getByRole("heading", { name: "Synthetic Maple Supply", exact: true }),
   ).toBeVisible();
   await expect(page.getByText("$5,000,000", { exact: true })).toBeVisible();
-  await expect(page.getByText("Synthetic equipment purchase", { exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole("main").getByText("Synthetic equipment purchase", { exact: true }),
+  ).toHaveCount(0);
   await noOverflow(page);
 });
 
@@ -223,7 +225,8 @@ test("limited invited participants see scoped summaries without applicant setup 
   page,
 }) => {
   await signIn(page, "adviser@example.test");
-  await expect(page.getByRole("article")).toHaveCount(1);
+  const content = page.getByRole("main");
+  await expect(content.getByRole("article")).toHaveCount(1);
   await expect(card(page, ids.small)).toContainText("Limited access");
   await expect(page.getByText("$10,000", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Continue setup", exact: true })).toHaveCount(0);
@@ -232,8 +235,10 @@ test("limited invited participants see scoped summaries without applicant setup 
     .click();
   await expect(page.getByText("Limited access", { exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Review", exact: true })).toHaveCount(0);
-  await expect(page.getByText("Synthetic equipment purchase", { exact: true })).toHaveCount(0);
-  await expect(page.getByRole("button", { name: /invite|upload|finish setup/i })).toHaveCount(0);
+  await expect(
+    page.getByRole("main").getByText("Synthetic equipment purchase", { exact: true }),
+  ).toHaveCount(0);
+  await expect(content.getByRole("button", { name: /invite|upload|finish setup/i })).toHaveCount(0);
   await page.goto(applicationUrl(ids.small, "setup"));
   await expect(page).toHaveURL(applicationUrl(ids.small));
   await expect(page.getByLabel("Business name", { exact: true })).toHaveCount(0);
@@ -253,7 +258,7 @@ test("limited invited participants see scoped summaries without applicant setup 
   await expect(
     page.getByRole("heading", { name: "Business owners and contacts", exact: true }),
   ).toHaveCount(0);
-  await expect(page.getByText("borrower@example.test", { exact: true })).toHaveCount(0);
+  await expect(content.getByText("borrower@example.test", { exact: true })).toHaveCount(0);
   await noOverflow(page);
   await page.goto(applicationUrl(ids.large));
   await expect(page.getByRole("alert")).toContainText("unavailable for your account");
@@ -474,11 +479,13 @@ test("polling after an account switch clears application cards and detail instea
       await stalePage.bringToFront();
       await stalePage.clock.fastForward(30_001);
       await expect(stalePage.getByRole("alert")).toContainText("Your sign-in changed");
-      await expect(stalePage.getByRole("article")).toHaveCount(0);
+      await expect(stalePage.getByRole("main").getByRole("article")).toHaveCount(0);
       await expect(
         stalePage.getByRole("navigation", { name: "Application sections", exact: true }),
       ).toHaveCount(0);
-      await expect(stalePage.getByText("Synthetic Cedar Workshop", { exact: true })).toHaveCount(0);
+      await expect(
+        stalePage.getByRole("main").getByText("Synthetic Cedar Workshop", { exact: true }),
+      ).toHaveCount(0);
       await expect(
         stalePage.getByText("Synthetic Other Account Business", { exact: true }),
       ).toHaveCount(0);

@@ -1,3 +1,10 @@
+import {
+  createDemoDocumentPdf,
+  type DemoDocument,
+  demoDocumentBusinessName,
+  demoDocuments,
+  demoScenarios,
+} from "@keycade/contracts/demo-scenarios";
 import { documentDigest } from "./document-content.js";
 
 export function syntheticDocumentPdf(scenario: string): Uint8Array {
@@ -44,4 +51,24 @@ const fixtures = new Map(
 );
 export function documentFixtureScenario(sha256: string): DocumentFixtureScenario | "unregistered" {
   return fixtures.get(sha256) ?? "unregistered";
+}
+
+/** Finite, generated fixture content selects demo results; arbitrary PDF text never does. */
+export function demoDocumentFixture(
+  sha256: string,
+  applicationBusinessName?: string | null,
+): { document: DemoDocument; businessName: string } | null {
+  for (const document of demoDocuments) {
+    const scenario = demoScenarios.find((candidate) =>
+      candidate.documents.some((entry) => entry.id === document.id),
+    );
+    if (!scenario) continue;
+    const names = new Set([scenario.business.name]);
+    if (applicationBusinessName) names.add(applicationBusinessName);
+    for (const name of names) {
+      if (documentDigest(createDemoDocumentPdf(document, name)) === sha256)
+        return { document, businessName: demoDocumentBusinessName(document, name) };
+    }
+  }
+  return null;
 }

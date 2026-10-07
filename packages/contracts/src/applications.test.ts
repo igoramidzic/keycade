@@ -38,6 +38,27 @@ describe("initial application wire contracts", () => {
     },
   );
 
+  it("allows partial staff prefills while rejecting setup control and private identifiers", () => {
+    expect(
+      createDraftSchema.parse({
+        email: "applicant@example.test",
+        idempotencyKey,
+        answers: { businessName: "  Synthetic workshop  " },
+      }),
+    ).toMatchObject({ answers: { businessName: "Synthetic workshop" } });
+    for (const answers of [
+      { businessName: "" },
+      { requestedAmount: 10000 },
+      { requestedAmount: "10000.001" },
+      { ein: "synthetic-value" },
+      { ssn: "synthetic-value" },
+      { completedAt: "2026-10-07T12:00:00.000Z" },
+      { currentStep: "review" },
+      { status: "collecting_information" },
+    ])
+      expect(createDraftSchema.safeParse({ idempotencyKey, answers }).success).toBe(false);
+  });
+
   it.each(["ein", "ssn", "completedAt", "completed", "status"])(
     "rejects client control of %s in generic draft answers",
     (field) => {

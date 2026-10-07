@@ -1,0 +1,49 @@
+# D05 — Scenario kit and synthetic document demonstrations
+
+Dependencies: T08, T11–T14, T16–T21. Read [demo boundaries](../06-decisions-and-sources.md#interactive-demo-scenarios--october-7-2026), [document pipeline](../04-integrations-and-jobs.md#document-pipeline), and [synthetic scenarios](../05-development-and-testing.md#required-synthetic-scenarios).
+
+## Outcome
+
+Demonstrators can use a separate fixed panel to find fictional business/client/guarantor details, download sample PDFs, and upload those PDFs into the normal application workflow.
+
+## Scope
+
+- A shared, distinctly colored scenario kit in the borrower portal and bank console, available during sign-in, setup, and application work.
+- Three guided scenarios: matching evidence through simulated funding, issues needing human review, and processing failures/recovery.
+- Twelve complete, text-readable synthetic PDFs covering tax returns, bank statements, EIN assignment, financial summaries, guarantor evidence, and controlled failure fixtures.
+- Actual application-name comparisons and deterministic simulated findings selected by registered PDF content hashes. No OpenAI key, provider call, or real financial/identity determination.
+- Internal drag/drop and keyboard/touch Upload through existing permission-checked reservations and streaming upload. Personal sample evidence requires a private task area in the panel workflow.
+- Preserve quarantine, immutable versions, delayed interpretation, task review, signature and funding guards. Scenario selection never changes persisted application facts or permissions.
+
+## Acceptance criteria
+
+- The desktop panel remains fixed with independent scrolling and reserved layout space. It has a separate background, collapse controls, and no overlap with application controls. Mobile uses an accessible closable dialog and has no horizontal overflow.
+- Scenario selection survives reload. Fictional business/client/guarantor details, expected results, downloadable PDFs, and journey instructions are available. The saved application name is used for generated matching evidence.
+- Drag/drop and Upload send real PDF bytes through the existing authenticated pipeline on both dashboards. Downloaded PDFs are structurally valid and visibly labeled synthetic.
+- Matching business evidence produces simulated matching findings; mismatched names, cash-flow flags, and low confidence remain reviewable. Arbitrary modified bytes cannot select a fixture outcome; filenames do not select outcomes.
+- Persistent processing failures preserve clean original downloads; transient errors retry; blocked scans deny normal downloads and interpretation. Historical runs without findings remain readable.
+- Restricted users gain no task/document permission through the panel. Guarantor sample evidence uses an authorized private task. Findings never overwrite confirmed facts or complete a requirement.
+- Appropriate unit, real-PostgreSQL, desktop/mobile browser, type, formatting and build checks pass and their evidence is recorded below.
+
+## Implementation record
+
+Done — locally validated October 7, 2026. No hosted deployment is part of this change.
+
+- The browser-safe catalog in `packages/contracts/src/demo-scenarios.ts` defines three guides and twelve deterministic, complete PDFs. The panel, downloads, internal drags, and server fixture registry generate identical bytes from that catalog. Scenario choice stores only a public fixture ID in browser storage; application facts and permissions are never changed by selection.
+- The shared kit reserves 340 pixels on wide screens, uses independent scrolling and a collapse rail, and opens as a closable dialog on smaller screens. Business and people details are compact disclosures. Matching files use the saved application name; the quarantine fixture keeps stable bytes across draft renames. The mismatch fixture chooses an alternate name even for a Juniper-named application.
+- Both dashboards register only currently available upload areas. Internal drops validate a bounded catalog payload and create a real PDF File synchronously. The Upload button provides the keyboard/touch path. Private guarantor evidence requires a private task area, while all API operations retain existing access guards. Staff rechecks and denials immediately disable demo targets.
+- Interpretation persists typed clear/review findings and its compared application-name snapshot. Later permitted draft renames require refresh instead of displaying a current match. Immutable history and category overrides remain available; old result JSON defaults to empty findings and a null comparison snapshot. No database columns or constraints changed, so no SQL migration is required.
+
+### Validation
+
+- `pnpm check`: Biome, browser dependency boundaries, all twelve workspace typechecks, root TypeScript, and **297 unit tests in 26 files passed**. The final catalog/transfer checks additionally passed **21 focused cases** after the last sample-copy refinement.
+- `pnpm build`: **12/12 builds passed**. Final combined build/type validation passed **24/24 tasks**. Existing Vite bundle-size advisories remain non-fatal.
+- `pnpm test:integration`: **355 tests in 39 real PostgreSQL suites passed**. The final pipeline includes sixteen focused cases covering persisted findings, unchanged application facts/tasks, immutable history, private guarantor access, in-flight/completed name changes, authorized refresh, and quarantine after a rename.
+- Generated all twelve PDFs, parsed them with `pypdf`, rendered them with Poppler, and visually inspected the pages. All are complete single-page PDFs with readable facts, synthetic labels, notes, and footers. The final mismatch text was re-rendered and inspected after its wording changed.
+- `pnpm test:e2e tests/e2e/demo-scenarios.spec.ts tests/e2e/borrower-workspace.spec.ts`: **26/26 desktop/mobile cases passed**, zero skips/failures/flaky cases, in `.local/e2e-huC3In/summary.json`. Coverage includes persisted scenario selection, fixed/tinted layout, mobile dialogs and no overflow, actual PDF download/upload equality, internal drag with no native Files payload, keyboard uploads, duplicate filenames creating distinct documents, renamed EIN classification, borrower/staff persisted findings, retry history, quarantine, unknown content, private guarantor tasks, and direct restricted-adviser API denial.
+- The larger run additionally passed **20/20 existing document upload/interpretation cases** in `.local/e2e-yqQSLV/summary.json`, for **46 distinct relevant browser cases verified** across the two runs. That initial run had five legacy page-wide assertions fail because they included public kit fixtures; those assertions were scoped to the main application area and all affected borrower cases passed in the final 26-case run. Backend denial assertions remain intact.
+- Visually inspected the desktop/mobile scenario-kit screenshots retained in the browser reports. The existing local application readiness endpoint also reported database and worker ready; the borrower URL was opened in Codex for trying the feature.
+
+### Limitations
+
+This is a locally validated addition. No hosted deployment or hosted acceptance of D05 was performed. Documents and their interpretation are explicitly simulated; OpenAI and real OCR remain unused. Sample people are demonstration references, not saved application participants. The guarantor PDF names a static fictional person, which the panel identifies before an upload; demonstrators must choose the intended private task.

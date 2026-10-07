@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@keycade/ui/components/card";
+import { useDemoKit } from "@keycade/ui/components/demo-kit";
 import {
   categoryLabels,
   type DocumentCategory,
@@ -15,6 +16,11 @@ import {
   type DocumentProcessingData,
 } from "@keycade/ui/components/document-interpretation";
 import { NativeSelect } from "@keycade/ui/components/native-select";
+import {
+  createDemoDocumentFile,
+  demoDocumentMime,
+  readDemoDocumentDrag,
+} from "@keycade/ui/lib/demo-document-transfer";
 import { FileUp } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
@@ -96,6 +102,7 @@ export function DocumentsManager({
   reload,
   errorMessage,
   taskId,
+  taskVisibility,
   onBusyChange,
 }: {
   data: DocumentsData;
@@ -119,9 +126,11 @@ export function DocumentsManager({
   reload: () => Promise<unknown>;
   errorMessage: (error: unknown) => string;
   taskId?: string;
+  taskVisibility?: "shared" | "assigned" | "private";
   onBusyChange?: (busy: boolean) => void;
 }) {
   const pickerId = useId();
+  const demoKit = useDemoKit();
   const picker = useRef<HTMLInputElement>(null);
   const controls = useRef(new Map<string, { controller: AbortController; uploadId?: string }>());
   const mounted = useRef(true);
@@ -161,9 +170,49 @@ export function DocumentsManager({
   const canUpload = taskId
     ? data.uploadTasks.some((task) => task.id === taskId)
     : data.canUpload || data.uploadTasks.length > 0;
-  const validTask = !selectedTask
+  const uploadTask = taskId ?? selectedTask;
+  const validTask = !uploadTask
     ? data.canUpload
-    : data.uploadTasks.some((task) => task.id === selectedTask);
+    : data.uploadTasks.some((task) => task.id === uploadTask);
+  const demoSubject = taskId && taskVisibility === "private" ? "guarantor" : "business";
+  const demoUpload = useRef<(document: Parameters<typeof createDemoDocumentFile>[0]) => void>(
+    () => undefined,
+  );
+  demoUpload.current = (document) => {
+    if (demoKit && !demoKit.uploadsEnabled) return;
+    if (document.subject !== demoSubject) {
+      setError(
+        document.subject === "guarantor"
+          ? "Open the guarantor’s private task to upload this personal demo document."
+          : "Open application Documents or a business task to upload this business demo document.",
+      );
+      return;
+    }
+    addFiles([
+      createDemoDocumentFile(document, demoKit?.businessName ?? "Synthetic Cedar Workshop"),
+    ]);
+  };
+  const registerDemoUpload = demoKit?.registerUploadTarget;
+  const demoUploadsEnabled = demoKit?.uploadsEnabled ?? true;
+  const demoTargetTitle = data.uploadTasks.find((task) => task.id === uploadTask)?.title;
+  useEffect(() => {
+    if (!registerDemoUpload || !demoUploadsEnabled || !canUpload || !validTask) return;
+    return registerDemoUpload({
+      id: `${data.applicationId}:${uploadTask || "application"}`,
+      label: demoTargetTitle ?? "Application documents",
+      subject: demoSubject,
+      upload: (document) => demoUpload.current(document),
+    });
+  }, [
+    registerDemoUpload,
+    demoUploadsEnabled,
+    canUpload,
+    validTask,
+    data.applicationId,
+    uploadTask,
+    demoTargetTitle,
+    demoSubject,
+  ]);
   function update(id: string, changes: Partial<QueueFile>) {
     if (mounted.current)
       setQueue((current) =>
@@ -254,7 +303,7 @@ export function DocumentsManager({
           : file.size === 0
             ? "This file is empty."
             : undefined;
-      const linkedTask = replacement?.taskId ?? selectedTask;
+      const linkedTask = replacement?.taskId ?? uploadTask;
       return {
         id: crypto.randomUUID(),
         file,
@@ -364,7 +413,17 @@ export function DocumentsManager({
               onDragLeave={() => setDragging(false)}
               onDrop={(event) => {
                 event.preventDefault();
-                addFiles(Array.from(event.dataTransfer.files));
+                if (event.dataTransfer.types.includes(demoDocumentMime)) {
+                  setDragging(false);
+                  const sample = readDemoDocumentDrag(event.dataTransfer);
+                  if (!sample) {
+                    setError(
+                      "This demo document is unavailable. Drag a PDF from the demo kit again.",
+                    );
+                    return;
+                  }
+                  demoUpload.current(sample.document);
+                } else addFiles(Array.from(event.dataTransfer.files));
               }}
               className={`rounded-lg border-2 border-dashed p-5 text-center ${dragging ? "border-primary bg-muted" : "border-border"}`}
             >

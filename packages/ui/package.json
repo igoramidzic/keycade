@@ -17,6 +17,7 @@
     "react-dom": "19.3.0"
   },
   "dependencies": {
+    "@keycade/contracts": "workspace:*",
     "@base-ui/react": "1.8.0",
     "class-variance-authority": "0.7.1",
     "lucide-react": "1.52.0",

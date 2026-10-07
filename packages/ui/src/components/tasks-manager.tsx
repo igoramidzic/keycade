@@ -153,7 +153,11 @@ export function TasksManager({
   ) => Promise<TaskDetailData | TasksData>;
   reload: () => Promise<TasksData>;
   errorMessage: (error: unknown) => string;
-  renderDocuments?: (taskId: string, onBusyChange: (busy: boolean) => void) => ReactNode;
+  renderDocuments?: (
+    taskId: string,
+    onBusyChange: (busy: boolean) => void,
+    visibility: TaskSummary["visibility"],
+  ) => ReactNode;
   signatureHref?: (envelopeId: string | null) => string;
 }) {
   const initialTask = data.tasks.find((task) => task.id === initialTaskId);
@@ -458,7 +462,7 @@ export function TasksManager({
                                 {renderDocuments &&
                                   ["answer", "signature"].includes(task.inputKind ?? "answer") && (
                                     <div className="p-4 pt-0 sm:p-5 sm:pt-0">
-                                      {renderDocuments(task.id, setUploading)}
+                                      {renderDocuments(task.id, setUploading, task.visibility)}
                                     </div>
                                   )}
                               </>

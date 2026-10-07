@@ -31,6 +31,13 @@ export const createDraftSchema = z.strictObject({
   email: z.string().trim().email().max(254).optional(),
   productId: z.string().uuid().optional(),
   businessId: z.string().uuid().optional(),
+  answers: z
+    .strictObject({
+      businessName: z.string().trim().min(1).max(200).optional(),
+      requestedAmount: usdAmountSchema.optional(),
+      purpose: z.string().trim().min(1).max(500).optional(),
+    })
+    .optional(),
   idempotencyKey: z.string().uuid(),
 });
 export const saveApplicationSetupSchema = z.strictObject({

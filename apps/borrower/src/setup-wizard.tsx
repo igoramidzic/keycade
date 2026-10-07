@@ -10,6 +10,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@keycade/ui/components/alert";
 import { Button, buttonVariants } from "@keycade/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@keycade/ui/components/card";
+import { useDemoApplication } from "@keycade/ui/components/demo-kit";
 import type { AuthenticatedSession } from "@keycade/ui/components/identity-portal";
 import { Input } from "@keycade/ui/components/input";
 import { SearchCombobox } from "@keycade/ui/components/search-combobox";
@@ -95,6 +96,7 @@ function WizardForm({
   refreshSession: () => Promise<void>;
 }) {
   const [saved, setSaved] = useState(initial);
+  useDemoApplication(applicationId, saved.businessName);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [recoveryNotice, setRecoveryNotice] = useState<string | null>(null);

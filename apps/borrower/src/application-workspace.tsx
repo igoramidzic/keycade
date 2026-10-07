@@ -15,6 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@keycade/ui/components/card";
+import { useDemoApplication } from "@keycade/ui/components/demo-kit";
 import type {
   AuthenticatedSession,
   IdentityControls,
@@ -319,6 +320,7 @@ export function ApplicationRoute({
     gcTime: 0,
   });
   const data = destination.data;
+  useDemoApplication(applicationId, destination.error ? null : data?.businessName);
   const back = (
     <Link
       className={buttonVariants({ variant: "outline" })}

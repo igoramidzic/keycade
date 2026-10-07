@@ -58,7 +58,11 @@ export function useApplicationDocuments({ applicationId }: Pick<DocumentsProps, 
       client.invalidateQueries({ queryKey: ["staff-queue"] }),
     ]);
   }
-  function render(taskId?: string, onBusyChange?: (busy: boolean) => void) {
+  function render(
+    taskId?: string,
+    onBusyChange?: (busy: boolean) => void,
+    taskVisibility?: "shared" | "assigned" | "private",
+  ) {
     if (accessError)
       return (
         <ErrorNotice
@@ -85,8 +89,10 @@ export function useApplicationDocuments({ applicationId }: Pick<DocumentsProps, 
           <ErrorNotice error={documents.error} onRetry={() => void documents.refetch()} />
         )}
         <DocumentsManager
+          key={taskId ?? "application"}
           data={documents.data}
           taskId={taskId}
+          taskVisibility={taskVisibility}
           onBusyChange={onBusyChange}
           errorMessage={(error) =>
             error instanceof ApiError ? error.message : "We couldn’t connect. Please try again."

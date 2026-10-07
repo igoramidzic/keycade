@@ -18,6 +18,24 @@ type Version = typeof documentVersions.$inferSelect;
 type Document = typeof documents.$inferSelect;
 const closed = new Set(["funded", "declined", "withdrawn"]);
 
+/** A result's comparison is contextual; retained PDF interpretation is not a lasting name verdict. */
+export function documentNameComparisonIsStale(
+  result: typeof documentProcessingRuns.$inferSelect.result,
+  businessName: string | null,
+) {
+  if (
+    !result?.findings?.some(
+      (finding) =>
+        finding.code === "business_name_match" || finding.code === "business_name_mismatch",
+    )
+  )
+    return false;
+  return (
+    !result.comparedApplicationBusinessName ||
+    result.comparedApplicationBusinessName !== businessName
+  );
+}
+
 /** Caller owns the application lock. Processing intent is committed with the clean scan or retry. */
 export async function enqueueDocumentProcessing(
   tx: DatabaseTransaction,
@@ -88,7 +106,7 @@ export async function readDocumentProcessing(
   access: ApplicationAccess,
   document: Document,
   version: Version,
-  options: { writable: boolean; closed: boolean },
+  options: { writable: boolean; closed: boolean; businessName: string | null },
 ) {
   const runs = await db
     .select()
@@ -103,6 +121,9 @@ export async function readDocumentProcessing(
     .where(eq(documentCategoryOverrides.versionId, version.id))
     .orderBy(desc(documentCategoryOverrides.revision));
   const result = latest.stale ? null : latest.result;
+  const comparisonStale =
+    latest.lastErrorCode === "stale_business_name" ||
+    documentNameComparisonIsStale(latest.result, options.businessName);
   const currentClean =
     document.currentVersion === version.version &&
     version.uploadState === "uploaded" &&
@@ -136,11 +157,26 @@ export async function readDocumentProcessing(
   });
   return documentProcessingViewSchema.parse({
     runId: latest.id,
-    state: latest.state,
+    state: comparisonStale ? "needs_review" : latest.state,
     simulated: true,
     category: result?.category ?? null,
     confidence: result?.confidence ?? null,
     extractedFields: result?.extractedFields ?? [],
+    findings: comparisonStale
+      ? [
+          ...(result?.findings ?? []).filter(
+            (finding) =>
+              finding.code !== "business_name_match" && finding.code !== "business_name_mismatch",
+          ),
+          {
+            code: "document_review",
+            severity: "warning",
+            title: "Business name check needs refresh",
+            detail:
+              "The application business name changed after this simulated comparison. Interpret this document again to review its name against the current application. The original result remains in history.",
+          },
+        ]
+      : (result?.findings ?? []),
     suggestedTasks: matches.map(({ id, title }) => ({ id, title })),
     manualCategory: overrides[0]?.category ?? null,
     overrides: overrides.map((override) => ({
@@ -149,15 +185,17 @@ export async function readDocumentProcessing(
     })),
     history: runs.map((run) => ({
       ...run,
+      stale: run.stale || documentNameComparisonIsStale(run.result, options.businessName),
       errorCode: run.lastErrorCode,
       createdAt: run.createdAt.toISOString(),
       updatedAt: run.updatedAt.toISOString(),
     })),
-    errorCode: latest.lastErrorCode,
+    errorCode: comparisonStale ? "stale_business_name" : latest.lastErrorCode,
     canRetry:
       currentClean &&
       options.writable &&
-      (latest.state === "failed" ||
+      (comparisonStale ||
+        latest.state === "failed" ||
         (access.kind === "staff" && ["classified", "needs_review"].includes(latest.state))),
     canCorrectCategory: currentClean && access.kind === "staff",
   });
