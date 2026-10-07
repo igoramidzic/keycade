@@ -5,7 +5,9 @@ T01–T05 are implemented and verified in [the local-foundation record](local-fo
 | User requirement | Planned coverage | Key proof |
 | --- | --- | --- |
 | Brand-new Keycade project; plan first | Root README, AGENTS.md, this plan | Planning baseline preserved; first local milestone subsequently authorized. |
-| Future Cloudflare deployment; no existing Workers | Architecture, decisions, T01/T04/T05/T13 boundaries; future deployment slice | Local adapters separated from domain; Cloudflare resources and runtime compatibility must be verified before deployment. |
+| Cloudflare deployment on default URLs; no existing Keycade Workers | Architecture, decisions, T01/T04/T05/T13 boundaries; future deployment slice | Account access and `workers.dev` subdomain verified; runtime and bindings remain to be implemented. |
+| Neon PostgreSQL only; Cloudflare R2 for documents | D01, T13, decisions | Existing Neon project linked; verified TLS connection; local Podman settings preserved. |
+| GitHub jobs own changes pushed to Neon | D01 | Main-only Actions migration job; tests on PostgreSQL 17/18; hosted credential approval and first remote run pending. |
 | Multiple frontends and one or more backends | T01, T04, T05 | Three frontends, shared API, separately runnable worker. |
 | React/Node/Postgres | T01–T04 | Apps build and real SQL query/migrations pass. |
 | Drizzle ORM and Studio | T03 | Migrations from empty DB and locally usable Studio. |

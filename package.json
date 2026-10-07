@@ -25,6 +25,7 @@
     "infra:stop": "tsx scripts/local.ts infra:stop",
     "db:generate": "pnpm --filter @keycade/db generate",
     "db:migrate": "tsx scripts/local.ts db:migrate",
+    "db:migrate:neon": "tsx scripts/neon-migrate.ts",
     "db:seed": "tsx scripts/local.ts db:seed",
     "db:studio": "tsx scripts/local.ts db:studio",
     "jobs:demo": "tsx scripts/jobs-demo.ts"
@@ -34,8 +35,9 @@
     "@keycade/db": "workspace:*",
     "@keycade/integrations": "workspace:*",
     "@keycade/testing": "workspace:*",
-    "pg": "8.23.1",
-    "dotenv": "18.0.6"
+    "dotenv": "18.0.6",
+    "drizzle-orm": "0.45.3",
+    "pg": "8.23.1"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",

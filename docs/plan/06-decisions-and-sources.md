@@ -12,7 +12,9 @@ Baseline recorded October 6, 2026. Update this document when a future instructio
 | Turborepo, pnpm, React, Node, Postgres, Drizzle/Studio, Biome, shadcn CLI/default styles, Tailwind, Podman | User requirements; pnpm is reflected in the requested root development command. |
 | Three frontends plus one API and worker | Planning choice matching separate bank, borrower, and staff experiences. Worker shares backend domain/database ownership. |
 | Fastify, Vite, pg-boss, local private storage, Mailpit | Local development choices. Node HTTP and long-running pg-boss entry points are runtime adapters, not the hosted Cloudflare topology. |
-| Cloudflare deployment target; no Workers provisioned yet | Explicit user clarification on October 6, 2026. The user has a Cloudflare account and wants default `workers.dev` URLs initially, with no custom domain. Keep domain/outbox semantics reusable and verify Cloudflare runtime adapters before deployment. |
+| Cloudflare deployment target; no Keycade Workers provisioned yet | Explicit user clarification on October 6, 2026. The user has a Cloudflare account and wants default `workers.dev` URLs initially, with no custom domain. Keep domain/outbox semantics reusable and verify Cloudflare runtime adapters before deployment. |
+| Neon for PostgreSQL only; R2 for documents | User selected this after creating the existing Neon project. The project is linked and read-only connectivity is verified. |
+| GitHub Actions applies hosted Drizzle migrations | Explicit user request. Keep hosted credentials and execution separate from local Podman initialization. See D01. |
 | Passwordless, verified email before data access | User wants no password; verification-first is the initial implementation choice. |
 | Simulate all third-party services | Explicit user permission; preserve delays, failures, retries, and provenance. |
 | USD and US business terminology | Working assumption from EIN, SSN, NAICS, and dollar examples. No legal or regulatory rules are inferred. |
@@ -83,3 +85,17 @@ Proposed deployments retain separate bank-site, borrower, bank-console, API, and
 Before the first hosted demo: implement and test the Cloudflare API entry point, event-driven background transport/outbox recovery, request-scoped database lifecycle, hosted public URLs/origins, and environment bindings. Preserve the local-only guards in `pnpm initialize`; hosted migrations need a separate explicit target and must not repurpose local initialization. Add R2 when document storage is implemented. Account creation, provider billing and cloud provisioning have not been performed by this recommendation.
 
 Sources: [Cloudflare's Neon/Hyperdrive integration](https://developers.cloudflare.com/hyperdrive/examples/connect-to-postgres/postgres-database-providers/neon/), [Hyperdrive query caching](https://developers.cloudflare.com/hyperdrive/concepts/query-caching/), [default workers.dev URLs](https://developers.cloudflare.com/workers/configuration/routing/workers-dev/), and [Neon's October 2 Free-plan update](https://neon.com/blog/neon-free-plan-1-gb-per-project).
+
+## Hosted account setup and CI ownership (October 6, 2026)
+
+The user created Neon project `holy-fog-27591922` (Keycade), branch `production`, and explicitly selected PostgreSQL only, retaining Cloudflare R2 for future documents. The existing Neon CLI login works. Linking used `--no-env-pull --no-config`; Postgres credentials were subsequently pulled only into ignored `.env.neon` with mode 0600. A verified TLS query succeeded, and the local Podman `.env` remained byte-for-byte unchanged. No schema changes were applied manually.
+
+The actual hosted project runs PostgreSQL 18.6, superseding the earlier suggested version 17. Keep the tested local 17.7 database and cover both versions in GitHub Actions before hosted migration; do not recreate the user's project merely to align versions.
+
+The user's `cf` CLI login was verified directly. It is separate from Wrangler's login. The connected Cloudflare account uses `kualia-analytics.workers.dev`; existing unrelated Workers are outside Keycade's scope. No Keycade Workers, Hyperdrive or R2 resources were created.
+
+The user requested that GitHub jobs own changes pushed to Neon. D01 adds a main-only, explicitly enabled migration job with encrypted environment credentials, exact target/TLS validation, migration-history checks, advisory locking, and PostgreSQL 17/18 validation. `neon deploy` manages Neon service policy and is unnecessary for this PostgreSQL-only setup; committed Drizzle migrations define the application's schema. Neon agent tooling and `neon.ts` are optional, not required for this database workflow.
+
+The GitHub secret/environment setup attempt was blocked before execution by automatic approval review, which requires explicit approval to transfer this live database credential to GitHub. Deployment remains disabled until that approval and configuration; no secret or hosted migration has been sent by the setup attempt.
+
+References: [Neon link](https://neon.com/docs/cli/link), [Neon env](https://neon.com/docs/cli/env), [Neon config](https://neon.com/docs/cli/config), [Cloudflare CLI login](https://developers.cloudflare.com/cf/get-started/), [GitHub environments](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments), and [workflow concurrency](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency).

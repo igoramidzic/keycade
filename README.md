@@ -59,6 +59,7 @@ Change `SIMULATION_DELAY_MS`, `PROVIDER_DEADLINE_MS`, or `JOB_MAX_ATTEMPTS` in `
 | `pnpm format` | Apply Biome formatting and safe fixes |
 | `pnpm db:generate` | Generate a Drizzle migration from schema changes for review |
 | `pnpm db:migrate` / `pnpm db:seed` | Apply committed schema / insert missing synthetic fixtures on the recognized local target |
+| `pnpm db:migrate:neon` | GitHub Actions only: apply pending committed migrations to the explicitly configured Neon target |
 | `pnpm db:start` / `pnpm db:stop` / `pnpm db:status` | Persistent project database lifecycle and authenticated status |
 | `pnpm infra:start` / `pnpm infra:stop` | Database and Mailpit lifecycle |
 
@@ -72,6 +73,8 @@ Invalid credentials or an unavailable database stop development before apps laun
 
 ## Cloudflare direction
 
-Cloudflare is the intended deployment platform, initially on default `workers.dev` URLs without a custom domain. No Cloudflare Workers are provisioned yet. Neon PostgreSQL through Hyperdrive is the proposed database option; it has not been provisioned. `apps/worker` is currently a **local Node job runner**. Hosting will be a separate compatibility/provisioning slice covering the HTTP adapter, PostgreSQL connectivity, durable job delivery, private storage, secrets and origins. Candidate services include Workers, Hyperdrive, Queues/Workflows and R2; none are assumed configured. See [the deployment decision](docs/plan/06-decisions-and-sources.md#cloudflare-implementation-boundary-october-6-2026).
+Cloudflare is the intended deployment platform, initially using the existing `kualia-analytics.workers.dev` subdomain without a custom domain. The `cf` CLI account login is verified; no Keycade Workers are provisioned. Neon PostgreSQL is linked and its connection is verified. Neon supplies the database only; document storage remains planned for Cloudflare R2. Local Podman settings remain in `.env`; hosted credentials are in the separate ignored `.env.neon`.
+
+GitHub Actions owns hosted schema changes through [the Neon migration workflow](.github/workflows/neon-database.yml). It tests on PostgreSQL 17 and 18, then applies pending committed Drizzle migrations when enabled. Deployment remains disabled until the GitHub environment credential is approved and configured. See [setup and operation](infra/neon.md). `apps/worker` is currently a **local Node job runner**. Cloudflare hosting still requires the HTTP adapter, Hyperdrive, durable job delivery, secrets and origins; the database workflow does not deploy the application.
 
 See the [implementation plan](docs/plan/README.md), [validation record](docs/plan/local-foundation-validation.md), and [agent instructions](AGENTS.md) before continuing. The next coherent milestone is **Start and resume (T06–T10)**. Servicing remains deferred; the first release ends with simulated approval/funding.
