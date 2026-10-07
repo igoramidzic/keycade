@@ -7,6 +7,7 @@ on:
       - "packages/db/**"
       - "packages/config/**"
       - "scripts/neon-migrate*"
+      - "scripts/neon-runtime*"
       - "scripts/local-lib*"
       - ".env.example"
       - "package.json"
@@ -102,3 +103,11 @@ jobs:
           NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
           NEON_DATABASE_HOST: ${{ vars.NEON_DATABASE_HOST }}
           NEON_DATABASE_NAME: ${{ vars.NEON_DATABASE_NAME }}
+      - name: Configure approved application database login
+        if: vars.NEON_RUNTIME_SETUP_ENABLED == 'true'
+        run: pnpm exec tsx scripts/neon-runtime.ts
+        env:
+          NEON_DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+          NEON_DATABASE_HOST: ${{ vars.NEON_DATABASE_HOST }}
+          NEON_DATABASE_NAME: ${{ vars.NEON_DATABASE_NAME }}
+          NEON_RUNTIME_PASSWORD: ${{ secrets.NEON_RUNTIME_PASSWORD }}
