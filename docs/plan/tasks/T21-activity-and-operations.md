@@ -31,4 +31,10 @@ Underlying audits and diagnostics were implemented with each feature; this task 
 
 ## Implementation record
 
-Not started. Record date, commands/results, and deviations when implemented.
+### October 7, 2026
+
+Both dashboards now expose a paginated activity projection. Authored descriptions and generic actor labels are the only display content; raw audit metadata, notes, addresses, identifiers, provider findings and document contents never enter the response. Borrower filtering uses current task, document, check and intended-signer permissions before pagination, with no hidden-event totals. Staff support references are validated request UUIDs. A PostgreSQL microsecond timestamp plus UUID cursor preserves stable ordering without skipping events that share a JavaScript millisecond.
+
+The staff Operations section combines document scans/interpretation, checks, signatures, notification delivery, worker heartbeat and application-scoped backlog. It distinguishes missing inputs, retrying, superseded and failed work. Retry/void controls call existing audited use cases after checking current eligibility; there is no generic queue reset. The native scheduler records a safe heartbeat after dispatch. All reads and actions recheck bank membership and application access; failed refreshes hide stale content.
+
+Six PostgreSQL tests verify privacy, current grants after replacement/revocation, cross-bank denial, setup guards, exact cursor ordering, safe references, offline workers, scan retry recovery, waiting checks and overdue outbox scope. Two HTTP tests verify both runtimes, query validation, CSRF and nonstaff denial. The complete 347-test PostgreSQL suite, lint/types, 272 unit tests and 12 builds pass. The four desktop/mobile cases passed in `.local/e2e-D7lQlU/summary.json`: failed scan → staff retry → clean scan → correctly filtered activity, plus failed-refresh concealment and retry. Screenshots were inspected for hierarchy and mobile overflow. Native API/jobs Wrangler dry runs also passed. T21 is complete locally; T22 checks the integrated hosted experience.

@@ -1,16 +1,12 @@
 # Keycade
 
-Keycade is a bank-operated business lending prototype. **T01–T12 are implemented locally**: three React apps, repeatable infrastructure, a seeded PostgreSQL schema, backend authorization, durable simulated jobs, passwordless access, a mock bank page, a resumable one-question application setup wizard, a business-grouped borrower workspace, and a bank staff queue with assignments and internal notes, plus owner records, scoped collaborator invitations, versioned task checklists, and evidence review.
+Keycade is a synthetic bank-operated business lending demo, from initial application through human review, closing and one recorded funding event. It includes a mock bank website, a borrower portal and a bank staff console. **Every environment, including the public hosted URLs, is a simulation.** Use fictional people, businesses, documents and identifiers. Checks, document interpretation, signatures and funding make no real financial or identity determination; no money moves and no external email is sent.
 
-Start at the mock bank, choose **Apply for business financing**, and enter a fictional email. The default local demo opens setup immediately. Answer one question per screen, use **Continue later**, then sign in with the same email to resume the same application. **Finish setup** confirms the answers and opens that application’s portal with Overview, Tasks, Documents, People, and Activity sections. Bank staff can search and filter applications, create and prefill drafts, assign officers, and maintain private internal notes. Applicants and staff can record owners separately from portal access, invite collaborators, and revoke their access. In Tasks, assignees save and submit fictional answers; staff can request changes, complete reviewed tasks, or waive them with a reason.
-
-The optional email-link path supports Mailpit verification, expired links, and fresh-link resume. Saved answers and progress live on the server; browser storage is not required. All records and provider results are synthetic. See [T12’s task walkthrough](docs/plan/tasks/T12-tasks-and-requirements.md#try-it-locally), [T11’s invitation walkthrough](docs/plan/tasks/T11-participants.md#try-it-locally), [T10’s staff walkthrough](docs/plan/tasks/T10-bank-workspace.md#try-it-locally), [T09’s implementation and test steps](docs/plan/tasks/T09-borrower-workspace.md#try-it-locally) and the [identity test guide](docs/plan/identity-validation.md).
+The implementation includes resumable one-question setup, scoped collaborators and private tasks, private document uploads and interpretation, simulated checks, contextual notifications, review decisions, closing conditions, funded-account summaries, activity and operations diagnostics. The [plan index](docs/plan/README.md) records each feature's validation and remaining work. [T22 integrated acceptance](docs/plan/tasks/T22-acceptance.md) is not complete. D03's [hosted acceptance](docs/plan/tasks/D03-hosted-demo-parity.md#hosted-acceptance--october-7-2026) has verified sign-in, saved setup, scoped invitation, private R2 documents and two-person simulated signing on the deployed URLs.
 
 ## Start locally
 
-Prerequisites: Node **24.21.0 LTS** (`nvm install && nvm use` if using nvm), pnpm **10.34.6**, and [Podman](https://podman.io/docs/installation). A project-local Node 24 runtime is also installed with dependencies, so workspace scripts use the pinned runtime even if the shell uses a newer Node. The shell may print an engine warning until switched to `.nvmrc`.
-
-On macOS, create a Podman machine once if none exists (`podman machine init`). Initialization starts the configured machine. No Compose provider is needed. Unset `CONTAINER_HOST` and `CONTAINER_CONNECTION`; these local commands refuse remote Podman overrides.
+Use Node **24.21.0 LTS**, pnpm **10.34.6**, and Podman. With nvm, run `nvm install && nvm use`; workspace dependencies also include the pinned Node runtime. On macOS, create a Podman machine once with `podman machine init` if none exists. Initialization starts the configured machine. No Compose provider is required. Unset `CONTAINER_HOST` and `CONTAINER_CONNECTION`; the local scripts refuse remote Podman overrides.
 
 ```sh
 pnpm install
@@ -18,25 +14,76 @@ pnpm initialize
 pnpm dev
 ```
 
-Initialization creates a private ignored `.env`, starts project-owned PostgreSQL 18.6/Mailpit on loopback ports, authenticates to the configured database, applies committed migrations, initializes pg-boss, and inserts missing synthetic fixtures. Running it again preserves existing env values and records. It never resets a volume or stops unrelated services. Change names/ports in `.env` before first setup if defaults are occupied; a pre-existing container must continue to match its configured image, identity, storage and port bindings.
+Initialization creates a private ignored `.env`, generates missing local secrets, starts project-owned PostgreSQL 18.6 and Mailpit on loopback ports, verifies database credentials, applies committed Drizzle migrations, initializes pg-boss and inserts missing synthetic fixtures. Repeating it preserves existing values, records and volumes. Change container names or ports in `.env` before first initialization if defaults conflict; an existing container must match its configured identity, image, storage and bindings.
 
-`pnpm dev` verifies actual SQL connectivity, migration history, and queue schema before starting apps. The API becomes ready only after a healthy worker heartbeat. Environment overrides are passed explicitly through Turbo; browser bundles receive only public application URLs, the local inbox URL, and the hosted-mode flag.
+`pnpm dev` checks the actual database connection, migration history, queue schema and available ports before launching the three frontends, Fastify API and Node/pg-boss worker. API readiness also requires a healthy worker heartbeat. Browser bundles receive only allowlisted public URLs and mode flags, never database credentials or encryption keys.
 
-| Surface | Default URL | What to test now |
-| --- | --- | --- |
-| Mock bank site | http://127.0.0.1:3000 | Apply for financing or continue an application |
-| Borrower portal | http://127.0.0.1:3001 | Sign in as `borrower@example.test` to browse two businesses, completed setups, a resumable draft, and a closed application |
-| Bank console | http://127.0.0.1:3002 | Sign in as `officer-a@example.test` to search drafts, create an application, assign an officer, and add internal notes |
-| API liveness / readiness | http://127.0.0.1:4000/api/health · http://127.0.0.1:4000/api/ready | Process health vs database/worker readiness |
-| OpenAPI | http://127.0.0.1:4000/api/openapi.json | Validated initial API contract |
-| Mailpit | http://127.0.0.1:8025 | Open a delivered sign-in link, then deliberately confirm in the portal |
-| Drizzle Studio | `pnpm db:studio`, then https://local.drizzle.studio | Core data and durable job history; listener binds only to 127.0.0.1:4983 |
+| Surface | Local URL or command |
+| --- | --- |
+| Mock bank | http://127.0.0.1:3000 |
+| Borrower portal | http://127.0.0.1:3001 |
+| Bank console | http://127.0.0.1:3002 |
+| API health / readiness | http://127.0.0.1:4000/api/health · http://127.0.0.1:4000/api/ready |
+| OpenAPI | http://127.0.0.1:4000/api/openapi.json |
+| Local Mailpit inbox | http://127.0.0.1:8025 |
+| Drizzle Studio | `pnpm db:studio`, then https://local.drizzle.studio; listener is 127.0.0.1:4983 |
 
-Local development explicitly enables **Demo access**: enter an email without mailbox verification, restricted to synthetic users and banks. The optional email-link path verifies mailbox access. Production/hosted mode disables demo sign-in. Application API routes still require a server-side session and current bank membership or application participation. Sign-in alone never creates an application or grants application access. Borrower and staff cookies are isolated by portal origin, including localhost ports.
+Ctrl-C stops app processes. PostgreSQL and Mailpit remain available. `pnpm infra:stop` stops only the project containers and preserves storage; `pnpm infra:start` restarts them.
 
-## Try background work
+## Access and simulated delivery
 
-With `pnpm dev` running, use a second terminal:
+**Sign in to demo** opens a session for a synthetic identity without requiring an actual mailbox. New borrower emails do not inherit another application's access, and unknown staff emails never receive bank membership. Bank and application permissions, restricted task/document scopes, revocations, origin checks and CSRF remain enforced in the backend. Borrower and staff sessions are isolated by portal origin, including local ports.
+
+**Use an email link instead** exercises the one-time confirmation flow. Locally, delivery goes to Mailpit by default. Open the message, follow its link and deliberately select **Confirm and sign in**. Invitation acceptance is a separate action after confirmation; signing also requires the intended recipient's confirmed session.
+
+To use the private in-app inbox locally, restart development with:
+
+```sh
+DEMO_INBOX_ENABLED=true pnpm dev
+```
+
+The hosted demo already uses this mode. After requesting a link, choose **Open demo inbox**, select the message, then **Open confirmation** and **Confirm and sign in**. This verifies only the simulated identity flow. Messages are restricted to the current demo identity and bank. Used, expired or no-longer-authorized messages expose no usable link. Nothing is delivered to a real email address. Reminder settings apply to the signed-in user's own preferences; defaults are one and three days of inactivity.
+
+## Walk through the demo
+
+1. Start at the mock bank and select **Apply for business financing**. Use a new `example.test` email. The default demo path opens setup immediately; the email-link option uses Mailpit or the private demo inbox. Setup asks one question at a time and always selects Synthetic Business Credit. Enter business name, requested amount, purpose and optionally choose an industry. **Continue later** saves the current step. Sign in with the same email and resume the same application, then **Finish setup** to enter its portal.
+2. Use Tasks to provide fictional answers or private synthetic identifiers. In People, record owner relationships separately from portal access. Invite an intended collaborator with explicit tasks; confirm through that recipient's simulated message and accept the invitation. A restricted adviser sees only assigned resources. Revocation applies immediately.
+3. Upload a fixture from `packages/testing/fixtures/documents/` in Documents or a task's Files section. Wait for the simulated scan before downloading. Interpretation adds category and suggested fields; staff can correct a category with a reason while retaining original results and history. Replacing a document creates a new immutable version and reopens affected evidence.
+4. As staff, inspect Checks and stage readiness. Required inputs and current evidence control the gates; a simulated result never approves an application automatically. The applicant submits when eligible, and staff explicitly begins review, requests information, declines or approves with immutable decision terms. Material edits require a return to information collection.
+5. After approval, staff opens Closing and selects **Start closing**. Complete the generated funding-readiness task and attach a clean synthetic PDF to **Sign simulated closing agreement**. In Signatures, select that task, current document and intended verified signers. Send the request; each signer opens its message, confirms and explicitly acknowledges the simulation before signing. Every required signer must complete; the mandatory signature condition cannot be waived.
+6. Staff records simulated funding after current closing gates pass. The demo product requires the exact approved USD amount, a date between approval and today in UTC, a reference and explicit human confirmation. One transaction records one funding event and one account. Borrower/staff account summaries show approved terms and the recorded event, marked **Simulated**. Approval alone creates no account. Assigned collaborators do not gain account or approved-terms access.
+7. Inspect Activity for visible progress and the staff Diagnostics view for processing state, attempts, current failures, worker health and backlog. Eligible retry/void controls recheck permissions and current inputs; they do not run arbitrary jobs.
+
+Feature walkthroughs and negative-case evidence are linked from the [plan index](docs/plan/README.md). The [identity guide](docs/plan/identity-validation.md) documents local confirmation scenarios.
+
+## Fixtures and controls
+
+Local `pnpm initialize` / `pnpm db:seed` inserts stable fixtures from `packages/db/src/seed.ts`, preserving existing rows:
+
+| Identity | Local scope |
+| --- | --- |
+| `borrower@example.test` | Bank A: Cedar and Maple applications, two completed setups, a draft saved at requested amount and a withdrawn draft |
+| `officer-a@example.test` | Bank A synthetic administrator |
+| `officer-b@example.test` | Bank B officer; use `?bank=bank-b` on the local portal |
+| `adviser@example.test` | Restricted assigned participation in the small Bank A application; no implied task grants |
+| `revoked-owner@example.test` | Revoked participation; sign-in does not restore access |
+
+The seed also includes an owner relationship with no portal account and an unshared application for an existing business. Amount fixtures cover $10,000, $5,000,000 and $7,500,000. No real identifiers, documents or funded accounts are seeded. Hosted preparation is smaller: Synthetic Bank A, its Business Credit product and `officer-a@example.test`; other demo borrowers and applications are created through the UI.
+
+Document fixtures use registered content hashes, so renaming a file does not change its outcome:
+
+| Files in `packages/testing/fixtures/documents/` | Demonstration |
+| --- | --- |
+| `clean-tax.pdf`, `clean-statement.pdf` | Clean scan and simulated tax/bank-statement interpretation |
+| `unknown.pdf`, `low-confidence.pdf` | Unclassified or review-needed interpretation |
+| `blocked.pdf`, `scan-error.pdf`, `scan-transient.pdf` | Quarantine, scan failure and retry |
+| `processing-error.pdf`, `processing-timeout.pdf`, `processing-transient.pdf` | Interpretation failure, timeout and retry |
+
+Uploads support PDF, JPEG and PNG. Local defaults are 25 MiB per file and ten files per batch, controlled by `DOCUMENT_MAX_FILE_BYTES` and `DOCUMENT_MAX_BATCH_FILES`. Bytes stay in ignored private local storage (`PRIVATE_STORAGE_PATH`, default `.local/uploads`) or the private hosted R2 bucket. There are no permanent public download URLs.
+
+Secure EIN/SSN tasks accept only registered invalid-for-real-world synthetic values `000000001` through `000000007`: success, no match, review, transient error, timeout, terminal error and missing input respectively. Never enter a real identifier. Tax simulation additionally requires its explicit authorization. The staff signature form has a clearly labeled simulated delivery scenario for success, retryable failure or failed delivery.
+
+With `pnpm dev` running, a second terminal can exercise the harmless durable-job fixture:
 
 ```sh
 pnpm jobs:demo success
@@ -46,39 +93,63 @@ pnpm jobs:demo timeout
 pnpm jobs:demo terminal_error
 ```
 
-This protected local command targets a known synthetic application and prints persisted transitions. Success creates one harmless logical effect/audit event. Transient failure retries; missing input stays waiting; exhausted deadlines/errors remain visible. Inspect `integration_runs`, `outbox_events`, `effect_deduplications`, and `audit_events` in Studio. These commands make no real external calls.
-
-Change `SIMULATION_DELAY_MS`, `PROVIDER_DEADLINE_MS`, or `JOB_MAX_ATTEMPTS` in `.env` and restart dev to vary the demo. Ctrl-C stops the app processes; PostgreSQL and Mailpit remain running. `pnpm infra:stop` stops only the project containers and keeps database storage. `pnpm infra:start` restarts them.
+These commands target a known local synthetic application and print persisted transitions. Adjust `SIMULATION_DELAY_MS`, `PROVIDER_DEADLINE_MS` and `JOB_MAX_ATTEMPTS` in `.env`, then restart development to change delays/retries. `REMINDER_FIRST_DELAY_MS` and `REMINDER_SECOND_DELAY_MS` control inactivity reminders; the second must be later than the first. Providers are asynchronous simulations with durable intent, bounded retries and stale-input checks.
 
 ## Commands and verification
 
 | Command | Behavior |
 | --- | --- |
-| `pnpm check` | Biome, browser/server boundary check, strict types, unit tests |
-| `pnpm build` | Production Vite output and server/shared-package compile checks; local servers execute TS with tsx |
-| `pnpm test:integration` | Fresh disposable real PostgreSQL databases; migrations, isolation, transactions, queue recovery, and an actual SIGKILL/restart |
-| `pnpm test:e2e` | Isolated desktop/mobile browser suite with disposable PostgreSQL and owned app processes |
+| `pnpm check` | Biome, browser/server boundary check, strict TypeScript and unit tests |
+| `pnpm build` | Production Vite builds and server/shared-package compilation checks |
+| `pnpm test:integration` | Real PostgreSQL suites with disposable databases, including migrations, isolation, rollback, duplicates and worker recovery |
+| `pnpm test:e2e` | Isolated local desktop/mobile browser journeys; hosted-only and optional inbox tests skip by default |
+| `DEMO_INBOX_ENABLED=true pnpm test:e2e tests/e2e/demo-inbox.spec.ts` | Local private-inbox parity acceptance |
 | `pnpm format` | Apply Biome formatting and safe fixes |
 | `pnpm db:generate` | Generate a Drizzle migration from schema changes for review |
-| `pnpm db:migrate` / `pnpm db:seed` | Apply committed schema / insert missing synthetic fixtures on the recognized local target |
-| `pnpm db:migrate:neon` | GitHub Actions only: apply pending committed migrations to the explicitly configured Neon target |
+| `pnpm db:migrate` / `pnpm db:seed` | Apply committed migrations / insert missing synthetic fixtures on the recognized local target |
 | `pnpm db:start` / `pnpm db:stop` / `pnpm db:status` | Persistent project database lifecycle and authenticated status |
 | `pnpm infra:start` / `pnpm infra:stop` | Database and Mailpit lifecycle |
+| `pnpm db:migrate:neon` | GitHub Actions only: apply pending migrations to the explicitly configured Neon target |
 
-If Playwright Chromium is missing, run `pnpm exec playwright install chromium` once. `pnpm test:e2e` requires initialized PostgreSQL/Mailpit, creates a disposable database, and starts its own apps on free loopback ports. It runs one test per shard so normal runtime rate limits remain enabled, then stops only its own processes and removes its database. Logs/reports stay in a private ignored `.local/e2e-*` directory. Filter with `pnpm test:e2e -- --project=desktop --grep "bank apply"`; use `pnpm exec playwright test` for advanced interactive runs against your existing development stack. Integration tests require initialized Podman infrastructure and delete only the fresh test databases they create, never the developer database. The optional maintainer probe `pnpm exec tsx scripts/verify-local.ts` checks repeated initialization and database stop/start persistence; stop dev and Studio first because the probe intentionally stops the project database briefly.
+Install Chromium once if needed with `pnpm exec playwright install chromium`. The local browser runner requires initialized PostgreSQL and Mailpit, creates a disposable database and private upload directory, starts owned app processes on free loopback ports, and runs sequential shards with real rate limits enabled. It removes its database and stops only its own processes. Reports remain in ignored `.local/e2e-*` directories. Filter with `pnpm test:e2e tests/e2e/closing.spec.ts --project=desktop` or `pnpm test:e2e --grep 'saved setup'`. Use `pnpm exec playwright test` for interactive runs against an existing local stack.
 
-Invalid credentials or an unavailable database stop development before apps launch. A behind/unusable schema points to `pnpm db:migrate`. Port collisions and unfamiliar database targets fail without stopping or changing their owners. Preserve your `.env` and volume rather than resetting either to fix a configuration mismatch.
+Integration tests do not reset the development database. The maintainer probe `pnpm exec tsx scripts/verify-local.ts` verifies repeated initialization and database stop/start persistence; stop dev and Studio first because that probe intentionally stops the project database briefly. T22 must record the final clean-clone and combined acceptance results rather than infer them from individual feature tests.
 
-## Synthetic fixtures
+## Hosted demo and deployment
 
-`packages/db/src/seed.ts` exports stable `seedIds`. Bank A contains two businesses and explicit borrower participation in four applications: two completed setups, a Cedar draft saved at requested amount, and a withdrawn Cedar draft. Another application for the same business remains unshared. Bank B is isolated. Fixtures include $10,000, $5,000,000, $7,500,000, and an incomplete draft, plus a restricted adviser, revoked owner, and owner relationship with no user account. Emails end in `example.test`; use these synthetic addresses in the local email-link flow. No EINs, SSNs, documents, or funded accounts are seeded at this milestone.
+| Surface | Hosted URL |
+| --- | --- |
+| Mock bank | https://keycade-bank-site.kualia.workers.dev |
+| Borrower portal | https://keycade-borrower.kualia.workers.dev |
+| Bank console | https://keycade-bank-console.kualia.workers.dev |
+| API readiness | https://keycade-api.kualia.workers.dev/api/ready |
 
-## Cloudflare deployment
+Use a new fictional `example.test` borrower or the provisioned synthetic staff identity `officer-a@example.test`. Hosted sign-in and message confirmation use **Demo inbox**, never a real mailbox. The hosted database is shared demo state; preserve existing records and use unique synthetic identities when testing.
 
-The five Workers use native Cloudflare GitHub builds from `main`, with the repository root `/`. [Deployment settings and connections](infra/cloudflare.md) lists their commands, URLs and bindings. Wrangler 4.148.0 is pinned in the workspace; the three UIs serve Vite assets and forward `/api/*` through an API service binding.
+Five Workers build from `main` using Cloudflare's native GitHub integration. The UIs forward `/api/*` through a private API service binding. API/jobs use Neon PostgreSQL through Hyperdrive, private R2 documents, Queues and minute Cron recovery. Fastify/pg-boss remain the local adapters for the same domain rules and transactional job intent. The jobs Worker has no public endpoint. See [Cloudflare configuration](infra/cloudflare.md) and [Neon operations](infra/neon.md).
 
-API and jobs connect to Neon PostgreSQL through `keycade-db` Hyperdrive with query caching disabled and a dedicated runtime login. Native HTTP, Queues and Cron adapt the existing contracts, domain services and durable outbox to Workers. Fastify and pg-boss remain the local Node transports. Hosted migrations and the one-time runtime-login setup belong to [GitHub Actions](.github/workflows/neon-database.yml); Workers never initialize, migrate or seed the hosted database. See [Neon operations](infra/neon.md).
+GitHub Actions applies committed additive migrations; Workers never migrate or seed. The explicit `infra/bootstrap-demo-intake.sql` and `infra/bootstrap-demo-access.sql` scripts prepare the minimal synthetic hosted catalog/staff and refuse incompatible nonsynthetic collisions. API/jobs share a private `ENCRYPTION_KEY` binding for encrypted identifiers and inbox messages. Preserve the key; changing it without a data migration makes existing encrypted data unreadable. Do not put it or database credentials in source, logs, browser settings or command history.
 
-For faster demo deployment, automatic test/build validation and the PR trigger remain commented out in the Neon workflow. Tests remain available locally. Application builds and migrations trigger independently; readiness fails until required migrations are present. Use additive schema changes and wait for the GitHub migration run before testing a schema-dependent release.
+**Automatic CI validation and the PR validation trigger remain paused at the user's request.** The migration workflow and native app builds still run independently. Local checks remain required; wait for migrations, all dependent builds and readiness before testing schema-dependent releases. The current hosted release and evidence are recorded in the plan, not inferred from the working tree.
 
-Document storage remains planned for Cloudflare R2 in T13. T06 sign-in is testable locally. Hosted email delivery is explicitly unavailable until a simulated hosted delivery destination is configured; no public inbox, real email provider, or hosted seeds were added. This change has not been deployed. T07–T12 setup, intake, borrower/staff workspaces, participant management, and task review are implemented locally. Staff creation queues a continuation email to Mailpit; hosted staff creation remains unavailable until simulated email delivery is configured. Invitation acceptance requires a verified email-link session and a separate acceptance action; demo sign-in cannot accept. Hosted invitation create/resend remains unavailable until simulated email delivery is configured. Task answers and review are available locally; file/signature evidence, activity, and funded accounts remain with their later tasks. T12 migrations are applied locally; this change has not been deployed.
+Run the explicitly opted-in hosted acceptance suite without starting local services:
+
+```sh
+KEYCADE_E2E_HOSTED=true DEMO_INBOX_ENABLED=true \
+KEYCADE_E2E_BORROWER_ORIGIN=https://keycade-borrower.kualia.workers.dev \
+KEYCADE_E2E_STAFF_ORIGIN=https://keycade-bank-console.kualia.workers.dev \
+pnpm exec playwright test --config=playwright.hosted.config.ts
+```
+
+This uses one desktop worker, paced API requests and new synthetic identities. It preserves shared data and disables authentication traces, videos and automatic screenshots. The hosted API allows 120 requests per minute; avoid concurrent acceptance runs. Full T22 hosted closing/funding acceptance remains to be recorded after its deployment.
+
+## Troubleshooting and boundaries
+
+- If startup cannot authenticate to PostgreSQL, run `pnpm db:status` and `pnpm infra:start`. Preserve `.env` and the volume; do not reset data to fix mismatched credentials or container configuration.
+- If schema readiness fails, run `pnpm db:migrate` locally. On hosted deployments, inspect the independent GitHub migration result before testing the new build.
+- If health succeeds but readiness fails, check worker startup/heartbeat and the private runtime logs. Background work persists while a worker is unavailable and resumes with current-input guards.
+- If a local link has no message, verify Mailpit is running or enable `DEMO_INBOX_ENABLED=true` and restart both API and worker. Use the same portal origin throughout. Request a new message for an expired or consumed link.
+- If hosted demo access fails, check readiness, matching API/jobs inbox configuration, the required shared key and synthetic staff bootstrap. Unknown staff denial is expected; installing a real auth/email service is not the remedy.
+- Port conflicts and unrecognized database targets fail without stopping their owners. Change the configured unused ports before initialization; do not kill unrelated services.
+
+This is not production banking software. Live registry/tax/KYC providers, real malware scanning and OCR, legally effective signatures, real email/authentication, SSO and production banking controls are future work. The current release ends at one recorded simulated funding event: no repayment schedules, balances, payment collection, interest, further draws or servicing accounting. Extracted values are suggestions, staff make explicit decisions, and a funded-account summary is not an outstanding balance.

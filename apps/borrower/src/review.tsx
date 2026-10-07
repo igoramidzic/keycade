@@ -1,4 +1,5 @@
 import { reviewReasonLabels, reviewViewSchema } from "@keycade/contracts";
+import { buttonVariants } from "@keycade/ui/components/button";
 import type { AuthenticatedSession } from "@keycade/ui/components/identity-portal";
 import { ReviewManager } from "@keycade/ui/components/review-manager";
 import { reviewCommand, reviewReasons } from "@keycade/ui/lib/review-actions";
@@ -43,6 +44,14 @@ export function ApplicationReview({
   return (
     <div className="space-y-4">
       {review.error && <ErrorNotice error={review.error} onRetry={() => void review.refetch()} />}
+      {["approved", "closing", "funded"].includes(review.data.status) && (
+        <a
+          className={buttonVariants({ variant: "outline" })}
+          href={`/applications/${applicationId}/closing?bank=${encodeURIComponent(session.bank.slug)}`}
+        >
+          {review.data.status === "funded" ? "View funded account" : "View closing requirements"}
+        </a>
+      )}
       <ReviewManager
         data={review.data}
         reasons={reviewReasons(reviewReasonLabels)}

@@ -113,18 +113,23 @@ test("business groups show granted applications and portal navigation keeps appl
   await expect(page).toHaveURL(applicationUrl(ids.small, "tasks"));
   await expect(page.getByRole("heading", { name: "Tasks", exact: true })).toBeVisible();
   for (const section of [
-    { path: "documents", label: "Documents", empty: null },
-    { path: "activity", label: "Activity", empty: "Activity is not available yet" },
+    { path: "documents", label: "Documents" },
+    { path: "activity", label: "Activity" },
   ]) {
     await page.getByRole("link", { name: section.label, exact: true }).click();
     await expect(page).toHaveURL(applicationUrl(ids.small, section.path));
-    if (section.empty) await expect(page.getByText(section.empty, { exact: true })).toBeVisible();
+    if (section.path === "activity")
+      await expect(
+        page.getByRole("heading", { name: "Application activity", exact: true }),
+      ).toBeVisible();
     else
       await expect(page.getByRole("region", { name: "Document upload drop area" })).toBeVisible();
     await noOverflow(page);
   }
   await page.reload();
-  await expect(page.getByText("Activity is not available yet", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Application activity", exact: true }),
+  ).toBeVisible();
   await page.getByRole("link", { name: "People", exact: true }).click();
   await expect(page).toHaveURL(applicationUrl(ids.small, "people"));
   await expect(

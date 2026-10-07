@@ -142,8 +142,10 @@ export function TasksManager({
   errorMessage,
   renderDocuments,
   signatureHref,
+  initialTaskId,
 }: {
   data: TasksData;
+  initialTaskId?: string | null;
   mutate: (
     path: string,
     body: object,
@@ -154,8 +156,9 @@ export function TasksManager({
   renderDocuments?: (taskId: string, onBusyChange: (busy: boolean) => void) => ReactNode;
   signatureHref?: (envelopeId: string | null) => string;
 }) {
-  const [selected, setSelected] = useState<string | null>(null);
-  const [detail, setDetail] = useState<TaskDetailData | null>(null);
+  const initialTask = data.tasks.find((task) => task.id === initialTaskId);
+  const [selected, setSelected] = useState<string | null>(initialTask?.id ?? null);
+  const [detail, setDetail] = useState<TaskDetailData | null>(initialTask ?? null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [saving, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);

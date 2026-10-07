@@ -732,7 +732,11 @@ export async function handleWorkerRequest(
     if (workflow) {
       const { route, params } = workflow;
       assertSessionBank(authentication, params.bankId);
-      const input = route.body ? route.body.parse(await readJsonBody(request)) : undefined;
+      const input = route.body
+        ? route.body.parse(await readJsonBody(request))
+        : route.query
+          ? route.query.parse(Object.fromEntries(new URL(request.url).searchParams))
+          : undefined;
       const result = route.response.parse(
         await route.handle({ actor: authentication.actor, params, input, requestId }),
       );

@@ -393,6 +393,7 @@ export async function buildServer(options: ServerOptions) {
       schema: {
         params: route.params,
         ...(route.body ? { body: route.body } : {}),
+        ...(route.query ? { querystring: route.query } : {}),
         response: { 200: route.response, ...responses },
       },
       handler: async (request, reply) => {
@@ -402,7 +403,7 @@ export async function buildServer(options: ServerOptions) {
           await route.handle({
             actor: request.authentication.actor,
             params,
-            input: request.body,
+            input: route.query ? route.query.parse(request.query) : request.body,
             requestId: request.id,
           }),
         );

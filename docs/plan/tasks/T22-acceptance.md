@@ -11,7 +11,7 @@ The complete local prototype is reproducible, demonstrable, and clearly bounded.
 - Run the documented end-to-end journeys across borrower, owner, adviser, and bank roles using synthetic fixtures and local providers.
 - Verify a clean-clone initialization path and repeated initialization; exercise actual DB-readiness failure and persistence across restarts.
 - Finish integration defects, access leaks, loading/error states, accessibility issues, and missing diagnostics found by these journeys.
-- Add CI jobs for the established non-mutating checks, build, isolated PostgreSQL integration suite, and selected browser flows using the same pinned versions. CI may use its platform's PostgreSQL service container; local setup remains Podman.
+- Run the established non-mutating checks, build, isolated PostgreSQL integration suite, and browser flows locally using the pinned versions. Separate CI validation remains paused under the user's explicit October 7 instruction; preserve the migration job and native Cloudflare builds. Re-enabling CI checks is deferred until requested.
 - Update the root README with exact setup/demo commands, synthetic identities/inbox access, fixture controls, known limitations, and troubleshooting.
 
 ## Acceptance criteria
@@ -34,4 +34,4 @@ This is integration verification, not permission to postpone earlier task tests.
 
 ## Implementation record
 
-Not started. Record date, commands/results, and deviations when implemented.
+In progress — October 7, 2026. D03's deployed synthetic inbox, setup resume, private document upload/scan, scoped invitation and two-person signing journey passed at `b9c679d`. Closing/funding, final full browser regressions, and disposable-checkout initialization/restart verification are being completed. Separate CI validation remains paused by the user's explicit decision; this is an agreed deviation from the original T22 CI scope, not a missing implementation task.

@@ -22,6 +22,8 @@ import { type FormEvent, useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router";
 import { ApiError, formatAmount, useStaffApi } from "./api";
 import { ApplicationChecks } from "./checks";
+import { ApplicationClosing } from "./closing";
+import { StaffActivity, StaffOperations } from "./diagnostics";
 import { ApplicationDocuments } from "./documents";
 import { PrefillForm } from "./forms";
 import { ApplicationParticipants } from "./participants";
@@ -45,6 +47,9 @@ const tabs = {
   documents: "Documents",
   checks: "Checks",
   review: "Review",
+  closing: "Closing",
+  activity: "Activity",
+  operations: "Operations",
   signatures: "Signatures",
   notes: "Internal notes",
 };
@@ -257,6 +262,9 @@ export function ApplicationDetail() {
             {selected === "participants" && (
               <ApplicationParticipants key={data.id} applicationId={data.id} />
             )}
+            {selected === "activity" && <StaffActivity key={data.id} applicationId={data.id} />}
+            {selected === "operations" && <StaffOperations key={data.id} applicationId={data.id} />}
+            {selected === "closing" && <ApplicationClosing key={data.id} applicationId={data.id} />}
             {selected === "review" && <ApplicationReview key={data.id} applicationId={data.id} />}
             {selected === "tasks" && <ApplicationTasks key={data.id} applicationId={data.id} />}
             {selected === "documents" && (

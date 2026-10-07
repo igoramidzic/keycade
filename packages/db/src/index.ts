@@ -2,6 +2,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import * as authSchema from "./auth-schema.js";
 import * as checkSchema from "./check-schema.js";
+import * as closingSchema from "./closing-schema.js";
 import * as demoInboxSchema from "./demo-inbox-schema.js";
 import * as documentProcessingSchema from "./document-processing-schema.js";
 import * as documentSchema from "./document-schema.js";
@@ -13,6 +14,7 @@ import * as signatureSchema from "./signature-schema.js";
 import * as taskSchema from "./task-schema.js";
 
 const schema = {
+  ...closingSchema,
   ...demoInboxSchema,
   ...reviewSchema,
   ...signatureSchema,
@@ -43,6 +45,7 @@ export type DatabaseTransaction = Parameters<Parameters<Database["transaction"]>
 
 export * from "./auth-schema.js";
 export * from "./check-schema.js";
+export * from "./closing-schema.js";
 export * from "./demo-inbox-schema.js";
 export * from "./document-processing-schema.js";
 export * from "./document-schema.js";

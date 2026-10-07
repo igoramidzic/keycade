@@ -1,4 +1,4 @@
-import { createDatabase } from "@keycade/db";
+import { createDatabase, workerHeartbeats } from "@keycade/db";
 import { assertWorkerSchemaReady } from "@keycade/db/cloudflare";
 import {
   createDemoInboxCipher,
@@ -229,6 +229,11 @@ export default {
     try {
       await dispatch(db, env);
       await enqueueFamilies(env, true);
+      const now = new Date();
+      await db
+        .insert(workerHeartbeats)
+        .values({ workerId: "cloudflare-scheduler", seenAt: now, startedAt: now })
+        .onConflictDoUpdate({ target: workerHeartbeats.workerId, set: { seenAt: now } });
     } catch {
       console.warn("Job dispatch failed; durable outbox retained for recovery.");
       throw new Error("Job dispatch failed.");

@@ -111,7 +111,10 @@ export const staffSessionSchema = z.object({
 export const logoutResponseSchema = z.object({ ok: z.literal(true) });
 export type AuthSession = z.infer<typeof authSessionSchema>;
 export type AuthPortal = z.infer<typeof authPortalSchema>;
+export * from "./activity.js";
 export * from "./checks.js";
+export * from "./closing.js";
 export * from "./notifications.js";
+export * from "./operations.js";
 export * from "./review.js";
 export * from "./tasks.js";

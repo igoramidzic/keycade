@@ -54,6 +54,7 @@ export function ApplicationTasks({ applicationId }: { applicationId: string }) {
     <div className="space-y-5">
       {tasks.error && <ErrorNotice error={tasks.error} onRetry={() => void tasks.refetch()} />}
       <TasksManager
+        initialTaskId={new URLSearchParams(window.location.search).get("task")}
         data={tasks.data}
         signatureHref={(envelopeId) =>
           `/applications/${applicationId}/signatures${window.location.search}${envelopeId ? `#envelope-${envelopeId}` : ""}`

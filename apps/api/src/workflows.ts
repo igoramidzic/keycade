@@ -1,18 +1,25 @@
 import {
+  activityQuerySchema,
+  activityViewSchema,
   applicationParamsSchema,
   approveApplicationSchema,
   authorizeTaskTaxSchema,
   bankParamsSchema,
   captureTaskIdentifierSchema,
   checksViewSchema,
+  closingViewSchema,
   createSignatureEnvelopeSchema,
   declineApplicationSchema,
   demoInboxMessageSchema,
   demoInboxViewSchema,
   errorSchema,
+  fundedAccountsViewSchema,
   notificationPreferenceSchema,
   notificationsViewSchema,
+  operationCommandSchema,
+  operationsViewSchema,
   readinessViewSchema,
+  recordFundingSchema,
   requestInformationSchema,
   resolveCheckSchema,
   retryCheckSchema,
@@ -20,6 +27,7 @@ import {
   signatureActionSchema,
   signatureEventSchema,
   signaturesViewSchema,
+  startClosingSchema,
   startReviewSchema,
   submitApplicationSchema,
   tasksViewSchema,
@@ -29,11 +37,14 @@ import { type Database, signatureEnvelopes } from "@keycade/db";
 import {
   type Actor,
   applyVerifiedSignatureEvent,
+  createActivityService,
   createChecksService,
+  createClosingService,
   createDemoInboxCipher,
   createDemoInboxService,
   createIdentifierCipher,
   createNotificationsService,
+  createOperationsService,
   createReadinessService,
   createReviewService,
   createSignaturesService,
@@ -50,6 +61,7 @@ type Route = {
   path: string;
   params: z.ZodType<Params>;
   body?: z.ZodType;
+  query?: z.ZodObject;
   response: z.ZodType;
   download?: boolean;
   handle(context: Context): Promise<unknown>;
@@ -81,12 +93,76 @@ export function createWorkflowTransport(
   const signatures = createSignaturesService(db);
   const notifications = createNotificationsService(db);
   const review = createReviewService(db);
+  const closing = createClosingService(db);
+  const activity = createActivityService(db);
+  const operations = () => {
+    if (!options.encryptionKey)
+      throw new DomainError("ENRICHMENT_UNAVAILABLE", 503, "Synthetic operations are unavailable.");
+    return createOperationsService(db, { cipher: createIdentifierCipher(options.encryptionKey) });
+  };
   const inbox = () => {
     if (!options.demoInboxEnabled || !options.encryptionKey)
       throw new DomainError("NOT_FOUND", 404, "Resource not found.");
     return createDemoInboxService(db, { cipher: createDemoInboxCipher(options.encryptionKey) });
   };
   const routes: Route[] = [
+    {
+      method: "GET",
+      path: `${bankBase}/accounts`,
+      params: bankParamsSchema,
+      response: fundedAccountsViewSchema,
+      handle: ({ actor, params: p }) => closing.listAccounts(actor, p.bankId),
+    },
+    {
+      method: "GET",
+      path: `${base}/closing`,
+      params: applicationParamsSchema,
+      response: closingViewSchema,
+      handle: ({ actor, params: p }) => closing.read(actor, p.bankId, scope(p).applicationId),
+    },
+    {
+      method: "POST",
+      path: `${base}/closing/start`,
+      params: applicationParamsSchema,
+      body: startClosingSchema,
+      response: closingViewSchema,
+      handle: ({ actor, params: p, input, requestId }) =>
+        closing.startClosing(actor, p.bankId, scope(p).applicationId, input, requestId),
+    },
+    {
+      method: "POST",
+      path: `${base}/closing/fund`,
+      params: applicationParamsSchema,
+      body: recordFundingSchema,
+      response: closingViewSchema,
+      handle: ({ actor, params: p, input, requestId }) =>
+        closing.recordFunding(actor, p.bankId, scope(p).applicationId, input, requestId),
+    },
+    {
+      method: "GET",
+      path: `${base}/activity`,
+      params: applicationParamsSchema,
+      query: activityQuerySchema,
+      response: activityViewSchema,
+      handle: ({ actor, params: p, input }) =>
+        activity.list(actor, p.bankId, scope(p).applicationId, input),
+    },
+    {
+      method: "GET",
+      path: `${base}/operations`,
+      params: applicationParamsSchema,
+      response: operationsViewSchema,
+      handle: ({ actor, params: p }) => operations().read(actor, p.bankId, scope(p).applicationId),
+    },
+    {
+      method: "POST",
+      path: `${base}/operations/actions`,
+      params: applicationParamsSchema,
+      body: operationCommandSchema,
+      response: operationsViewSchema,
+      handle: ({ actor, params: p, input, requestId }) =>
+        operations().act(actor, p.bankId, scope(p).applicationId, input, requestId),
+    },
     {
       method: "GET",
       path: `${bankBase}/demo-inbox`,
@@ -361,7 +437,15 @@ export function workflowOpenApi(routes: Route[]) {
     }));
     paths[path] ??= {};
     paths[path][route.method.toLowerCase()] = {
-      parameters,
+      parameters: [
+        ...parameters,
+        ...Object.entries(route.query?.shape ?? {}).map(([name, schema]) => ({
+          name,
+          in: "query",
+          required: false,
+          schema: z.toJSONSchema(schema as z.ZodType, { io: "input" }),
+        })),
+      ],
       ...(route.body
         ? {
             requestBody: {

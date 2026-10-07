@@ -15,6 +15,7 @@ import {
   applicationTasks,
   auditEvents,
   businessRelationships,
+  closingConditions,
   type Database,
   type DatabaseTransaction,
   documents,
@@ -37,6 +38,7 @@ import {
   requireApplicantPortalAccess,
 } from "./authorization.js";
 import { hydrateSecureTaskInputs, reconcileChecks } from "./checks.js";
+import { requireNonClosingSignatureTask } from "./closing-policy.js";
 import { DomainError, deny } from "./errors.js";
 import { hashIdentityCredential } from "./identity.js";
 import { queueTaskNotification, recordApplicantActivity } from "./notification-intents.js";
@@ -520,6 +522,13 @@ export function createTasksService(
       .select()
       .from(taskSignaturePolicies)
       .where(inArray(taskSignaturePolicies.taskId, taskIds));
+    const pendingClosingSignatures = await tx
+      .select({ taskId: closingConditions.taskId })
+      .from(closingConditions)
+      .where(
+        and(inArray(closingConditions.taskId, taskIds), eq(closingConditions.kind, "signature")),
+      );
+    const closingSignatureIds = new Set(pendingClosingSignatures.map((c) => c.taskId));
     const signaturesByTask = new Map(
       signaturePolicies.map((policy) => [policy.taskId, policy.envelopeId]),
     );
@@ -576,11 +585,16 @@ export function createTasksService(
       const signatureEnvelopeId = signaturesByTask.get(task.id) ?? null;
       return taskViewSchema.parse({
         ...summary(access, task, status, !blockedTasks.has(task.id)),
-        inputKind: signatureEnvelopeId ? "signature" : (secure?.inputKind ?? "answer"),
+        inputKind:
+          signatureEnvelopeId || closingSignatureIds.has(task.id)
+            ? "signature"
+            : (secure?.inputKind ?? "answer"),
         signatureEnvelopeId,
         secureInput: secure?.secureInput ?? null,
         ...(secure ? { canEdit: false, canSubmit: false, canReview: false } : {}),
-        ...(signatureEnvelopeId ? { canEdit: false, canSubmit: false, canReview: false } : {}),
+        ...(signatureEnvelopeId || closingSignatureIds.has(task.id)
+          ? { canEdit: false, canSubmit: false, canReview: false }
+          : {}),
         answer: history[0]?.answer ?? null,
         answers: history.map((x) => ({ ...x, createdAt: x.createdAt.toISOString() })),
         reviews: (reviewsByTask.get(task.id) ?? []).map((x) => ({
@@ -795,6 +809,7 @@ export function createTasksService(
       } else if (!hasCurrentAssignment(access, task)) return deny();
       if (operation !== "assign") {
         await requireNonSignatureTask(tx, task.id);
+        await requireNonClosingSignatureTask(tx, task.id);
         if (task.stableKey.startsWith("check-input:"))
           invalid("Use the private identifier or authorization action for this task.");
       }

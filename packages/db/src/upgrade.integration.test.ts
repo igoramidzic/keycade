@@ -8,6 +8,95 @@ import { assertSchemaReady, migrateDatabase, migrationsFolder } from "./migrate.
 import { seedIds } from "./seed.js";
 import { createTestDatabase } from "./testing.js";
 
+it("adds closing policies to every existing synthetic business-credit version without changing applications", async () => {
+  const folder = await mkdtemp(join(tmpdir(), "keycade-before-closing-"));
+  const database = await createTestDatabase(undefined, { migrate: false });
+  try {
+    const journal = JSON.parse(
+      await readFile(join(migrationsFolder, "meta/_journal.json"), "utf8"),
+    ) as { entries: { idx: number; tag: string }[] };
+    const closingMigration = journal.entries.find((entry) => entry.idx === 19);
+    if (!closingMigration) throw new Error("Expected additive closing migration.");
+    journal.entries = journal.entries.filter((entry) => entry.idx < 19);
+    await mkdir(join(folder, "meta"));
+    await writeFile(join(folder, "meta/_journal.json"), JSON.stringify(journal));
+    await Promise.all(
+      journal.entries.map((entry) =>
+        copyFile(join(migrationsFolder, `${entry.tag}.sql`), join(folder, `${entry.tag}.sql`)),
+      ),
+    );
+    await migrate(database.db, { migrationsFolder: folder });
+    await seedHistoricalDatabase(database);
+    const secondVersion = randomUUID(),
+      thirdVersion = randomUUID();
+    await database.pool.query(
+      `INSERT INTO loan_products (id, bank_id, slug, name, version, minimum_amount, maximum_amount, active, synthetic)
+       VALUES ($1,$3,'business-credit','Synthetic prior product version',2,10000,7500000,false,true),
+              ($2,$3,'business-credit','Synthetic current product version',3,10000,7500000,true,true),
+              ($4,$3,'business-credit','Non-synthetic control product',4,10000,7500000,true,false),
+              ($5,$3,'other-credit','Synthetic unrelated product',1,10000,7500000,true,true)`,
+      [secondVersion, thirdVersion, seedIds.bankA, randomUUID(), randomUUID()],
+    );
+    await database.pool.query(
+      "UPDATE applications SET status = 'approved', revision = 8 WHERE id = $1",
+      [seedIds.applicationSmall],
+    );
+    await database.pool.query(
+      "UPDATE applications SET status = 'funded', revision = 11 WHERE id = $1",
+      [seedIds.applicationOtherBank],
+    );
+    const readApplications = () => database.pool.query("SELECT * FROM applications ORDER BY id");
+    const readSetups = () =>
+      database.pool.query("SELECT * FROM application_setups ORDER BY application_id");
+    const beforeApplications = (await readApplications()).rows;
+    const beforeSetups = (await readSetups()).rows;
+    const beforeProducts = (await database.pool.query("SELECT * FROM loan_products ORDER BY id"))
+      .rows;
+    await migrateDatabase(database.connectionString);
+    await assertSchemaReady(database.connectionString);
+    const policies = (
+      await database.pool.query("SELECT * FROM product_closing_policies ORDER BY product_id")
+    ).rows;
+    expect(policies.map((policy) => policy.product_id).sort()).toEqual(
+      [seedIds.productA, seedIds.productB, secondVersion, thirdVersion].sort(),
+    );
+    for (const policy of policies) {
+      expect(policy).toMatchObject({ version: 1, amount_policy: "exact_approved_amount" });
+      expect(policy.conditions).toEqual([
+        expect.objectContaining({ key: "funding-confirmation", kind: "task", required: true }),
+        expect.objectContaining({ key: "closing-agreement", kind: "signature", required: true }),
+      ]);
+    }
+    expect((await readApplications()).rows).toEqual(beforeApplications);
+    expect((await readSetups()).rows).toEqual(beforeSetups);
+    expect((await database.pool.query("SELECT * FROM loan_products ORDER BY id")).rows).toEqual(
+      beforeProducts,
+    );
+    for (const table of [
+      "application_closing_packages",
+      "closing_conditions",
+      "funding_records",
+      "loan_accounts",
+    ])
+      expect((await database.pool.query(`SELECT * FROM ${table}`)).rows).toEqual([]);
+    await migrateDatabase(database.connectionString);
+    // The fixture bootstrap itself is also repeatable, beyond the migrator's journal no-op.
+    const sql = await readFile(join(migrationsFolder, `${closingMigration.tag}.sql`), "utf8");
+    const insertAt = sql.indexOf('INSERT INTO "product_closing_policies"');
+    if (insertAt < 0) throw new Error("Expected closing policy bootstrap.");
+    await database.pool.query(sql.slice(insertAt));
+    expect(
+      (await database.pool.query("SELECT * FROM product_closing_policies ORDER BY product_id"))
+        .rows,
+    ).toEqual(policies);
+    expect((await readApplications()).rows).toEqual(beforeApplications);
+    expect((await readSetups()).rows).toEqual(beforeSetups);
+  } finally {
+    await database.cleanup();
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
 // Deliberately use only the SQL columns present in migration 0004. Importing the current
 // ORM/seed would silently couple historical fixtures to later schema additions.
 async function seedHistoricalDatabase(database: Awaited<ReturnType<typeof createTestDatabase>>) {

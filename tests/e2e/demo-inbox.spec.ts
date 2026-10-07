@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { readEnvironment } from "@keycade/config/server";
 import { expect, type Page, test } from "@playwright/test";
+import { paceHostedRequests } from "./hosted-helpers";
 import { messages } from "./identity-helpers";
 
 const env = readEnvironment();
@@ -10,8 +11,11 @@ const hosted = env.KEYCADE_E2E_HOSTED === "true";
 
 // Confirmation credentials stay inside the browser; never retain auth/network artifacts.
 test.use({ trace: "off", screenshot: "off", video: "off", actionTimeout: 15_000 });
-test.setTimeout(75_000);
+test.setTimeout(hosted ? 180_000 : 75_000);
 test.skip(env.DEMO_INBOX_ENABLED !== "true", "Private simulated inbox delivery is opt-in locally.");
+test.beforeEach(async ({ context }) => {
+  if (hosted) await paceHostedRequests(context);
+});
 
 async function requestEmail(page: Page, email: string, action = "Send sign-in link") {
   await page.getByLabel("Email address", { exact: true }).fill(email);
@@ -193,6 +197,11 @@ test("known synthetic staff confirms through its own demo inbox", async ({ page 
     .first();
   await expect(used).toContainText("Used");
   await used.click();
+  await expect(
+    page
+      .getByRole("region", { name: "Selected simulated message" })
+      .getByText("This confirmation link is no longer available.", { exact: false }),
+  ).toBeVisible();
   await expect(page.getByRole("button", { name: "Open confirmation", exact: true })).toHaveCount(0);
 });
 

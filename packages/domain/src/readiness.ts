@@ -23,6 +23,7 @@ import {
   requireApplicantPortalAccess,
 } from "./authorization.js";
 import { checkIsVisible, checkPasses, currentCheckInputs, lockCheckApplication } from "./checks.js";
+import { closingRequirementBlockers } from "./closing-policy.js";
 import { deny } from "./errors.js";
 import { signatureTaskEvidenceCurrent } from "./signatures.js";
 import { taskPasses, taskStages } from "./task-rules.js";
@@ -240,6 +241,21 @@ export async function evaluateReadiness(
             ? `check_${current.run.status}`
             : "check_stale_or_missing",
       );
+  }
+  if (app.status === "closing") {
+    const closingBlockers = await closingRequirementBlockers(tx, app.bankId, app.id);
+    blockers.push(
+      ...closingBlockers.filter(
+        (blocker) =>
+          !blockers.some((existing) => existing.kind === "task" && existing.id === blocker.id) &&
+          (!visibility ||
+            blocker.kind !== "task" ||
+            tasks.some(
+              (task) =>
+                task.id === blocker.id && taskIsVisible(visibility.actor, visibility.access, task),
+            )),
+      ),
+    );
   }
   const gates = taskStages.map((stage) => ({
     stage,

@@ -22,7 +22,10 @@ import type {
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router";
+import { AccountList } from "./accounts";
+import { ApplicationActivity } from "./activity";
 import { ApiError, formatAmount, request } from "./api";
+import { ApplicationClosing } from "./closing";
 import { ApplicationDocuments } from "./documents";
 import { ApplicationPeople } from "./participants";
 import { ApplicationReadiness } from "./readiness";
@@ -57,8 +60,7 @@ const statusDescriptions: Record<ApplicationSelection["status"], string> = {
   declined: "This application was declined. You can return to your other applications.",
   closing:
     "Your application is in closing. Review available tasks for remaining closing requirements.",
-  funded:
-    "Funding has been recorded for this application. Account details are not available in this demo yet.",
+  funded: "Simulated funding has been recorded. View Closing for the funded account summary.",
   withdrawn: "This application was withdrawn. You can return to your other applications.",
 };
 const setupSteps: Record<ApplicationSelection["currentStep"], string> = {
@@ -288,12 +290,7 @@ export function ApplicationList({
       >
         Start a new application
       </Link>
-      <section aria-label="Funded accounts" className="pt-5">
-        <h2 className="font-semibold">Funded accounts</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Funded account details are not available in this demo yet.
-        </p>
-      </section>
+      {list.data && !list.error && <AccountList session={session} />}
     </section>
   );
 }
@@ -375,7 +372,8 @@ export function ApplicationRoute({
         </p>
       </div>
     );
-  if (data.nextDestination === "closed") return <ClosedApplication data={data} session={session} />;
+  if (data.nextDestination === "closed" && data.status !== "funded")
+    return <ClosedApplication data={data} session={session} />;
   return (
     <ApplicationPortal
       key={`${session.bank.id}:${session.user.email}:${applicationId}`}
@@ -428,15 +426,10 @@ const views = [
   "Documents",
   "Signatures",
   "Review",
+  "Closing",
   "People",
   "Activity",
 ] as const;
-const emptyViews = {
-  activity: [
-    "Activity is not available yet",
-    "An application activity feed is not enabled in this demo yet.",
-  ],
-} as const;
 function ApplicationPortal({
   session,
   applicationId,
@@ -488,10 +481,10 @@ function ApplicationPortal({
   }
   const data = detail.data;
   if (!data) return null;
-  if (data.nextDestination === "closed") return <ClosedApplication data={data} session={session} />;
+  if (data.nextDestination === "closed" && data.status !== "funded")
+    return <ClosedApplication data={data} session={session} />;
   const limited = data.accessScope === "assigned";
   const active = view || "overview";
-  const empty = emptyViews[active as keyof typeof emptyViews];
   return (
     <section className="space-y-6">
       {back}
@@ -507,7 +500,16 @@ function ApplicationPortal({
       </header>
       <nav aria-label="Application sections" className="flex flex-wrap gap-1">
         {views
-          .filter((label) => label !== "Review" || (review.data && !review.error))
+          .filter((label) => {
+            if (label === "Review") return review.data && !review.error;
+            if (label === "Closing")
+              return (
+                review.data &&
+                !review.error &&
+                ["approved", "closing", "funded"].includes(data.status)
+              );
+            return true;
+          })
           .map((label) => {
             const key = label.toLowerCase();
             return (
@@ -570,6 +572,15 @@ function ApplicationPortal({
                     <Badge variant="secondary">Initial setup complete</Badge>
                   )}
                 </div>
+                {review.data &&
+                  !review.error &&
+                  ["approved", "closing", "funded"].includes(data.status) && (
+                    <Link to={path("closing")} className={buttonVariants({ variant: "outline" })}>
+                      {data.status === "funded"
+                        ? "View funded account"
+                        : "View closing requirements"}
+                    </Link>
+                  )}
                 <p className="text-xs text-muted-foreground">
                   Updated <UpdatedAt value={data.updatedAt} />
                 </p>
@@ -595,6 +606,8 @@ function ApplicationPortal({
             </section>
           </aside>
         </div>
+      ) : active === "closing" ? (
+        <ApplicationClosing session={session} applicationId={applicationId} />
       ) : active === "review" ? (
         <ApplicationReview session={session} applicationId={applicationId} />
       ) : active === "people" ? (
@@ -603,22 +616,8 @@ function ApplicationPortal({
         <ApplicationDocuments session={session} applicationId={applicationId} />
       ) : active === "signatures" ? (
         <ApplicationSignatures session={session} applicationId={applicationId} />
-      ) : empty ? (
-        <Card className="shadow-sm ring-0">
-          <CardHeader>
-            <CardTitle>
-              <h2>{views.find((label) => label.toLowerCase() === active)}</h2>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <h3 className="font-medium">{empty[0]}</h3>
-            <p className="text-sm leading-6 text-muted-foreground">
-              {limited
-                ? "Only your explicitly permitted information will appear here. This feature is not enabled in the demo yet."
-                : empty[1]}
-            </p>
-          </CardContent>
-        </Card>
+      ) : active === "activity" ? (
+        <ApplicationActivity session={session} applicationId={applicationId} />
       ) : (
         <Card className="shadow-sm ring-0">
           <CardHeader>
