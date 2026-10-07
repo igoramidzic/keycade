@@ -15,7 +15,6 @@ declare const __KEYCADE_PUBLIC__: { borrowerUrl: string; bankConsoleUrl: string 
 
 const applyUrl = new URL("/apply", __KEYCADE_PUBLIC__.borrowerUrl);
 applyUrl.searchParams.set("bank", "bank-a");
-applyUrl.searchParams.set("product", "business-credit");
 const resumeUrl = new URL("/", __KEYCADE_PUBLIC__.borrowerUrl);
 resumeUrl.searchParams.set("bank", "bank-a");
 

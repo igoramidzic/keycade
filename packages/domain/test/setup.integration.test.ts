@@ -120,7 +120,7 @@ async function ready(actor: Actor, applicationId: string, revision: number) {
     {
       step: "business_name",
       answers: { businessName: "Synthetic Workshop" },
-      currentStep: "product",
+      currentStep: "amount",
     },
     { step: "product", answers: { productId: ids.productA }, currentStep: "amount" },
     { step: "amount", answers: { requestedAmount: "5000000.00" }, currentStep: "purpose" },
@@ -174,6 +174,7 @@ describe("real PostgreSQL email-first application creation and resume", () => {
       status: "draft",
       createdByUserId: null,
       requestedAmount: null,
+      productId: ids.productA,
     });
     expect(setup).toMatchObject({
       definitionVersion: 1,
@@ -401,7 +402,7 @@ describe("real PostgreSQL email-first application creation and resume", () => {
         expectedRevision: claimed.revision,
         answers: { businessName: "Synthetic saved from an earlier device" },
         step: "business_name",
-        currentStep: "product",
+        currentStep: "amount",
       },
       randomUUID(),
     );
@@ -569,81 +570,56 @@ describe("real PostgreSQL authenticated creation and setup", () => {
     expect((await create(actor, { productId: ids.productA })).id).not.toBe(results[0]?.id);
   });
 
-  it("returns the selected product version after authorization when the catalog advances or retires it", async () => {
+  it("keeps the assigned product version when a newer version becomes the default", async () => {
     const { actor } = await verifiedApplicant();
     const { actor: stranger } = await verifiedApplicant();
-    expect((await create(actor)).selectedProduct).toBeNull();
-    const slug = `versioned-${randomUUID()}`;
-    const [original] = await database.db
+    const draft = await create(actor);
+    expect(draft.productId).toBe(ids.productA);
+    expect(draft.selectedProduct?.slug).toBe("business-credit");
+    const [replacement] = await database.db
       .insert(loanProducts)
       .values({
         bankId: ids.bankA,
-        slug,
-        name: "Synthetic original financing",
-        version: 1,
+        slug: "business-credit",
+        name: "Synthetic Business Credit",
+        version: 2,
         minimumAmount: "10000.00",
         maximumAmount: "7500000.00",
         synthetic: true,
       })
       .returning();
-    if (!original) throw new Error("Expected original synthetic product.");
-    const draft = await create(actor, { productId: original.id });
-    const descriptor = {
-      id: original.id,
-      slug,
-      name: original.name,
-      version: 1,
-      minimumAmount: "10000.00",
-      maximumAmount: "7500000.00",
-      currency: "USD",
-      active: true,
-    };
-    expect(draft.selectedProduct).toEqual(descriptor);
-    const [replacement] = await database.db
-      .insert(loanProducts)
-      .values({
-        bankId: ids.bankA,
-        slug,
-        name: "Synthetic revised financing",
-        version: 2,
-        minimumAmount: "50000.00",
-        maximumAmount: "5000000.00",
-        synthetic: true,
-      })
-      .returning();
-    if (!replacement) throw new Error("Expected replacement synthetic product.");
-    const catalog = await readPublicIntake(database.db, { bankSlug: "bank-a" });
-    expect(catalog.products.filter((item) => item.slug === slug).map((item) => item.id)).toEqual([
-      replacement.id,
-    ]);
-    expect((await service().readSetup(actor, ids.bankA, draft.id)).selectedProduct).toEqual(
-      descriptor,
-    );
-    const saved = await service().saveSetup(
-      actor,
-      ids.bankA,
-      draft.id,
-      {
-        expectedRevision: draft.revision,
-        answers: { requestedAmount: "7500000.00" },
-        step: "amount",
-        currentStep: "purpose",
-      },
-      randomUUID(),
-    );
-    expect(saved.selectedProduct).toEqual(descriptor);
-    await database.db
-      .update(loanProducts)
-      .set({ active: false })
-      .where(eq(loanProducts.id, original.id));
-    expect((await service().readSetup(actor, ids.bankA, draft.id)).selectedProduct).toEqual({
-      ...descriptor,
-      active: false,
-    });
-    await expect(service().readSetup(stranger, ids.bankA, draft.id)).rejects.toMatchObject(
-      notFound,
-    );
-    await expect(service().readSetup(actor, ids.bankB, draft.id)).rejects.toMatchObject(notFound);
+    if (!replacement) throw new Error("Expected synthetic product version.");
+    try {
+      expect((await create(actor)).productId).toBe(replacement.id);
+      expect((await service().readSetup(actor, ids.bankA, draft.id)).selectedProduct).toEqual(
+        draft.selectedProduct,
+      );
+      expect(
+        (await readPublicIntake(database.db, { bankSlug: "bank-a" })).products.map((p) => p.id),
+      ).toEqual([replacement.id]);
+      await expect(
+        service().saveSetup(
+          actor,
+          ids.bankA,
+          draft.id,
+          {
+            expectedRevision: draft.revision,
+            answers: { productId: replacement.id },
+            currentStep: "amount",
+          },
+          randomUUID(),
+        ),
+      ).rejects.toMatchObject({ code: "INVALID_INPUT" });
+      await expect(service().readSetup(stranger, ids.bankA, draft.id)).rejects.toMatchObject(
+        notFound,
+      );
+      await expect(service().readSetup(actor, ids.bankB, draft.id)).rejects.toMatchObject(notFound);
+    } finally {
+      await database.db
+        .update(loanProducts)
+        .set({ active: false })
+        .where(eq(loanProducts.id, replacement.id));
+    }
   });
 
   it("stores exact decimal-string amounts using product configuration and rejects malformed or out-of-range amounts", async () => {
@@ -684,179 +660,61 @@ describe("real PostgreSQL authenticated creation and setup", () => {
     }
   });
 
-  it("lets a retired product return to selection without allowing answer changes or completion until revalidated", async () => {
+  it("assigns only Synthetic Business Credit and rejects switching it for borrowers and staff", async () => {
     const { actor } = await verifiedApplicant();
-    const slug = `retired-${randomUUID()}`;
-    const [original, replacement] = await database.db
+    const draft = await create(actor);
+    expect(draft).toMatchObject({
+      productId: ids.productA,
+      selectedProduct: { slug: "business-credit", name: "Synthetic Business Credit" },
+    });
+    const [other] = await database.db
       .insert(loanProducts)
-      .values([
-        {
-          bankId: ids.bankA,
-          slug,
-          name: "Synthetic retired financing",
-          version: 1,
-          minimumAmount: "10000.00",
-          maximumAmount: "7500000.00",
-          synthetic: true,
-        },
-        {
-          bankId: ids.bankA,
-          slug,
-          name: "Synthetic replacement financing",
-          version: 2,
-          minimumAmount: "10000.00",
-          maximumAmount: "1000000.00",
-          synthetic: true,
-        },
-      ])
+      .values({
+        bankId: ids.bankA,
+        slug: `other-${randomUUID()}`,
+        name: "Synthetic other product",
+        minimumAmount: "10000.00",
+        maximumAmount: "1000000.00",
+        synthetic: true,
+      })
       .returning();
-    if (!original || !replacement) throw new Error("Expected synthetic product versions.");
-    const draft = await create(actor, { productId: original.id });
-    const reviewed = await service().saveSetup(
+    if (!other) throw new Error("Expected product fixture.");
+    await expect(create(actor, { productId: other.id })).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+    });
+    await expect(create(actor, { productId: ids.productB })).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+    });
+    for (const editor of [actor, { kind: "user", userId: ids.officerA } as Actor]) {
+      await expect(
+        service().saveSetup(
+          editor,
+          ids.bankA,
+          draft.id,
+          {
+            expectedRevision: draft.revision,
+            answers: { productId: other.id },
+            currentStep: "amount",
+          },
+          randomUUID(),
+        ),
+      ).rejects.toMatchObject({ code: "INVALID_INPUT" });
+    }
+    expect(await service().readSetup(actor, ids.bankA, draft.id)).toEqual(draft);
+    // Older clients can repeat the fixed ID; the removed question never becomes a destination.
+    const saved = await service().saveSetup(
       actor,
       ids.bankA,
       draft.id,
       {
         expectedRevision: draft.revision,
-        answers: {
-          businessName: "Synthetic recovery workshop",
-          requestedAmount: "5000000.00",
-          purpose: "Synthetic expansion",
-        },
-        step: "amount",
-        currentStep: "review",
+        answers: { productId: ids.productA },
+        currentStep: "product",
       },
       randomUUID(),
     );
-    await database.db
-      .update(loanProducts)
-      .set({ active: false })
-      .where(eq(loanProducts.id, original.id));
-    const navigate = {
-      expectedRevision: reviewed.revision,
-      answers: {},
-      currentStep: "product",
-    };
-    for (const invalid of [
-      { ...navigate, answers: { businessName: "Unconfirmed edit" } },
-      { ...navigate, step: "product" },
-      { ...navigate, skip: false },
-    ])
-      await expect(
-        service().saveSetup(actor, ids.bankA, draft.id, invalid, randomUUID()),
-      ).rejects.toMatchObject({ code: "INVALID_INPUT" });
-    await expect(
-      service().finishSetup(
-        actor,
-        ids.bankA,
-        draft.id,
-        { expectedRevision: reviewed.revision, idempotencyKey: randomUUID() },
-        randomUUID(),
-      ),
-    ).rejects.toMatchObject({ code: "INVALID_INPUT" });
-    const selecting = await service().saveSetup(actor, ids.bankA, draft.id, navigate, randomUUID());
-    expect(selecting).toMatchObject({
-      currentStep: "product",
-      revision: reviewed.revision + 1,
-      requestedAmount: "5000000.00",
-      productId: original.id,
-      businessName: reviewed.businessName,
-      purpose: reviewed.purpose,
-      completedSteps: reviewed.completedSteps,
-      selectedProduct: { active: false },
-    });
-    const changed = await service().saveSetup(
-      actor,
-      ids.bankA,
-      draft.id,
-      {
-        expectedRevision: selecting.revision,
-        answers: { productId: replacement.id },
-        step: "product",
-        currentStep: "review",
-      },
-      randomUUID(),
-    );
-    expect(changed).toMatchObject({ currentStep: "amount", requestedAmount: "5000000.00" });
-    expect(changed.completedSteps).not.toContain("amount");
-    const amount = {
-      expectedRevision: changed.revision,
-      answers: { requestedAmount: "5000000.00" },
-      step: "amount",
-      currentStep: "review",
-    };
-    await expect(
-      service().saveSetup(actor, ids.bankA, draft.id, amount, randomUUID()),
-    ).rejects.toMatchObject({ code: "INVALID_INPUT" });
-    await expect(
-      service().finishSetup(
-        actor,
-        ids.bankA,
-        draft.id,
-        { expectedRevision: changed.revision, idempotencyKey: randomUUID() },
-        randomUUID(),
-      ),
-    ).rejects.toMatchObject({ code: "INVALID_INPUT" });
-    const corrected = await service().saveSetup(
-      actor,
-      ids.bankA,
-      draft.id,
-      { ...amount, answers: { requestedAmount: "1000000.00" } },
-      randomUUID(),
-    );
-    const finished = await service().finishSetup(
-      actor,
-      ids.bankA,
-      draft.id,
-      { expectedRevision: corrected.revision, idempotencyKey: randomUUID() },
-      randomUUID(),
-    );
-    expect(finished).toMatchObject({ nextDestination: "portal", requestedAmount: "1000000.00" });
-  });
-
-  it("invalidates amount validation when the product changes and keeps answer/progress updates atomic", async () => {
-    const { actor } = await verifiedApplicant();
-    const draft = await create(actor);
-    const filled = await ready(actor, draft.id, draft.revision);
-    const [product] = await database.db
-      .insert(loanProducts)
-      .values({
-        bankId: ids.bankA,
-        slug: `lower-limit-${randomUUID()}`,
-        name: "Synthetic lower limit",
-        minimumAmount: "10000",
-        maximumAmount: "1000000",
-        synthetic: true,
-      })
-      .returning();
-    if (!product) throw new Error("Expected configured synthetic product.");
-    const changed = await service().saveSetup(
-      actor,
-      ids.bankA,
-      draft.id,
-      {
-        expectedRevision: filled.revision,
-        answers: { productId: product.id },
-        step: "product",
-        currentStep: "amount",
-      },
-      randomUUID(),
-    );
-    expect(changed.completedSteps).not.toContain("amount");
-    expect(changed.currentStep).toBe("amount");
-    await expect(
-      service().finishSetup(
-        actor,
-        ids.bankA,
-        draft.id,
-        {
-          expectedRevision: changed.revision,
-          idempotencyKey: randomUUID(),
-        },
-        randomUUID(),
-      ),
-    ).rejects.toMatchObject({ code: "INVALID_INPUT" });
-    expect(await service().readSetup(actor, ids.bankA, draft.id)).toEqual(changed);
+    expect(saved.currentStep).toBe("amount");
+    expect(saved.productId).toBe(ids.productA);
   });
 
   it("persists explicit optional skips, rejects required skips, and rejects raw identifiers and client completion state", async () => {
@@ -904,7 +762,7 @@ describe("real PostgreSQL authenticated creation and setup", () => {
           answers: {},
           step: "business_name",
           skip: true,
-          currentStep: "product",
+          currentStep: "amount",
         },
         randomUUID(),
       ),
@@ -993,7 +851,7 @@ describe("real PostgreSQL authenticated creation and setup", () => {
             expectedRevision: draft.revision,
             answers: { businessName },
             step: "business_name",
-            currentStep: "product",
+            currentStep: "amount",
           },
           randomUUID(),
         ),
@@ -1081,7 +939,7 @@ describe("real PostgreSQL authenticated creation and setup", () => {
             expectedRevision: draft.revision,
             answers: { businessName: "Must roll back" },
             step: "business_name",
-            currentStep: "product",
+            currentStep: "amount",
           },
           randomUUID(),
         ),

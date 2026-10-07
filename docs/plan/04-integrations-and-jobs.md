@@ -8,7 +8,7 @@ Each call includes a bank/application scope, operation ID, input revision, idemp
 
 | Adapter | Trigger / result | Default demo delay |
 | --- | --- | --- |
-| Industry search | Search a small versioned NAICS fixture; return code/label suggestions or no match. | 0.3–1.5 seconds |
+| Industry search | Search a versioned NAICS catalog with hundreds of entries using code, title, synonyms, and fuzzy descriptions; return code/label suggestions or no match. | 0.3–1.5 seconds |
 | Business enrichment | Supplied business details or identifier; return suggested entity facts requiring confirmation. | 2–5 seconds |
 | Tax verification | Identifier plus configured authorization prerequisite; return available/missing/unable-to-verify sample tax records. | 10–30 seconds |
 | Identity / fraud | Relevant owner/business identifiers complete; return clear/needs-review/unable-to-verify evidence. | 5–20 seconds |
@@ -19,7 +19,7 @@ Each call includes a bank/application scope, operation ID, input revision, idemp
 
 These are illustrative UX delays, not measured vendor service levels. Use per-provider configuration and deterministic jitter. Do not claim a tax ID alone guarantees access to tax records. The tax stub models required inputs and an explicit authorization record without asserting that its demo text satisfies a legal standard.
 
-Industry search is a bounded, read-only local fixture lookup. All longer operations run in the worker; HTTP endpoints acknowledge persisted work immediately. Simulated delays use nonblocking timers. Inject clocks for adapter delays, deadlines, eligibility, and domain scheduling so those tests do not sleep in real time. Real PostgreSQL/pg-boss recovery tests use bounded polling and short test-specific lease/retry timings; a JavaScript fake clock does not advance the database clock.
+Industry search remains read-only. T08 uses a temporary small fixture; T15 adds the searchable combobox and a broad versioned index, with an authoritative dataset/third-party source evaluation. Use deterministic local search for the demo; any optional hosted adapter and credentials remain server-side. All longer operations run in the worker; HTTP endpoints acknowledge persisted work immediately. Simulated delays use nonblocking timers. Inject clocks for adapter delays, deadlines, eligibility, and domain scheduling so those tests do not sleep in real time. Real PostgreSQL/pg-boss recovery tests use bounded polling and short test-specific lease/retry timings; a JavaScript fake clock does not advance the database clock.
 
 ## Scenario controls
 

@@ -2,19 +2,12 @@ import {
   type ApplicationSetup,
   type ApplicationSetupStep,
   applicationSetupSchema,
-  type PublicIntake,
   type SaveApplicationSetup,
   saveApplicationSetupSchema,
 } from "@keycade/contracts";
 import { Alert, AlertDescription, AlertTitle } from "@keycade/ui/components/alert";
 import { Button, buttonVariants } from "@keycade/ui/components/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@keycade/ui/components/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@keycade/ui/components/card";
 import type { AuthenticatedSession } from "@keycade/ui/components/identity-portal";
 import { Input } from "@keycade/ui/components/input";
 import { NativeSelect, NativeSelectOption } from "@keycade/ui/components/native-select";
@@ -38,32 +31,22 @@ const questions = {
   business_name: {
     title: "What is your business called?",
     label: "Business name",
-    help: "Use the business name you would put on an application.",
-  },
-  product: {
-    title: "Which financing product fits your business?",
-    label: "Financing product",
-    help: "Choose from this bank’s available financing products.",
   },
   amount: {
     title: "How much would you like to borrow?",
     label: "Requested amount",
-    help: "Enter an amount in US dollars, for example 10000. No commas or dollar sign needed.",
   },
   purpose: {
     title: "What will you use the financing for?",
     label: "Loan purpose",
-    help: "A short description is enough, such as equipment or business expansion.",
   },
   industry: {
     title: "What industry is your business in?",
     label: "Industry",
-    help: "Optional. Choose a broad description or skip if you’re unsure. These are demo industry options.",
   },
   review: {
     title: "Review your application setup",
     label: "Review",
-    help: "Check your initial answers before finishing setup. You can correct any answer.",
   },
 };
 function fieldValue(data: ApplicationSetup, step: ApplicationSetupStep): string {
@@ -82,7 +65,6 @@ function fieldValue(data: ApplicationSetup, step: ApplicationSetupStep): string 
 export function SetupWizard(props: {
   session: AuthenticatedSession;
   applicationId: string;
-  catalog: PublicIntake;
   refreshSession: () => Promise<void>;
 }) {
   const query = useQuery({
@@ -107,13 +89,11 @@ function WizardForm({
   initial,
   session,
   applicationId,
-  catalog,
   refreshSession,
 }: {
   initial: ApplicationSetup;
   session: AuthenticatedSession;
   applicationId: string;
-  catalog: PublicIntake;
   refreshSession: () => Promise<void>;
 }) {
   const [saved, setSaved] = useState(initial);
@@ -126,21 +106,14 @@ function WizardForm({
   const queryClient = useQueryClient();
   const finishKey = useRef({ revision: 0, key: crypto.randomUUID() });
   const heading = useRef<HTMLHeadingElement>(null);
-  // Keep product available for Back/review corrections, even when supplied by a bank hint.
-  const [showProduct, setShowProduct] = useState(
-    !initial.productId ||
-      initial.currentStep === "product" ||
-      initial.completedSteps.includes("product"),
-  );
   const steps: ApplicationSetupStep[] = [
     "business_name",
-    ...(showProduct ? ["product" as const] : []),
     "amount",
     "purpose",
     "industry",
     "review",
   ];
-  const step = saved.currentStep;
+  const step = saved.currentStep === "product" ? "amount" : saved.currentStep;
   const position = Math.max(0, steps.indexOf(step));
   const question = questions[step];
   const form = useForm<{ value: string }>({
@@ -180,7 +153,6 @@ function WizardForm({
       );
     if (step === "business_name") return { businessName: entered };
     if (step === "purpose") return { purpose: entered };
-    if (step === "product") return { productId: entered };
     if (step === "industry")
       return { industryCode: entered, industryTaxonomyVersion: "NAICS-demo-2022-v1" };
     const amount = decimalAmount(entered);
@@ -197,8 +169,6 @@ function WizardForm({
   function accept(next: ApplicationSetup) {
     setRecoveryNotice(null);
     setSaved(next);
-    if (next.currentStep === "product" || next.completedSteps.includes("product"))
-      setShowProduct(true);
     form.reset({
       value: unsavedAnswer(recoveryKey, next.currentStep) ?? fieldValue(next, next.currentStep),
     });
@@ -207,7 +177,7 @@ function WizardForm({
   }
   async function save(
     target: ApplicationSetupStep,
-    mode: "continue" | "back" | "later" | "skip" | "edit" | "change_product",
+    mode: "continue" | "back" | "later" | "skip" | "edit",
   ) {
     if (busy) return;
     form.clearErrors();
@@ -217,11 +187,9 @@ function WizardForm({
       const raw = {
         expectedRevision: saved.revision,
         answers:
-          mode === "change_product"
-            ? {}
-            : mode === "skip"
-              ? { industryCode: null, industryTaxonomyVersion: null }
-              : answers(mode === "continue"),
+          mode === "skip"
+            ? { industryCode: null, industryTaxonomyVersion: null }
+            : answers(mode === "continue"),
         currentStep: target,
         ...(mode === "continue" && step !== "review" ? { step } : {}),
         ...(mode === "skip" ? { step: "industry" as const, skip: true } : {}),
@@ -246,14 +214,8 @@ function WizardForm({
         bankId: session.bank.id,
         actorEmail: session.user.email,
       });
-      if (mode !== "change_product") rememberAnswer(recoveryKey, step);
+      rememberAnswer(recoveryKey, step);
       accept(next);
-      if (mode === "change_product") {
-        await queryClient.invalidateQueries({ queryKey: ["public-intake", session.bank.slug] });
-        setRecoveryNotice(
-          "Choose an available product. Any unsaved answer to your previous question is kept in this tab for when you return to it.",
-        );
-      }
       if (mode === "later") {
         await queryClient.invalidateQueries({ queryKey: ["applications"] });
         navigate(`/?bank=${encodeURIComponent(session.bank.slug)}`, { state: { saved: true } });
@@ -277,11 +239,11 @@ function WizardForm({
         setLatestValue(fieldValue(latest, step) || "No answer saved");
         setSaved(latest);
       } else {
-        // Honor server dependency resets (such as a product change requiring a new amount).
+        // Honor the server's current step after another device saves.
         // The previous unsaved answer remains available when its question is revisited.
         accept(latest);
         setRecoveryNotice(
-          `Your saved setup moved to ${questions[latest.currentStep].label.toLowerCase()}. Any unsaved ${question.label.toLowerCase()} answer is kept in this tab for when you return to that question.`,
+          `Your saved setup moved to ${questions[latest.currentStep === "product" ? "amount" : latest.currentStep].label.toLowerCase()}. Any unsaved ${question.label.toLowerCase()} answer is kept in this tab for when you return to that question.`,
         );
       }
       setError(null);
@@ -314,6 +276,13 @@ function WizardForm({
     }
   }
   const failedField = form.formState.errors.value?.message;
+  const answerDescription =
+    [
+      step === "amount" && selectedProduct ? "answer-help" : null,
+      failedField ? "answer-error" : null,
+    ]
+      .filter(Boolean)
+      .join(" ") || undefined;
   return (
     <section className="space-y-5">
       <div className="space-y-2">
@@ -329,9 +298,6 @@ function WizardForm({
           value={position + 1}
           max={steps.length}
         />
-        <p className="text-xs text-muted-foreground">
-          This is setup progress, not an approval decision.
-        </p>
       </div>
       <Card>
         <CardHeader>
@@ -344,14 +310,14 @@ function WizardForm({
               {question.title}
             </h1>
           </CardTitle>
-          <CardDescription className="leading-6">{question.help}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {selectedProduct && !selectedProduct.active && (
             <Alert>
-              <AlertTitle>This financing product is no longer available</AlertTitle>
+              <AlertTitle>This financial product is no longer available</AlertTitle>
               <AlertDescription>
-                Change your financing product to continue setup. Your other saved answers are safe.
+                Synthetic Business Credit is currently unavailable. Please contact the bank. Your
+                saved answers are safe.
               </AlertDescription>
             </Alert>
           )}
@@ -366,92 +332,62 @@ function WizardForm({
           >
             {step === "review" ? (
               <dl className="divide-y rounded-lg border px-4">
-                {(["business_name", "product", "amount", "purpose", "industry"] as const).map(
-                  (key) => (
-                    <div key={key} className="flex items-start justify-between gap-4 py-4">
-                      <div className="min-w-0">
-                        <dt className="text-xs text-muted-foreground">{questions[key].label}</dt>
-                        <dd className="mt-1 break-words text-sm font-medium">
-                          {key === "product"
-                            ? (selectedProduct?.name ?? "Select a product")
-                            : key === "amount" && saved.requestedAmount
-                              ? formatAmount(saved.requestedAmount)
-                              : key === "industry"
-                                ? (industries.find(([code]) => code === saved.industryCode)?.[1] ??
-                                  (saved.industryCode
-                                    ? `Industry ${saved.industryCode}`
-                                    : "Skipped — can be added later"))
-                                : fieldValue(saved, key) || "Not answered"}
-                        </dd>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="link"
-                        size="sm"
-                        disabled={busy}
-                        aria-label={`Edit ${questions[key].label.toLowerCase()}`}
-                        onClick={() => {
-                          void save(key, key === "product" ? "change_product" : "edit");
-                        }}
-                      >
-                        Edit
-                      </Button>
+                {(["business_name", "amount", "purpose", "industry"] as const).map((key) => (
+                  <div key={key} className="flex items-start justify-between gap-4 py-4">
+                    <div className="min-w-0">
+                      <dt className="text-xs text-muted-foreground">{questions[key].label}</dt>
+                      <dd className="mt-1 break-words text-sm font-medium">
+                        {key === "amount" && saved.requestedAmount
+                          ? formatAmount(saved.requestedAmount)
+                          : key === "industry"
+                            ? (industries.find(([code]) => code === saved.industryCode)?.[1] ??
+                              (saved.industryCode
+                                ? `Industry ${saved.industryCode}`
+                                : "Skipped — can be added later"))
+                            : fieldValue(saved, key) || "Not answered"}
+                      </dd>
                     </div>
-                  ),
-                )}
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="sm"
+                      disabled={busy}
+                      aria-label={`Edit ${questions[key].label.toLowerCase()}`}
+                      onClick={() => {
+                        void save(key, "edit");
+                      }}
+                    >
+                      Edit
+                    </Button>
+                  </div>
+                ))}
               </dl>
             ) : (
               <div className="space-y-3">
                 <label htmlFor="setup-answer" className="text-sm font-medium">
                   {question.label}
                 </label>
-                {step === "product" || step === "industry" ? (
+                {step === "industry" ? (
                   <NativeSelect
                     id="setup-answer"
                     className="h-10 w-full"
                     {...form.register("value")}
                     aria-invalid={Boolean(failedField)}
-                    aria-describedby="answer-help answer-error"
+                    aria-describedby={answerDescription}
                     disabled={busy}
                   >
-                    <NativeSelectOption value="">
-                      {step === "product" ? "Choose a product" : "Choose an industry"}
-                    </NativeSelectOption>
-                    {step === "product" ? (
-                      <>
-                        {selectedProduct &&
-                          !catalog.products.some(
-                            (product) => product.id === selectedProduct.id,
-                          ) && (
-                            <NativeSelectOption
-                              value={selectedProduct.id}
-                              disabled={!selectedProduct.active}
-                            >
-                              {selectedProduct.name} (saved version {selectedProduct.version}
-                              {selectedProduct.active ? "" : ", unavailable"})
-                            </NativeSelectOption>
-                          )}
-                        {catalog.products.map((product) => (
-                          <NativeSelectOption key={product.id} value={product.id}>
-                            {product.name}
-                          </NativeSelectOption>
-                        ))}
-                      </>
-                    ) : (
-                      <>
-                        {saved.industryCode &&
-                          !industries.some(([code]) => code === saved.industryCode) && (
-                            <NativeSelectOption value={saved.industryCode}>
-                              Industry {saved.industryCode}
-                            </NativeSelectOption>
-                          )}
-                        {industries.map(([code, label]) => (
-                          <NativeSelectOption key={code} value={code}>
-                            {label}
-                          </NativeSelectOption>
-                        ))}
-                      </>
-                    )}
+                    <NativeSelectOption value="">Choose an industry</NativeSelectOption>
+                    {saved.industryCode &&
+                      !industries.some(([code]) => code === saved.industryCode) && (
+                        <NativeSelectOption value={saved.industryCode}>
+                          Industry {saved.industryCode}
+                        </NativeSelectOption>
+                      )}
+                    {industries.map(([code, label]) => (
+                      <NativeSelectOption key={code} value={code}>
+                        {label}
+                      </NativeSelectOption>
+                    ))}
                   </NativeSelect>
                 ) : (
                   <Input
@@ -462,17 +398,16 @@ function WizardForm({
                     autoComplete={step === "business_name" ? "organization" : "off"}
                     maxLength={step === "business_name" ? 200 : step === "purpose" ? 500 : 21}
                     aria-invalid={Boolean(failedField)}
-                    aria-describedby="answer-help answer-error"
+                    aria-describedby={answerDescription}
                     disabled={busy}
                   />
                 )}
-                <p id="answer-help" className="text-xs leading-5 text-muted-foreground">
-                  {step === "amount" && selectedProduct
-                    ? `${selectedProduct.name}: ${formatAmount(selectedProduct.minimumAmount)}–${formatAmount(selectedProduct.maximumAmount)}. Limits come from this bank’s product settings.`
-                    : step === "industry"
-                      ? "You don’t need to know a code. You can provide more detail later."
-                      : "Save this answer with Continue, Back, or Continue later."}
-                </p>
+                {step === "amount" && selectedProduct && (
+                  <p id="answer-help" className="text-xs leading-5 text-muted-foreground">
+                    Synthetic Business Credit: {formatAmount(selectedProduct.minimumAmount)}–
+                    {formatAmount(selectedProduct.maximumAmount)}
+                  </p>
+                )}
                 {failedField && (
                   <p id="answer-error" role="alert" className="text-sm text-destructive">
                     {failedField}
@@ -529,12 +464,16 @@ function WizardForm({
                 )}
               </>
             )}
-            <p role="status" aria-live="polite" className="text-xs text-muted-foreground">
+            <p
+              role="status"
+              aria-live="polite"
+              className="text-xs text-muted-foreground empty:hidden"
+            >
               {busy
                 ? "Saving…"
                 : error || failedField || dirty
                   ? "Unsaved changes. Your entered answer is still here."
-                  : "Saved to your application."}
+                  : null}
             </p>
             {step === "review" && (
               <p className="text-sm leading-6 text-muted-foreground">
@@ -568,17 +507,6 @@ function WizardForm({
               )}
             </div>
             <div className="space-y-2 border-t pt-4">
-              {step !== "product" && step !== "review" && (
-                <Button
-                  type="button"
-                  variant="link"
-                  className="block px-0"
-                  disabled={busy}
-                  onClick={() => void save("product", "change_product")}
-                >
-                  Change financing product
-                </Button>
-              )}
               <Button
                 type="button"
                 variant="link"
@@ -588,10 +516,6 @@ function WizardForm({
               >
                 Continue later
               </Button>
-              <p className="text-xs leading-5 text-muted-foreground">
-                We’ll save your current answer and return you to this question next time. If saving
-                fails, you’ll stay here.
-              </p>
             </div>
           </form>
         </CardContent>

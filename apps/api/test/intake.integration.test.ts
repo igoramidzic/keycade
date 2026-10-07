@@ -21,8 +21,8 @@ beforeAll(async () => {
   await database.db.insert(loanProducts).values({
     id: productId,
     bankId,
-    slug: "business-loan",
-    name: "Business loan",
+    slug: "business-credit",
+    name: "Synthetic Business Credit",
     minimumAmount: "10000.00",
     maximumAmount: "7500000.00",
     synthetic: true,
@@ -82,8 +82,8 @@ for (const transport of ["fastify", "worker"] as const) {
           products: [
             {
               id: productId,
-              slug: "business-loan",
-              name: "Business loan",
+              slug: "business-credit",
+              name: "Synthetic Business Credit",
               version: 1,
               minimumAmount: "10000.00",
               maximumAmount: "7500000.00",

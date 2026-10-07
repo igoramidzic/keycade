@@ -60,7 +60,8 @@ export function BorrowerApp({ confirmation }: { confirmation: Confirmation }) {
   const navigate = useNavigate();
   const params = new URLSearchParams(location.search);
   const bankSlug = params.get("bank") ?? "bank-a";
-  const productSlug = params.get("product") ?? undefined;
+  // Product query hints no longer select financing; every new draft uses the server default.
+  const productSlug = "business-credit";
   const starting = location.pathname === "/apply";
   const catalog = useQuery({
     queryKey: ["public-intake", bankSlug],
@@ -91,20 +92,17 @@ export function BorrowerApp({ confirmation }: { confirmation: Confirmation }) {
           <ErrorNotice error={catalog.error} onRetry={() => void catalog.refetch()} />
         ) : (
           catalog.data &&
-          (starting && productSlug && !selected ? (
+          (starting && !selected ? (
             <Card>
               <CardHeader>
-                <CardTitle>This product isn’t available</CardTitle>
+                <CardTitle>Synthetic Business Credit is unavailable</CardTitle>
                 <CardDescription>
-                  Choose an available financing product to start your application.
+                  Please try again later or continue an existing application.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Link
-                  className={buttonVariants()}
-                  to={`/apply?bank=${encodeURIComponent(bankSlug)}`}
-                >
-                  Choose a product
+                <Link className={buttonVariants()} to={`/?bank=${encodeURIComponent(bankSlug)}`}>
+                  Your applications
                 </Link>
               </CardContent>
             </Card>
@@ -115,8 +113,6 @@ export function BorrowerApp({ confirmation }: { confirmation: Confirmation }) {
               bankSlug={bankSlug}
               bankName={catalog.data.bank.name}
               intent={starting ? "start" : "resume"}
-              productSlug={productSlug}
-              productId={selected?.id}
               onApplicationCreated={(id) =>
                 navigate(applicationPath(id, bankSlug, true), { replace: true })
               }
@@ -124,12 +120,7 @@ export function BorrowerApp({ confirmation }: { confirmation: Confirmation }) {
                 navigate(`/?bank=${encodeURIComponent(bankSlug)}`, { replace: true })
               }
               renderAuthenticated={(session, controls) => (
-                <Workspace
-                  session={session}
-                  controls={controls}
-                  targetCatalog={catalog.data}
-                  productId={selected?.id}
-                />
+                <Workspace session={session} controls={controls} targetCatalog={catalog.data} />
               )}
             />
           ))
@@ -146,12 +137,10 @@ function Workspace({
   session,
   controls,
   targetCatalog,
-  productId,
 }: {
   session: AuthenticatedSession;
   controls: IdentityControls;
   targetCatalog: PublicIntake;
-  productId?: string;
 }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -209,29 +198,19 @@ function Workspace({
                   </Alert>
                 ) : (
                   <StartApplication
-                    key={`${session.bank.id}:${session.user.email}:${productId ?? ""}`}
+                    key={`${session.bank.id}:${session.user.email}`}
                     session={session}
-                    productId={productId}
                   />
                 )
               }
             />
             <Route
               path="/applications/:applicationId/setup"
-              element={
-                <ApplicationRoute
-                  session={session}
-                  catalog={catalog.data}
-                  setup
-                  controls={controls}
-                />
-              }
+              element={<ApplicationRoute session={session} setup controls={controls} />}
             />
             <Route
               path="/applications/:applicationId"
-              element={
-                <ApplicationRoute session={session} catalog={catalog.data} controls={controls} />
-              }
+              element={<ApplicationRoute session={session} controls={controls} />}
             />
             <Route
               path="/"
@@ -267,13 +246,7 @@ function Workspace({
     </div>
   );
 }
-function StartApplication({
-  session,
-  productId,
-}: {
-  session: AuthenticatedSession;
-  productId?: string;
-}) {
+function StartApplication({ session }: { session: AuthenticatedSession }) {
   const key = useRef(crypto.randomUUID());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -289,7 +262,7 @@ function StartApplication({
           method: "POST",
           bankId: session.bank.id,
           actorEmail: session.user.email,
-          body: { idempotencyKey: key.current, productId },
+          body: { idempotencyKey: key.current },
         },
       );
       navigate(applicationPath(draft.id, session.bank.slug, true), { replace: true });
@@ -453,12 +426,10 @@ function ApplicationList({ session, saved }: { session: AuthenticatedSession; sa
 }
 function ApplicationRoute({
   session,
-  catalog,
   setup = false,
   controls,
 }: {
   session: AuthenticatedSession;
-  catalog: PublicIntake;
   setup?: boolean;
   controls: IdentityControls;
 }) {
@@ -498,7 +469,6 @@ function ApplicationRoute({
         key={`${session.bank.id}:${session.user.email}:${applicationId}`}
         session={session}
         applicationId={applicationId}
-        catalog={catalog}
         refreshSession={controls.refreshSession}
       />
     );

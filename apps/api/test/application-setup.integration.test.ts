@@ -112,7 +112,7 @@ for (const transport of ["fastify", "worker"] as const) {
         const steps = [
           {
             step: "business_name",
-            currentStep: "product",
+            currentStep: "amount",
             answers: { businessName: "Synthetic HTTP Workshop" },
           },
           { step: "product", currentStep: "amount", answers: { productId: seedIds.productA } },

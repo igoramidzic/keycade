@@ -180,6 +180,7 @@ export async function seedDatabase(connectionString: string): Promise<void> {
           {
             id: seedIds.applicationEmpty,
             bankId: seedIds.bankA,
+            productId: seedIds.productA,
             contactId: seedIds.contactA,
             source: "seed",
             synthetic: true,

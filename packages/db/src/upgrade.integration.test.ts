@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { expect, it } from "vitest";
 import { assertSchemaReady, migrateDatabase, migrationsFolder } from "./migrate.js";
+import { seedDatabase, seedIds } from "./seed.js";
 import { createTestDatabase } from "./testing.js";
 
 it("upgrades historical drafts and later lifecycle applications without inventing confirmation", async () => {
@@ -84,5 +85,60 @@ it("upgrades historical drafts and later lifecycle applications without inventin
   } finally {
     await database.cleanup();
     await rm(earlierMigrations, { recursive: true, force: true });
+  }
+});
+
+it("assigns the fixed bank product to legacy drafts and resumes past product selection without altering completed applications", async () => {
+  const folder = await mkdtemp(join(tmpdir(), "keycade-before-fixed-product-"));
+  const database = await createTestDatabase(undefined, { migrate: false });
+  try {
+    const journal = JSON.parse(
+      await readFile(join(migrationsFolder, "meta/_journal.json"), "utf8"),
+    ) as { entries: { idx: number; tag: string }[] };
+    journal.entries = journal.entries.filter((entry) => entry.idx < 5);
+    await mkdir(join(folder, "meta"));
+    await writeFile(join(folder, "meta/_journal.json"), JSON.stringify(journal));
+    await Promise.all(
+      journal.entries.map((entry) =>
+        copyFile(join(migrationsFolder, `${entry.tag}.sql`), join(folder, `${entry.tag}.sql`)),
+      ),
+    );
+    await migrate(database.db, { migrationsFolder: folder });
+    await seedDatabase(database.connectionString);
+    await database.pool.query(
+      "UPDATE applications SET product_id = NULL, business_name = 'Synthetic saved draft', revision = 7 WHERE id = $1",
+      [seedIds.applicationEmpty],
+    );
+    await database.pool.query(
+      "UPDATE application_setups SET current_step = 'product', revision = 7, completed_steps = ARRAY['business_name']::text[] WHERE application_id = $1",
+      [seedIds.applicationEmpty],
+    );
+    const read = () =>
+      database.pool.query(`SELECT a.id, a.bank_id, a.product_id, a.business_name, a.requested_amount, a.revision,
+      s.revision AS setup_revision, s.current_step, s.completed_steps, s.completed_at, s.completed_by_user_id
+      FROM applications a JOIN application_setups s ON s.application_id = a.id ORDER BY a.id`);
+    const before = (await read()).rows;
+    await migrateDatabase(database.connectionString);
+    const after = (await read()).rows;
+    expect(after.find((row) => row.id === seedIds.applicationEmpty)).toMatchObject({
+      bank_id: seedIds.bankA,
+      product_id: seedIds.productA,
+      business_name: "Synthetic saved draft",
+      requested_amount: null,
+      revision: 8,
+      setup_revision: 8,
+      current_step: "amount",
+      completed_steps: ["business_name"],
+      completed_at: null,
+      completed_by_user_id: null,
+    });
+    expect(after.filter((row) => row.id !== seedIds.applicationEmpty)).toEqual(
+      before.filter((row) => row.id !== seedIds.applicationEmpty),
+    );
+    await migrateDatabase(database.connectionString);
+    expect((await read()).rows).toEqual(after);
+  } finally {
+    await database.cleanup();
+    await rm(folder, { recursive: true, force: true });
   }
 });

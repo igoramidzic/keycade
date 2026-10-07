@@ -42,7 +42,7 @@ describe("committed migrations and synthetic data on PostgreSQL", () => {
     expect(empty).toMatchObject({
       businessId: null,
       requestedAmount: null,
-      productId: null,
+      productId: seedIds.productA,
       purpose: null,
     });
     const [exact] = await database.db

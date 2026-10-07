@@ -17,8 +17,8 @@ beforeAll(async () => {
   ]);
   const product = {
     bankId,
-    slug: "business-loan",
-    name: "Business loan",
+    slug: "business-credit",
+    name: "Synthetic Business Credit",
     minimumAmount: "10000.00",
     maximumAmount: "7500000.00",
     synthetic: true,
@@ -28,6 +28,7 @@ beforeAll(async () => {
     { ...product, id: latestProductId, version: 2 },
     { ...product, version: 3, active: false },
     { ...product, slug: "retired-loan", active: false },
+    { ...product, slug: "other-financing", active: true },
     { ...product, bankId: otherBankId, version: 4 },
   ]);
 }, 30_000);
@@ -40,8 +41,8 @@ describe("public intake product configuration", () => {
       products: [
         {
           id: latestProductId,
-          slug: "business-loan",
-          name: "Business loan",
+          slug: "business-credit",
+          name: "Synthetic Business Credit",
           version: 2,
           minimumAmount: "10000.00",
           maximumAmount: "7500000.00",

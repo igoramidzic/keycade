@@ -7,7 +7,7 @@ const env = readEnvironment();
 const bank = `http://127.0.0.1:${env.BANK_SITE_PORT ?? 3000}`;
 const borrower = `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
 const staff = `http://127.0.0.1:${env.BANK_CONSOLE_PORT ?? 3002}`;
-const apply = `${borrower}/apply?bank=bank-a&product=business-credit`;
+const apply = `${borrower}/apply?bank=bank-a`;
 
 // These journeys carry session credentials and, for email access, one-time bearer links.
 // Keep browser/network artifacts out of test reports, including on failure.
@@ -162,6 +162,7 @@ test("bank apply, saved edits, browser loss, and explicit completion use the sam
     page.getByRole("heading", { name: "Review your application setup", exact: true }),
   ).toBeVisible();
   await expect(page.getByText("Synthetic Pine Workshop", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Edit .*product/i })).toHaveCount(0);
   const reviewed = await setup(page);
   expect(reviewed).toMatchObject({ setupStatus: "in_progress", status: "draft" });
   expect(reviewed.skippedSteps).toContain("industry");
@@ -260,23 +261,18 @@ test("failed saves retain edits and stale revisions require an explicit recovera
     "Synthetic unsaved name",
   );
   await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(page.getByLabel("Financing product", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Requested amount", { exact: true })).toBeVisible();
   expect(await setup(page)).toMatchObject({
     businessName: "Synthetic unsaved name",
-    currentStep: "product",
+    currentStep: "amount",
   });
-  await page
-    .getByLabel("Financing product", { exact: true })
-    .selectOption({ label: "Synthetic Business Credit" });
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(page.getByLabel("Requested amount", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Change .*product/i })).toHaveCount(0);
+  await expect(page.getByLabel("Financial Product", { exact: true })).toHaveCount(0);
   await page.getByLabel("Requested amount", { exact: true }).fill("42000");
-  await page.getByRole("button", { name: "Change financing product", exact: true }).click();
-  await expect(page.getByLabel("Financing product", { exact: true })).toBeVisible();
-  expect(await setup(page)).toMatchObject({ currentStep: "product", requestedAmount: null });
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await expect(page.getByLabel("Business name", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(page.getByLabel("Requested amount", { exact: true })).toHaveValue("42000");
-  expect((await setup(page)).requestedAmount).toBeNull();
+  await expect(page.getByLabel("Requested amount", { exact: true })).toHaveValue("42000.00");
 });
 
 test("email start, expired-link recovery, and fresh links resume the same draft after storage loss", async ({

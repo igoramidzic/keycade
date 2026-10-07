@@ -76,7 +76,7 @@ function selection(row: Row, setup: Setup, access: Access | null, claimRequired 
     revision: row.revision,
     synthetic: row.synthetic,
     setupStatus: setup.completedAt ? "completed" : "in_progress",
-    currentStep: setup.currentStep,
+    currentStep: setup.currentStep === "product" ? "amount" : setup.currentStep,
     claimRequired,
     nextDestination: closed
       ? "closed"
@@ -228,6 +228,23 @@ async function audit(
     createdAt: now,
   });
 }
+async function defaultProduct(tx: Tx, bankId: string) {
+  const [selected] = await tx
+    .select()
+    .from(loanProducts)
+    .where(
+      and(
+        eq(loanProducts.bankId, bankId),
+        eq(loanProducts.slug, "business-credit"),
+        eq(loanProducts.active, true),
+        eq(loanProducts.synthetic, true),
+      ),
+    )
+    .orderBy(sql`${loanProducts.version} DESC`)
+    .limit(1)
+    .for("share");
+  return selected;
+}
 async function product(tx: Tx, bankId: string, productId: string, syntheticOnly = false) {
   const [row] = await tx
     .select()
@@ -369,24 +386,10 @@ export function createApplicationService(db: Database, options: { clock?: () => 
         if (!counter || counter.count > item.limit) allowed = false;
       }
       if (!allowed || !bank || !request) return accepted;
-      let productId: string | undefined;
-      if (parsed.productSlug) {
-        const [selected] = await tx
-          .select()
-          .from(loanProducts)
-          .where(
-            and(
-              eq(loanProducts.bankId, bank.id),
-              eq(loanProducts.slug, parsed.productSlug),
-              eq(loanProducts.active, true),
-            ),
-          )
-          .orderBy(sql`${loanProducts.version} DESC`)
-          .limit(1)
-          .for("share");
-        if (!selected) return accepted;
-        productId = selected.id;
-      }
+      if (parsed.productSlug && parsed.productSlug !== "business-credit") return accepted;
+      const selected = await defaultProduct(tx, bank.id);
+      if (!selected) return accepted;
+      const productId = selected.id;
       const pending = await contact(tx, bank.id, email, bank.synthetic, now);
       const { row } = await createApplication(tx, {
         bankId: bank.id,
@@ -438,12 +441,11 @@ export function createApplicationService(db: Database, options: { clock?: () => 
         editor(access);
         return view(tx, row, setup, access);
       }
-      if (parsed.productId)
-        await product(
-          tx,
-          bankId,
-          parsed.productId,
-          Boolean(actor.kind === "user" && actor.demoBankId),
+      const selected = await defaultProduct(tx, bankId);
+      if (!selected) return invalid("Synthetic Business Credit is currently unavailable.");
+      if (parsed.productId && parsed.productId !== selected.id)
+        return invalid(
+          "Applications use Synthetic Business Credit. The product cannot be selected.",
         );
       let businessName: string | undefined;
       if (parsed.businessId) {
@@ -461,7 +463,7 @@ export function createApplicationService(db: Database, options: { clock?: () => 
       const { row, setup } = await createApplication(tx, {
         bankId,
         contactId: pending.id,
-        productId: parsed.productId,
+        productId: selected.id,
         businessId: parsed.businessId,
         businessName,
         actor,
@@ -609,24 +611,9 @@ export function createApplicationService(db: Database, options: { clock?: () => 
         invalid("Enter a positive amount.");
       if ((candidate.industryCode === null) !== (candidate.industryTaxonomyVersion === null))
         invalid("Industry code and taxonomy version must be supplied together.");
-      // A product change preserves the prior amount as an unconfirmed answer; the amount step must be revisited.
-      const productChanged = candidate.productId !== row.productId;
-      if (productChanged && candidate.productId)
-        await product(tx, bankId, candidate.productId, row.demoCreated);
-      // A retired product must not trap the applicant outside the product question.
-      // This exception only navigates: it neither changes nor confirms any answer.
-      const choosingProduct =
-        parsed.currentStep === "product" &&
-        Object.keys(parsed.answers).length === 0 &&
-        parsed.step === undefined &&
-        parsed.skip === undefined;
-      if (
-        !choosingProduct &&
-        (!productChanged ||
-          parsed.answers.requestedAmount !== undefined ||
-          parsed.step === "amount")
-      )
-        await validateAmount(tx, candidate, false);
+      if (parsed.answers.productId !== undefined && parsed.answers.productId !== row.productId)
+        return invalid("The financial product is fixed for this application.");
+      await validateAmount(tx, candidate, false);
       const completed = new Set(setup.completedSteps);
       const skipped = new Set(setup.skippedSteps);
       const fields: Record<string, string> = {
@@ -643,7 +630,6 @@ export function createApplicationService(db: Database, options: { clock?: () => 
           skipped.delete(fields[key] as string);
         }
       }
-      if (productChanged) completed.delete("amount");
       if (parsed.skip && parsed.step !== "industry") invalid("Only industry can be skipped.");
       if (parsed.step) {
         const step = parsed.step;
@@ -688,10 +674,8 @@ export function createApplicationService(db: Database, options: { clock?: () => 
         .update(applicationSetups)
         .set({
           revision: row.revision + 1,
-          currentStep:
-            productChanged && completed.has("amount") === false && row.requestedAmount
-              ? "amount"
-              : parsed.currentStep,
+          // Older clients may still send the removed product question; move to amount.
+          currentStep: parsed.currentStep === "product" ? "amount" : parsed.currentStep,
           completedSteps: [...completed],
           skippedSteps: [...skipped],
         })

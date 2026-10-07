@@ -76,3 +76,7 @@ Validation used the installed Node 24.21.0 and repository binaries directly beca
 - Wrangler 4.148.0 API `deploy --dry-run`: bundled successfully. This is a local bundle check, not a hosted compatibility/deployment claim.
 
 Wizard UI, borrower dashboard, staff screens, invitation workflows, and evidence/check tasks remain their owning tasks. T07 acceptance is demonstrated through real PostgreSQL service/HTTP tests; browser wizard journeys begin in T08.
+
+### Fixed-product override — October 7, 2026
+
+The subsequent [T08 fixed-product decision](T08-intake.md#fixed-product--october-7-2026) supersedes selectable/changing products. Creation assigns the latest active Synthetic Business Credit version for the bank; callers cannot choose another product. Setup rejects changing an assigned ID. Legacy same-ID prefills remain compatible, and legacy product navigation resolves to amount. Migration 0005 safely updates eligible unfinished drafts. The product/version model and configured monetary limits remain in use.

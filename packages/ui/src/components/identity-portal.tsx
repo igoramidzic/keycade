@@ -76,8 +76,6 @@ export function IdentityPortal({
   bankSlug = "bank-a",
   bankName = "Synthetic Bank A",
   intent = "resume",
-  productSlug,
-  productId,
   onApplicationCreated,
   onSignedIn,
   renderAuthenticated,
@@ -87,8 +85,6 @@ export function IdentityPortal({
   bankSlug?: string;
   bankName?: string;
   intent?: "start" | "resume";
-  productSlug?: string;
-  productId?: string;
   onApplicationCreated?: (id: string) => void;
   onSignedIn?: () => void;
   renderAuthenticated?: (session: AuthenticatedSession, controls: IdentityControls) => ReactNode;
@@ -192,7 +188,6 @@ export function IdentityPortal({
         const payload = JSON.stringify({
           email: email.trim().toLowerCase(),
           bankSlug,
-          productSlug,
         });
         if (startKey.current?.payload !== payload) {
           const bytes = crypto.getRandomValues(new Uint8Array(32));
@@ -204,7 +199,6 @@ export function IdentityPortal({
         response = await post("/api/v1/applications/start", {
           email,
           bankSlug,
-          ...(productSlug ? { productSlug } : {}),
           idempotencyKey: startKey.current.key,
         });
       } else {
@@ -245,7 +239,6 @@ export function IdentityPortal({
           const payload = JSON.stringify({
             email: current.user.email,
             bankId: current.bank.id,
-            productId,
           });
           if (createKey.current?.payload !== payload) {
             createKey.current = { payload, key: crypto.randomUUID() };
@@ -253,7 +246,6 @@ export function IdentityPortal({
           const created = await post(
             `/api/v1/banks/${current.bank.id}/applications`,
             {
-              ...(productId ? { productId } : {}),
               idempotencyKey: createKey.current.key,
             },
             { bankId: current.bank.id, email: current.user.email },

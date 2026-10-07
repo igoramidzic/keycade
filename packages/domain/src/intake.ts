@@ -25,7 +25,14 @@ export async function readPublicIntake(db: Database, input: unknown) {
       currency: loanProducts.currency,
     })
     .from(loanProducts)
-    .where(and(eq(loanProducts.bankId, bank.id), eq(loanProducts.active, true)))
+    .where(
+      and(
+        eq(loanProducts.bankId, bank.id),
+        eq(loanProducts.active, true),
+        eq(loanProducts.slug, "business-credit"),
+        eq(loanProducts.synthetic, true),
+      ),
+    )
     .orderBy(asc(loanProducts.slug), desc(loanProducts.version));
   return publicIntakeSchema.parse({ bank, products });
 }

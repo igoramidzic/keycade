@@ -9,7 +9,12 @@ import { createTestDatabase } from "@keycade/db/testing";
 import { initializeQueue } from "@keycade/integrations";
 import { assertLocalTarget, assertOwnedDatabase, localEnv, waitForDatabase } from "./local-lib";
 
-type Process = { child: ChildProcess; done: Promise<number>; closed: boolean };
+type Process = {
+  child: ChildProcess;
+  done: Promise<number>;
+  closed: boolean;
+  groupGone: boolean;
+};
 type Report = {
   suites?: { specs?: { tests: unknown[] }[]; suites?: Report["suites"] }[];
   stats: { expected: number; unexpected: number; skipped: number; flaky: number };
@@ -18,13 +23,29 @@ class RunnerError extends Error {}
 const processes = new Set<Process>();
 const abort = new AbortController();
 
+function groupExists(owned: Process) {
+  // Once absence is observed, never inspect or signal this ID again: the OS may reuse it.
+  if (!owned.groupGone) {
+    if (!owned.child.pid || (process.platform === "win32" && owned.closed)) owned.groupGone = true;
+    else if (process.platform !== "win32") {
+      try {
+        process.kill(-owned.child.pid, 0);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ESRCH") owned.groupGone = true;
+      }
+    }
+  }
+  if (owned.groupGone && owned.closed) processes.delete(owned);
+  return !owned.groupGone;
+}
 function signal(owned: Process, value: NodeJS.Signals) {
-  if (!owned.child.pid || owned.closed) return;
+  if (!owned.child.pid || !groupExists(owned)) return;
   try {
     if (process.platform === "win32") owned.child.kill(value);
     else process.kill(-owned.child.pid, value);
   } catch {
-    // This runner only signals process groups it created; a finished child needs no cleanup.
+    // The tracked group may have finished between the existence check and the signal.
+    groupExists(owned);
   }
 }
 for (const name of ["SIGINT", "SIGTERM"] as const)
@@ -49,12 +70,13 @@ function launch(
     stdio: ["ignore", fd, fd],
   });
   closeSync(fd);
-  const owned: Process = { child, closed: false, done: Promise.resolve(1) };
+  const owned: Process = { child, closed: false, groupGone: false, done: Promise.resolve(1) };
   owned.done = new Promise<number>((resolve) => {
     child.once("error", () => resolve(1));
     child.once("close", (code) => {
       owned.closed = true;
-      processes.delete(owned);
+      // A process group can outlive its leader (for example, an unresponsive browser child).
+      groupExists(owned);
       resolve(code ?? 1);
     });
   });
@@ -62,13 +84,20 @@ function launch(
   return owned;
 }
 async function stop(child: Process) {
-  signal(child, "SIGTERM");
-  const timeout = setTimeout(() => signal(child, "SIGKILL"), 5_000);
-  try {
-    await child.done;
-  } finally {
-    clearTimeout(timeout);
+  for (const name of ["SIGTERM", "SIGKILL"] as const) {
+    signal(child, name);
+    const deadline = Date.now() + 5_000;
+    do {
+      if (!groupExists(child) && child.closed) {
+        await child.done;
+        return;
+      }
+      await delay(25);
+    } while (Date.now() < deadline);
   }
+  throw new RunnerError(
+    "An owned browser-test process group did not stop; cleanup was incomplete.",
+  );
 }
 async function freePorts(count: number) {
   const reservations: net.Server[] = [];
@@ -251,18 +280,22 @@ async function main() {
       `Browser tests: ${totals.expected} passed, ${totals.skipped} skipped, ${totals.unexpected} failed, ${totals.flaky} flaky.`,
     );
   } finally {
-    await Promise.all([...processes].map(stop));
+    const stopped = await Promise.allSettled([...processes].map(stop));
     await database?.cleanup();
+    if (stopped.some((result) => result.status === "rejected"))
+      throw new RunnerError(
+        "The disposable database was removed, but an owned process group did not stop.",
+      );
     console.log("Owned browser-test processes stopped and disposable database removed.");
   }
 }
 main().catch((error) => {
-  if (!abort.signal.aborted) {
+  if (!abort.signal.aborted || error instanceof RunnerError) {
     console.error(
       error instanceof RunnerError
         ? error.message
         : "Isolated browser tests failed. Connection values omitted; check the private logs.",
     );
-    process.exitCode = 1;
+    if (!abort.signal.aborted) process.exitCode = 1;
   }
 });
