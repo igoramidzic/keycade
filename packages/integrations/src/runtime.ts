@@ -3,12 +3,12 @@ import { createDocumentsService, type IdentifierCipher } from "@keycade/domain";
 import { eq } from "drizzle-orm";
 import type { PgBoss } from "pg-boss";
 import { dispatchAccessDeliveries, processAccessDelivery } from "./access-delivery.js";
+import type { AccessEmailAdapter } from "./access-email.js";
 import { processCheckJobs } from "./check-jobs.js";
 import { type PrivateDocumentStorage } from "./document-content.js";
 import { processDocumentInterpretations } from "./document-processing.js";
 import { processDocumentScans } from "./document-scan.js";
 import { processEnrichmentJobs } from "./enrichment-jobs.js";
-import type { AccessEmailAdapter } from "./mailpit.js";
 import { dispatchNotifications, scheduleApplicationReminders } from "./notification-jobs.js";
 import {
   configured,
@@ -57,7 +57,7 @@ export async function workerHealth(
 export async function startWorker(
   connectionString: string,
   options: RuntimeOptions & {
-    emailAdapter?: AccessEmailAdapter;
+    emailAdapter?: AccessEmailAdapter | ((db: Database) => AccessEmailAdapter);
     documentStorage?: PrivateDocumentStorage;
     identifierCipher?: IdentifierCipher;
     borrowerOrigin?: string;
@@ -68,6 +68,8 @@ export async function startWorker(
   await assertQueueReady(connectionString);
   const config = configured(options);
   const { db, pool } = createDatabase(connectionString);
+  const emailAdapter =
+    typeof options.emailAdapter === "function" ? options.emailAdapter(db) : options.emailAdapter;
   const boss = createQueueClient(connectionString, false, true);
   const abort = new AbortController();
   let queueError = false;
@@ -167,7 +169,7 @@ export async function startWorker(
             console.warn("Document scan failed; safe retry state retained.");
         }
       }
-      if (options.emailAdapter) {
+      if (emailAdapter) {
         if (options.borrowerOrigin) {
           if (config.clock.now().getTime() >= nextReminderScheduleAt) {
             await scheduleApplicationReminders(db, {
@@ -194,7 +196,7 @@ export async function startWorker(
           batchSize: 5,
         });
         for (const job of deliveries) {
-          await processAccessDelivery(db, job.data.deliveryRequestId, options.emailAdapter, {
+          await processAccessDelivery(db, job.data.deliveryRequestId, emailAdapter, {
             clock: config.clock,
             delayMs: Math.min(config.delayMs, 1000),
           });

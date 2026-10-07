@@ -25,6 +25,7 @@ import { ApplicationChecks } from "./checks";
 import { ApplicationDocuments } from "./documents";
 import { PrefillForm } from "./forms";
 import { ApplicationParticipants } from "./participants";
+import { ApplicationReview } from "./review";
 import { ApplicationSignatures } from "./signatures";
 import { ApplicationTasks } from "./tasks";
 import {
@@ -43,6 +44,7 @@ const tabs = {
   tasks: "Tasks",
   documents: "Documents",
   checks: "Checks",
+  review: "Review",
   signatures: "Signatures",
   notes: "Internal notes",
 };
@@ -255,6 +257,7 @@ export function ApplicationDetail() {
             {selected === "participants" && (
               <ApplicationParticipants key={data.id} applicationId={data.id} />
             )}
+            {selected === "review" && <ApplicationReview key={data.id} applicationId={data.id} />}
             {selected === "tasks" && <ApplicationTasks key={data.id} applicationId={data.id} />}
             {selected === "documents" && (
               <ApplicationDocuments key={data.id} applicationId={data.id} />

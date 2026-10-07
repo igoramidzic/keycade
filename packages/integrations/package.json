@@ -4,6 +4,10 @@
   "type": "module",
   "exports": {
     "./check-jobs": "./src/check-jobs.ts",
+    "./access-email": "./src/access-email.ts",
+    "./access-delivery": "./src/access-delivery.ts",
+    "./demo-inbox": "./src/demo-inbox.ts",
+    "./notification-jobs": "./src/notification-jobs.ts",
     ".": "./src/index.ts",
     "./operations": "./src/operations.ts",
     "./document-storage-local": "./src/document-storage-local.ts",

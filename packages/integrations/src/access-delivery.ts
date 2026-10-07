@@ -1,7 +1,7 @@
 import { accessDeliveryRequests, type Database } from "@keycade/db";
 import { createIdentityService } from "@keycade/domain";
 import { and, eq, isNull, lte, or } from "drizzle-orm";
-import type { AccessEmailAdapter } from "./mailpit.js";
+import type { AccessEmailAdapter } from "./access-email.js";
 import { type Clock, systemClock } from "./provider.js";
 
 /** This delivery-request row is the identity outbox. Only its ID enters the queue. */

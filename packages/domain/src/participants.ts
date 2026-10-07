@@ -30,6 +30,7 @@ import {
   canDelegateParticipantGrant,
   requireApplicantPortalAccess,
 } from "./authorization.js";
+import { materialInputsEditable } from "./checks.js";
 import { validateDocumentGrants } from "./documents.js";
 import { DomainError, deny } from "./errors.js";
 import { hashIdentityCredential } from "./identity.js";
@@ -406,7 +407,7 @@ export function createParticipantsService(
   ) {
     const parsed = parse(setRelationshipActiveSchema, input);
     return db.transaction(async (tx) => {
-      const { userId } = await manager(tx, actor, bankId, applicationId);
+      const { application, userId } = await manager(tx, actor, bankId, applicationId);
       const command = await existingCommand(
         tx,
         userId,
@@ -417,6 +418,10 @@ export function createParticipantsService(
         { relationshipId, active: parsed.active },
       );
       if (!command.existing) {
+        if (!materialInputsEditable(application.status))
+          invalidState(
+            "Business relationships are locked for review. Request information before changing them.",
+          );
         const [relationship] = await tx
           .select()
           .from(businessRelationships)
@@ -465,7 +470,7 @@ export function createParticipantsService(
   ) {
     const parsed = parse(linkRelationshipSchema, input);
     return db.transaction(async (tx) => {
-      const { userId } = await manager(tx, actor, bankId, applicationId);
+      const { application, userId } = await manager(tx, actor, bankId, applicationId);
       const command = await existingCommand(
         tx,
         userId,
@@ -476,6 +481,10 @@ export function createParticipantsService(
         { relationshipId, userId: parsed.userId },
       );
       if (!command.existing) {
+        if (!materialInputsEditable(application.status))
+          invalidState(
+            "Business relationships are locked for review. Request information before changing them.",
+          );
         const [relationship] = await tx
           .select()
           .from(businessRelationships)
@@ -547,6 +556,10 @@ export function createParticipantsService(
         },
       );
       if (!command.existing) {
+        if (!materialInputsEditable(application.status))
+          invalidState(
+            "Business relationships are locked for review. Request information before changing them.",
+          );
         if (parsed.userId) await relationshipUser(tx, bankId, applicationId, parsed.userId);
         const now = clock();
         const [relationship] = await tx

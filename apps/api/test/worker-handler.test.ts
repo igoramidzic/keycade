@@ -152,7 +152,7 @@ test("Worker identity diagnostics do not authenticate public headers and reject 
         deps,
       )
     ).json(),
-  ).toEqual({ authenticated: false, demoSignInEnabled: false });
+  ).toEqual({ authenticated: false, demoSignInEnabled: false, demoInboxEnabled: false });
   expect((await handleWorkerRequest(request("/api/v1/auth/staff"), deps)).status).toBe(404);
   expect((await handleWorkerRequest(request("/api/v1/auth/consume"), deps)).status).toBe(404);
   expect(

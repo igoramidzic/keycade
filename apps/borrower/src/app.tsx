@@ -20,6 +20,7 @@ import { useRef, useState } from "react";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router";
 import { ApiError, request } from "./api";
 import { ApplicationList, ApplicationRoute } from "./application-workspace";
+import { BorrowerDemoInbox } from "./demo-inbox";
 import { InvitationAcceptance } from "./participants";
 import { ReminderPreferences } from "./reminder-preferences";
 import { SignatureContinuation } from "./signatures";
@@ -92,10 +93,11 @@ export function BorrowerApp({ confirmation }: { confirmation: Confirmation }) {
               }
               onSignedIn={(returnPath) =>
                 navigate(
-                  returnPath &&
-                    /^\/(?:invitations|signatures|applications)\/[0-9a-f-]{36}(?:\/setup)?$/i.test(
-                      returnPath,
-                    )
+                  returnPath === "/demo-inbox" ||
+                    (returnPath &&
+                      /^\/(?:invitations|signatures|applications)\/[0-9a-f-]{36}(?:\/setup)?$/i.test(
+                        returnPath,
+                      ))
                     ? `${returnPath}?bank=${encodeURIComponent(bankSlug)}`
                     : `/?bank=${encodeURIComponent(bankSlug)}`,
                   { replace: true },
@@ -145,6 +147,14 @@ function Workspace({
           <Badge variant="secondary">
             {session.authenticationMethod === "demo" ? "Demo access" : "Email verified"}
           </Badge>
+          {session.demoInboxEnabled && (
+            <Link
+              to={`/demo-inbox?bank=${encodeURIComponent(session.bank.slug)}`}
+              className="text-sm underline underline-offset-4"
+            >
+              Demo inbox
+            </Link>
+          )}
           <ReminderPreferences key={`${session.bank.id}:${session.user.email}`} session={session} />
         </div>
         <Button
@@ -168,6 +178,15 @@ function Workspace({
       ) : (
         catalog.data && (
           <Routes>
+            <Route
+              path="/demo-inbox"
+              element={
+                <BorrowerDemoInbox
+                  key={`${session.bank.id}:${session.user.email}`}
+                  session={session}
+                />
+              }
+            />
             <Route
               path="/signatures/:envelopeId"
               element={<SignatureContinuation session={session} />}

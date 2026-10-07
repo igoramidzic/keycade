@@ -36,12 +36,18 @@
     }
   ],
   "vars": {
-    "ALLOWED_ORIGINS": "https://keycade-bank-site.kualia.workers.dev,https://keycade-borrower.kualia.workers.dev,https://keycade-bank-console.kualia.workers.dev"
+    "ALLOWED_ORIGINS": "https://keycade-bank-site.kualia.workers.dev,https://keycade-borrower.kualia.workers.dev,https://keycade-bank-console.kualia.workers.dev",
+    "DEMO_INBOX_ENABLED": "true",
+    "BORROWER_ORIGIN": "https://keycade-borrower.kualia.workers.dev",
+    "STAFF_ORIGIN": "https://keycade-bank-console.kualia.workers.dev"
   },
   "r2_buckets": [
     {
       "binding": "DOCUMENTS",
       "bucket_name": "keycade-private-documents"
     }
-  ]
+  ],
+  "secrets": {
+    "required": ["ENCRYPTION_KEY"]
+  }
 }

@@ -10,6 +10,7 @@ export type DomainErrorCode =
   | "SETUP_REQUIRED"
   | "AUTH_DELIVERY_UNAVAILABLE"
   | "DOCUMENT_STORAGE_UNAVAILABLE"
+  | "DEMO_MESSAGE_UNAVAILABLE"
   | "ENRICHMENT_UNAVAILABLE";
 
 export class DomainError extends Error {

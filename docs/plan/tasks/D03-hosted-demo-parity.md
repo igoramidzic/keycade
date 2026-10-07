@@ -31,4 +31,15 @@ The hosted API currently disables demo sign-in and email delivery. This is an im
 
 ## Implementation record
 
-Not started. Instruction and failure recorded October 7, 2026 at the user's request; no real provider setup is planned.
+In progress — October 7, 2026. Hosted API now enables synthetic entry and uses a private database-backed demo inbox. An explicit “Open demo inbox” action signs in the chosen demo identity, and the existing one-time confirmation screen consumes its message. Every read rechecks current bank, recipient/contact and notification access. Message URLs are encrypted with purpose/bank/recipient/delivery/token binding; lists and unavailable messages never contain bearer links. Migration `0018_superb_sugar_man` adds one inbox table. No hosted SMTP or external identity service is used.
+
+Native jobs dispatch inbox deliveries before scheduling bounded provider families. Queue consumers process one family per invocation; API wakes are best-effort after successful mutations and minute Cron recovers durable work. Local Mailpit remains the default; `DEMO_INBOX_ENABLED=true` exercises hosted-equivalent delivery locally. Both Workers require the same private encryption binding, installed without exposing its value.
+
+The separate `infra/bootstrap-demo-access.sql` adds only the synthetic `officer-a@example.test` fixture to Synthetic Bank A. It refuses nonsynthetic collisions and never reactivates a revoked membership. It ran twice against the configured Neon demo with one active staff membership and no reset.
+
+Local acceptance: private inbox 11 PostgreSQL tests, bootstrap 4 PostgreSQL tests, purpose-bound cipher 2 unit tests, both HTTP transport journeys, and native queue dispatch/idempotency checks pass. `DEMO_INBOX_ENABLED=true pnpm test:e2e tests/e2e/demo-inbox.spec.ts` passed 8/8 desktop/mobile cases, including deliberate confirmation, used links, sign-out/re-entry, saved setup resume, known staff and unknown-staff denial. No bearer traces or screenshots were retained. Hosted deployment and the full production-URL journey remain pending; do not mark D03 done until observed.
+
+
+## Checkpoint validation
+
+October 7, 2026: `pnpm check` passed Biome/browser boundaries, all 12 workspace typechecks plus root TypeScript, and 272 unit tests in 22 files. `pnpm test:integration` passed 326 PostgreSQL tests in 35 suites. `pnpm build` passed all 12 workspaces; borrower/console retain non-failing bundle-size warnings. Native API/jobs Wrangler dry runs passed. D03 inbox browser tests passed 8/8; review/navigation regression run passed 24/24 (6 review plus 18 workspace cases). Tests use disposable local databases and synthetic data; production acceptance is recorded separately.

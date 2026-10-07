@@ -33,6 +33,7 @@ import {
   requireApplicantPortalAccess,
   requireBankStaff,
 } from "./authorization.js";
+import { materialInputsEditable } from "./checks.js";
 import { documentIsVisible } from "./documents.js";
 import { DomainError, deny } from "./errors.js";
 import { recordApplicantActivity } from "./notification-intents.js";
@@ -43,6 +44,8 @@ type Envelope = typeof signatureEnvelopes.$inferSelect;
 type Signer = typeof signatureSigners.$inferSelect;
 const terminal = new Set(["completed", "declined", "expired", "voided"]);
 const closed = new Set(["funded", "declined", "withdrawn"]);
+const policyEditable = (status: string, stage: string) =>
+  materialInputsEditable(status) || (status === "closing" && stage === "closing");
 const invalid = (message: string): never => {
   throw new DomainError("INVALID_STATE", 409, message);
 };
@@ -481,13 +484,18 @@ export function createSignaturesService(db: Database, options: { clock?: () => D
           !expired &&
           envelope.state === "draft" &&
           ["not_sent", "failed"].includes(envelope.deliveryStatus),
-        canVoid: access.kind === "staff" && !terminal.has(envelope.state) && !expired,
+        canVoid:
+          access.kind === "staff" &&
+          policyEditable(app.status, task.stage) &&
+          !terminal.has(envelope.state) &&
+          !expired,
         canDownloadArtifact: envelope.state === "completed",
       });
     }
     return signaturesViewSchema.parse({
       simulated: true,
-      canCreate: access.kind === "staff" && !closed.has(app.status),
+      canCreate:
+        access.kind === "staff" && (materialInputsEditable(app.status) || app.status === "closing"),
       envelopes,
     });
   }
@@ -560,6 +568,10 @@ export function createSignaturesService(db: Database, options: { clock?: () => D
           ),
         );
       if (!task || !source) return deny();
+      if (!policyEditable(app.status, task.stage))
+        invalid(
+          "Return the application for information before changing its signature requirements.",
+        );
       const [checkInput] = await tx
         .select({ taskId: checkInputTasks.taskId })
         .from(checkInputTasks)
@@ -770,9 +782,14 @@ export function createSignaturesService(db: Database, options: { clock?: () => D
     requestId: string,
   ) {
     return db.transaction(async (tx) => {
-      const { access, userId } = await context(tx, actor, bankId, applicationId, true);
+      const { app, access, userId } = await context(tx, actor, bankId, applicationId, true);
       const envelope = await load(tx, actor, access, bankId, applicationId, envelopeId);
       if (envelope.state === "voided") return view(tx, actor, bankId, applicationId);
+      const { task } = await rows(tx, envelope);
+      if (!task || !policyEditable(app.status, task.stage))
+        invalid(
+          "Return the application for information before changing its signature requirements.",
+        );
       if (terminal.has(envelope.state) || clock() >= envelope.expiresAt)
         invalid("A terminal signature envelope cannot be voided.");
       await applyEvent(

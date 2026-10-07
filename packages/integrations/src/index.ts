@@ -1,6 +1,7 @@
 export * from "./access-delivery.js";
 export * from "./check-jobs.js";
 export * from "./check-provider.js";
+export * from "./demo-inbox.js";
 export * from "./enrichment-jobs.js";
 export * from "./enrichment-provider.js";
 export * from "./intent.js";

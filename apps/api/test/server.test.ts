@@ -229,7 +229,7 @@ describe("identity HTTP security", () => {
     const app = await server();
     expect(
       (await app.inject({ url: "/api/v1/auth/session", headers: { "x-user-id": "admin" } })).json(),
-    ).toEqual({ authenticated: false, demoSignInEnabled: false });
+    ).toEqual({ authenticated: false, demoSignInEnabled: false, demoInboxEnabled: false });
     expect((await app.inject("/api/v1/auth/staff")).statusCode).toBe(404);
     expect((await app.inject("/api/v1/auth/consume")).statusCode).toBe(404);
     expect(

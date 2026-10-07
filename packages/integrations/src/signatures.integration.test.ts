@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
   applicationParticipants,
+  applications,
   applicationTasks,
   auditEvents,
   checkInputTasks,
@@ -178,6 +179,76 @@ async function task(id: string) {
   return row;
 }
 describe("simulated signature lifecycle on PostgreSQL", () => {
+  it("freezes signature requirements during review while allowing existing completion and closing tasks", async () => {
+    const previous = await fixture({}, false),
+      active = await fixture({}, false);
+    await api().void(officer, ids.bankA, ids.applicationSmall, previous.envelope.id, randomUUID());
+    await send(active.envelope.id);
+    try {
+      for (const status of ["submitted", "in_review", "approved"] as const) {
+        await database.db
+          .update(applications)
+          .set({ status })
+          .where(eq(applications.id, ids.applicationSmall));
+        await expect(
+          api().create(
+            officer,
+            ids.bankA,
+            ids.applicationSmall,
+            { ...previous.input, idempotencyKey: randomUUID() },
+            randomUUID(),
+          ),
+        ).rejects.toMatchObject({ code: "INVALID_STATE" });
+        await expect(
+          api().void(officer, ids.bankA, ids.applicationSmall, active.envelope.id, randomUUID()),
+        ).rejects.toMatchObject({ code: "INVALID_STATE" });
+        const view = await api().list(officer, ids.bankA, ids.applicationSmall);
+        expect(view.canCreate).toBe(false);
+        expect(view.envelopes.find((e) => e.id === active.envelope.id)?.canVoid).toBe(false);
+      }
+      await database.db
+        .update(applications)
+        .set({ status: "in_review" })
+        .where(eq(applications.id, ids.applicationSmall));
+      await act(active.envelope.id);
+      expect((await envelope(active.envelope.id)).state).toBe("completed");
+      await database.db
+        .update(applications)
+        .set({ status: "closing" })
+        .where(eq(applications.id, ids.applicationSmall));
+      await expect(
+        api().create(
+          officer,
+          ids.bankA,
+          ids.applicationSmall,
+          { ...previous.input, idempotencyKey: randomUUID() },
+          randomUUID(),
+        ),
+      ).rejects.toMatchObject({ code: "INVALID_STATE" });
+      await database.db
+        .update(applicationTasks)
+        .set({ stage: "closing" })
+        .where(eq(applicationTasks.id, previous.task.id));
+      const created = await api().create(
+        officer,
+        ids.bankA,
+        ids.applicationSmall,
+        { ...previous.input, idempotencyKey: randomUUID() },
+        randomUUID(),
+      );
+      const closing = created.envelopes.find(
+        (e) => e.taskId === previous.task.id && e.state === "draft",
+      );
+      expect(closing?.canVoid).toBe(true);
+      if (!closing) throw new Error("Closing envelope missing.");
+      await api().void(officer, ids.bankA, ids.applicationSmall, closing.id, randomUUID());
+    } finally {
+      await database.db
+        .update(applications)
+        .set({ status: "collecting_information" })
+        .where(eq(applications.id, ids.applicationSmall));
+    }
+  });
   it("does not let a signature request replace a secure check input task", async () => {
     const f = await fixture({}, false);
     await api().void(officer, ids.bankA, ids.applicationSmall, f.envelope.id, randomUUID());

@@ -4,6 +4,7 @@ import { applicationStatusSchema, usdAmountSchema } from "./common.js";
 export * from "./applications.js";
 // Browser-safe wire contracts. Never import database or server configuration here.
 export { applicationStatusSchema, usdAmountSchema } from "./common.js";
+export * from "./demo-inbox.js";
 export * from "./document-processing.js";
 export * from "./documents.js";
 export * from "./enrichment.js";
@@ -87,10 +88,15 @@ export const sessionBankSchema = z.object({
   name: z.string(),
 });
 export const authSessionSchema = z.discriminatedUnion("authenticated", [
-  z.object({ authenticated: z.literal(false), demoSignInEnabled: z.boolean() }),
+  z.object({
+    authenticated: z.literal(false),
+    demoSignInEnabled: z.boolean(),
+    demoInboxEnabled: z.boolean().default(false),
+  }),
   z.object({
     authenticated: z.literal(true),
     demoSignInEnabled: z.boolean(),
+    demoInboxEnabled: z.boolean().default(false),
     authenticationMethod: z.enum(["demo", "email_link"]),
     user: z.object({ email: z.string().email(), displayName: z.string().nullable() }),
     csrfToken: z.string().min(32),
@@ -107,4 +113,5 @@ export type AuthSession = z.infer<typeof authSessionSchema>;
 export type AuthPortal = z.infer<typeof authPortalSchema>;
 export * from "./checks.js";
 export * from "./notifications.js";
+export * from "./review.js";
 export * from "./tasks.js";

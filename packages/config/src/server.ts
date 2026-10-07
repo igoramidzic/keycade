@@ -38,6 +38,7 @@ const schema = z.object({
   SESSION_SECRET: z.string().min(32),
   ENCRYPTION_KEY: z.string().regex(/^[a-f0-9]{64}$/),
   PRIVATE_STORAGE_PATH: z.string().min(1),
+  DEMO_INBOX_ENABLED: z.enum(["true", "false"]).default("false"),
   DOCUMENT_MAX_FILE_BYTES: positive.max(100 * 1024 * 1024).default(25 * 1024 * 1024),
   DOCUMENT_MAX_BATCH_FILES: positive.max(100).default(10),
   SIMULATION_DELAY_MS: z.coerce.number().int().min(0).max(60000),

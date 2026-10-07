@@ -18,6 +18,7 @@ const app = await buildServer({
   allowedOrigins: env.ALLOWED_ORIGINS,
   nodeEnv: env.NODE_ENV,
   authDeliveryEnabled: true,
+  demoInboxEnabled: env.DEMO_INBOX_ENABLED === "true",
   demoSignInEnabled: env.NODE_ENV === "development",
   portalOrigins: {
     borrower: [`http://127.0.0.1:${env.BORROWER_PORT}`, `http://localhost:${env.BORROWER_PORT}`],

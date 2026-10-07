@@ -46,6 +46,7 @@ export type RequestAccessLinkInput = {
 };
 export type PreparedAccessDelivery = {
   requestId: string;
+  deliveryRequestId: string;
   claimToken: string;
   to: string;
   confirmUrl: string;
@@ -321,6 +322,7 @@ export function createIdentityService(
         .where(eq(accessDeliveryRequests.id, id));
       return {
         requestId: id,
+        deliveryRequestId: id,
         claimToken,
         to: contact.email,
         confirmUrl: `${delivery.origin}/auth/confirm#token=${token}`,

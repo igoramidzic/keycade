@@ -4,23 +4,28 @@ import { createR2DocumentStorage } from "@keycade/integrations/document-storage-
 import { handleWorkerRequest } from "./src/worker-handler";
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     // Hyperdrive owns pooling at the edge; the app pool belongs only to this request.
     const { db, pool } = createDatabase(env.HYPERDRIVE.connectionString, { max: 1 });
     try {
-      return await handleWorkerRequest(request, {
+      const response = await handleWorkerRequest(request, {
         db,
+        encryptionKey: env.ENCRYPTION_KEY,
         documentStorage: createR2DocumentStorage(
           env.DOCUMENTS,
           (size) => new FixedLengthStream(size),
         ),
         allowedOrigins: env.ALLOWED_ORIGINS.split(","),
         nodeEnv: "production",
-        // T06 delivery is through local Mailpit. Do not promise an email on the hosted shell.
-        authDeliveryEnabled: false,
-        demoSignInEnabled: false,
+        // Every deployed environment is a synthetic demo; no real email/identity provider exists.
+        authDeliveryEnabled: true,
+        demoSignInEnabled: true,
+        demoInboxEnabled: env.DEMO_INBOX_ENABLED === "true",
+        portalOrigins: { borrower: [env.BORROWER_ORIGIN], staff: [env.STAFF_ORIGIN] },
         rateLimiter: env.API_RATE_LIMITER,
         readiness: async () => {
+          if (!/^[a-f0-9]{64}$/.test(env.ENCRYPTION_KEY ?? ""))
+            throw new Error("Demo encryption is unavailable.");
           await assertWorkerSchemaReady(pool);
           const response = await env.JOBS.fetch("https://jobs.internal/internal/ready");
           const result: unknown = await response.json();
@@ -38,6 +43,19 @@ export default {
           };
         },
       });
+      if (response.ok && ["POST", "PATCH", "DELETE"].includes(request.method)) {
+        // Persisted work is authoritative. This best-effort queue wake shortens demo latency;
+        // Cron recovers the same durable intents if the wake fails.
+        ctx.waitUntil(
+          env.JOBS.fetch("https://jobs.internal/internal/dispatch", { method: "POST" })
+            .then(async (wake) => {
+              await wake.body?.cancel();
+              if (!wake.ok) console.warn("Demo job wake deferred to scheduled recovery.");
+            })
+            .catch(() => console.warn("Demo job wake deferred to scheduled recovery.")),
+        );
+      }
+      return response;
     } finally {
       await pool.end();
     }

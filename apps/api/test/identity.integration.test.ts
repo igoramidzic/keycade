@@ -122,6 +122,7 @@ for (const transport of ["fastify", "worker"] as const) {
         expect((await enabled.call("/api/v1/auth/session")).body).toEqual({
           authenticated: false,
           demoSignInEnabled: true,
+          demoInboxEnabled: false,
         });
         expect((await disabled.call(path, { method: "POST", body })).status).toBe(503);
         expect((await enabled.call(path, { method: "POST", omitOrigin: true, body })).status).toBe(
@@ -150,6 +151,7 @@ for (const transport of ["fastify", "worker"] as const) {
         expect((await disabled.call("/api/v1/auth/session", { cookie })).body).toEqual({
           authenticated: false,
           demoSignInEnabled: false,
+          demoInboxEnabled: false,
         });
         expect((await disabled.call(application, { cookie })).status).toBe(404);
         expect((await enabled.call(path, { method: "POST", cookie, body })).status).toBe(403);
@@ -165,6 +167,7 @@ for (const transport of ["fastify", "worker"] as const) {
         expect((await enabled.call("/api/v1/auth/session", { cookie })).body).toEqual({
           authenticated: false,
           demoSignInEnabled: true,
+          demoInboxEnabled: false,
         });
         const staffLogin = await enabled.call(path, {
           method: "POST",
@@ -203,6 +206,7 @@ for (const transport of ["fastify", "worker"] as const) {
         expect((await call("/api/v1/auth/session")).body).toEqual({
           authenticated: false,
           demoSignInEnabled: false,
+          demoInboxEnabled: false,
         });
         // Scanner GETs and origin changes cannot consume a credential.
         expect((await call("/api/v1/auth/consume")).status).toBe(404);
@@ -243,6 +247,7 @@ for (const transport of ["fastify", "worker"] as const) {
         expect((await call("/api/v1/auth/session", { cookie, origin: staffOrigin })).body).toEqual({
           authenticated: false,
           demoSignInEnabled: false,
+          demoInboxEnabled: false,
         });
         const application = `/api/v1/banks/${seedIds.bankA}/applications/${seedIds.applicationSmall}`;
         expect((await call(application, { cookie })).status).toBe(200);
@@ -266,6 +271,7 @@ for (const transport of ["fastify", "worker"] as const) {
         expect((await call("/api/v1/auth/session", { cookie })).body).toEqual({
           authenticated: false,
           demoSignInEnabled: false,
+          demoInboxEnabled: false,
         });
         expect((await call(application, { cookie })).status).toBe(404);
         expect(

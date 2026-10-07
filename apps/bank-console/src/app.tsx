@@ -11,6 +11,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router";
 import { ApiError, createStaffApi, StaffApiContext } from "./api";
+import { StaffDemoInbox } from "./demo-inbox";
 import { ApplicationDetail } from "./detail";
 import { CreateApplication } from "./forms";
 import { ApplicationQueue } from "./queue";
@@ -41,7 +42,12 @@ export function BankApp({ confirmation }: { confirmation: Confirmation }) {
           portal="staff"
           confirmation={confirmation}
           bankSlug={bankSlug}
-          onSignedIn={() => navigate(`/?bank=${encodeURIComponent(bankSlug)}`, { replace: true })}
+          onSignedIn={(path) =>
+            navigate(
+              `${path === "/demo-inbox" ? path : "/"}?bank=${encodeURIComponent(bankSlug)}`,
+              { replace: true },
+            )
+          }
           renderAuthenticated={(session, controls) => (
             <Workspace
               key={`${session.bank.id}:${session.user.email}:${session.authenticationMethod}`}
@@ -125,6 +131,14 @@ function Workspace({
           <div className="space-y-1">
             <p className="font-medium">{session.bank.name}</p>
             <p className="break-all text-sm text-muted-foreground">{session.user.email}</p>
+            {session.demoInboxEnabled && (
+              <Link
+                to={`/demo-inbox?bank=${encodeURIComponent(session.bank.slug)}`}
+                className="block text-sm underline underline-offset-4"
+              >
+                Demo inbox
+              </Link>
+            )}
             <Badge variant="secondary">
               {session.authenticationMethod === "demo"
                 ? "Demo access · email unverified"
@@ -157,6 +171,7 @@ function Workspace({
           ))}
         <div hidden={checking || denied}>
           <Routes>
+            <Route path="/demo-inbox" element={<StaffDemoInbox />} />
             <Route path="/" element={<ApplicationQueue />} />
             <Route path="/applications/new" element={<CreateApplication />} />
             <Route path="/applications/:applicationId/*" element={<ApplicationDetail />} />

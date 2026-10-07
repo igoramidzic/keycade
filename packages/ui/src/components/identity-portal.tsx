@@ -33,7 +33,7 @@ export function captureConfirmation(): Confirmation {
   return { page: true, token };
 }
 
-type Session = { demoSignInEnabled: boolean } & (
+type Session = { demoSignInEnabled: boolean; demoInboxEnabled?: boolean } & (
   | { authenticated: false }
   | {
       authenticated: true;
@@ -144,7 +144,11 @@ export function IdentityPortal({
         });
         if (signal?.aborted) return;
         if (proof.status === 401) {
-          setSession({ authenticated: false, demoSignInEnabled: next.demoSignInEnabled });
+          setSession({
+            authenticated: false,
+            demoSignInEnabled: next.demoSignInEnabled,
+            demoInboxEnabled: next.demoInboxEnabled,
+          });
           setScreen("request");
         } else if (proof.status === 403 || proof.status === 404) {
           setScreen("denied");
@@ -302,6 +306,23 @@ export function IdentityPortal({
     }
   }
 
+  async function openDemoInbox() {
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await post("demo-sign-in", { email, bankSlug, portal, returnPath: "/" });
+      if (!response.ok) throw new Error("Demo inbox unavailable.");
+      clearConfirmation();
+      await loadSession();
+      if (renderAuthenticated) onSignedIn?.("/demo-inbox");
+      else window.location.assign(`/demo-inbox?bank=${encodeURIComponent(bankSlug)}`);
+    } catch {
+      setError("This demo inbox is unavailable for this account. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function confirmLink() {
     if (!credential.current) return setScreen("expired");
     setBusy(true);
@@ -352,7 +373,11 @@ export function IdentityPortal({
       clearConfirmation();
       startKey.current = null;
       createKey.current = null;
-      setSession({ authenticated: false, demoSignInEnabled: session.demoSignInEnabled });
+      setSession({
+        authenticated: false,
+        demoSignInEnabled: session.demoSignInEnabled,
+        demoInboxEnabled: session.demoInboxEnabled,
+      });
       setEmail("");
       setEmailLinkMode(false);
       setResumeAfterStart(false);
@@ -491,10 +516,17 @@ export function IdentityPortal({
         {screen === "inbox" && (
           <div className="space-y-4">
             <p className="text-sm leading-6">
-              If this address can sign in, a link will arrive shortly. Open the email and confirm to
-              continue.
+              {session.demoInboxEnabled
+                ? "Your simulated message will appear in the demo inbox. Open it and confirm to continue. No email is sent externally."
+                : "If this address can sign in, a link will arrive shortly. Open the email and confirm to continue."}
             </p>
             <p className="break-all text-sm font-medium">{email}</p>
+            {session.demoInboxEnabled && (
+              <Button disabled={busy} className="w-full" onClick={() => void openDemoInbox()}>
+                {busy ? "Opening demo inbox…" : "Open demo inbox"}
+              </Button>
+            )}
+
             <p className="text-xs leading-5 text-muted-foreground">
               Delivery can take a few seconds. You can request a fresh link if yours expires.
             </p>

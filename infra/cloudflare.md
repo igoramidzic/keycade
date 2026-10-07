@@ -35,3 +35,10 @@ The initial hosted foundation shipped without seeded records. On October 7, the 
 Hosted verification after bootstrap: borrower `/api/v1/public/banks/bank-a/intake` returned 200 with the synthetic product, unknown-bank intake remained 404, and `/api/ready` returned 200. This verifies catalog availability, not the complete hosted sign-in/upload/enrichment journey.
 
 For local deployment checks, build the UIs with `KEYCADE_DEPLOYMENT=cloudflare`, then run each deploy command with `--dry-run`. Generate binding types after configuration changes using `wrangler types --include-runtime false --env-interface ApiBindings` (or `JobsBindings`) with the matching config and output path. Local Hyperdrive emulation accepts `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE`; supply the recognized local database URL privately through the environment.
+
+
+## Synthetic hosted access and work dispatch
+
+Every hosted URL is a demo. API/jobs share a private `ENCRYPTION_KEY` secret (64 lowercase hex characters), declared required in both Wrangler configs. It encrypts synthetic identifiers and purpose-bound inbox links; do not rotate it without a data migration. `DEMO_INBOX_ENABLED=true` uses private database delivery, never SMTP. The explicit non-destructive `bootstrap-demo-intake.sql` and `bootstrap-demo-access.sql` scripts prepare only Synthetic Bank A, its product and `officer-a@example.test`; ordinary deployments run migrations without reseeding.
+
+Successful API mutations wake the private jobs service through `waitUntil`. The service enqueues durable dispatch; minute Cron recovers missing wakes. Inbox delivery is dispatched ahead of bounded provider-family queue messages, and consumers use batch size one. Signing, checks, extraction and enrichment remain visible simulations. Session/origin/CSRF and bank/participant restrictions apply equally on hosted URLs.

@@ -481,7 +481,10 @@ export function createTasksService(
         task.evidenceRevision > 0 &&
         documentsReady &&
         taskTransitionAllowed(task.state, "submit"),
-      canReview: mutable && access.kind === "staff",
+      canReview:
+        mutable &&
+        access.kind === "staff" &&
+        (evidenceEditable(status, task.stage) || ["submitted", "in_review"].includes(status)),
     };
   }
   async function taskDetail(
@@ -706,6 +709,10 @@ export function createTasksService(
             "This request key was used for a different task.",
           );
       } else {
+        if (!evidenceEditable(app.status, payload.stage))
+          invalid(
+            "Requirements are locked for review. Request information before adding requirements.",
+          );
         const assignee = await validAssignee(
           tx,
           bankId,
@@ -791,6 +798,14 @@ export function createTasksService(
         if (task.stableKey.startsWith("check-input:"))
           invalid("Use the private identifier or authorization action for this task.");
       }
+      if (
+        (operation === "review" || operation === "waive") &&
+        !(
+          evidenceEditable(app.status, task.stage) ||
+          ["submitted", "in_review"].includes(app.status)
+        )
+      )
+        invalid("This requirement is locked at the current application stage.");
       if (task.revision !== parsed.expectedRevision) conflict();
       if (
         (operation === "answer" || operation === "submit") &&

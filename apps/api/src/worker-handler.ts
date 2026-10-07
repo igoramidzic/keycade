@@ -935,7 +935,11 @@ export async function handleWorkerRequest(
       return failure(404, "NOT_FOUND", "Resource not found.");
     }
     if (get && path === "/api/v1/auth/session")
-      return json(authSessionSchema.parse(publicSession(authentication, deps.demoSignInEnabled)));
+      return json(
+        authSessionSchema.parse(
+          publicSession(authentication, deps.demoSignInEnabled, deps.demoInboxEnabled),
+        ),
+      );
     if (get && path === "/api/v1/auth/staff")
       return json(staffSessionSchema.parse(await readStaffSession(deps.db, authentication)));
     if (request.method === "POST" && path === "/api/v1/auth/request-link") {

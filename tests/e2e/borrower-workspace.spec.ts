@@ -219,6 +219,7 @@ test("limited invited participants see scoped summaries without applicant setup 
     .getByRole("button", { name: "Open application", exact: true })
     .click();
   await expect(page.getByText("Limited access", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Review", exact: true })).toHaveCount(0);
   await expect(page.getByText("Synthetic equipment purchase", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /invite|upload|finish setup/i })).toHaveCount(0);
   await page.goto(applicationUrl(ids.small, "setup"));

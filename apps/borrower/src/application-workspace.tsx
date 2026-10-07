@@ -26,6 +26,7 @@ import { ApiError, formatAmount, request } from "./api";
 import { ApplicationDocuments } from "./documents";
 import { ApplicationPeople } from "./participants";
 import { ApplicationReadiness } from "./readiness";
+import { ApplicationReview, useApplicationReview } from "./review";
 import { SetupWizard } from "./setup-wizard";
 import { ApplicationSignatures } from "./signatures";
 import { ApplicationTasks } from "./tasks";
@@ -338,6 +339,19 @@ export function ApplicationRoute({
       </div>
     );
   if (!data) return null;
+  if (data.nextDestination === "setup" && view === "review")
+    return (
+      <section className="space-y-5">
+        {back}
+        <Link
+          className="block text-sm underline underline-offset-4"
+          to={applicationPath(applicationId, session.bank.slug, true)}
+        >
+          Return to setup
+        </Link>
+        <ApplicationReview session={session} applicationId={applicationId} />
+      </section>
+    );
   if (data.nextDestination === "setup" && !setup)
     return <Navigate replace to={applicationPath(applicationId, session.bank.slug, true)} />;
   if (data.nextDestination !== "setup" && setup)
@@ -351,10 +365,17 @@ export function ApplicationRoute({
           applicationId={applicationId}
           refreshSession={controls.refreshSession}
         />
+        <p className="mt-6 text-center text-sm text-muted-foreground">
+          <Link
+            className="underline underline-offset-4"
+            to={`/applications/${applicationId}/review?bank=${encodeURIComponent(session.bank.slug)}`}
+          >
+            Review status or withdraw this application
+          </Link>
+        </p>
       </div>
     );
-  if (data.nextDestination === "closed")
-    return <ClosedApplication data={data} bankSlug={session.bank.slug} />;
+  if (data.nextDestination === "closed") return <ClosedApplication data={data} session={session} />;
   return (
     <ApplicationPortal
       key={`${session.bank.id}:${session.user.email}:${applicationId}`}
@@ -365,7 +386,14 @@ export function ApplicationRoute({
   );
 }
 
-function ClosedApplication({ data, bankSlug }: { data: ApplicationSelection; bankSlug: string }) {
+function ClosedApplication({
+  data,
+  session,
+}: {
+  data: ApplicationSelection;
+  session: AuthenticatedSession;
+}) {
+  const bankSlug = session.bank.slug;
   const back = (
     <Link
       className={buttonVariants({ variant: "outline" })}
@@ -375,7 +403,7 @@ function ClosedApplication({ data, bankSlug }: { data: ApplicationSelection; ban
     </Link>
   );
   return (
-    <section className="mx-auto w-full max-w-3xl space-y-5">
+    <section className="w-full space-y-5">
       {back}
       <Card className="shadow-sm ring-0">
         <CardHeader>
@@ -389,11 +417,20 @@ function ClosedApplication({ data, bankSlug }: { data: ApplicationSelection; ban
           <Summary application={data} />
         </CardContent>
       </Card>
+      <ApplicationReview session={session} applicationId={data.id} hideForbidden />
     </section>
   );
 }
 
-const views = ["Overview", "Tasks", "Documents", "Signatures", "People", "Activity"] as const;
+const views = [
+  "Overview",
+  "Tasks",
+  "Documents",
+  "Signatures",
+  "Review",
+  "People",
+  "Activity",
+] as const;
 const emptyViews = {
   activity: [
     "Activity is not available yet",
@@ -409,6 +446,7 @@ function ApplicationPortal({
   applicationId: string;
   view: string;
 }) {
+  const review = useApplicationReview(session, applicationId);
   const detail = useQuery({
     queryKey: ["portal", session.bank.id, session.user.email, applicationId],
     queryFn: ({ signal }) =>
@@ -450,8 +488,7 @@ function ApplicationPortal({
   }
   const data = detail.data;
   if (!data) return null;
-  if (data.nextDestination === "closed")
-    return <ClosedApplication data={data} bankSlug={session.bank.slug} />;
+  if (data.nextDestination === "closed") return <ClosedApplication data={data} session={session} />;
   const limited = data.accessScope === "assigned";
   const active = view || "overview";
   const empty = emptyViews[active as keyof typeof emptyViews];
@@ -469,19 +506,21 @@ function ApplicationPortal({
         {limited && <Badge variant="secondary">Limited access</Badge>}
       </header>
       <nav aria-label="Application sections" className="flex flex-wrap gap-1">
-        {views.map((label) => {
-          const key = label.toLowerCase();
-          return (
-            <Link
-              key={key}
-              to={path(key === "overview" ? "" : key)}
-              aria-current={active === key ? "page" : undefined}
-              className={`${buttonVariants({ variant: "ghost", size: "sm" })} ${active === key ? "bg-card shadow-sm hover:bg-card" : "text-muted-foreground"}`}
-            >
-              {label}
-            </Link>
-          );
-        })}
+        {views
+          .filter((label) => label !== "Review" || (review.data && !review.error))
+          .map((label) => {
+            const key = label.toLowerCase();
+            return (
+              <Link
+                key={key}
+                to={path(key === "overview" ? "" : key)}
+                aria-current={active === key ? "page" : undefined}
+                className={`${buttonVariants({ variant: "ghost", size: "sm" })} ${active === key ? "bg-card shadow-sm hover:bg-card" : "text-muted-foreground"}`}
+              >
+                {label}
+              </Link>
+            );
+          })}
       </nav>
       {active === "overview" || active === "tasks" ? (
         <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] xl:gap-8">
@@ -537,6 +576,11 @@ function ApplicationPortal({
               </CardContent>
             </Card>
             <ApplicationReadiness session={session} applicationId={applicationId} />
+            {review.data && !review.error && (
+              <Link className={buttonVariants({ variant: "outline" })} to={path("review")}>
+                Review and submit application
+              </Link>
+            )}
             <section aria-label="Application documents" className="space-y-3 px-4">
               <h2 className="text-sm font-semibold">Documents</h2>
               <p className="text-sm leading-6 text-muted-foreground">
@@ -551,6 +595,8 @@ function ApplicationPortal({
             </section>
           </aside>
         </div>
+      ) : active === "review" ? (
+        <ApplicationReview session={session} applicationId={applicationId} />
       ) : active === "people" ? (
         <ApplicationPeople session={session} applicationId={applicationId} />
       ) : active === "documents" ? (

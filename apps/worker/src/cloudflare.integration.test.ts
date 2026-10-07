@@ -1,16 +1,136 @@
+import { randomUUID } from "node:crypto";
+import { applicationTasks, checkRuns, enrichmentRuns } from "@keycade/db";
 import { seedDatabase, seedIds } from "@keycade/db/seed";
 import { createTestDatabase } from "@keycade/db/testing";
+import {
+  createChecksService,
+  createDemoInboxCipher,
+  createDemoInboxService,
+  createEnrichmentService,
+  createIdentifierCipher,
+  createIdentityService,
+  createTasksService,
+} from "@keycade/domain";
 import { enqueueDemo } from "@keycade/integrations";
+import { eq } from "drizzle-orm";
 import { expect, test } from "vitest";
 import worker from "../worker";
 
-test("Cron dispatch and queue delivery preserve durable retries and one effect after duplicate delivery", async () => {
+test("private service wake and native queue deliver a single encrypted demo message without SMTP", async () => {
   const database = await createTestDatabase();
-  const delivered: { operationId: string }[] = [];
+  const delivered: unknown[] = [];
+  const key = "27".repeat(32);
   const env = {
     HYPERDRIVE: { connectionString: database.connectionString },
     JOBS_QUEUE: {
-      send: async (message: { operationId: string }) => {
+      send: async (message: unknown) => {
+        delivered.push(message);
+      },
+    },
+    SIMULATION_DELAY_MS: "0",
+    PROVIDER_DEADLINE_MS: "1000",
+    DEMO_INBOX_ENABLED: "true",
+    ENCRYPTION_KEY: key,
+    BORROWER_ORIGIN: "https://synthetic-borrower.example.test",
+    REMINDER_FIRST_DELAY_MS: "86400000",
+    REMINDER_SECOND_DELAY_MS: "259200000",
+  } as unknown as JobsBindings;
+  const deliver = async (body: unknown) => {
+    let ack = false,
+      retry = false;
+    await worker.queue(
+      {
+        messages: [
+          {
+            body,
+            ack: () => {
+              ack = true;
+            },
+            retry: () => {
+              retry = true;
+            },
+          },
+        ],
+      } as unknown as Parameters<typeof worker.queue>[0],
+      env,
+    );
+    expect({ ack, retry }).toEqual({ ack: true, retry: false });
+  };
+  try {
+    await seedDatabase(database.connectionString);
+    const identity = createIdentityService(database.db);
+    const input = {
+      email: "native-inbox@example.test",
+      bankSlug: "bank-a",
+      portal: "borrower" as const,
+      returnPath: "/",
+      origin: env.BORROWER_ORIGIN,
+      requestId: "native-inbox-test",
+      rateLimitKey: "native-inbox-test",
+    };
+    const session = await identity.signInDemo(input);
+    await identity.requestAccessLink(input);
+    expect(
+      (
+        await worker.fetch(
+          new Request("https://jobs.internal/internal/dispatch", { method: "POST" }),
+          env,
+        )
+      ).status,
+    ).toBe(202);
+    expect(delivered).toEqual([{ kind: "maintenance" }]);
+    await deliver(delivered.shift());
+    expect(delivered[0]).toHaveProperty("deliveryRequestId");
+    expect(delivered.slice(1)).toEqual([
+      { kind: "family", family: "enrichment" },
+      { kind: "family", family: "checks" },
+      { kind: "family", family: "signatures" },
+    ]);
+    const body = delivered.shift();
+    await deliver(body);
+    await deliver(body);
+    const inbox = createDemoInboxService(database.db, { cipher: createDemoInboxCipher(key) });
+    const messages = await inbox.list(session.session.actor, seedIds.bankA);
+    expect(messages.messages).toHaveLength(1);
+    expect(messages.messages[0]?.state).toBe("available");
+    expect(
+      (await inbox.open(session.session.actor, seedIds.bankA, messages.messages[0]!.id)).text,
+    ).toContain("No external email has been sent.");
+    expect(
+      (
+        await database.pool.query(
+          "SELECT status,attempts FROM access_delivery_requests WHERE request_id=$1",
+          [input.requestId],
+        )
+      ).rows,
+    ).toEqual([{ status: "delivered", attempts: 1 }]);
+    delivered.length = 0;
+    await worker.scheduled({} as ScheduledController, env);
+    expect(delivered).toEqual([
+      { kind: "family", family: "enrichment" },
+      { kind: "family", family: "checks" },
+      { kind: "family", family: "signatures" },
+      { kind: "family", family: "reminders" },
+    ]);
+    expect(
+      (await worker.fetch(new Request("https://jobs.internal/internal/dispatch"), env)).status,
+    ).toBe(404);
+    const invalid = { ...env, ENCRYPTION_KEY: "" } as unknown as JobsBindings;
+    expect(
+      (await worker.fetch(new Request("https://jobs.internal/internal/ready"), invalid)).status,
+    ).toBe(503);
+  } finally {
+    await database.cleanup();
+  }
+});
+
+test("Cron dispatch and queue delivery preserve durable retries and one effect after duplicate delivery", async () => {
+  const database = await createTestDatabase();
+  const delivered: unknown[] = [];
+  const env = {
+    HYPERDRIVE: { connectionString: database.connectionString },
+    JOBS_QUEUE: {
+      send: async (message: unknown) => {
         delivered.push(message);
       },
     },
@@ -48,7 +168,7 @@ test("Cron dispatch and queue delivery preserve durable retries and one effect a
       }),
     );
     await worker.scheduled({} as ScheduledController, env);
-    expect(delivered).toEqual([{ operationId }]);
+    expect(delivered).toEqual([{ operationId }, { kind: "family", family: "signatures" }]);
     await deliver(delivered.shift());
     const retry = await database.pool.query("SELECT status FROM integration_runs WHERE id=$1", [
       operationId,
@@ -67,8 +187,9 @@ test("Cron dispatch and queue delivery preserve durable retries and one effect a
       operationId,
       new Date(0),
     ]);
+    delivered.length = 0;
     await worker.scheduled({} as ScheduledController, env);
-    expect(delivered).toEqual([{ operationId }]);
+    expect(delivered).toEqual([{ operationId }, { kind: "family", family: "signatures" }]);
     await deliver(delivered[0]);
     await deliver(delivered[0]);
     expect(
@@ -92,6 +213,137 @@ test("Cron dispatch and queue delivery preserve durable retries and one effect a
       ).rows[0].n,
     ).toBe(1);
     await deliver({ operationId: "invalid" });
+  } finally {
+    await database.cleanup();
+  }
+});
+
+test("dispatch prioritizes inbox and independently queued provider families preserve timeout retries", async () => {
+  const database = await createTestDatabase();
+  const delivered: unknown[] = [];
+  const key = "36".repeat(32);
+  const env = {
+    HYPERDRIVE: { connectionString: database.connectionString },
+    JOBS_QUEUE: {
+      send: async (message: unknown) => {
+        delivered.push(message);
+      },
+    },
+    SIMULATION_DELAY_MS: "0",
+    PROVIDER_DEADLINE_MS: "20",
+    DEMO_INBOX_ENABLED: "true",
+    ENCRYPTION_KEY: key,
+    BORROWER_ORIGIN: "https://synthetic-borrower.example.test",
+    REMINDER_FIRST_DELAY_MS: "86400000",
+    REMINDER_SECOND_DELAY_MS: "259200000",
+  } as unknown as JobsBindings;
+  const deliver = async (body: unknown) => {
+    let ack = false,
+      retry = false;
+    await worker.queue(
+      {
+        messages: [
+          {
+            body,
+            ack: () => {
+              ack = true;
+            },
+            retry: () => {
+              retry = true;
+            },
+          },
+        ],
+      } as unknown as Parameters<typeof worker.queue>[0],
+      env,
+    );
+    expect({ ack, retry }).toEqual({ ack: true, retry: false });
+  };
+  try {
+    await seedDatabase(database.connectionString);
+    const actor = { kind: "user" as const, userId: seedIds.borrower };
+    const task = (
+      await createTasksService(database.db).read(actor, seedIds.bankA, seedIds.applicationSmall)
+    ).tasks.find((t) => t.inputKind === "synthetic_business_identifier")!;
+    const checks = createChecksService(database.db, { cipher: createIdentifierCipher(key) });
+    await checks.captureIdentifier(
+      actor,
+      seedIds.bankA,
+      seedIds.applicationSmall,
+      task.id,
+      {
+        expectedRevision: task.revision,
+        expectedInputRevision: task.secureInput!.revision,
+        value: "000000005",
+      },
+      randomUUID(),
+    );
+    await createEnrichmentService(database.db, { cipher: createIdentifierCipher(key) }).requestRun(
+      actor,
+      seedIds.bankA,
+      seedIds.applicationSmall,
+      { expectedRevision: 1, kind: "business" },
+      randomUUID(),
+    );
+    const identity = createIdentityService(database.db);
+    const input = {
+      email: "native-priority@example.test",
+      bankSlug: "bank-a",
+      portal: "borrower" as const,
+      returnPath: "/",
+      origin: env.BORROWER_ORIGIN,
+      requestId: randomUUID(),
+      rateLimitKey: randomUUID(),
+    };
+    const session = await identity.signInDemo(input);
+    await identity.requestAccessLink(input);
+    await worker.scheduled({} as ScheduledController, env);
+    // Scheduling performs no delayed provider work, even with registered timeout inputs pending.
+    expect(delivered[0]).toHaveProperty("deliveryRequestId");
+    const pending = await database.db
+      .select()
+      .from(enrichmentRuns)
+      .where(eq(enrichmentRuns.applicationId, seedIds.applicationSmall));
+    expect(pending.some((r) => r.status === "queued" && r.attempts === 0)).toBe(true);
+    expect(delivered).toEqual(
+      expect.arrayContaining([
+        { kind: "family", family: "enrichment" },
+        { kind: "family", family: "checks" },
+        { kind: "family", family: "signatures" },
+        { kind: "family", family: "reminders" },
+      ]),
+    );
+    await deliver(delivered[0]);
+    const inbox = createDemoInboxService(database.db, { cipher: createDemoInboxCipher(key) });
+    expect((await inbox.list(session.session.actor, seedIds.bankA)).messages).toHaveLength(1);
+    await deliver({ kind: "family", family: "enrichment" });
+    expect(
+      (
+        await database.db
+          .select()
+          .from(enrichmentRuns)
+          .where(eq(enrichmentRuns.applicationId, seedIds.applicationSmall))
+      ).some((r) => r.status === "retry_scheduled" && r.errorCode === "deadline_exceeded"),
+    ).toBe(true);
+    expect(
+      (
+        await database.db
+          .select()
+          .from(checkRuns)
+          .where(eq(checkRuns.applicationId, seedIds.applicationSmall))
+      ).some((r) => r.status === "queued" && r.attempts === 0),
+    ).toBe(true);
+    await deliver({ kind: "family", family: "checks" });
+    expect(
+      (
+        await database.db
+          .select()
+          .from(checkRuns)
+          .where(eq(checkRuns.applicationId, seedIds.applicationSmall))
+      ).some((r) => r.status === "retry_scheduled" && r.errorCode === "deadline_exceeded"),
+    ).toBe(true);
+    expect((await inbox.list(session.session.actor, seedIds.bankA)).messages).toHaveLength(1);
+    await deliver({ kind: "family", family: "unknown" });
+    await deliver({ kind: "family", family: "checks", operationId: randomUUID() });
   } finally {
     await database.cleanup();
   }

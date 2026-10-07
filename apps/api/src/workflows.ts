@@ -1,29 +1,41 @@
 import {
   applicationParamsSchema,
+  approveApplicationSchema,
   authorizeTaskTaxSchema,
   bankParamsSchema,
   captureTaskIdentifierSchema,
   checksViewSchema,
   createSignatureEnvelopeSchema,
+  declineApplicationSchema,
+  demoInboxMessageSchema,
+  demoInboxViewSchema,
   errorSchema,
   notificationPreferenceSchema,
   notificationsViewSchema,
   readinessViewSchema,
+  requestInformationSchema,
   resolveCheckSchema,
   retryCheckSchema,
+  reviewViewSchema,
   signatureActionSchema,
   signatureEventSchema,
   signaturesViewSchema,
+  startReviewSchema,
+  submitApplicationSchema,
   tasksViewSchema,
+  withdrawApplicationSchema,
 } from "@keycade/contracts";
 import { type Database, signatureEnvelopes } from "@keycade/db";
 import {
   type Actor,
   applyVerifiedSignatureEvent,
   createChecksService,
+  createDemoInboxCipher,
+  createDemoInboxService,
   createIdentifierCipher,
   createNotificationsService,
   createReadinessService,
+  createReviewService,
   createSignaturesService,
   DomainError,
 } from "@keycade/domain";
@@ -52,7 +64,10 @@ export const signatureWebhookPath = "/api/v1/simulated/signatures/events";
 export const signatureWebhookContentType = "application/vnd.keycade.signature+json";
 
 /** Shared route contracts keep native Workers and Fastify behavior aligned. */
-export function createWorkflowTransport(db: Database, options: { encryptionKey?: string }) {
+export function createWorkflowTransport(
+  db: Database,
+  options: { encryptionKey?: string; demoInboxEnabled?: boolean },
+) {
   const checks = () => {
     if (!options.encryptionKey)
       throw new DomainError(
@@ -65,7 +80,54 @@ export function createWorkflowTransport(db: Database, options: { encryptionKey?:
   const readiness = createReadinessService(db);
   const signatures = createSignaturesService(db);
   const notifications = createNotificationsService(db);
+  const review = createReviewService(db);
+  const inbox = () => {
+    if (!options.demoInboxEnabled || !options.encryptionKey)
+      throw new DomainError("NOT_FOUND", 404, "Resource not found.");
+    return createDemoInboxService(db, { cipher: createDemoInboxCipher(options.encryptionKey) });
+  };
   const routes: Route[] = [
+    {
+      method: "GET",
+      path: `${bankBase}/demo-inbox`,
+      params: bankParamsSchema,
+      response: demoInboxViewSchema,
+      handle: ({ actor, params: p }) => inbox().list(actor, p.bankId),
+    },
+    {
+      method: "GET",
+      path: `${bankBase}/demo-inbox/:resourceId`,
+      params: bankParamsSchema.extend({ resourceId: z.uuid() }),
+      response: demoInboxMessageSchema,
+      handle: ({ actor, params: p }) => inbox().open(actor, p.bankId, resource(p)),
+    },
+    {
+      method: "GET",
+      path: `${base}/review`,
+      params: applicationParamsSchema,
+      response: reviewViewSchema,
+      handle: ({ actor, params: p }) => review.read(actor, p.bankId, scope(p).applicationId),
+    },
+    ...(
+      [
+        ["submit", "submit", submitApplicationSchema],
+        ["start-review", "startReview", startReviewSchema],
+        ["request-information", "requestInformation", requestInformationSchema],
+        ["approve", "approve", approveApplicationSchema],
+        ["decline", "decline", declineApplicationSchema],
+        ["withdraw", "withdraw", withdrawApplicationSchema],
+      ] as const
+    ).map(
+      ([path, method, body]): Route => ({
+        method: "POST",
+        path: `${base}/review/${path}`,
+        params: applicationParamsSchema,
+        body,
+        response: reviewViewSchema,
+        handle: ({ actor, params: p, input, requestId }) =>
+          review[method](actor, p.bankId, scope(p).applicationId, input, requestId),
+      }),
+    ),
     {
       method: "GET",
       path: `${base}/checks`,

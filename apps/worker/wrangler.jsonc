@@ -30,8 +30,8 @@
     "consumers": [
       {
         "queue": "keycade-jobs",
-        "max_batch_size": 5,
-        "max_batch_timeout": 5,
+        "max_batch_size": 1,
+        "max_batch_timeout": 1,
         "max_retries": 3,
         "retry_delay": 10
       }
@@ -42,12 +42,19 @@
   },
   "vars": {
     "SIMULATION_DELAY_MS": "2000",
-    "PROVIDER_DEADLINE_MS": "60000"
+    "PROVIDER_DEADLINE_MS": "60000",
+    "DEMO_INBOX_ENABLED": "true",
+    "BORROWER_ORIGIN": "https://keycade-borrower.kualia.workers.dev",
+    "REMINDER_FIRST_DELAY_MS": "86400000",
+    "REMINDER_SECOND_DELAY_MS": "259200000"
   },
   "r2_buckets": [
     {
       "binding": "DOCUMENTS",
       "bucket_name": "keycade-private-documents"
     }
-  ]
+  ],
+  "secrets": {
+    "required": ["ENCRYPTION_KEY"]
+  }
 }

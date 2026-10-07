@@ -422,7 +422,8 @@ export async function buildServer(options: ServerOptions) {
       config: { rateLimit: { max: 240, timeWindow: "1 minute" } },
       schema: { response: { 200: authSessionSchema, ...responses } },
     },
-    async (request) => publicSession(request.authentication, options.demoSignInEnabled),
+    async (request) =>
+      publicSession(request.authentication, options.demoSignInEnabled, options.demoInboxEnabled),
   );
   app.get(
     "/api/v1/auth/staff",

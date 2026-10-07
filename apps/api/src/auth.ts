@@ -16,6 +16,7 @@ export interface IdentityTransportOptions {
   authDeliveryEnabled?: boolean;
   /** Explicit demo entry point; disabled unless a trusted runtime enables it. */
   demoSignInEnabled?: boolean;
+  demoInboxEnabled?: boolean;
   nodeEnv?: "development" | "test" | "production";
 }
 
@@ -32,19 +33,24 @@ export async function authenticateSession(
     : { actor: { kind: "anonymous" } };
 }
 
-export function publicSession(authentication: Authentication, demoSignInEnabled = false) {
+export function publicSession(
+  authentication: Authentication,
+  demoSignInEnabled = false,
+  demoInboxEnabled = false,
+) {
   const session = authentication.session;
   return session
     ? {
         authenticated: true as const,
         demoSignInEnabled,
+        demoInboxEnabled,
         authenticationMethod: session.authenticationMethod,
         user: { email: session.user.email, displayName: session.user.displayName },
         bank: session.bank,
         csrfToken: session.csrfToken,
         staff: session.staffRole !== null,
       }
-    : { authenticated: false as const, demoSignInEnabled };
+    : { authenticated: false as const, demoSignInEnabled, demoInboxEnabled };
 }
 
 export async function readStaffSession(db: Database, authentication: Authentication) {
