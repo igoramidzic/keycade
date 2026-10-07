@@ -105,3 +105,15 @@ References: [Neon link](https://neon.com/docs/cli/link), [Neon env](https://neon
 After both PostgreSQL 17/18 CI jobs passed, the user requested updating local development to 18 and explicitly authorized wiping the existing local PostgreSQL 17 data. This supersedes the earlier plan to keep 17 locally or retain its data for rollback. Fresh local initialization and GitHub's database test job now target 18.6, matching Neon. The reset is a one-time authorized operation, not part of `pnpm initialize` or normal startup.
 
 The PostgreSQL 18 image requires a named volume at `/var/lib/postgresql` with `PGDATA=/var/lib/postgresql/18/docker`. The new local volume is `${PROJECT_NAME}-postgres18-data`; checks enforce the configured image and data layout. Legacy explicit 17 configuration retains its old storage mapping but does not receive a separate CI matrix job. See the [official image layout](https://hub.docker.com/_/postgres).
+
+## Approved GitHub migration activation (October 6, 2026)
+
+The user explicitly approved storing the Neon database connection as an encrypted GitHub Actions secret, restricting deployment to `main`, and enabling migrations. This resolves the earlier approval block. The `neon-production` environment now permits only the `main` branch, contains `NEON_DATABASE_URL` as an encrypted secret and the exact target host/database as variables, and the repository variable `NEON_MIGRATIONS_ENABLED` is `true`. The setup verified these settings before enabling the workflow. Credentials were transferred via stdin to GitHub CLI's encrypted-secret mechanism and were not placed in source, process arguments, or tool output.
+
+GitHub Actions remains the owner of hosted schema writes. Local setup performed no hosted migration. The first enabled workflow on `main` applied both committed migrations successfully; the next workflow run verifies idempotence. No change to the separate Cloudflare application deployment scope is implied.
+
+## Faster demo deployment (October 6, 2026)
+
+The user requested commenting out the separate tests to speed up deployment because this is a demo. The Neon workflow's PostgreSQL 18 validation job (checks, build and integration tests) and PR trigger are now commented out, and the migration job no longer depends on validation. The test source and local commands remain available. Workflow comments explain how to restore the job, PR trigger and dependency. This explicit CI exception supersedes the earlier requirement that hosted migration wait for full validation; it does not remove tests from implementation work.
+
+Eligible `main` pushes and manual runs install the locked dependencies and go straight to migrations, with pnpm caching enabled. SQL execution still runs transactionally, and target/TLS checks, migration-history checks, serialization and GitHub's main-only environment remain in place. Valid SQL that breaks application behavior may reach the demo database without the paused regression checks.
