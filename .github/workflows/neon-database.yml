@@ -5,7 +5,10 @@ on:
     branches: [main]
     paths:
       - "packages/db/**"
+      - "packages/config/**"
       - "scripts/neon-migrate*"
+      - "scripts/local-lib*"
+      - ".env.example"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
@@ -16,7 +19,10 @@ on:
     branches: [main]
     paths:
       - "packages/db/**"
+      - "packages/config/**"
       - "scripts/neon-migrate*"
+      - "scripts/local-lib*"
+      - ".env.example"
       - "package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
@@ -30,16 +36,12 @@ permissions:
 
 jobs:
   validate:
-    name: Validate on PostgreSQL ${{ matrix.postgres }}
+    name: Validate on PostgreSQL 18
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        postgres: ["17.7-alpine", "18.6-alpine"]
     services:
       postgres:
-        image: postgres:${{ matrix.postgres }}
+        image: postgres:18.6-alpine
         env:
           POSTGRES_USER: keycade
           POSTGRES_PASSWORD: keycade_ci_only

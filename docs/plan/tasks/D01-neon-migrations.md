@@ -10,7 +10,7 @@ GitHub Actions owns application schema updates to the user's existing Neon Postg
 
 - Existing project `holy-fog-27591922`, branch `production`, is linked and read-only TLS connectivity verified; local `.env` is preserved and credentials remain ignored.
 - Neon is PostgreSQL-only; no Neon uploads bucket or additional service is provisioned. Cloudflare R2 remains the planned document store.
-- Pull requests validate without hosted credentials. Only `main` pushes or manual runs can apply migrations, after unit/type/build and real PostgreSQL 17/18 checks pass.
+- Pull requests validate without hosted credentials. Only `main` pushes or manual runs can apply migrations, after unit/type/build and real PostgreSQL 18 checks pass.
 - The explicit hosted command requires GitHub Actions and validates direct endpoint, expected host/database, and TLS. It never invokes local initialization, seeds, resets, or background transport startup.
 - Concurrent migrations serialize. Repeated runs do nothing; edited historical migrations and a database ahead of the checkout fail safely, with no secret or raw SQL error exposure.
 - GitHub's `neon-production` environment restricts deployment to `main`, stores the connection as an encrypted secret, and passes it only to the migration step.
@@ -30,4 +30,8 @@ Validation before push:
 - `pnpm build` passed all 12 packages.
 - Six new integration tests passed on disposable local PostgreSQL 17 databases: initial application without seeds, repeated migration preserving records, wrong database rejection, altered SQL/timestamps and older-checkout rejection, concurrent migration locking, transactional failure rollback and lock release.
 - All 145 candidate tracked/untracked source files were scanned against actual local/hosted private environment values with no matches. Git confirms `.env.neon` and `.neon` are ignored.
-- GitHub's PostgreSQL 17/18 workflow run remains to be recorded; no remote migration has run.
+- [Initial GitHub validation](https://github.com/igoramidzic/keycade/actions/runs/37558041085) passed on both PostgreSQL 17.7 and 18.6, including the full integration suite. The Neon migration job was skipped because the enable flag and credential are intentionally absent; no remote migration ran.
+
+The user subsequently requested local PostgreSQL 18 and explicitly authorized wiping all initial local 17 data. Defaults and storage checks now use PostgreSQL 18.6 with its versioned data path and a named volume mounted at `/var/lib/postgresql`. The CI matrix is simplified to one PostgreSQL 18 job. This explicit one-time reset does not add a reset to ordinary initialization.
+
+Local reset verification: only the ownership-verified `keycade-postgres` container and `keycade-postgres-data` volume were removed. `.env` changed only `POSTGRES_IMAGE`; existing credentials were retained. Fresh `pnpm initialize` created `keycade-postgres18-data`, applied committed schema/pg-boss migrations and inserted synthetic fixtures. `pnpm check` passed 105 unit tests and all type/lint checks; `pnpm test:integration` passed 42 tests on PostgreSQL 18. The `scripts/verify-local.ts` acceptance probe confirmed repeat initialization preserves environment bytes and records, invalid credentials/stopped database refuse app startup, and stop/start preserves persisted data.

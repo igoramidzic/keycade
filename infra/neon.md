@@ -1,6 +1,6 @@
 # Neon PostgreSQL and GitHub Actions
 
-The existing Neon project `holy-fog-27591922` (Keycade), branch `production`, is the hosted database. It runs PostgreSQL 18.6. Local Podman remains on 17.7; the database workflow tests both major versions before a hosted migration. Neon is used only for PostgreSQL. Cloudflare R2 remains the planned document store.
+The existing Neon project `holy-fog-27591922` (Keycade), branch `production`, is the hosted database. It runs PostgreSQL 18.6. Local Podman and GitHub validation also use 18.6 after the user explicitly authorized wiping the initial local 17 database and starting fresh. Neon is used only for PostgreSQL. Cloudflare R2 remains the planned document store.
 
 ## Local connection context
 
@@ -36,7 +36,7 @@ The database secret is exposed only to the final migration step. Dependency inst
 ## Normal operation
 
 1. Change the Drizzle schema and generate a new committed migration with `pnpm db:generate`. Keep already-applied migration SQL unchanged.
-2. Push or open a pull request. Changes to database files, the migration runner, workflow or dependency manifests trigger validation. Tests use fresh disposable PostgreSQL 17/18 databases, never the hosted database.
+2. Push or open a pull request. Changes to database files, local database configuration, the migration runner, workflow or dependency manifests trigger validation. Tests use fresh disposable PostgreSQL 18 databases, never the hosted database.
 3. On `main`, after validation passes and deployment is enabled, GitHub runs `pnpm db:migrate:neon`. It serializes deployments, validates the exact TLS database target, checks migration history, and applies only pending SQL. It does not seed data or reset schemas.
 4. To retry, use **Actions → Neon database migrations → Run workflow → main**. Reapplying the same committed migrations is a no-op. The command refuses ordinary local execution.
 

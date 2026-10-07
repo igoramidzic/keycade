@@ -3,13 +3,15 @@ import { copyFileSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSyn
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { loadServerEnv, projectRoot } from "@keycade/config/server";
+import { loadServerEnv, projectRoot, type ServerEnv } from "@keycade/config/server";
 import { parse } from "dotenv";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
   assertLocalTarget,
+  assertOwnedDatabase,
   assertPortFree,
   generateEnvironment,
+  postgresStorage,
   run,
   startServices,
 } from "./local-lib";
@@ -45,6 +47,7 @@ describe("repeatable local environment generation", () => {
     expect(values.SESSION_SECRET).toMatch(/^[a-f0-9]{64}$/);
     expect(values.ENCRYPTION_KEY).toMatch(/^[a-f0-9]{64}$/);
     expect(values.SESSION_SECRET).not.toBe(values.ENCRYPTION_KEY);
+    expect(values.POSTGRES_IMAGE).toBe("docker.io/library/postgres:18.6-alpine");
     const url = new URL(values.DATABASE_URL ?? "");
     expect(decodeURIComponent(url.password)).toBe(values.DB_PASSWORD);
     expect(url.hostname).toBe(values.DB_HOST);
@@ -94,6 +97,15 @@ describe("repeatable local environment generation", () => {
     expect(() => loadServerEnv(values)).not.toThrow();
   });
 
+  test("preserves an explicitly configured PostgreSQL 17 database instead of silently upgrading", () => {
+    writeFileSync(file, "POSTGRES_IMAGE=docker.io/library/postgres:17.7-alpine\n");
+    generateEnvironment(file, template);
+    const first = readFileSync(file, "utf8");
+    expect(parse(first).POSTGRES_IMAGE).toBe("docker.io/library/postgres:17.7-alpine");
+    generateEnvironment(file, template);
+    expect(readFileSync(file, "utf8")).toBe(first);
+  });
+
   test("initializes an existing empty env file and preserves the generated values on rerun", () => {
     writeFileSync(file, "", { mode: 0o644 });
     generateEnvironment(file, template);
@@ -121,6 +133,141 @@ describe("repeatable local environment generation", () => {
       expect(readFileSync(file, "utf8")).toBe(first);
     },
   );
+});
+
+describe("version-specific PostgreSQL persistence", () => {
+  function environment(image = "docker.io/library/postgres:18.6-alpine") {
+    generateEnvironment(file, template);
+    return loadServerEnv({ ...parse(readFileSync(file)), POSTGRES_IMAGE: image });
+  }
+
+  function container(env: ServerEnv) {
+    const storage = postgresStorage(env);
+    return {
+      Id: "synthetic-container-id",
+      State: { Running: true },
+      Config: {
+        Image: env.POSTGRES_IMAGE,
+        Labels: { "io.keycade.workspace": projectRoot, "io.keycade.project": env.PROJECT_NAME },
+        Env: [
+          `POSTGRES_USER=${env.DB_USER}`,
+          `POSTGRES_DB=${env.DB_NAME}`,
+          `PGDATA=${storage.dataPath}`,
+        ],
+      },
+      HostConfig: {
+        PortBindings: { "5432/tcp": [{ HostIp: "127.0.0.1", HostPort: String(env.DB_PORT) }] },
+      },
+      Mounts: [{ Name: storage.volumeName, Destination: storage.mountPath }],
+    };
+  }
+
+  function mockPodman(env: ServerEnv, existing?: ReturnType<typeof container>) {
+    vi.stubEnv("CONTAINER_HOST", undefined);
+    vi.stubEnv("CONTAINER_CONNECTION", undefined);
+    vi.mocked(spawnSync).mockImplementation((binary, args) => {
+      if (binary !== "podman" || !Array.isArray(args)) throw new Error("Unexpected executable.");
+      let response = "";
+      if (args[0] === "system")
+        response = JSON.stringify([{ Default: true, URI: "ssh://synthetic@127.0.0.1:12345" }]);
+      else if (args[0] === "machine")
+        response = JSON.stringify([{ Name: env.PODMAN_MACHINE, Running: true }]);
+      else if (args[0] === "ps")
+        response = JSON.stringify(existing ? [{ Names: [`${env.PROJECT_NAME}-postgres`] }] : []);
+      else if (args[0] === "container") response = JSON.stringify([existing]);
+      else if (args[0] === "volume" && args[1] === "ls") response = "[]";
+      return {
+        pid: 1,
+        output: [null, response, ""],
+        stdout: response,
+        stderr: "",
+        status: 0,
+        signal: null,
+      };
+    });
+  }
+
+  function mutations() {
+    return vi.mocked(spawnSync).mock.calls.filter(([, args]) => {
+      if (!Array.isArray(args)) return false;
+      return (
+        ["run", "start", "stop", "rm"].includes(args[0]) ||
+        (args[0] === "volume" && args[1] !== "ls") ||
+        (args[0] === "machine" && args[1] !== "list")
+      );
+    });
+  }
+
+  test.each([
+    ["docker.io/library/postgres:18.6-alpine", "keycade-postgres18-data", "/var/lib/postgresql"],
+    ["docker.io/library/postgres:17.7-alpine", "keycade-postgres-data", "/var/lib/postgresql/data"],
+  ])("creates %s with the matching persistent volume mount", async (image, volume, mount) => {
+    const env = environment(image);
+    // Ask the OS for a free loopback port; the database process itself is mocked.
+    const portReservation = net.createServer();
+    await new Promise<void>((resolve) => portReservation.listen(0, "127.0.0.1", resolve));
+    const address = portReservation.address();
+    if (!address || typeof address === "string") throw new Error("No test port assigned.");
+    env.DB_PORT = address.port;
+    const url = new URL(env.DATABASE_URL);
+    url.port = String(env.DB_PORT);
+    env.DATABASE_URL = url.toString();
+    await new Promise<void>((resolve) => portReservation.close(() => resolve()));
+    mockPodman(env);
+
+    await startServices(env, false);
+
+    const createVolume = vi
+      .mocked(spawnSync)
+      .mock.calls.find(
+        ([, args]) => Array.isArray(args) && args[0] === "volume" && args[1] === "create",
+      );
+    expect(createVolume?.[1]).toEqual(expect.arrayContaining([volume]));
+    const launch = vi
+      .mocked(spawnSync)
+      .mock.calls.find(([, args]) => Array.isArray(args) && args[0] === "run");
+    expect(launch?.[1]).toEqual(expect.arrayContaining(["--volume", `${volume}:${mount}`, image]));
+    expect(launch?.[1]).not.toEqual(expect.arrayContaining([env.DB_PASSWORD]));
+    expect(mutations()).toHaveLength(2);
+  });
+
+  test.each(["docker.io/library/postgres:18.6-alpine", "docker.io/library/postgres:17.7-alpine"])(
+    "recognizes a running project-owned %s container without changing it",
+    async (image) => {
+      const env = environment(image);
+      mockPodman(env, container(env));
+      expect(() => assertOwnedDatabase(env)).not.toThrow();
+      await startServices(env, false);
+      expect(mutations()).toHaveLength(0);
+    },
+  );
+
+  test.each(["image", "mount", "volume", "PGDATA", "nested mount"])(
+    "rejects a mismatched %s before starting or changing an existing container",
+    async (mismatch) => {
+      const env = environment();
+      const existing = container(env);
+      existing.State.Running = false;
+      if (mismatch === "image") existing.Config.Image = "docker.io/library/postgres:17.7-alpine";
+      if (mismatch === "mount") existing.Mounts[0].Destination = "/var/lib/postgresql/data";
+      if (mismatch === "volume") existing.Mounts[0].Name = "keycade-postgres-data";
+      if (mismatch === "PGDATA") existing.Config.Env[2] = "PGDATA=/var/lib/postgresql/data";
+      if (mismatch === "nested mount")
+        existing.Mounts.push({ Name: "anonymous", Destination: "/var/lib/postgresql/18/docker" });
+      mockPodman(env, existing);
+      await expect(startServices(env, false)).rejects.toThrow(
+        mismatch === "image" ? "image does not match" : "identity/storage does not match",
+      );
+      expect(mutations()).toHaveLength(0);
+    },
+  );
+
+  test("rejects an ambiguous image version before invoking Podman", async () => {
+    const env = environment("docker.io/library/postgres:latest");
+    mockPodman(env);
+    await expect(startServices(env, false)).rejects.toThrow("identify PostgreSQL 17 or 18");
+    expect(spawnSync).not.toHaveBeenCalled();
+  });
 });
 
 describe("safe infrastructure preflight", () => {

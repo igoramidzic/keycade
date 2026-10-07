@@ -136,6 +136,30 @@ interface ContainerInfo {
   HostConfig: { PortBindings: Record<string, { HostIp: string; HostPort: string }[]> };
   Mounts: { Name?: string; Destination: string }[];
 }
+/** Keep explicitly configured PostgreSQL 17 storage separate from PostgreSQL 18's layout. */
+export function postgresStorage(env: Pick<ServerEnv, "POSTGRES_IMAGE" | "PROJECT_NAME">) {
+  const match = /^docker\.io\/library\/postgres:(17|18)(?:\.\d+)?(?:-[a-zA-Z0-9.-]+)?$/.exec(
+    env.POSTGRES_IMAGE,
+  );
+  if (!match)
+    throw new Error(
+      "POSTGRES_IMAGE must identify PostgreSQL 17 or 18 explicitly. Unsupported storage layouts are not initialized automatically.",
+    );
+  const major = Number(match[1]) as 17 | 18;
+  return major === 18
+    ? {
+        major,
+        volumeName: `${env.PROJECT_NAME}-postgres18-data`,
+        mountPath: "/var/lib/postgresql",
+        dataPath: "/var/lib/postgresql/18/docker",
+      }
+    : {
+        major,
+        volumeName: `${env.PROJECT_NAME}-postgres-data`,
+        mountPath: "/var/lib/postgresql/data",
+        dataPath: "/var/lib/postgresql/data",
+      };
+}
 function inspectContainer(name: string): ContainerInfo | undefined {
   const names = JSON.parse(run("podman", ["ps", "-a", "--format", "json"])) as {
     Names: string[];
@@ -183,20 +207,29 @@ function verifyContainer(env: ServerEnv, info: ContainerInfo, kind: "db" | "mail
       );
   }
   if (kind === "db") {
+    const storage = postgresStorage(env);
+    if (info.Config.Image !== env.POSTGRES_IMAGE)
+      throw new Error(
+        "Existing database image does not match POSTGRES_IMAGE. Restore the matching configuration or complete a separate preserving database upgrade; no container or volume was changed.",
+      );
     const settings = Object.fromEntries(
       info.Config.Env.map((entry) => {
         const at = entry.indexOf("=");
         return [entry.slice(0, at), entry.slice(at + 1)];
       }),
     );
+    const dataMounts = info.Mounts.filter(
+      (mount) =>
+        mount.Destination === "/var/lib/postgresql" ||
+        mount.Destination.startsWith("/var/lib/postgresql/"),
+    );
     if (
       settings.POSTGRES_USER !== env.DB_USER ||
       settings.POSTGRES_DB !== env.DB_NAME ||
-      !info.Mounts.some(
-        (m) =>
-          m.Name === `${env.PROJECT_NAME}-postgres-data` &&
-          m.Destination === "/var/lib/postgresql/data",
-      )
+      settings.PGDATA !== storage.dataPath ||
+      dataMounts.length !== 1 ||
+      dataMounts[0].Name !== storage.volumeName ||
+      dataMounts[0].Destination !== storage.mountPath
     )
       throw new Error(
         "Existing database identity/storage does not match project configuration. No changes were made.",
@@ -212,6 +245,7 @@ export function assertOwnedDatabase(env: ServerEnv) {
 }
 export async function startServices(env: ServerEnv, mail = true) {
   assertLocalTarget(env);
+  const storage = postgresStorage(env);
   ensureEngine(env);
   const kinds = mail ? (["db", "mail"] as const) : (["db"] as const);
   // Inspect all resources and ports before creating anything.
@@ -227,6 +261,7 @@ export async function startServices(env: ServerEnv, mail = true) {
     const name = `${env.PROJECT_NAME}-${kind === "db" ? "postgres" : "mailpit"}`;
     const info = inspectContainer(name);
     if (info) {
+      verifyContainer(env, info, kind);
       if (!info.State.Running) run("podman", ["start", name]);
       continue;
     }
@@ -238,7 +273,7 @@ export async function startServices(env: ServerEnv, mail = true) {
     ];
     const args = ["run", "--detach", "--name", name, ...labels];
     if (kind === "db") {
-      const volume = `${env.PROJECT_NAME}-postgres-data`;
+      const volume = storage.volumeName;
       const volumes = JSON.parse(run("podman", ["volume", "ls", "--format", "json"])) as {
         Name: string;
         Labels?: Record<string, string>;
@@ -257,7 +292,7 @@ export async function startServices(env: ServerEnv, mail = true) {
         "--publish",
         `127.0.0.1:${env.DB_PORT}:5432`,
         "--volume",
-        `${volume}:/var/lib/postgresql/data`,
+        `${volume}:${storage.mountPath}`,
         "--env-file",
         "/dev/stdin",
         env.POSTGRES_IMAGE,

@@ -37,7 +37,7 @@ Use `Not started`, `In progress`, `Blocked — reason`, or `Done — evidence`. 
 | T03 | [Drizzle, core schema, and seeds](tasks/T03-database.md) | T02 | Done — [validated](local-foundation-validation.md) |
 | T04 | [API boundaries, authorization, and audit foundation](tasks/T04-api-foundation.md) | T03 | Done — [validated](local-foundation-validation.md) |
 | T05 | [Durable jobs and provider contracts](tasks/T05-jobs.md) | T04 | Done — [validated](local-foundation-validation.md) |
-| D01 | [Neon connection and GitHub migrations](tasks/D01-neon-migrations.md) | T03, T05 | In progress — workflow verification; hosted credential approval pending |
+| D01 | [Neon connection and GitHub migrations](tasks/D01-neon-migrations.md) | T03, T05 | Blocked — validated workflow and local PostgreSQL 18; hosted credential approval pending |
 | T06 | [Passwordless identity and sessions](tasks/T06-identity.md) | T05 | Not started |
 | T07 | [Application creation and draft service](tasks/T07-application-service.md) | T06 | Not started |
 | T08 | [Mock bank and short application flow](tasks/T08-intake.md) | T07 | Not started |
