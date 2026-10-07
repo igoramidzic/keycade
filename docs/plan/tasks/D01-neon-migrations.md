@@ -18,7 +18,7 @@ GitHub Actions owns application schema updates to the user's existing Neon Postg
 
 ## Implementation record
 
-In progress. The existing Neon login, project link and read-only TLS connection passed; PostgreSQL reports 18.6 and an initially empty public schema. The local `.env` hash was unchanged. Both `.neon` and `.env.neon` are ignored; `.env.neon` has mode 0600.
+Done — October 6, 2026. The first hosted migration and a repeat no-op run passed through GitHub Actions; run evidence follows. The existing Neon login, project link and read-only TLS connection passed; PostgreSQL reported 18.6 and an initially empty public schema before migration. The local `.env` hash was unchanged. Both `.neon` and `.env.neon` are ignored; `.env.neon` has mode 0600.
 
 Cloudflare `cf auth whoami` confirms a valid CLI login; this is the newer `cf` CLI, whose login is separate from Wrangler. The account's existing subdomain is `kualia-analytics.workers.dev`; no Keycade Workers exist.
 
@@ -40,4 +40,6 @@ Local reset verification: only the ownership-verified `keycade-postgres` contain
 
 After activation, the [first hosted GitHub run](https://github.com/igoramidzic/keycade/actions/runs/37559188611) passed on commit `e4c5089`: PostgreSQL 18 validation succeeded, and the migration job reported **2 applied; 2 total**.
 
-The user then requested commenting out those tests for faster demo deployment. The workflow now preserves the validation job and PR trigger as comments, removes the migration job's validation dependency, and caches pnpm dependencies. The main-only enable gate, environment restriction, final-step secret exposure, concurrency lock, TLS/target checks, history validation and transactional migration execution remain active. Local YAML structural review passed; verification of the faster workflow's no-op run remains before marking this task done.
+The user then requested commenting out those tests for faster demo deployment. The workflow now preserves the validation job and PR trigger as comments, removes the migration job's validation dependency, and caches pnpm dependencies. The main-only enable gate, environment restriction, final-step secret exposure, concurrency lock, TLS/target checks, history validation and transactional migration execution remain active. Local YAML structural review and `git diff --check` passed; no application or migration-runner code changed and the full local suites were not rerun for this workflow-only change.
+
+The [faster demo workflow](https://github.com/igoramidzic/keycade/actions/runs/37559774548) passed on commit `1e10f88`. Its only active job was **Apply migrations to Neon**, which completed in **18 seconds** and reported **0 applied; 2 total**. This verifies the push trigger, removal of the separate validation dependency, hosted credential access and repeated-run idempotence. Cloudflare application deployment remains unimplemented and outside this completed database slice.

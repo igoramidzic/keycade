@@ -21,6 +21,8 @@ Use the direct `DATABASE_URL_UNPOOLED` connection for migrations and later Hyper
 
 The workflow is `.github/workflows/neon-database.yml` in `igoramidzic/keycade`. The user explicitly approved transferring the Neon connection into an encrypted GitHub Actions secret and enabling migrations. The deployment environment and exact target variables have been configured and read back; the repository enable flag is `true`.
 
+Hosted execution is verified: the [first enabled run](https://github.com/igoramidzic/keycade/actions/runs/37559188611) applied two migrations; the [migration-only demo run](https://github.com/igoramidzic/keycade/actions/runs/37559774548) completed in 18 seconds with zero pending migrations and two total.
+
 Configured settings:
 
 | Setting | Location | Value |
