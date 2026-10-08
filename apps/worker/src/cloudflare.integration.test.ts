@@ -1,20 +1,212 @@
-import { randomUUID } from "node:crypto";
-import { applicationTasks, checkRuns, enrichmentRuns } from "@keycade/db";
+import { createHash, randomUUID } from "node:crypto";
+import {
+  applicationTasks,
+  auditEvents,
+  checkRuns,
+  documentProcessingRuns,
+  documentVersions,
+  enrichmentRuns,
+} from "@keycade/db";
 import { seedDatabase, seedIds } from "@keycade/db/seed";
 import { createTestDatabase } from "@keycade/db/testing";
 import {
   createChecksService,
   createDemoInboxCipher,
   createDemoInboxService,
+  createDocumentsService,
   createEnrichmentService,
   createIdentifierCipher,
   createIdentityService,
   createTasksService,
 } from "@keycade/domain";
 import { enqueueDemo } from "@keycade/integrations";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { expect, test } from "vitest";
+import { createDemoImportPdf } from "../../../packages/contracts/src/demo-import";
 import worker from "../worker";
+
+test("native document families drain a full batch after an early processing wake without Cron or duplicate effects", async () => {
+  const database = await createTestDatabase();
+  const emitted: unknown[] = [];
+  const objects = new Map<string, Uint8Array>();
+  const env = {
+    HYPERDRIVE: { connectionString: database.connectionString },
+    JOBS_QUEUE: {
+      send: async (message: unknown) => {
+        emitted.push(message);
+      },
+    },
+    DOCUMENTS: {
+      get: async (key: string) => {
+        const bytes = objects.get(key);
+        if (!bytes) return null;
+        return {
+          size: bytes.length,
+          body: new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(bytes);
+              controller.close();
+            },
+          }),
+        };
+      },
+    },
+    SIMULATION_DELAY_MS: "0",
+    PROVIDER_DEADLINE_MS: "1000",
+  } as unknown as JobsBindings;
+  const deliver = async (body: unknown) => {
+    let ack = false,
+      retry = false;
+    await worker.queue(
+      {
+        messages: [
+          {
+            body,
+            ack: () => {
+              ack = true;
+            },
+            retry: () => {
+              retry = true;
+            },
+          },
+        ],
+      } as unknown as Parameters<typeof worker.queue>[0],
+      env,
+    );
+    expect({ ack, retry }).toEqual({ ack: true, retry: false });
+  };
+  const scan = { kind: "family", family: "document_scans" };
+  const processing = { kind: "family", family: "document_processing" };
+  try {
+    await seedDatabase(database.connectionString);
+    const borrower = { kind: "user" as const, userId: seedIds.borrower };
+    const service = createDocumentsService(database.db, { scanDelayMs: 0 });
+    const context = (await service.list(borrower, seedIds.bankA, seedIds.applicationSmall))
+      .demoImportContext;
+    if (!context) throw new Error("Expected a synthetic import context.");
+    const bytes = createDemoImportPdf("business-tax-return-2023", context);
+    const versions: string[] = [];
+    // Ten documents exercise both five-item invocation budgets. An eleventh future scan
+    // verifies that continuing a full batch does not spin on work that is not due yet.
+    for (let index = 0; index < 11; index++) {
+      const upload = await service.beginUpload(
+        borrower,
+        seedIds.bankA,
+        seedIds.applicationSmall,
+        {
+          idempotencyKey: randomUUID(),
+          fileName: `synthetic-batch-${index}.pdf`,
+          mimeType: "application/pdf",
+          expectedSize: bytes.length,
+          demoImport: {
+            fileName: "business-tax-return-2023.txt",
+            text: "Synthetic batch scheduling fixture.",
+            context,
+          },
+        },
+        randomUUID(),
+      );
+      objects.set(upload.storageKey, bytes);
+      await service.finalizeUpload(
+        borrower,
+        seedIds.bankA,
+        seedIds.applicationSmall,
+        upload.uploadId,
+        { size: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex") },
+        randomUUID(),
+      );
+      versions.push(upload.versionId);
+    }
+    const later = new Date(Date.now() + 60 * 60_000);
+    await database.db
+      .update(documentVersions)
+      .set({ scanAvailableAt: later })
+      .where(eq(documentVersions.id, versions[10]!));
+
+    // A maintenance wake may deliver interpretation before scans have created any intent.
+    await deliver(processing);
+    expect(emitted).toEqual([]);
+    expect(await database.db.select().from(documentProcessingRuns)).toEqual([]);
+    await deliver(scan);
+    const attemptedMessages: unknown[] = [];
+    while (emitted.length) {
+      expect(attemptedMessages.length).toBeLessThan(12);
+      const message = emitted.shift();
+      attemptedMessages.push(message);
+      await deliver(message);
+    }
+    const readyVersions = versions.slice(0, 10);
+    const runs = await database.db
+      .select()
+      .from(documentProcessingRuns)
+      .where(inArray(documentProcessingRuns.versionId, readyVersions));
+    expect(runs).toHaveLength(10);
+    for (const run of runs) {
+      expect(run).toMatchObject({ state: "classified", stale: false, attempts: 1 });
+      expect(run.result).toMatchObject({ simulated: true, versionId: run.versionId });
+    }
+    const scanned = await database.db
+      .select()
+      .from(documentVersions)
+      .where(inArray(documentVersions.id, readyVersions));
+    expect(
+      scanned.every((version) => version.scanState === "clean" && version.scanAttempts === 1),
+    ).toBe(true);
+    const effects = () =>
+      database.db
+        .select()
+        .from(auditEvents)
+        .where(
+          and(
+            inArray(auditEvents.targetId, readyVersions),
+            inArray(auditEvents.action, ["document.scanned", "document.processed"]),
+          ),
+        );
+    expect(await effects()).toHaveLength(20);
+    for (const message of [scan, processing, ...attemptedMessages]) await deliver(message);
+    expect(emitted).toEqual([]);
+    expect(await effects()).toHaveLength(20);
+    expect(
+      await database.db
+        .select()
+        .from(documentProcessingRuns)
+        .where(inArray(documentProcessingRuns.versionId, readyVersions)),
+    ).toEqual(runs);
+    expect(
+      (
+        await database.db
+          .select()
+          .from(documentVersions)
+          .where(eq(documentVersions.id, versions[10]!))
+      )[0],
+    ).toMatchObject({ scanState: "pending", scanAttempts: 0 });
+
+    // A delayed retry is likewise left to its durable availability time, without queue churn.
+    await service.retryProcessing(
+      { kind: "user", userId: seedIds.officerA },
+      seedIds.bankA,
+      seedIds.applicationSmall,
+      readyVersions[0]!,
+      randomUUID(),
+    );
+    await database.db
+      .update(documentProcessingRuns)
+      .set({ availableAt: later })
+      .where(eq(documentProcessingRuns.state, "queued"));
+    await deliver(processing);
+    expect(emitted).toEqual([]);
+    expect(
+      (
+        await database.db
+          .select()
+          .from(documentProcessingRuns)
+          .where(eq(documentProcessingRuns.state, "queued"))
+      )[0],
+    ).toMatchObject({ attempts: 0, availableAt: later });
+  } finally {
+    await database.cleanup();
+  }
+});
 
 test("private service wake and native queue deliver a single encrypted demo message without SMTP", async () => {
   const database = await createTestDatabase();

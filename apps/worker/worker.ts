@@ -102,8 +102,22 @@ async function processFamily(
         kind: "family",
         family: "document_processing",
       } satisfies JobMessage);
-  } else if (family === "document_processing") await processDocumentInterpretations(db, config);
-  else if (family === "enrichment" && env.ENCRYPTION_KEY)
+    if (scanned === 5) await env.JOBS_QUEUE.send({ kind: "family", family } satisfies JobMessage);
+  } else if (family === "document_processing") {
+    // A scan invocation can create five interpretation intents after earlier processing
+    // wakes have already found no work. Drain the same bounded batch and continue a full
+    // batch, so remaining documents do not wait for one-per-minute Cron recovery.
+    let processed = 0;
+    while (
+      processed < 5 &&
+      !config.signal.aborted &&
+      (await processDocumentInterpretations(db, config))
+    )
+      processed++;
+    // An empty/delayed/leased queue returns false. Only a fully consumed budget wakes
+    // another invocation; future retries retain their persisted availability time.
+    if (processed === 5) await env.JOBS_QUEUE.send({ kind: "family", family } satisfies JobMessage);
+  } else if (family === "enrichment" && env.ENCRYPTION_KEY)
     await processEnrichmentJobs(db, createIdentifierCipher(env.ENCRYPTION_KEY), config);
   else if (family === "checks" && env.ENCRYPTION_KEY)
     await processCheckJobs(db, createIdentifierCipher(env.ENCRYPTION_KEY), config);

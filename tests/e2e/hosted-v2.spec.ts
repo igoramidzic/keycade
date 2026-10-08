@@ -11,7 +11,7 @@ import type {
 import { expect as browserExpect, type Page, test } from "@playwright/test";
 import { demoImportRecipes } from "../../packages/contracts/src/demo-import";
 import { workflowApi } from "./closing-helpers";
-import { paceHostedRequests } from "./hosted-helpers";
+import { paceHostedRequests, recordHostedHttpFailures } from "./hosted-helpers";
 
 const env = readEnvironment();
 const expect = browserExpect.configure({ timeout: 30_000 });
@@ -48,6 +48,7 @@ test("hosted v2 applicant resumes masked setup and reaches R2 evidence, reviewed
   browser,
   isMobile,
 }, testInfo) => {
+  recordHostedHttpFailures(context, testInfo, "borrower");
   await paceHostedRequests(context);
   const email = `hosted-v2-${randomUUID()}@example.test`;
   const name = `Synthetic Hosted V2 Workshop ${randomUUID().slice(0, 8)}`;
@@ -127,10 +128,25 @@ test("hosted v2 applicant resumes masked setup and reaches R2 evidence, reviewed
     const setup = await (
       await fetch(`/api/v1/banks/${session.bank.id}/applications/${applicationId}/setup`)
     ).json();
+    // Registered UUIDs end in the same digits as the supported synthetic EIN. Exempt only
+    // schema-known ID paths, never arbitrary strings or values inside businessEin.
+    const idPaths = new Set(["id", "bankId", "businessId", "productId", "selectedProduct.id"]);
+    const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
+    function containsRawEin(value: unknown, path: string[] = []): boolean {
+      if (typeof value === "string") {
+        if (idPaths.has(path.join(".")) && uuid.test(value)) return false;
+        return value.includes("000000001") || value.includes("00-0000001");
+      }
+      return (
+        value !== null &&
+        typeof value === "object" &&
+        Object.entries(value).some(([key, entry]) => containsRawEin(entry, [...path, key]))
+      );
+    }
     return {
       present: setup.businessEin.present === true,
       maskOnly: Boolean(setup.businessEin.mask) && setup.businessEin.mask !== "000000001",
-      dtoSafe: !JSON.stringify(setup).includes("000000001"),
+      dtoSafe: !containsRawEin(setup),
       storageSafe: !JSON.stringify({
         local: { ...localStorage },
         session: { ...sessionStorage },
@@ -247,6 +263,7 @@ test("hosted v2 applicant resumes masked setup and reaches R2 evidence, reviewed
 
   const officerContext = await browser.newContext({ viewport: page.viewportSize() });
   try {
+    recordHostedHttpFailures(officerContext, testInfo, "staff");
     await paceHostedRequests(officerContext);
     const officer = await officerContext.newPage();
     await signIn(officer, staff, "officer-a@example.test");
@@ -374,6 +391,7 @@ test("hosted v2 address changes fence stale runs, refresh replay is idempotent, 
   context,
   browser,
 }, testInfo) => {
+  recordHostedHttpFailures(context, testInfo, "staff");
   await paceHostedRequests(context);
   await signIn(page, staff, "officer-a@example.test");
   // Staff prefills remain an unfinished setup and schedule simulated delivery/footprint work.
@@ -478,6 +496,7 @@ test("hosted v2 address changes fence stale runs, refresh replay is idempotent, 
   expect(footprint(after).required).toBe(false);
 
   const outsiderContext = await browser.newContext({ viewport: page.viewportSize() });
+  recordHostedHttpFailures(outsiderContext, testInfo, "outsider");
   await paceHostedRequests(outsiderContext);
   try {
     const outsider = await outsiderContext.newPage();
