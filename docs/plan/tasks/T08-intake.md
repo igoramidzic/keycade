@@ -1,5 +1,7 @@
 # T08 — Mock bank and required initial setup wizard
 
+V2 amendment — October 8, 2026, **not implemented**: [V2-01](../v2/04-delivery-and-validation.md#v2-01--setup-contracts-migration-and-wizard) replaces the baseline five-screen field set with the [expanded one-question setup](../v2/02-experience-spec.md#setup-wizard--v2-01). It adds legal-name/address collection, optional encrypted business EIN and website, NAICS display and illustrated multi-select purposes. Fixed product assignment, optional NAICS, saved resume and explicit completion survive. V2-01 owns new acceptance and migration evidence; the original completion record stays historical.
+
 Dependencies: T07, including persisted setup state and completion guards. Read [main journeys](../01-product.md#main-journeys) and [setup state](../03-domain-and-access.md#initial-setup-state-and-completion).
 
 ## Outcome

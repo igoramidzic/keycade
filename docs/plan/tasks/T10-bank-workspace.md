@@ -1,5 +1,7 @@
 # T10 — Bank application queue and staff workspace
 
+V2 amendment — October 8, 2026, **not implemented**: [V2-05](../v2/04-delivery-and-validation.md#v2-05--lender-overview-and-evidence-drilldowns), after V2-01/V2-04, owns the richer business/loan/financial overview and stage/evidence drilldowns. Keep the queue, lender tabs and staff-created handoff. V2-01 updates compatible optional prefills; V2-05 adds source-backed financial, group-count and navigation acceptance. The original baseline remains completed.
+
 Dependencies: T07. Read [staff journey](../01-product.md) and [access matrix](../03-domain-and-access.md#access-matrix).
 
 ## Outcome

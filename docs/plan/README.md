@@ -1,5 +1,7 @@
 # Keycade implementation plan
 
+**Next work: [Version 2 — borrower tasks and lender application records](v2/README.md), planned October 8, 2026.** The twelve reference images have been analyzed and the existing specifications adjusted. V2-01–V2-08 are **Not started**; this documentation update implements no application behavior. When asked to implement without a task number, start with V2-01. Preserve the completed baseline and its evidence below.
+
 Planning baseline: October 6, 2026. The first local-foundation milestone (T01–T05) is complete and verified. Cloudflare is the intended deployment target; five Keycade Workers are deployed and their Neon/Hyperdrive connections are verified. Neon PostgreSQL is linked and migrated through GitHub Actions; the initial apply and repeat no-op run passed. Separate CI validation is paused for faster demo deployment at the user's request.
 
 Current handoff: **T01–T22 and D01–D04 are complete.** The first release supports application setup, collaboration, private evidence, simulated checks and signatures, human decisions, closing, one recorded simulated funding event, scoped account summaries, activity and operations. See [the developer/demo guide](../../README.md) and [T22 acceptance](tasks/T22-acceptance.md).
@@ -36,13 +38,30 @@ The user confirmed that the first version ends at approval and funding. Ongoing 
 
 ## How to use a task
 
-Implement one task or one coherent slice at a time. Each task defines prerequisites, a bounded change, observable acceptance criteria, and validation. Intermediate tasks may expose an API or use fixtures before their dependent screens exist. Fixtures must be visibly local development data.
+Implement one task or one coherent slice at a time. Each task defines prerequisites, a bounded change, observable acceptance criteria, and validation. Intermediate tasks may expose an API or use fixtures before their dependent screens exist. Fixtures must be visibly synthetic demo data in every environment.
 
 Create tables and packages when the owning task needs them; the architecture tree describes the intended destination. Tests and migrations belong with each change. The last task verifies the combined experience rather than introducing all testing at once.
 
 Use `Not started`, `In progress`, `Blocked — reason`, or `Done — evidence`. After completion, add the date, relevant commands and results, and remaining limitations to the task's implementation record. Dependencies mean the referenced acceptance criteria have passed, not simply that files exist.
 
 ## Backlog
+
+### Active version 2 backlog
+
+Read the [v2 experience](v2/02-experience-spec.md) and [data/simulation contract](v2/03-data-and-simulation.md) first. Full dependencies, acceptance criteria and unstarted implementation records are in [v2 delivery and validation](v2/04-delivery-and-validation.md).
+
+| ID | Task | Depends on | Status |
+| --- | --- | --- | --- |
+| V2-01 | [Expanded setup and migration](v2/04-delivery-and-validation.md#v2-01--setup-contracts-migration-and-wizard) | T07, T08, T15 | Not started |
+| V2-02 | [Borrower task dashboard without top tabs](v2/04-delivery-and-validation.md#v2-02--borrower-task-dashboard) | V2-01; existing borrower/task/signing/review/closing work and D05 | Not started |
+| V2-03 | [Filename-driven demo text importer](v2/04-delivery-and-validation.md#v2-03--demo-text-importer-and-registered-fixtures) | T13, T14, D05 | Not started |
+| V2-04 | [Document workspace and reviewed financial facts](v2/04-delivery-and-validation.md#v2-04--document-workspace-and-reviewed-financial-facts) | V2-01, V2-03; T14, T15, T19 | Not started |
+| V2-05 | [Lender overview and evidence drilldowns](v2/04-delivery-and-validation.md#v2-05--lender-overview-and-evidence-drilldowns) | V2-01, V2-04; T10, T12, T16, T19, T21 | Not started |
+| V2-06 | [Simulated Loan Footprint map](v2/04-delivery-and-validation.md#v2-06--simulated-loan-footprint) | V2-01, T16 | Not started |
+| V2-07 | [Integrated local acceptance](v2/04-delivery-and-validation.md#v2-07--integrated-local-acceptance) | V2-02–V2-06, T22 | Not started |
+| V2-08 | [Hosted parity](v2/04-delivery-and-validation.md#v2-08--hosted-parity-and-deployment-slice) | V2-07, D02, D03 | Not started |
+
+### Completed baseline backlog
 
 | ID | Task | Depends on | Status |
 | --- | --- | --- | --- |

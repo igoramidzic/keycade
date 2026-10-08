@@ -1,5 +1,7 @@
 # T22 — Integrated acceptance and developer handoff
 
+V2 amendment — October 8, 2026, **not implemented**: [V2-07](../v2/04-delivery-and-validation.md#v2-07--integrated-local-acceptance) depends on V2-02–V2-06 and extends the completed baseline with migration, new setup, both dashboards, mocked document review/adoption and geography journeys. [V2-08](../v2/04-delivery-and-validation.md#v2-08--hosted-parity-and-deployment-slice) separately verifies the combined hosted slice after local acceptance. Earlier test totals and deployed checkpoints do not count as v2 evidence; keep all new tasks Not started until verified.
+
 Dependencies: T01–T21, D03. Read [development/testing](../05-development-and-testing.md) and [coverage map](../07-requirements-map.md).
 
 ## Outcome

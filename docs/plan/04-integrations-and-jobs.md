@@ -2,6 +2,8 @@
 
 The first release uses fake adapters with realistic asynchronous behavior. They require no external credentials, make no live financial checks, and send no external email. Interface boundaries must allow replacement without rewriting application use cases.
 
+The [v2 data and simulation plan](v2/03-data-and-simulation.md) is planned, not implemented. It adds a protected text-trigger demo importer, a richer lender document viewer, explicit financial-fact adoption and mock geography while retaining these durability and access contracts.
+
 ## Provider contracts
 
 Each call includes a bank/application scope, operation ID, input revision, idempotency key, and safe correlation metadata. Each result includes provider name, `simulated` provenance, typed outcome, timestamps, and optional safe evidence. Keep raw sensitive inputs out of queue payloads; jobs fetch authorized current inputs by reference.
@@ -25,7 +27,9 @@ Industry search remains read-only. T08 uses a temporary small fixture; T15 adds 
 
 Support explicit fixtures for `success`, `missing_input`, `not_found`, `needs_review`, `low_confidence`, `transient_error`, `timeout`, and `terminal_error` where the adapter supports them. Signature-specific fixtures include partial completion, wrong signer, decline, expiration, void, duplicate event, and reordered event.
 
-Keep scenarios in synthetic seed/test data or protected development tooling. Never allow an unauthenticated request parameter to force a favorable check. Derive fixture results from a registered fixture identity/content hash, not a user-supplied filename such as “approved.pdf.” An unrecognized document produces a clear unknown/needs-review result.
+Keep scenarios in synthetic seed/test data or protected development tooling. Never allow an unauthenticated request parameter to force a favorable check. Ordinary uploads derive fixture results from a registered fixture identity/content hash, not a user-supplied filename such as “approved.pdf.” An unrecognized document produces a clear unknown/needs-review result.
+
+Planned v2 exception: an authenticated, application-scoped demo importer may recognize an allowlisted text filename and select its registered synthetic tax-return or bank-statement fixture. Treat the filename and text as inert data; execute no document instructions or arbitrary URLs. Validate the bounded trigger format and fixture version, generate the corresponding visibly synthetic PDF, and pass its real bytes through the existing authorized upload, scan and interpretation pipeline. Record the selected fixture/version as safe provenance. Unknown or ambiguous names produce an unsupported/unknown response and cannot select a favorable result. Normal uploaded PDFs retain D05's content-bound behavior, including when renamed. Filename selection never controls permissions, scan bypass, human review, approval, or funding.
 
 Every result displays “Simulated” in staff views and wherever it could be mistaken for real verification. Preserve provider suggestions and user/staff-confirmed values separately. An AI label may organize a file but may not change a human decision or silently populate a verified financial fact.
 
@@ -53,11 +57,21 @@ Queue and integration states are distinct. Maintain an application-owned `Integr
 
 ## Document pipeline
 
-Upload → durable metadata and private bytes → quarantine scan → clean content → interpretation → suggested category/extracted fields → staff confirmation where needed → task evidence review.
+Upload → durable metadata and private bytes → quarantine scan → clean content → interpretation → suggested category/extracted fields → staff confirmation where needed → task evidence review. Planned v2 financial-fact adoption is a separate explicit staff action on current suggestions; it does not replace task evidence review.
 
 Use immutable document versions, checksums, safe names, and content-based file validation. Duplicate uploads within an authorized application can show a reuse suggestion; never use cross-bank deduplication responses that reveal another customer's files. Processing failures preserve original bytes and allow authorized retry. Staff recategorization keeps the original simulated classification and audit history.
 
 Once real AI is introduced, document text remains untrusted data; it cannot issue commands, follow arbitrary links, authorize access, or change approval state. The fake adapter should already return schema-validated data rather than free-form instructions.
+
+V2's document information and analysis panes read the existing immutable version/run history plus typed fixture metadata and extracted fields. Provide document kind, fiscal/statement period and source references where known, with explicit unknowns otherwise. Simulated analysis can show deterministic findings and values; no real OCR, financial analysis service or authenticity claim is introduced. The original clean document remains available if preview or interpretation fails. Private preview URLs and metadata use the same authorization as protected downloads.
+
+Adopting a suggestion writes a reviewed application-scoped financial fact with source version/run/field, period/currency and reviewer audit in one revision-checked transaction. Jobs only write their version-bound suggestions and findings. They never invoke adoption, replace reviewed values, change shared business facts, or mutate a historical submission. Reprocessing retains prior runs and cannot overwrite a manual adoption; stale/current-source status is visible to the reviewer.
+
+## Geographic footprint simulation — planned v2
+
+Use a deterministic address-based evaluator and mock map fixture data, without a live geocoder or external map lookup. The evaluator is scoped to the saved application's structured address and its revision: valid U.S. address → simulated clear, non-U.S. → not clear, absent/invalid address → unknown. Do not infer an exact verified coordinate or actual lending eligibility from fixture data. Label the result and map as simulated and provide an accessible textual address/result equivalent.
+
+Use configurable asynchronous delay and injected clocks if displaying a queued/running evaluation. Address edits invalidate any prior result, and version checks prevent old responses from becoming current. The initial v2 result is informational and adds no new readiness gate or automatic decision. If policy later introduces a gate, it needs an explicit versioned requirement decision and tests.
 
 ## Signatures and notifications
 

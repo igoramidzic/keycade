@@ -2,6 +2,8 @@
 
 This is the target model, not a requirement to create every table in T03. Add each feature's records and migration in its owning task.
 
+The [v2 data contracts](v2/03-data-and-simulation.md) below are planned on October 8, 2026 and not implemented. They extend the validated baseline with versioned setup fields, reviewed application financial facts, evidence projections and simulated geography; see [delivery and validation](v2/04-delivery-and-validation.md).
+
 ## Core entities
 
 | Entity | Responsibility and key relationships |
@@ -35,11 +37,15 @@ Use an explicit application participant grant for every non-staff reader. Do not
 
 Every new application starts with setup `in_progress`, including staff-created drafts. Assign the bank’s latest active Synthetic Business Credit (`business-credit`) version on creation; clients cannot select another product or change an assigned version. Retain product/version storage for configured limits and historical requirements, not borrower choice. Legacy `product` step keys resolve to `amount` in the current wizard. Persist the step-definition version, stable current-step key, completed/skipped steps, and an optimistic revision alongside canonical answers. Save answers and progress transactionally; optional skips are explicit, required questions cannot be skipped, and changed answers invalidate dependent step validation where needed. Resume reads this server state after authorization, never just a browser step index. Use committed migrations and synthetic fixtures in T07.
 
-An applicant administrator explicitly finishes setup through a revision-checked, idempotent domain command. Validate required business name, product, exact requested amount, and purpose against product configuration; optional industry may remain unresolved. Record `completed`, actor/time, audit and any job intent in the same transaction as the transition to `collecting_information`. Pre-filled staff answers still require applicant confirmation. Failed saves, invalid answers, and concurrent stale completion requests cannot partially complete setup.
+An applicant administrator explicitly finishes setup through a revision-checked, idempotent domain command. Validate required answers against the application's setup-definition version and product configuration. The planned v2 definition requires business legal name, structured business address, the fixed product, exact requested amount, and at least one valid funding-purpose selection; website, business EIN/TIN, and industry may remain unresolved. Record `completed`, actor/time, audit and any job intent in the same transaction as the transition to `collecting_information`. Pre-filled staff answers still require applicant confirmation. Failed saves, invalid answers, and concurrent stale completion requests cannot partially complete setup.
 
 Until completion, an authorized applicant may read a minimal summary, save/resume setup, or withdraw, but cannot enter that application's task workspace or invoke applicant portal operations such as task/evidence submission or application submission. Enforce the prerequisite in domain/API guards as well as route handling. Completing setup grants no new participation or document permissions. Staff retain authorized draft access; invited owners/advisers retain their separate assigned scope without completing someone else's setup.
 
 Setup completion is independent of task readiness and later review. New requirements do not send an applicant back through the initial wizard, and ordinary permitted edits after setup use the portal's validation and lifecycle guards. Each new application requires its own setup, even for an existing business; another application's completion cannot satisfy it. Withdrawn or otherwise inaccessible drafts use closed/denied states rather than an endless setup redirect.
+
+V2 preserves completed legacy setup records and their historical definition; it does not apply new required fields retroactively to portal entry. Upgrade unfinished drafts with explicit stable step mappings, preserved saved values and reviewable legacy purpose text. Keep structured purpose IDs separate from the historical free-text value; do not infer selections from text. Persist address components including country, and store an optional validated website independently from the selected NAICS code/title and taxonomy version. NAICS is a classification code, not a score; a website cannot select it automatically.
+
+Optional business EIN/TIN capture during v2 setup is a narrow exception to the general pre-setup portal restriction. Permit only the current authorized applicant administrator for that application, or staff within their authorized draft workflow, to write a registered synthetic business identifier through encrypted identifier storage. This command exposes only presence, mask and revision, respects lifecycle/revision/idempotency rules, and grants no personal-identifier, tax-request, task, document or general enrichment access. Skipping it cannot block setup and never records tax authorization implicitly. No SSN setup question or raw-identifier read endpoint is added.
 
 ## Application lifecycle
 
@@ -62,6 +68,20 @@ Setup completion is independent of task readiness and later review. New requirem
 Each submission freezes its application facts, business facts, applicable requirements, and references to specific identifier/document/check versions. A shared business profile is a source for editable drafts, not a live pointer that rewrites submitted facts. Editing that profile through application B must not change application A's submission/decision inputs or reveal A's existence. Drafts explicitly adopt newer shared facts with revision checks. Sensitive snapshots use encrypted version references rather than copying raw identifiers into ordinary JSON.
 
 Application status is independent from upload, job, task, and signature states. An OCR failure does not change the entire application to a nonexistent “failed” status.
+
+## V2 evidence groups and reviewed financial facts — planned
+
+An evidence group is an authorized projection over documents, their current versions and related work, not a new task state. A group containing three tax returns reports three permitted documents; version history does not inflate the count. Completion of a related requirement remains governed by task evidence review. Group counts, modal reads and historical versions must not expose another bank, application or restricted participant's evidence.
+
+Keep typed extracted financial suggestions separate from confirmed application facts. A financial fact identifies its metric, period, decimal-string amount and currency; revenue/sales and adjusted net income must retain distinct meanings. Unknown values are null/absent, not zero. Do not sum multi-year returns or invent an adjusted-net-income formula from the screenshot. The lender view distinguishes suggested, reviewed and stale data and shows source/period.
+
+Only an authorized staff reviewer explicitly adopting selected current suggestions can create a reviewed application financial-fact revision. Bind each adoption to bank/application, document ID and immutable version, processing run, selected field, period, currency, source input revision, adopting actor and time. Recheck clean/current source state, access, editable application lifecycle and expected record revision transactionally; conflicting sources or changed values require deliberate review. Preserve previous facts and source history. Replacement/reprocessing can mark a source stale but cannot silently erase or replace a reviewed fact. Repeated commands are idempotent, and stale results cannot become current.
+
+Financial adoption does not complete requirements, approve credit, change a decision/funding event, or rewrite shared business/client records and other applications. Submitted and decided snapshots remain immutable under the existing lifecycle policy. Any future shared-record promotion requires a separately scoped command; it is not part of this v2 adoption flow.
+
+## V2 geographic eligibility — planned
+
+Bind the simulated loan-footprint result to the application's current structured address revision and fixture/rule version. A valid U.S. address is clear for this demo, non-U.S. is not clear, and missing/invalid data is unknown. Persist or derive explicit freshness so an address edit cannot leave a former green result appearing current. The map is a synthetic display of the same authorized address, not evidence of a live lookup. This is an informational lender item by default: it introduces no automatic credit decision and no new submission, approval or funding gate.
 
 ## Tasks and requirements
 
@@ -108,7 +128,7 @@ Authorization applies to lists, counts, search, activity, direct record URLs, AP
 
 ## Identity and invitations
 
-Local demo exception (user instruction, October 6, 2026): an explicitly enabled demo endpoint accepts an email and creates a session immediately, solely for synthetic users/banks. It records `authenticationMethod=demo`, never marks mailbox ownership verified, and scopes the actor to the selected demo bank. Current application grants and staff membership still apply. Production mode rejects demo sessions. The rules below continue to govern actual email-link verification and invitations; the override does not auto-accept invitations or grant roles.
+Demo access in every environment (October 7 clarification, superseding the October 6 local-only restriction): an explicitly enabled demo endpoint accepts an email and creates a session immediately, solely for synthetic users/banks. It records `authenticationMethod=demo`, never marks mailbox ownership verified, and scopes the actor to the selected demo bank. Current application grants and staff membership still apply. Hosted production is also a demo and uses the simulated access/delivery behavior verified in [D03](tasks/D03-hosted-demo-parity.md). The rules below continue to govern email-link verification and invitations within the simulation; the override does not auto-accept invitations or grant roles.
 
 - Email-start creates a pending contact/draft and sends a link; it reveals neither existing accounts nor application details. Creating another lead with the same email does not grant access or merge businesses.
 - Store only token hashes, use cryptographically random credentials, set expiry and single-use semantics, and consume links transactionally. A GET displays a confirmation page; a deliberate POST consumes the token so email scanners do not exhaust it.

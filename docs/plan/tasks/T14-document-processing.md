@@ -1,5 +1,7 @@
 # T14 — Delayed ingestion, classification, and document groups
 
+V2 amendment — October 8, 2026, **not implemented**: [V2-03](../v2/04-delivery-and-validation.md#v2-03--demo-text-importer-and-registered-fixtures) adds bounded text-filename recipe import; [V2-04](../v2/04-delivery-and-validation.md#v2-04--document-workspace-and-reviewed-financial-facts) adds preview/info/mock analysis and explicit reviewed fact adoption; [V2-05](../v2/04-delivery-and-validation.md#v2-05--lender-overview-and-evidence-drilldowns) adds fiscal-period evidence drilldowns. These acceptance criteria extend the baseline suggestion-only behavior. Ordinary content-bound classification and no automatic overwrites remain. Category organization survives without borrower top-level tabs; real OCR and financial spreading remain deferred.
+
 Dependencies: T05, T13. Read [integrations](../04-integrations-and-jobs.md).
 
 ## Outcome

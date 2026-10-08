@@ -1,5 +1,26 @@
 # Requirement coverage
 
+## Version 2 requirements — October 8, 2026
+
+All coverage in this table is **planned, not implemented or runtime-verified**. See [the source inventory](v2/01-screenshot-findings.md), [v2 plan](v2/README.md) and [task acceptance records](v2/04-delivery-and-validation.md). The baseline evidence below remains historical; it does not prove these changes.
+
+| New or updated requirement | Coverage | Required proof |
+| --- | --- | --- |
+| Analyze all twelve reference images and continue existing documentation | V2 findings/specs, updated core references, decisions and task amendments | Image-by-image traceability; instructions distinguished from source text; local documentation links and whitespace checked. |
+| Legal business name/address, optional TIN and website in resumable setup | V2-01; T07/T08/T15 amendments | Additive upgrade preserves drafts/completed setups; required address, optional encrypted EIN and website; masked DTOs and narrow pre-setup authorization in both transports. |
+| Show NAICS with website and use image/icon multi-select funding purposes | V2-01 | Existing searchable versioned NAICS code/title; no invented score; multiple purpose choices survive resume/review; keyboard/mobile selection; legacy text retained. |
+| Borrower has tasks left, progress/uploads right, no top application tabs | V2-02 | No borrower tab row; actual sidebar upload and mapped timeline; contextual signing/submission/closing access; permitted counts and private-task restrictions; no demo-kit overlap. |
+| Lender keeps tabs and queue, gets richer default application overview | V2-05 | Existing queue and lender flows survive; business/loan/period-labelled financial facts and history; stage items distinguish actions, checks and evidence. |
+| Expand three tax returns, then open each document | V2-04/V2-05 | Visible logical-document counts, stored periods and current review state; same authorized version in preview, metadata and analysis; missing/duplicate-period handling. |
+| Preview on left; document info, analysis, findings and extracted values on right | V2-04 | Accessible desktop/mobile dialog; metadata/subject/period; private bytes, version/history/retry states; synthetic narrative and exact source references. |
+| Use extracted revenue/sales and other facts to update the record | V2-04/V2-05 | Explicit reviewed adoption; current/proposed comparison, period/currency/source provenance, immutable revisions, concurrency/idempotency and frozen-snapshot protection. |
+| Drag text into demo section and use filename to mock a document/result | V2-03 | Exact registered basenames generate synthetic tax/statement PDFs; unknown names fail helpfully; real protected pipeline; ordinary uploads remain content-bound; no real OCR/AI calls. |
+| Loan Footprint opens geographic modal/map; US clear, outside US not clear | V2-06 | Mock map/address, explicit missing input, address revision invalidation; non-US negative test; no real geocoder or automatic credit determination. |
+| Preserve all-environment demo and current access/lifecycle guarantees | V2-01–V2-08 | Real PostgreSQL and both-transport negative cases during each task, scoped metrics/bytes/counts, stale jobs/revocation; no real external actions or servicing. |
+| Prove combined behavior locally and on hosted demo separately | V2-07/V2-08 | Fresh/upgrade journeys and desktop/mobile acceptance; actual five-Worker deployment slice and private-byte/analysis/fact/geography read-back before claiming parity. |
+
+## Baseline implementation evidence
+
 T01–T22 and D01–D04 are implemented and verified in the linked task records. All eight integrated journeys pass, including clean setup/restart, collaboration, private evidence, simulated checks/signatures, decisions and recorded funding. The entire deployment remains synthetic. Actual hosted acceptance spans `b9c679d`, `5a3c1a5` and the final `d7a6597` funding continuation; [T22](tasks/T22-acceptance.md) records the precise checkpoint boundaries. Task IDs resolve through the [backlog](README.md#backlog).
 
 | User requirement | Planned coverage | Key proof |

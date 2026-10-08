@@ -1,5 +1,7 @@
 # T12 — Task workflows and versioned product requirements
 
+V2 amendment — October 8, 2026, **not implemented**: [V2-02](../v2/04-delivery-and-validation.md#v2-02--borrower-task-dashboard) updates borrower layout without top tabs; [V2-05](../v2/04-delivery-and-validation.md#v2-05--lender-overview-and-evidence-drilldowns) distinguishes lender actions, check results and evidence groups. Retain preloaded task details, unsaved-edit protection, current review rules and restricted scope. New acceptance separates document counts from reviewed requirements and derives timeline stages from the existing lifecycle. No new task is created solely to display an uploaded tax return.
+
 Dependencies: T11. Read [task rules](../03-domain-and-access.md#tasks-and-requirements).
 
 ## Outcome

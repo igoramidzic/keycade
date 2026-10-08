@@ -1,0 +1,101 @@
+# Version 2 data and simulation contracts
+
+Status: proposed implementation contract, not implemented APIs/tables. Reuse current packages and services; choose concrete SQL/table/route names during the owning task. The [existing architecture](../02-architecture.md), [access rules](../03-domain-and-access.md) and [durable processing](../04-integrations-and-jobs.md) remain binding.
+
+## Application intake and compatibility — V2-01
+
+| Data | Contract |
+| --- | --- |
+| Legal name | Reuse the current canonical application business-name answer/business legal-name relationship. Do not silently rename another application's frozen business snapshot. |
+| Address | Versioned structured application fact: line1, optional line2, locality, region, postalCode, countryCode. Normalize explicit country values to a code such as `US`. Do not infer country from ZIP text. Preserve submitted snapshots. |
+| Website | Optional normalized HTTP/HTTPS URL; reject executable schemes. Store as text without crawling or server-side fetching. |
+| Business TIN | Optional encrypted sensitive-identifier version/reference; general setup/portal/overview DTOs expose mask/presence only. Raw EIN never enters ordinary answers, logs, job payloads or browser storage. |
+| Industry | Existing explicit NAICS code + catalog version and label; optional unresolved state. Website does not become a classifier input in this scope. |
+| Funding purposes | Versioned catalog and unique ordered set of stable IDs; at least one required for new-v2 completion. Optional `other` detail is bounded text. Display labels are derived from IDs; never parse joined display text to recover facts. |
+| Setup | New stable step keys/definition version, current step, acknowledged completed/skipped steps, revision and completion actor/time. Existing idempotency/revision rules apply. |
+
+Purpose IDs: `working_capital`, `equipment_purchase`, `real_estate_purchase`, `business_acquisition`, `property_improvements`, `refinance_debt`, `refinance_real_estate`, `other`, `renewable_energy`, `construction`, `conventional`. Store the catalog version with selections. `conventional` remains a choice label only and cannot change the fixed product.
+
+Use additive committed Drizzle migrations and update contracts/domain/both HTTP transports before frontends depend on them. Preserve the original free-text purpose as legacy text; no destructive backfill or guessed categorization. Existing completed setups keep their completion version/time. For unfinished setups, migrate step keys deterministically, preserve known valid answers and optional skips, and route to missing required v2 answers before completion. Newly required address/purposes cannot be bypassed by an old client's completion payload. Old clients receive a recoverable schema/version response instead of silently losing answers.
+
+Optional TIN needs a **narrow pre-setup business-identifier use case**: current applicant administrator or authorized staff for the exact draft, same bank/application, editable lifecycle, supported synthetic identifier type/value, expected revision and audit. Reuse encrypted storage and immutable versions. If business linkage is deferred until completion, bind the encrypted reference to the application and link it transactionally later; do not merge businesses on EIN or name. General identifier/check/task endpoints keep their existing setup/subject guards. Saving a TIN does not start a consent-dependent tax check or imply authorization for it. Clear/replace is explicit, audited and revision-checked; old encrypted versions remain restricted history.
+
+Staff creation remains email-minimum and atomically saves optional valid prefills plus simulated continuation intent. New fields in idempotency comparisons are canonicalized. Browser responses lost after create/save/finish remain safe to retry. A legacy completed application can show missing new optional/profile data without being locked out of its portal.
+
+## Evidence projections and counts — V2-02/V2-05
+
+Derive dashboard projections from current Task, TaskEvidence, Document/DocumentVersion, CheckResult and Application records. An `itemKind` discriminator (`task`, `document_group`, `check`, `completed_answer`) can describe presentation; it is not a new mutable task status. Stable references preserve current source access policies.
+
+Group business tax returns by semantic type, authorized subject and actual/expected fiscal period within one application. Counts refer to visible logical documents, excluding replacement versions; reviewed counts refer to current accepted evidence, and required-period progress refers to distinct configured periods. These quantities must never share an ambiguous “3/3 completed” label. A category correction can change a group while retaining its original classification/history. Do not collapse all tax/identity documents into a globally readable tax group.
+
+Borrower DTOs exclude staff analysis, internal notes, private participant details and hidden-resource counts. Lender counts require current bank membership and application access. Apply the same authorization to metrics, source links, modal metadata, versions, byte previews, histories, exports and polling. Cache keys include bank/application/actor scope; revocation and actor switches clear stale UI data and the server rechecks every request.
+
+## Document metadata and extracted suggestions — V2-04
+
+Keep immutable document versions and source checksums. Add versioned metadata where absent: display name/description, document type, expected period, analysis recipe version and authorized subject relation. Actual extracted period remains separate from expected period. Changing analysis-relevant metadata increments its input revision and marks dependent runs stale; display-name-only edits need not trigger interpretation. Analysis cannot reassign a document to another application.
+
+Extend the existing typed result with a bounded simulated summary, overview, findings, next-step suggestions and candidate fields. A candidate contains field key, typed value, currency/unit, period, subject reference, source document/version/run, source page/field label, recipe version and confidence if the fixture defines one. Reject unsupported field keys, malformed money/periods, mismatched subjects, non-finite numbers and arbitrary executable HTML. Unknown input produces needs-review/unknown, not invented data. Confidence is a fixture annotation, not a probability of creditworthiness.
+
+Initial candidate vocabulary:
+
+| Synthetic document | Fields supported for review | Limits |
+| --- | --- | --- |
+| Business tax return | Tax year, form type, legal business name, gross sales/receipts, returns/allowances, revenue/net sales, ordinary/net income, explicitly provided adjusted net income, selected cash/asset/liability facts | Distinguish gross sales from net revenue and ordinary income from adjusted income. Mask identifier candidates; they do not bypass identifier entry/verification. |
+| Business bank statement | Statement start/end, account display suffix, opening/closing balance, deposits, withdrawals, account-holder name | Statement balances are document facts, not a Keycade loan-account balance. Deposits are not automatically revenue. No real bank connection. |
+| Financial summary fixture (existing kit extension) | Fiscal period, revenue, net income, explicit adjustments/adjusted net income and optional fixture DSCR | No financial-spreading or new underwriting model. Clearly indicate calculated versus supplied fixture values if both exist. |
+
+Missing fields remain null/unknown; no zero fill. Source page references must point to content actually printed in the generated file. Registered narrative/flags and extracted numbers must agree with that file. No real tax form data from the reference images is used.
+
+## Reviewed system-of-record updates — V2-04/V2-05
+
+Introduce versioned **application financial facts** (not a second loan account): application/bank, subject/business snapshot reference, metric key, fiscal period/basis, currency/unit, exact decimal value, revision, accepted source version/run/field or explicit manual origin, accepting staff/time/reason and simulation provenance. Use unique current records per application + subject + metric + period + currency/basis, with immutable revision history. Financial dates and money use existing UTC/decimal conventions. Optional business profile facts such as employees/start date have typed provenance too.
+
+Command contract: authorized lender chooses candidate IDs and target fields/periods, sends expected document/run/record revisions and an idempotency key. The server revalidates scope, clean/current source, current successful interpretation, subject/period/type, editable lifecycle and target revisions; then writes accepted/rejected/corrected dispositions, financial revisions, audit and any affected requirement/check invalidation intent atomically. Failed validation changes nothing. Replaying the same payload returns the same result; a conflicting payload or newer accepted fact produces a conflict requiring review. Preserve the original candidate when correcting it.
+
+Scope for initial adoption is the application's business/financial snapshot. Do not automatically update a shared Business, User, Client or another Application. General reusable profile promotion would need its own explicit command and permission/revision contract and is deferred. Associated-business/client metadata identifies source subjects without granting access or authority to modify them.
+
+Existing lifecycle locks apply: draft/collecting-information/needs-information can accept changes; submitted/in-review/approved/closing/terminal inputs cannot be silently revised. Return for information through the existing workflow when necessary. Submission and decision snapshots capture accepted fact-version references. Later changes in application B never rewrite application A's decision.
+
+Replacement source versions or analysis-changing edits mark linked accepted facts as requiring source review for current readiness. Preserve the last accepted value/history with a visible stale-source label; do not substitute the new suggestion automatically. A worker from an old run cannot change current facts. Accepted fact edits invalidate only actual dependent checks/rules, not unrelated tasks; a chart read never triggers a decision.
+
+Metrics use accepted/current facts or explicitly labelled seeded demo facts, never unlabeled pending extraction. Show periods and sources. History contains only available comparable periods. Compute optional percentage change only for matching currency/period basis and positive nonzero prior values; otherwise show Not comparable. DSCR is optional fixture/reviewed data in this phase, with no new approval threshold. Adjusted net income is its own explicitly supplied/reviewed fact with adjustment provenance; never assume tax ordinary income has already been adjusted.
+
+## Demo text import and fixture contract
+
+V2-03 creates a protected recipe-selection entry point inside D05's demo panel. It intentionally permits **filename-based recipe selection there**, superseding the earlier blanket prohibition for this surface only. All environments remain demo-only; availability is not restricted to `NODE_ENV=development`. Creating a sample never grants a session, participant role, document permission or access to an application.
+
+Proposed initial manifest, using new synthetic amounts rather than screenshot values:
+
+| Accepted basename | Generated artifact | Representative fixture facts |
+| --- | --- | --- |
+| `business-tax-return-2023.txt` | Synthetic business tax return for 2023 | USD revenue 1200000.00; ordinary income 160000.00; explicit adjusted income 180000.00 |
+| `business-tax-return-2024.txt` | Synthetic business tax return for 2024 | USD revenue 1350000.00; ordinary income 185000.00; explicit adjusted income 210000.00 |
+| `business-tax-return-2025.txt` | Synthetic business tax return for 2025 | USD revenue 1500000.00; ordinary income 215000.00; explicit adjusted income 240000.00 |
+| `business-bank-statement-2026-01.txt` | Synthetic statement for January 2026 | Opening 80000.00; deposits 125000.00; withdrawals 110000.00; closing 95000.00 USD |
+| `business-tax-return-review.txt` | Tax-return review scenario | Explicit alternate synthetic business or missing field; needs review, never silently matched |
+
+These are proposed stable demo recipes to implement and test, not files generated by this planning task. Print separate adjustments supporting adjusted-income values on the synthetic supporting schedule. Use the current authorized synthetic application name when generating a matching sample; record that name/revision snapshot so a later rename cannot leave a false current match. Periods are explicit and stable; relative labels do not change what was uploaded.
+
+Importer behavior:
+
+1. Accept `.txt` files only in this new panel input, initially UTF-8 text up to 64 KiB and 10 files per import. Normalize basename case and Unicode consistently; reject paths, invalid extensions, binary/control-heavy text and oversize input. Use exact manifest lookup, not substring matching such as “approved.”
+2. The recognized basename selects a recipe/version. Text content is inert demo input and does not override financial values, instructions, URLs, permissions, scan state, decisions or provider choices. Arbitrary unrecognized names show a helpful list and create no application record. Recipe labels/periods/results are visible before upload.
+3. Generate deterministic, visibly marked synthetic PDF bytes from the registered recipe and permitted synthetic application context. Save enough manifest identity/version/context for the server to validate the exact generated bytes against the known recipe. A hidden client flag is insufficient. The text stub itself is not the tax evidence or a newly allowed normal upload type.
+4. Download/drag/Upload uses existing authenticated reservations, streaming/private storage, checksum and quarantine scan. Ordinary application drop zones continue validating their original supported types/limits. A generated `.pdf` renamed arbitrarily retains its registered-byte behavior; arbitrary PDF bytes with a recognized filename gain no fixture outcome.
+5. After clean scan, persist analysis intent transactionally. Existing local and hosted jobs produce version-bound typed extracted values/narrative after configurable delay. Retain retry/timeout/stale-input handling and historical results. Review still requires a lender action and does not automatically complete evidence or advance stage.
+
+No uploaded text is evaluated, executed, browsed or treated as a system instruction. Scenario selection does not change canonical application facts. The existing D05 content-bound PDF catalog, failures, mismatch and private-subject examples remain supported. The importer generates evidence for the current authorized target only, and restricted private samples still require their task scope. Outside an authorized application context, the kit may show/download generic synthetic samples but cannot upload or query application facts.
+
+## Loan Footprint contract — V2-06
+
+Use the existing integration-run/check model with a new simulated geographic operation keyed to application address revision and a versioned `US-only-demo` policy. A complete valid address with country `US` yields clear; a valid non-US country yields outside-footprint/needs-review; absent/invalid country/address yields waiting-for-input/unable-to-verify. Do not infer clear from a failed job. Store the evaluated address snapshot reference, country, outcome/reason, policy, time and simulation provenance.
+
+Default to an informational lender check with no new submission/approval/funding gate; existing required checks retain their configured behavior. This demo rule is not real geographic underwriting. A future decision to make it mandatory must explicitly update a versioned requirement set and its tests.
+
+Use packaged mock map geometry and registered synthetic coordinates for known fixture addresses. Unknown coordinates give a map-unavailable placeholder while the country rule can still resolve. No live geocoding, map token, location search, billing or external address transmission. An address save schedules new work and invalidates the old result transactionally; stale job results cannot restore an obsolete pin or clear status. An authorized refresh is idempotent and asynchronous.
+
+## Runtime and verification ownership
+
+Keep shared domain logic in `packages/domain`, browser-safe DTOs/recipe descriptions in `packages/contracts`, Drizzle ownership in `packages/db`, fake providers in `packages/integrations`, UI in existing apps/shared components. Implement new commands/read projections in both Fastify and native Request/Response adapters. No browser database/provider credentials and no new service are required.
+
+Commit additive migrations, exercise upgrade from the current seeded database, and test isolated PostgreSQL constraints, rollback, stale writes and cross-bank links at each owning task. Reuse existing outbox, leases, operation identities and injected clocks. V2-08 requires actual hosted private-byte, importer, analysis, fact-update and geography checks before claiming Cloudflare parity; successful local or dry-run builds alone are insufficient.

@@ -1,5 +1,7 @@
 # T16 — Identity/fraud checks and application readiness
 
+V2 amendment — October 8, 2026, **not implemented**: [V2-06](../v2/04-delivery-and-validation.md#v2-06--simulated-loan-footprint), after V2-01's address contract, adds informational Loan Footprint with a mock map and revision-bound country result. Its acceptance requires US clear, non-US not clear, missing input unknown, stale-address rejection and no new readiness gate. [V2-04](../v2/04-delivery-and-validation.md#v2-04--document-workspace-and-reviewed-financial-facts) adds provenance-aware financial changes and invalidation only for genuinely dependent rules. Existing human decisions and mandatory check policies remain.
+
 Dependencies: T12, T14, T15. Read [domain](../03-domain-and-access.md) and [job behavior](../04-integrations-and-jobs.md).
 
 ## Outcome

@@ -2,6 +2,8 @@
 
 The command inventory is implemented for T01–T11. Passwordless identity is locally testable through [the identity guide](identity-validation.md); application creation and setup APIs are verified in [T07](tasks/T07-application-service.md#validation). The bank → setup → completion handoff is verified on desktop and mobile in [T08](tasks/T08-intake.md#implementation-record); T09 adds [business selection and guarded portal navigation](tasks/T09-borrower-workspace.md#implementation-record). T10 adds the [staff queue and local continuation journey](tasks/T10-bank-workspace.md#try-it-locally). T11 adds [owner records, invitation acceptance, and participant revocation](tasks/T11-participants.md#try-it-locally), using Mailpit for verified acceptance even when demo sign-in is enabled. See the root README for the current startup path.
 
+The [v2 delivery and validation plan](v2/04-delivery-and-validation.md) defines new acceptance work; v2 is planned and has no implementation validation yet. Existing passing task records remain historical evidence only. The following v2 cases must pass as the corresponding features are built.
+
 ## Developer entry path
 
 Document prerequisites: a pinned Node LTS release, the pinned pnpm version, Podman, and its compose provider if the implementation uses compose. Diagnose missing tools with installation links. Do not install global tools or change the user's shell configuration silently.
@@ -85,12 +87,32 @@ Do not add snapshot tests of generated shadcn markup or tests that merely restat
 
 Use neutral fictional businesses and obviously synthetic identities. Fixtures should describe their intended result explicitly and never masquerade as real financial evidence.
 
+### Additional v2 synthetic scenarios — planned
+
+- A new setup with legal name, complete structured U.S. address and multiple illustrated funding purposes; optional business identifier, website and industry skipped. A second setup supplies those optional values and shows the selected NAICS code/title with the website summary.
+- Legacy unfinished drafts at every old step, including free-text purpose, and completed applications with missing new fields. Migration preserves saved progress/text and never sends completed applicants back to setup.
+- Registered synthetic business EIN/TIN saved during setup, revision conflict and failed-save recovery; denied personal SSN, unknown identifier, other-app, restricted participant and revoked-session attempts. Raw values must not appear in normal DTOs, logs, outbox events or snapshots.
+- Three separate synthetic tax returns across distinct years, multiple statement periods, unknown revenue/adjusted-income fields, conflicting extracted values, low confidence and replaced source versions. Group counts distinguish documents from versions and tasks.
+- Known text filenames selecting generated tax/statement PDFs through the protected importer, unknown/ambiguous names, malformed/oversized text, renamed ordinary PDF, duplicate delivery and a scan failure. Include a restricted user attempting an unauthorized upload target.
+- Valid U.S. address, incomplete/invalid address and non-U.S. address, plus a changed address while a delayed footprint result is running. The non-U.S. case is a required negative test even though it is absent from the presentation walkthrough.
+
+### V2 acceptance journeys — planned
+
+1. Complete and resume the expanded wizard on desktop/mobile with one logical question per screen. Verify multi-select keyboard behavior, illustration alternatives, optional skips, selected NAICS visibility, unsaved-input recovery, stable server step/version migration, idempotent finish, and the fixed product. Staff prefills still require applicant confirmation.
+2. Open the borrower dashboard and verify no top-level application tabs, tasks on the left and actual progress/upload controls on the right; mobile stacks without overflow. Upload from both drop zone and keyboard file picker. Reach signing, submission, closing and permitted history/people/documents contextually; legacy links remain safe and unsaved task edits survive navigation. Restricted users see no hidden-count or financial-detail leaks.
+3. Open the lender pipeline and an application. Verify retained tabs, business/loan/financial summary with period and source status, task/completed-item distinction, and a three-return evidence group. Open each document's split preview/info/simulated-analysis modal, use keyboard close/focus return, inspect versions, and exercise loading, denied, unsupported-preview and retry states.
+4. Import a registered text trigger through the demo panel, inspect the generated synthetic PDF, then observe normal upload, quarantine, delayed extraction and typed mock analysis. Confirm unknown names do not create positive findings, renamed regular PDFs remain content-bound, blocked files stay inaccessible, and local/hosted transports enforce the same permissions.
+5. Explicitly adopt selected financial suggestions as authorized staff; prove atomic audited revisions and correct source/period/currency display. Repeated or concurrent adoption, conflicting sources, replaced documents, stale runs, application lifecycle locks, worker restart and cross-bank/direct-ID attempts must not silently overwrite facts, alter another application, complete tasks or make decisions. Use real PostgreSQL for these checks.
+6. Open the loan-footprint modal and verify its mock map, authorized address and accessible simulated result. A valid U.S. address is clear; non-U.S. is not clear; missing data stays unknown. Change the address during evaluation and reject the old result. Confirm the item does not add a readiness gate or cause a credit decision by default.
+
+Apply committed additive migrations to both a clean database and a populated baseline without resets. Use fake clocks for delays and actual PostgreSQL for revision/isolation/outbox checks. Run the affected unit, HTTP, browser, Biome, type and build checks; demonstrate the hosted slice separately before claiming Cloudflare compatibility. Record results against the new v2 task, without relabeling historical task validation as fresh evidence.
+
 ## End-to-end acceptance journeys
 
 1. Clean clone → initialize twice → start dev → open all apps and Studio; verify DB data survives a restart. With bad credentials/stopped unavailable DB, dev fails before launching apps.
 2. Mock bank → email-first lead → authorized sign-in → one-question setup screens → Back/edit → close tab and clear browser storage → fresh sign-in → same saved application, answers, and current question → skip optional industry → finish setup → portal with remaining tasks. Exercise both local demo access and the Mailpit email-link path. Early portal deep links/direct API calls cannot bypass setup; failed saves/completion preserve recoverable input and do not unlock the portal. Staff sees progress throughout, including a staff-prefilled draft that still needs applicant confirmation. Subsequent sign-in goes to the completed application's portal.
 3. Applicant with multiple applications selects the correct one; an unfinished setup opens its saved wizard step without blocking another completed application's portal. Another business's tasks/docs and setup state remain separate.
-4. Applicant invites owner and lawyer; lawyer uploads to an assigned task; cannot access another application or private owner evidence. Revoke access while their session is active and verify denial.
+4. Lender invites owner and lawyer; the borrower has no invitation controls and invitation API attempts are denied. The lawyer uploads to an assigned task and cannot access another application or private owner evidence. Revoke access while their session is active and verify denial.
 5. Staff uploads documents; simulated scan/OCR categorize them; reviewer corrects one category and accepts evidence; original machine result remains in history.
 6. Add required identifier → check starts → update input → old result arrives → old result is ignored. Worker restart and duplicate delivery do not duplicate current tasks/effects.
 7. Submit → request more information → resubmit → approve → closing → all signers complete → record simulated funding → one funded account appears. Invalid transitions and duplicate funding are rejected/deduplicated.
