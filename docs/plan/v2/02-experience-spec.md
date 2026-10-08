@@ -1,6 +1,6 @@
 # Version 2 experience requirements
 
-Status: V2-01 setup, V2-02 borrower dashboard and V2-03 demo text importer are implemented and verified locally; V2-04 document review and financial facts are also implemented and verified locally; V2-05 lender overview and evidence drilldowns are also implemented and verified locally; V2-06–V2-08 remain planned. [Screenshot findings](01-screenshot-findings.md) identify the evidence and exclusions; [data contracts](03-data-and-simulation.md) define persistence and authority. Task IDs refer to [delivery](04-delivery-and-validation.md).
+Status: V2-01 setup, V2-02 borrower dashboard and V2-03 demo text importer are implemented and verified locally; V2-04 document review and financial facts are also implemented and verified locally; V2-05 lender overview and evidence drilldowns are also implemented and verified locally; V2-06 Loan Footprint is implemented and verified locally; V2-07–V2-08 remain planned. [Screenshot findings](01-screenshot-findings.md) identify the evidence and exclusions; [data contracts](03-data-and-simulation.md) define persistence and authority. Task IDs refer to [delivery](04-delivery-and-validation.md).
 
 ## Setup wizard — V2-01
 

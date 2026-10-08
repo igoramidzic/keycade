@@ -75,3 +75,89 @@ describe("delayed simulated identity/fraud provider", () => {
     }
   });
 });
+
+describe("simulated Loan Footprint country rule and registered map locations", () => {
+  const address = {
+    line1: "123 Synthetic Avenue",
+    locality: "Portland",
+    region: "ME",
+    postalCode: "04101",
+    countryCode: "US",
+  };
+  async function evaluate(value: typeof address | null) {
+    vi.useFakeTimers();
+    try {
+      const promise = invokeCheckProvider(
+        {
+          ...base,
+          kind: "loan_footprint",
+          footprintInput: { addressRevision: 7, address: value, policyVersion: "US-only-demo-v1" },
+        },
+        { clock: systemClock, delayMs: 50, deadlineMs: 500 },
+      );
+      let settled = false;
+      void promise.then(() => {
+        settled = true;
+      });
+      await vi.advanceTimersByTimeAsync(49);
+      expect(settled).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      return await promise;
+    } finally {
+      vi.useRealTimers();
+    }
+  }
+  it("binds a delayed clear result and illustrative registered coordinates to the exact address revision", async () => {
+    expect(await evaluate(address)).toMatchObject({
+      outcome: "clear",
+      simulated: true,
+      footprint: {
+        address,
+        addressRevision: 7,
+        countryCode: "US",
+        policyVersion: "US-only-demo-v1",
+        reason: "inside_us_demo",
+        coordinates: {
+          latitude: 43.6591,
+          longitude: -70.2568,
+          source: "registered_synthetic_fixture",
+        },
+      },
+    });
+  });
+  it.each([
+    { line1: "999 Unknown Synthetic Avenue" },
+    { locality: "Other city" },
+    { region: "AK" },
+    { postalCode: "99999" },
+    { line2: "Suite 3" },
+  ])("does not invent coordinates for a changed address component: %o", async (change) => {
+    expect(await evaluate({ ...address, ...change })).toMatchObject({
+      outcome: "clear",
+      footprint: { coordinates: null, reason: "inside_us_demo" },
+    });
+  });
+  it("never treats a non-US country as clear, even with a US ZIP", async () => {
+    expect(await evaluate({ ...address, countryCode: "CA" })).toMatchObject({
+      outcome: "needs_review",
+      footprint: { countryCode: "CA", reason: "outside_us_demo", coordinates: null },
+    });
+  });
+  it.each([
+    null,
+    { ...address, countryCode: "" },
+    { ...address, countryCode: "USA" },
+    { ...address, locality: " " },
+    { ...address, line1: "" },
+  ])("keeps missing and invalid input unable to verify: %o", async (value) => {
+    expect(await evaluate(value)).toMatchObject({
+      outcome: "unable_to_verify",
+      footprint: {
+        address: null,
+        countryCode: null,
+        reason: "address_unavailable",
+        coordinates: null,
+      },
+    });
+  });
+});

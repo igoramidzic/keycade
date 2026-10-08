@@ -42,6 +42,7 @@ import {
   requireApplicantPortalAccess,
   requireApplicationAccess,
 } from "./authorization.js";
+import { reconcileFootprint } from "./checks.js";
 import { readSetupBusinessEin } from "./enrichment.js";
 import { DomainError, deny } from "./errors.js";
 import { recordApplicantActivity } from "./notification-intents.js";
@@ -436,6 +437,7 @@ async function createApplication(
     .values({ bankId: row.bankId, applicationId: row.id })
     .returning();
   if (!setup) throw new Error("Setup creation failed.");
+  await reconcileFootprint(tx, row, input.requestId, input.now);
   await audit(
     tx,
     row,

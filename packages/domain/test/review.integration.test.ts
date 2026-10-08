@@ -136,7 +136,7 @@ async function prepare(id: string) {
 }
 async function clearChecks(id: string) {
   const all = await checks().read(officer, ids.bankA, id);
-  for (const check of all.checks) {
+  for (const check of all.checks.filter((item) => item.required)) {
     const run = check.runs.find((r) => r.id === check.currentRunId);
     if (!run) throw new Error("missing run");
     const [row] = await database.db.select().from(checkRuns).where(eq(checkRuns.id, run.id));

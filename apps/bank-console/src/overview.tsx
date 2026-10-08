@@ -24,6 +24,7 @@ import { Link } from "react-router";
 import { formatAmount, useStaffApi } from "./api";
 import { useApplicationDocuments } from "./documents";
 import { FinancialOverview } from "./financial-overview";
+import { LoanFootprintItem } from "./loan-footprint";
 import { ErrorNotice, Loading, statusLabels } from "./ui";
 
 export function ApplicationOverview({
@@ -338,6 +339,18 @@ function ApplicationStages({
               : "The borrower must confirm the answers and finish setup before entering the task portal."}
           </p>
         </details>
+        {!error &&
+          checks.isFetchedAfterMount &&
+          checks.data?.checks
+            .filter((check) => check.kind === "loan_footprint")
+            .map((check) => (
+              <LoanFootprintItem
+                key={check.id}
+                applicationId={workspace.id}
+                check={check}
+                savedAddress={workspace.businessAddress}
+              />
+            ))}
         {tasks.isPending ||
         checks.isPending ||
         !tasks.isFetchedAfterMount ||
@@ -356,7 +369,9 @@ function ApplicationStages({
           checks.data &&
           Object.entries(stages).map(([stage, label]) => {
             const requirements = tasks.data.tasks.filter((task) => task.stage === stage);
-            const results = checks.data.checks.filter((check) => check.stage === stage);
+            const results = checks.data.checks.filter(
+              (check) => check.stage === stage && check.kind !== "loan_footprint",
+            );
             const active = requirements.filter(
               (task) => !["completed", "waived", "cancelled"].includes(task.state),
             );

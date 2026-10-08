@@ -2,7 +2,7 @@
 
 This is the target model, not a requirement to create every table in T03. Add each feature's records and migration in its owning task.
 
-The [v2 data contracts](v2/03-data-and-simulation.md) were planned on October 8, 2026; V2-01 setup is implemented locally, while the remaining data contracts are planned. They extend the validated baseline with versioned setup fields, reviewed application financial facts, evidence projections and simulated geography; see [delivery and validation](v2/04-delivery-and-validation.md).
+The [v2 data contracts](v2/03-data-and-simulation.md) were planned on October 8, 2026; V2-01–V2-06 data contracts are implemented locally; integrated and hosted acceptance remain V2-07/V2-08. They extend the validated baseline with versioned setup fields, reviewed application financial facts, evidence projections and simulated geography; see [delivery and validation](v2/04-delivery-and-validation.md).
 
 ## Core entities
 
@@ -79,7 +79,7 @@ Only an authorized staff reviewer explicitly adopting selected current suggestio
 
 Financial adoption does not complete requirements, approve credit, change a decision/funding event, or rewrite shared business/client records and other applications. Submitted and decided snapshots remain immutable under the existing lifecycle policy. Any future shared-record promotion requires a separately scoped command; it is not part of this v2 adoption flow.
 
-## V2 geographic eligibility — planned
+## V2 geographic eligibility — implemented locally
 
 Bind the simulated loan-footprint result to the application's current structured address revision and fixture/rule version. A valid U.S. address is clear for this demo, non-U.S. is not clear, and missing/invalid data is unknown. Persist or derive explicit freshness so an address edit cannot leave a former green result appearing current. The map is a synthetic display of the same authorized address, not evidence of a live lookup. This is an informational lender item by default: it introduces no automatic credit decision and no new submission, approval or funding gate.
 

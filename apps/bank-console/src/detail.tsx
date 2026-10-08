@@ -217,7 +217,11 @@ export function ApplicationDetail() {
                     onReload={reload}
                     onSaved={async () => {
                       await reload();
-                      await client.invalidateQueries({ queryKey: ["staff-queue"] });
+                      await Promise.all([
+                        client.invalidateQueries({ queryKey: ["staff-queue"] }),
+                        client.invalidateQueries({ queryKey: ["staff-checks", data.id] }),
+                        client.invalidateQueries({ queryKey: ["staff-overview", data.id] }),
+                      ]);
                     }}
                     onCancel={() => setPrefill(false)}
                   />
@@ -248,7 +252,7 @@ export function ApplicationDetail() {
             {selected === "documents" && (
               <ApplicationDocuments key={data.id} applicationId={data.id} />
             )}
-            {selected === "checks" && <ApplicationChecks key={data.id} applicationId={data.id} />}
+            {selected === "checks" && <ApplicationChecks key={data.id} workspace={data} />}
             {selected === "signatures" && (
               <ApplicationSignatures key={data.id} applicationId={data.id} />
             )}

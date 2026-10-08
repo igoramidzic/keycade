@@ -12,7 +12,9 @@ The implementation includes resumable one-question setup, scoped collaborators a
 
 [V2-04 document workspace and reviewed financial facts](docs/plan/v2/04-delivery-and-validation.md#v2-04--document-workspace-and-reviewed-financial-facts) is complete locally. Staff can preview private PDFs/images and review source-bound financial suggestions and versioned document metadata, with immutable history and lifecycle/access guards. Validation passed 367 unit tests, 442 PostgreSQL tests, all 12 builds/typechecks and 46 distinct desktop/mobile browser cases. No v2 hosted deployment is claimed.
 
-[V2-05 lender overview](docs/plan/v2/04-delivery-and-validation.md#v2-05--lender-overview-and-evidence-drilldowns) is complete locally: business/loan facts, reviewed revenue and adjusted-income history, grouped tax evidence, stage requirements/checks and recent activity. Queue filters and page survive navigation. Validation passed 373 unit tests, 449 PostgreSQL cases, all 12 builds/typechecks and 42 distinct desktop/mobile browser cases. V2-06 simulated Loan Footprint is next.
+[V2-05 lender overview](docs/plan/v2/04-delivery-and-validation.md#v2-05--lender-overview-and-evidence-drilldowns) is complete locally: business/loan facts, reviewed revenue and adjusted-income history, grouped tax evidence, stage requirements/checks and recent activity. Queue filters and page survive navigation. Validation passed 373 unit tests, 449 PostgreSQL cases, all 12 builds/typechecks and 42 distinct desktop/mobile browser cases.
+
+[V2-06 Loan Footprint](docs/plan/v2/04-delivery-and-validation.md#v2-06--simulated-loan-footprint) is complete locally. Open an application as a lender, then choose **Loan Footprint** in Overview or Checks. The dialog shows the saved address, asynchronous simulated US-country result and registered fixture map when available. Unknown map coordinates do not prevent a valid US result. Refresh is replay-safe; changed addresses invalidate old results and pins. It adds no readiness gate. V2-07 integrated local acceptance is next; hosted parity remains V2-08.
 
 ## Start locally
 

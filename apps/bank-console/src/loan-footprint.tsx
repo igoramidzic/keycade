@@ -1,0 +1,315 @@
+import { type BusinessAddress, checksViewSchema } from "@keycade/contracts";
+import { Badge } from "@keycade/ui/components/badge";
+import { Button } from "@keycade/ui/components/button";
+import { useQueryClient } from "@tanstack/react-query";
+import { useEffect, useId, useRef, useState } from "react";
+import { ApiError, useStaffApi } from "./api";
+import {
+  footprintAddress,
+  footprintMapPoint,
+  type LoanFootprintCheck,
+  loanFootprintDisplay,
+} from "./loan-footprint-data";
+import { ErrorNotice } from "./ui";
+
+export function LoanFootprintItem({
+  applicationId,
+  check,
+  savedAddress,
+  unavailable = false,
+}: {
+  applicationId: string;
+  check: LoanFootprintCheck;
+  savedAddress: BusinessAddress | null;
+  unavailable?: boolean;
+}) {
+  const client = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const display = loanFootprintDisplay(check, savedAddress, unavailable);
+  useEffect(() => {
+    // Checks poll independently of the workspace. A changed address must also refresh its text.
+    if (display.stale && !display.run?.stale)
+      void client.invalidateQueries({ queryKey: ["staff-workspace", applicationId] });
+  }, [applicationId, client, display.stale, display.run?.stale, display.run?.id]);
+  return (
+    <section aria-label="Loan Footprint" className="rounded-md border p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0 space-y-2">
+          <Button
+            variant="link"
+            className="h-auto max-w-full whitespace-normal p-0 text-left"
+            aria-haspopup="dialog"
+            onClick={() => setOpen(true)}
+          >
+            Loan Footprint
+          </Button>
+          <p
+            className={
+              display.clear
+                ? "text-sm text-green-700 dark:text-green-400"
+                : "text-sm text-muted-foreground"
+            }
+          >
+            {display.label}
+          </p>
+        </div>
+        <Badge variant="outline">Informational · Simulated</Badge>
+      </div>
+      {open && (
+        <LoanFootprintDialog
+          applicationId={applicationId}
+          check={check}
+          savedAddress={savedAddress}
+          unavailable={unavailable}
+          close={() => setOpen(false)}
+        />
+      )}
+    </section>
+  );
+}
+
+function LoanFootprintDialog({
+  applicationId,
+  check,
+  savedAddress,
+  unavailable,
+  close,
+}: {
+  applicationId: string;
+  check: LoanFootprintCheck;
+  savedAddress: BusinessAddress | null;
+  unavailable: boolean;
+  close: () => void;
+}) {
+  const api = useStaffApi();
+  const client = useQueryClient();
+  const dialog = useRef<HTMLDialogElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
+  const id = useId();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>(null);
+  const display = loanFootprintDisplay(check, savedAddress, unavailable);
+  const { run, input, result } = display;
+  useEffect(() => {
+    const element = dialog.current;
+    if (!element) return;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    element.showModal();
+    closeButton.current?.focus();
+    return () => {
+      element.close();
+      document.body.style.overflow = overflow;
+      if (previous?.isConnected) previous.focus();
+    };
+  }, []);
+  async function refresh() {
+    if (!run || !input) return;
+    setBusy(true);
+    setError(null);
+    const queryKey = ["staff-checks", applicationId];
+    try {
+      await client.cancelQueries({ queryKey });
+      const updated = await api.participantRequest(
+        `/applications/${applicationId}/checks/${check.id}/refresh`,
+        checksViewSchema,
+        { method: "POST", body: { runId: run.id, expectedAddressRevision: input.addressRevision } },
+      );
+      client.setQueryData(queryKey, updated);
+      await Promise.all([
+        client.invalidateQueries({ queryKey: ["staff-workspace", applicationId] }),
+        client.invalidateQueries({ queryKey: ["staff-overview-history", applicationId] }),
+      ]);
+    } catch (failure) {
+      setError(failure);
+      if (failure instanceof ApiError && [401, 403, 404].includes(failure.status)) close();
+      await client.invalidateQueries({ queryKey });
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <dialog
+      ref={dialog}
+      aria-labelledby={`${id}-title`}
+      aria-describedby={`${id}-description`}
+      onCancel={(event) => {
+        event.preventDefault();
+        close();
+      }}
+      className="fixed inset-0 m-auto max-h-[94dvh] w-[calc(100%-1rem)] max-w-2xl overflow-hidden rounded-xl border bg-background p-0 text-foreground shadow-xl backdrop:bg-black/50 sm:w-[calc(100%-3rem)]"
+    >
+      <div className="flex max-h-[94dvh] min-w-0 flex-col">
+        <header className="flex shrink-0 items-start gap-3 border-b p-4 sm:px-6">
+          <div className="min-w-0 flex-1 space-y-1">
+            <h2 id={`${id}-title`} className="text-lg font-semibold">
+              Geographic Eligibility
+            </h2>
+            <p id={`${id}-description`} className="text-sm text-muted-foreground">
+              Loan Footprint · Simulated country check
+            </p>
+          </div>
+          <Button
+            ref={closeButton}
+            size="sm"
+            variant="outline"
+            aria-label="Close geographic eligibility"
+            onClick={close}
+          >
+            Close
+          </Button>
+        </header>
+        <div className="min-h-0 min-w-0 space-y-5 overflow-y-auto p-4 sm:p-6">
+          <section
+            aria-label="Geographic result"
+            className={
+              display.clear
+                ? "rounded-lg border border-green-300 bg-green-50 p-4 text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-100"
+                : "rounded-lg border bg-muted/30 p-4"
+            }
+          >
+            <p role="status" className="font-medium">
+              {display.label}.
+            </p>
+            <p className="mt-2 text-sm">{display.detail}</p>
+          </section>
+          <dl className="grid min-w-0 gap-4 text-sm sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <dt className="text-muted-foreground">Saved business address</dt>
+              <dd className="mt-1 break-words">{footprintAddress(savedAddress)}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Country rule</dt>
+              <dd className="mt-1">Complete US addresses are within the demo footprint.</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Policy version</dt>
+              <dd className="mt-1 break-words">{input?.policyVersion ?? "Not available"}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Evaluated address revision</dt>
+              <dd className="mt-1">
+                {result ? result.addressRevision : "Not yet evaluated"}
+                {display.stale && result ? " · Stale" : ""}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Evaluated time</dt>
+              <dd className="mt-1">
+                {run?.evidence?.completedAt
+                  ? new Date(run.evidence.completedAt).toLocaleString()
+                  : "Not yet evaluated"}
+              </dd>
+            </div>
+          </dl>
+          <FootprintMap key={run?.id} coordinates={display.coordinates} />
+          {display.stale && input && (
+            <p className="break-words text-sm text-muted-foreground">
+              Previous evaluated address: {footprintAddress(input.address)}. Historical results do
+              not apply to the saved address.
+            </p>
+          )}
+          <p className="text-sm text-muted-foreground">
+            Synthetic demo data · This informational check does not approve or decline a loan,
+            verify an identity, or add a submission, approval or funding requirement. No live
+            geocoder or map service is used.
+          </p>
+          {Boolean(error) && <ErrorNotice error={error} />}
+          <div className="flex flex-wrap gap-2">
+            {check.canRefresh && run && input && (
+              <Button
+                variant="outline"
+                disabled={busy || unavailable}
+                onClick={() => void refresh()}
+              >
+                {busy ? "Requesting refresh…" : "Refresh Loan Footprint"}
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              disabled={busy}
+              onClick={() =>
+                void client.invalidateQueries({ queryKey: ["staff-checks", applicationId] })
+              }
+            >
+              Reload status
+            </Button>
+          </div>
+          {check.runs.length > 1 && (
+            <details className="rounded-md border p-3">
+              <summary className="cursor-pointer text-sm font-medium">
+                Previous footprint runs ({check.runs.length - 1})
+              </summary>
+              <ul className="mt-3 space-y-4 text-sm">
+                {check.runs
+                  .filter((entry) => entry.id !== check.currentRunId)
+                  .map((entry) => (
+                    <li key={entry.id} className="space-y-1 break-words">
+                      <p>
+                        Revision {entry.footprintInput?.addressRevision ?? "unknown"} ·{" "}
+                        {entry.status.replaceAll("_", " ")} · Historical
+                      </p>
+                      <p className="text-muted-foreground">
+                        {footprintAddress(entry.footprintInput?.address)}
+                      </p>
+                      <p className="text-muted-foreground">
+                        {entry.footprintInput?.policyVersion} ·{" "}
+                        {new Date(entry.updatedAt).toLocaleString()}
+                      </p>
+                    </li>
+                  ))}
+              </ul>
+            </details>
+          )}
+        </div>
+      </div>
+    </dialog>
+  );
+}
+
+function FootprintMap({
+  coordinates,
+}: {
+  coordinates: ReturnType<typeof loanFootprintDisplay>["coordinates"];
+}) {
+  const [failed, setFailed] = useState(false);
+  const point = footprintMapPoint(coordinates);
+  if (!point || !coordinates || failed)
+    return (
+      <div className="rounded-lg border bg-muted/30 p-6 text-center text-sm">
+        <p className="font-medium">Map location unavailable</p>
+        <p className="mt-2 text-muted-foreground">
+          {failed
+            ? "The bundled illustration could not load."
+            : "No current registered synthetic coordinates are available."}{" "}
+          The geographic result is determined independently by the saved country.
+        </p>
+      </div>
+    );
+  return (
+    <figure className="space-y-2">
+      <div
+        className="relative overflow-hidden rounded-lg border"
+        role="img"
+        aria-label={`Synthetic map with registered fixture pin: ${coordinates.label}`}
+      >
+        <img
+          src={new URL("./loan-footprint-map.svg", import.meta.url).href}
+          alt=""
+          className="block w-full"
+          onError={() => setFailed(true)}
+        />
+        <span
+          aria-hidden="true"
+          className="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-slate-900 shadow-md ring-4 ring-slate-900/20"
+          style={{ left: `${point.left}%`, top: `${point.top}%` }}
+        />
+      </div>
+      <figcaption className="break-words text-xs text-muted-foreground">
+        Registered synthetic fixture pin · {coordinates.label}. Bundled schematic; not a
+        street-level location or verified address.
+      </figcaption>
+    </figure>
+  );
+}

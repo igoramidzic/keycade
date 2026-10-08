@@ -1,8 +1,12 @@
 import { createHash } from "node:crypto";
 import {
   authorizeTaskTaxSchema,
+  businessAddressSchema,
   captureTaskIdentifierSchema,
   checksViewSchema,
+  type FootprintInput,
+  loanFootprintPolicyVersion,
+  refreshFootprintSchema,
   resolveCheckSchema,
   retryCheckSchema,
   taxAuthorizationNotice,
@@ -79,6 +83,7 @@ export function checkIsVisible(actor: Actor, access: ApplicationAccess, check: C
     actor.kind === "user" &&
     (access.kind === "staff" ||
       (access.kind === "participant" &&
+        check.kind !== "loan_footprint" &&
         (check.kind === "identity"
           ? check.subjectUserId === actor.userId &&
             ["owner", "applicant_admin"].includes(access.role)
@@ -97,6 +102,44 @@ export function checkPasses(check: Check, run: Run | undefined, resolved: boolea
 /** A fingerprint references immutable encrypted identifiers and current reviewed byte versions,
  * never plaintext. Lifecycle status/revision is deliberately excluded so submission can freeze it. */
 export async function currentCheckInputs(tx: Tx, app: App, check: Check) {
+  if (check.kind === "loan_footprint") {
+    const parsed = businessAddressSchema.safeParse(app.businessAddress);
+    const footprintInput: FootprintInput = {
+      addressRevision: app.businessAddressRevision,
+      address: parsed.success ? parsed.data : null,
+      policyVersion: loanFootprintPolicyVersion,
+    };
+    const address = footprintInput.address;
+    const fingerprint = createHash("sha256")
+      .update(
+        JSON.stringify([
+          check.id,
+          check.revision,
+          check.policyVersion,
+          app.businessAddressRevision,
+          address
+            ? [
+                address.line1,
+                address.line2 ?? null,
+                address.locality,
+                address.region,
+                address.postalCode,
+                address.countryCode,
+              ]
+            : null,
+        ]),
+      )
+      .digest("hex");
+    return {
+      fingerprint,
+      footprintInput,
+      missing: parsed.success ? [] : ["business_address"],
+      subjectKey: "business",
+      identifierId: null,
+      subjectDisplayName: null,
+      subjectActive: true,
+    };
+  }
   const [owner] = check.subjectRelationshipId
     ? await tx
         .select()
@@ -217,6 +260,7 @@ export async function currentCheckInputs(tx: Tx, app: App, check: Check) {
     .digest("hex");
   return {
     fingerprint,
+    footprintInput: null as FootprintInput | null,
     missing,
     subjectKey,
     identifierId: input?.identifierId ?? null,
@@ -429,6 +473,70 @@ async function reconcileEntryTasks(
         })
         .where(eq(applicationTasks.id, task.id));
 }
+/** Informational address checks can be added/refreshed even on frozen legacy applications.
+ * They never change application revisions, required subjects, or decision evidence. */
+export async function reconcileFootprint(tx: Tx, app: App, requestId: string, now: Date) {
+  if (!app.synthetic) return;
+  let [check] = await tx
+    .select()
+    .from(applicationChecks)
+    .where(
+      and(
+        eq(applicationChecks.bankId, app.bankId),
+        eq(applicationChecks.applicationId, app.id),
+        eq(applicationChecks.stableKey, "loan_footprint:business"),
+      ),
+    );
+  if (!check)
+    [check] = await tx
+      .insert(applicationChecks)
+      .values({
+        bankId: app.bankId,
+        applicationId: app.id,
+        stableKey: "loan_footprint:business",
+        kind: "loan_footprint",
+        required: false,
+        allowReviewResolution: false,
+        policyVersion: loanFootprintPolicyVersion,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning();
+  if (!check) throw new Error("Footprint check was not stored.");
+  let inputs = await currentCheckInputs(tx, app, check);
+  const [old] = await tx
+    .select()
+    .from(checkRuns)
+    .where(and(eq(checkRuns.checkId, check.id), eq(checkRuns.fingerprint, inputs.fingerprint)));
+  if (old?.stale) {
+    const [next] = await tx
+      .update(applicationChecks)
+      .set({ revision: check.revision + 1, updatedAt: now })
+      .where(eq(applicationChecks.id, check.id))
+      .returning();
+    if (!next) throw new Error("Footprint generation was not stored.");
+    check = next;
+    inputs = await currentCheckInputs(tx, app, check);
+  }
+  await staleRuns(tx, check.id, inputs.fingerprint, now);
+  await tx
+    .insert(checkRuns)
+    .values({
+      bankId: app.bankId,
+      applicationId: app.id,
+      checkId: check.id,
+      fingerprint: inputs.fingerprint,
+      subjectKey: "business",
+      footprintInput: inputs.footprintInput,
+      status: inputs.missing.length ? "waiting_for_input" : "queued",
+      missingPrerequisites: inputs.missing,
+      requestId,
+      availableAt: now,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoNothing();
+}
 /** Caller holds the application lock. Durable run rows and private tasks are one transaction. */
 export async function reconcileChecks(
   tx: Tx,
@@ -438,7 +546,9 @@ export async function reconcileChecks(
   now: Date,
 ) {
   const app = await lockCheckApplication(tx, bankId, applicationId);
-  if (!app.synthetic || !checksMayExecute(app.status)) return;
+  if (!app.synthetic) return;
+  await reconcileFootprint(tx, app, requestId, now);
+  if (!checksMayExecute(app.status)) return;
   const owners = await tx
     .select()
     .from(businessRelationships)
@@ -474,7 +584,11 @@ export async function reconcileChecks(
   // Reconciliation may observe current inputs during review, but cannot add/remove frozen policy subjects.
   if (materialInputsEditable(app.status)) {
     for (const check of checks)
-      if (check.active && !desired.some((d) => d.stableKey === check.stableKey)) {
+      if (
+        check.kind !== "loan_footprint" &&
+        check.active &&
+        !desired.some((d) => d.stableKey === check.stableKey)
+      ) {
         await tx
           .update(applicationChecks)
           .set({ active: false, revision: check.revision + 1, updatedAt: now })
@@ -632,7 +746,11 @@ async function view(tx: Tx, actor: Actor, app: App, access: ApplicationAccess) {
         eq(applicationChecks.active, true),
       ),
     )
-    .orderBy(asc(applicationChecks.createdAt), asc(applicationChecks.id));
+    .orderBy(
+      asc(applicationChecks.kind),
+      asc(applicationChecks.createdAt),
+      asc(applicationChecks.id),
+    );
   const checks = rows.filter((check) => checkIsVisible(actor, access, check));
   const staff = access.kind === "staff";
   const mutable = staff && checksMayExecute(app.status);
@@ -652,15 +770,23 @@ async function view(tx: Tx, actor: Actor, app: App, access: ApplicationAccess) {
       id: check.id,
       kind: check.kind,
       title:
-        check.kind === "fraud"
-          ? "Simulated business fraud check"
-          : `Simulated owner identity check — ${inputs.subjectDisplayName ?? "owner"}`,
+        check.kind === "loan_footprint"
+          ? "Loan Footprint"
+          : check.kind === "fraud"
+            ? "Simulated business fraud check"
+            : `Simulated owner identity check — ${inputs.subjectDisplayName ?? "owner"}`,
       stage: check.stage,
       required: check.required,
       subjectUserId: check.subjectUserId,
       subjectRelationshipId: check.subjectRelationshipId,
       currentRunId: run?.id ?? null,
       passes: checkPasses(check, run, !!current?.resolution),
+      canRefresh:
+        staff &&
+        check.kind === "loan_footprint" &&
+        !!run &&
+        !inputs.missing.length &&
+        !pending.has(run.status),
       canRetry:
         mutable && !!run && ["failed", "timed_out"].includes(run.status) && run.attempts < 28,
       canResolve:
@@ -678,6 +804,7 @@ async function view(tx: Tx, actor: Actor, app: App, access: ApplicationAccess) {
         missingPrerequisites: run.missingPrerequisites,
         outcome: run.result?.outcome ?? null,
         evidence: staff ? run.result : null,
+        footprintInput: staff ? run.footprintInput : null,
         errorCode: staff ? run.errorCode : null,
         resolved: !!resolution,
         resolution:
@@ -696,7 +823,7 @@ async function view(tx: Tx, actor: Actor, app: App, access: ApplicationAccess) {
   return checksViewSchema.parse({
     applicationId: app.id,
     simulated: true,
-    canManage: mutable,
+    canManage: staff,
     checks: checkViews,
   });
 }
@@ -974,6 +1101,82 @@ export function createChecksService(
       raw: unknown,
       requestId: string,
     ) => capture(actor, bankId, applicationId, taskId, raw, requestId, "tax_authorization"),
+    async refresh(
+      actor: Actor,
+      bankId: string,
+      applicationId: string,
+      checkId: string,
+      raw: unknown,
+      requestId: string,
+    ) {
+      const parsed = parse(refreshFootprintSchema, raw);
+      return db.transaction(async (tx) => {
+        const { app, access, userId } = await context(tx, actor, bankId, applicationId);
+        if (access.kind !== "staff") return deny();
+        const [check] = await tx
+          .select()
+          .from(applicationChecks)
+          .where(
+            and(
+              eq(applicationChecks.id, checkId),
+              eq(applicationChecks.bankId, bankId),
+              eq(applicationChecks.applicationId, applicationId),
+            ),
+          );
+        if (!check || check.kind !== "loan_footprint" || !check.active) return deny();
+        const [run] = await tx
+          .select()
+          .from(checkRuns)
+          .where(and(eq(checkRuns.id, parsed.runId), eq(checkRuns.checkId, check.id)));
+        if (!run) return deny();
+        if (
+          app.businessAddressRevision !== parsed.expectedAddressRevision ||
+          run.footprintInput?.addressRevision !== parsed.expectedAddressRevision
+        )
+          conflict();
+        const [replay] = await tx
+          .select()
+          .from(checkRuns)
+          .where(eq(checkRuns.refreshOfRunId, run.id));
+        if (replay) return view(tx, actor, app, access);
+        const inputs = await currentCheckInputs(tx, app, check);
+        if (
+          run.stale ||
+          run.fingerprint !== inputs.fingerprint ||
+          inputs.missing.length ||
+          pending.has(run.status)
+        )
+          invalid("This footprint does not have current refreshable inputs.");
+        await tx
+          .update(applicationChecks)
+          .set({ revision: check.revision + 1, updatedAt: clock() })
+          .where(eq(applicationChecks.id, check.id));
+        await reconcileFootprint(tx, app, requestId, clock());
+        const [next] = await tx
+          .select()
+          .from(checkRuns)
+          .where(and(eq(checkRuns.checkId, check.id), eq(checkRuns.stale, false)));
+        if (!next) throw new Error("Footprint refresh intent was not stored.");
+        await tx.update(checkRuns).set({ refreshOfRunId: run.id }).where(eq(checkRuns.id, next.id));
+        await tx.insert(auditEvents).values({
+          bankId,
+          applicationId,
+          actorType: "user",
+          actorUserId: userId,
+          action: "check.refreshed",
+          targetType: "check_run",
+          targetId: next.id,
+          requestId,
+          metadata: {
+            simulated: true,
+            kind: "loan_footprint",
+            addressRevision: parsed.expectedAddressRevision,
+          },
+          createdAt: clock(),
+        });
+        return view(tx, actor, app, access);
+      });
+    },
     retry: (
       actor: Actor,
       bankId: string,

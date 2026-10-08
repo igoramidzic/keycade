@@ -1,11 +1,13 @@
-import { checksViewSchema, readinessViewSchema } from "@keycade/contracts";
+import { checksViewSchema, readinessViewSchema, type StaffWorkspace } from "@keycade/contracts";
 import { ChecksManager, ReadinessPanel } from "@keycade/ui/components/checks-manager";
 import { checkRefreshInterval, readinessRefreshInterval } from "@keycade/ui/lib/refresh-policy";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, useStaffApi } from "./api";
+import { LoanFootprintItem } from "./loan-footprint";
 import { ErrorNotice, Loading } from "./ui";
 
-export function ApplicationChecks({ applicationId }: { applicationId: string }) {
+export function ApplicationChecks({ workspace }: { workspace: StaffWorkspace }) {
+  const applicationId = workspace.id;
   const api = useStaffApi();
   const client = useQueryClient();
   const base = `/applications/${applicationId}`;
@@ -77,9 +79,23 @@ export function ApplicationChecks({ applicationId }: { applicationId: string }) 
           }}
         />
       )}
+      {checks.data.checks
+        .filter((check) => check.kind === "loan_footprint")
+        .map((check) => (
+          <LoanFootprintItem
+            key={check.id}
+            applicationId={applicationId}
+            check={check}
+            savedAddress={workspace.businessAddress}
+            unavailable={Boolean(checks.error)}
+          />
+        ))}
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <ChecksManager
-          data={checks.data}
+          data={{
+            ...checks.data,
+            checks: checks.data.checks.filter((check) => check.kind !== "loan_footprint"),
+          }}
           errorMessage={(error) =>
             error instanceof Error
               ? error.message

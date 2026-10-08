@@ -385,5 +385,5 @@ it("shows waiting checks without inventing queued work and counts old outbox int
   });
   expect(
     after.items.filter((item) => item.kind === "check" && item.status === "waiting_for_input"),
-  ).toHaveLength(1);
+  ).toHaveLength(2);
 });

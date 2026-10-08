@@ -169,6 +169,13 @@
       "when": 1791475747292,
       "tag": "0023_next_mephisto",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791483438641,
+      "tag": "0024_curious_spencer_smythe",
+      "breakpoints": true
     }
   ]
 }

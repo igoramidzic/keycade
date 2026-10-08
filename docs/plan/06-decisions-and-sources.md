@@ -1,5 +1,13 @@
 # Decisions, assumptions, and reference sources
 
+## V2-06 informational Loan Footprint — October 8, 2026
+
+“Continue with v2” selects the next ready task, V2-06. Reuse the existing check/run worker model for a staff-only `loan_footprint` check under `US-only-demo-v1`. It is informational (`required=false`) and cannot be resolved into eligibility by a staff override. It adds no submission, approval or funding gate. Its address snapshot/revision is separate from unrelated application edits; saving an address invalidates previous runs and persists replacement intent in the same transaction.
+
+A structurally valid address explicitly naming `US` is inside the demo footprint. A valid non-US address is outside; missing/invalid address remains waiting for input. Registered synthetic coordinates are optional presentation evidence, independent of the country outcome. Only exact registered fixture addresses receive a pin; no real geocoder, location transmission or street-image service is introduced. The lender Overview and Checks open the same accessible dialog with readable status, address, policy and evaluation provenance.
+
+Staff refresh is asynchronous and tied to the current run and expected address revision; replaying the same source run cannot enqueue another generation. The informational operation may run for a frozen application without changing its decision inputs, snapshots or lifecycle. Existing identity/fraud execution guards retain their policy. This is local implementation work; V2-07 integrated acceptance and V2-08 hosted parity remain separate tasks. The [V2-06 record](v2/04-delivery-and-validation.md#v2-06--simulated-loan-footprint) owns validation evidence.
+
 ## V2-04 document review and financial adoption — October 8, 2026
 
 The user's “continue on v2” request selects V2-04, the next unfinished task with complete dependencies. Implement the local document workspace and application-scoped reviewed financial facts; V2-05 overview/grouping, V2-06 geography and V2-08 hosted parity retain their own scope and prerequisites. Local preview and combined acceptance passed; [the task record](v2/04-delivery-and-validation.md#v2-04--document-workspace-and-reviewed-financial-facts) owns completion evidence.

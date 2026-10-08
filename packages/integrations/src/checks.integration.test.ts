@@ -177,7 +177,7 @@ describe("identity checks and stage readiness on PostgreSQL", () => {
   it("keeps missing identifiers waiting without adding submission blockers and separates closing", async () => {
     const { id } = await app(2);
     const view = await service().read(officer, ids.bankA, id);
-    expect(view.checks).toHaveLength(3);
+    expect(view.checks).toHaveLength(4);
     expect(
       view.checks.every((c) => c.stage === "approval" && c.runs[0]?.status === "waiting_for_input"),
     ).toBe(true);
@@ -258,7 +258,7 @@ describe("identity checks and stage readiness on PostgreSQL", () => {
   it("starts exactly one current run, suppresses duplicate claims and withholds staff evidence", async () => {
     const { id } = await app();
     await capture(id);
-    const { run: queued } = await current(id);
+    const { check: currentCheck, run: queued } = await current(id);
     expect(queued.status).toBe("queued");
     await Promise.all([
       service().read(officer, ids.bankA, id),
@@ -282,7 +282,7 @@ describe("identity checks and stage readiness on PostgreSQL", () => {
     const history = await database.db
       .select()
       .from(checkRuns)
-      .where(and(eq(checkRuns.applicationId, id), eq(checkRuns.stale, false)));
+      .where(and(eq(checkRuns.checkId, currentCheck.id), eq(checkRuns.stale, false)));
     expect(history).toHaveLength(1);
     expect(
       await database.db

@@ -2,7 +2,7 @@
 
 The first release uses fake adapters with realistic asynchronous behavior. They require no external credentials, make no live financial checks, and send no external email. Interface boundaries must allow replacement without rewriting application use cases.
 
-The [v2 data and simulation plan](v2/03-data-and-simulation.md) has locally implemented setup, importer, financial-fact and lender-projection contracts; geography remains V2-06. It adds a protected text-trigger demo importer, a richer lender document viewer, explicit financial-fact adoption and mock geography while retaining these durability and access contracts.
+The [v2 data and simulation plan](v2/03-data-and-simulation.md) has locally implemented setup, importer, financial-fact and lender-projection contracts; V2-06 geography is also implemented locally. It adds a protected text-trigger demo importer, a richer lender document viewer, explicit financial-fact adoption and mock geography while retaining these durability and access contracts.
 
 ## Provider contracts
 
@@ -67,7 +67,7 @@ V2's document information and analysis panes read the existing immutable version
 
 Adopting a suggestion writes a reviewed application-scoped financial fact with source version/run/field, period/currency and reviewer audit in one revision-checked transaction. Jobs only write their version-bound suggestions and findings. They never invoke adoption, replace reviewed values, change shared business facts, or mutate a historical submission. Reprocessing retains prior runs and cannot overwrite a manual adoption; stale/current-source status is visible to the reviewer.
 
-## Geographic footprint simulation — planned v2
+## Geographic footprint simulation — implemented locally
 
 Use a deterministic address-based evaluator and mock map fixture data, without a live geocoder or external map lookup. The evaluator is scoped to the saved application's structured address and its revision: valid U.S. address → simulated clear, non-U.S. → not clear, absent/invalid address → unknown. Do not infer an exact verified coordinate or actual lending eligibility from fixture data. Label the result and map as simulated and provide an accessible textual address/result equivalent.
 

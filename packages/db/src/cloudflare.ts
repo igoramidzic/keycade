@@ -58,6 +58,7 @@ export async function assertWorkerSchemaReady(pool: pg.Pool): Promise<void> {
   await pool.query("SELECT task_id, participant_id FROM task_assignments LIMIT 0");
   await pool.query("SELECT removed_at FROM business_relationships LIMIT 0");
   await pool.query("SELECT demo_import_fixture FROM document_versions LIMIT 0");
+  await pool.query("SELECT footprint_input, refresh_of_run_id FROM check_runs LIMIT 0");
   await pool.query(
     "SELECT version_id, revision, analysis_revision, expected_period FROM document_metadata_revisions LIMIT 0",
   );

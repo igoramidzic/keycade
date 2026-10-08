@@ -17,14 +17,36 @@ import { integrationStatus } from "./job-schema.js";
 import { applications, businessRelationships, users } from "./schema.js";
 import { applicationTasks } from "./task-schema.js";
 
+export type SafeFootprintInput = {
+  addressRevision: number;
+  address: {
+    line1: string;
+    line2?: string;
+    locality: string;
+    region: string;
+    postalCode: string;
+    countryCode: string;
+  } | null;
+  policyVersion: "US-only-demo-v1";
+};
 export type SafeCheckResult = {
   provider: "keycade-checks-v1";
   simulated: true;
-  kind: "identity" | "fraud";
+  kind: "identity" | "fraud" | "loan_footprint";
   operationId: string;
   fingerprint: string;
   completedAt: string;
   outcome: "clear" | "needs_review" | "unable_to_verify";
+  footprint?: SafeFootprintInput & {
+    countryCode: string | null;
+    reason: "inside_us_demo" | "outside_us_demo" | "address_unavailable";
+    coordinates: {
+      latitude: number;
+      longitude: number;
+      label: string;
+      source: "registered_synthetic_fixture";
+    } | null;
+  };
   findings: ("synthetic_match" | "synthetic_review_flag" | "synthetic_no_match")[];
 };
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
@@ -35,7 +57,7 @@ export const applicationChecks = pgTable(
     bankId: uuid("bank_id").notNull(),
     applicationId: uuid("application_id").notNull(),
     stableKey: text("stable_key").notNull(),
-    kind: text("kind").$type<"identity" | "fraud">().notNull(),
+    kind: text("kind").$type<"identity" | "fraud" | "loan_footprint">().notNull(),
     subjectUserId: uuid("subject_user_id").references(() => users.id),
     subjectRelationshipId: uuid("subject_relationship_id"),
     stage: text("stage")
@@ -69,11 +91,11 @@ export const applicationChecks = pgTable(
     }),
     check(
       "checks_kind_subject",
-      sql`(${t.kind}='fraud' AND ${t.subjectRelationshipId} IS NULL AND ${t.subjectUserId} IS NULL) OR (${t.kind}='identity' AND ${t.subjectRelationshipId} IS NOT NULL)`,
+      sql`(${t.kind} IN ('fraud','loan_footprint') AND ${t.subjectRelationshipId} IS NULL AND ${t.subjectUserId} IS NULL) OR (${t.kind}='identity' AND ${t.subjectRelationshipId} IS NOT NULL)`,
     ),
     check(
       "checks_policy_valid",
-      sql`${t.stage} IN ('submission','approval','closing') AND ${t.policyVersion}='demo-checks-v1' AND ${t.revision}>0`,
+      sql`${t.stage} IN ('submission','approval','closing') AND ${t.revision}>0 AND ((${t.kind} IN ('identity','fraud') AND ${t.policyVersion}='demo-checks-v1') OR (${t.kind}='loan_footprint' AND ${t.policyVersion}='US-only-demo-v1' AND NOT ${t.required} AND NOT ${t.allowReviewResolution}))`,
     ),
   ],
 );
@@ -86,6 +108,8 @@ export const checkRuns = pgTable(
     checkId: uuid("check_id").notNull(),
     fingerprint: text("fingerprint").notNull(),
     identifierId: uuid("identifier_id"),
+    footprintInput: jsonb("footprint_input").$type<SafeFootprintInput>(),
+    refreshOfRunId: uuid("refresh_of_run_id"),
     subjectKey: text("subject_key").notNull(),
     status: integrationStatus("status").notNull(),
     stale: boolean("stale").notNull().default(false),
@@ -103,6 +127,7 @@ export const checkRuns = pgTable(
   },
   (t) => [
     unique("check_runs_scope_id").on(t.bankId, t.applicationId, t.checkId, t.id),
+    unique("check_runs_refresh_source").on(t.refreshOfRunId),
     unique("check_runs_current_input").on(t.checkId, t.fingerprint),
     foreignKey({
       name: "check_runs_check_fk",
@@ -123,6 +148,15 @@ export const checkRuns = pgTable(
         sensitiveIdentifierVersions.id,
       ],
     }),
+    foreignKey({
+      name: "check_runs_refresh_scope_fk",
+      columns: [t.bankId, t.applicationId, t.checkId, t.refreshOfRunId],
+      foreignColumns: [t.bankId, t.applicationId, t.checkId, t.id],
+    }),
+    check(
+      "check_runs_footprint_input_valid",
+      sql`${t.footprintInput} IS NULL OR (${t.footprintInput}->>'policyVersion'='US-only-demo-v1' AND (${t.footprintInput}->>'addressRevision')::integer>=0 AND ${t.subjectKey}='business' AND ${t.identifierId} IS NULL)`,
+    ),
     check(
       "check_runs_attempts_valid",
       sql`${t.attempts}>=0 AND ${t.maxAttempts} BETWEEN 1 AND 30 AND ${t.attempts}<=${t.maxAttempts}`,

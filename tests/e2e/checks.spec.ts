@@ -6,7 +6,8 @@ const env = readEnvironment();
 const borrower = `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
 const staff = `http://127.0.0.1:${env.BANK_CONSOLE_PORT ?? 3002}`;
 test.use({ trace: "off", screenshot: "off", video: "off", actionTimeout: 15000 });
-test.setTimeout(120000);
+// Waiting/settled checks poll every 30 seconds; cross-browser edits must allow that interval.
+test.setTimeout(180000);
 async function signIn(page: Page, origin: string, email: string) {
   await page.goto(origin);
   await page.getByLabel("Email address", { exact: true }).fill(email);
@@ -80,9 +81,7 @@ test("private synthetic inputs load upfront and drive scoped readiness, review, 
       officer.getByRole("region", { name: "Approval readiness", exact: true }),
     ).toContainText("Simulated business fraud check");
     await page.goto(url(borrower, "tasks"));
-    await expect(
-      page.getByRole("heading", { name: "Your requirements", exact: true }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Your tasks", exact: true })).toBeVisible();
     const detailRequests: string[] = [];
     await page.route(/\/tasks\/[0-9a-f-]+$/, async (route) => {
       if (route.request().method() === "GET") {
@@ -104,7 +103,7 @@ test("private synthetic inputs load upfront and drive scoped readiness, review, 
       0,
     );
     await expect(fraud.getByText("Needs staff review", { exact: true })).toBeVisible({
-      timeout: 25000,
+      timeout: 45000,
     });
     await expect(
       fraud.getByRole("button", { name: "Record staff resolution", exact: true }),
@@ -133,7 +132,7 @@ test("private synthetic inputs load upfront and drive scoped readiness, review, 
     await page.getByRole("button", { name: "Add synthetic business EIN", exact: true }).click();
     await ein.selectOption("000000006");
     await page.getByRole("button", { name: "Save synthetic identifier", exact: true }).click();
-    await expect(fraud.getByText("Failed", { exact: true })).toBeVisible({ timeout: 25000 });
+    await expect(fraud.getByText("Failed", { exact: true })).toBeVisible({ timeout: 45000 });
     await expect(fraud.getByText("Not satisfied", { exact: true })).toBeVisible();
     await fraud.getByText(/^Check history/).click();
     await expect(fraud.getByText("Outdated input", { exact: true }).first()).toBeVisible();
@@ -141,12 +140,12 @@ test("private synthetic inputs load upfront and drive scoped readiness, review, 
     await fraud.getByRole("button", { name: "Retry check", exact: true }).click();
     await expect(fraud.getByRole("status")).toContainText("Check retry requested.");
     await expect(fraud.getByText("Failed", { exact: true }).first()).toBeVisible({
-      timeout: 25000,
+      timeout: 45000,
     });
     await ein.selectOption("000000001");
     await page.getByRole("button", { name: "Save synthetic identifier", exact: true }).click();
     await expect(fraud.getByText("Simulated clear", { exact: true }).first()).toBeVisible({
-      timeout: 25000,
+      timeout: 45000,
     });
     await expect(fraud.getByText("Requirement satisfied", { exact: true })).toBeVisible();
     await page

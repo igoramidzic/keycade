@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -636,6 +636,107 @@ it("upgrades every unfinished v1 step while preserving answers, optional skips, 
         )
       ).rows,
     ).toEqual(setups);
+  } finally {
+    await database.cleanup();
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
+it("adds queued or waiting informational footprint snapshots for frozen and legacy apps without changing retained facts", async () => {
+  const folder = await mkdtemp(join(tmpdir(), "keycade-before-footprint-"));
+  const database = await createTestDatabase(undefined, { migrate: false });
+  try {
+    const journal = JSON.parse(
+      await readFile(join(migrationsFolder, "meta/_journal.json"), "utf8"),
+    ) as { entries: { idx: number; tag: string }[] };
+    journal.entries = journal.entries.filter((entry) => entry.idx < 24);
+    await mkdir(join(folder, "meta"));
+    await writeFile(join(folder, "meta/_journal.json"), JSON.stringify(journal));
+    await Promise.all(
+      journal.entries.map((entry) =>
+        copyFile(join(migrationsFolder, `${entry.tag}.sql`), join(folder, `${entry.tag}.sql`)),
+      ),
+    );
+    await migrate(database.db, { migrationsFolder: folder });
+    await seedHistoricalDatabase(database);
+    const address = {
+      line1: "123 Synthetic Avenue",
+      locality: "Portland",
+      region: "ME",
+      postalCode: "04101",
+      countryCode: "US",
+    };
+    await database.pool.query(
+      "UPDATE applications SET status='funded', business_address=$2::jsonb, business_address_revision=3 WHERE id=$1",
+      [seedIds.applicationSmall, JSON.stringify(address)],
+    );
+    await database.pool.query("UPDATE applications SET status='approved' WHERE id=$1", [
+      seedIds.applicationOtherBank,
+    ]);
+    const applicationsBefore = (await database.pool.query("SELECT * FROM applications ORDER BY id"))
+      .rows;
+    const setupsBefore = (
+      await database.pool.query("SELECT * FROM application_setups ORDER BY application_id")
+    ).rows;
+    await migrateDatabase(database.connectionString);
+    await assertSchemaReady(database.connectionString);
+    expect((await database.pool.query("SELECT * FROM applications ORDER BY id")).rows).toEqual(
+      applicationsBefore,
+    );
+    expect(
+      (await database.pool.query("SELECT * FROM application_setups ORDER BY application_id")).rows,
+    ).toEqual(setupsBefore);
+    const rows = (
+      await database.pool.query(
+        "SELECT c.id, c.application_id, c.revision, c.required, c.allow_review_resolution, c.policy_version, r.status, r.footprint_input, r.fingerprint, r.result FROM application_checks c JOIN check_runs r ON r.check_id=c.id WHERE c.kind='loan_footprint' ORDER BY c.id",
+      )
+    ).rows;
+    expect(rows).toHaveLength(applicationsBefore.filter((app) => app.synthetic).length);
+    for (const row of rows) {
+      const saved = applicationsBefore.find((app) => app.id === row.application_id);
+      expect(row).toMatchObject({
+        required: false,
+        allow_review_resolution: false,
+        policy_version: "US-only-demo-v1",
+        result: null,
+        status: saved.business_address ? "queued" : "waiting_for_input",
+      });
+      expect(row.footprint_input).toEqual({
+        addressRevision: saved.business_address_revision,
+        address: saved.business_address,
+        policyVersion: "US-only-demo-v1",
+      });
+      const value = saved.business_address;
+      const fingerprint = createHash("sha256")
+        .update(
+          JSON.stringify([
+            row.id,
+            row.revision,
+            row.policy_version,
+            saved.business_address_revision,
+            value
+              ? [
+                  value.line1,
+                  value.line2 ?? null,
+                  value.locality,
+                  value.region,
+                  value.postalCode,
+                  value.countryCode,
+                ]
+              : null,
+          ]),
+        )
+        .digest("hex");
+      expect(row.fingerprint).toBe(fingerprint);
+    }
+    await migrateDatabase(database.connectionString);
+    expect(
+      (
+        await database.pool.query(
+          "SELECT count(*)::int AS count FROM check_runs WHERE footprint_input IS NOT NULL",
+        )
+      ).rows[0].count,
+    ).toBe(rows.length);
   } finally {
     await database.cleanup();
     await rm(folder, { recursive: true, force: true });

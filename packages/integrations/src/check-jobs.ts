@@ -15,7 +15,11 @@ import {
   reconcileChecks,
 } from "@keycade/domain";
 import { and, eq, inArray, lte, or } from "drizzle-orm";
-import { type CheckProviderRequest, invokeCheckProvider } from "./check-provider.js";
+import {
+  type CheckProviderRequest,
+  evaluateFootprint,
+  invokeCheckProvider,
+} from "./check-provider.js";
 import { identifierScenario } from "./enrichment-provider.js";
 import { type Clock, ProviderError, systemClock } from "./provider.js";
 
@@ -75,7 +79,7 @@ export async function processCheckRun(
       stale ||
       !check.active ||
       !app.synthetic ||
-      !checksMayExecute(app.status) ||
+      (check.kind !== "loan_footprint" && !checksMayExecute(app.status)) ||
       !inputs.subjectActive
     ) {
       await tx
@@ -130,7 +134,7 @@ export async function processCheckRun(
             ),
           )
       : [];
-    if (!identifier) return null;
+    if (!identifier && check.kind !== "loan_footprint") return null;
     await tx
       .update(checkRuns)
       .set({
@@ -141,18 +145,27 @@ export async function processCheckRun(
         updatedAt: clock.now(),
       })
       .where(eq(checkRuns.id, operationId));
-    return { app, check, run, identifier, attempt: run.attempts + 1 };
+    return {
+      app,
+      check,
+      run,
+      identifier,
+      footprintInput: inputs.footprintInput,
+      attempt: run.attempts + 1,
+    };
   });
   if (!claim) return false;
   let result: CheckResult | undefined;
   let failure: ProviderError | undefined;
   try {
-    const identifier = cipher.decrypt(claim.identifier.encryptedValue, {
-      bankId: claim.run.bankId,
-      applicationId: claim.run.applicationId,
-      subjectKey: claim.run.subjectKey,
-      revision: claim.identifier.revision,
-    });
+    const identifier = claim.identifier
+      ? cipher.decrypt(claim.identifier.encryptedValue, {
+          bankId: claim.run.bankId,
+          applicationId: claim.run.applicationId,
+          subjectKey: claim.run.subjectKey,
+          revision: claim.identifier.revision,
+        })
+      : null;
     result = checkResultSchema.parse(
       await (options.provider ?? invokeCheckProvider)(
         {
@@ -162,7 +175,8 @@ export async function processCheckRun(
           fingerprint: claim.run.fingerprint,
           idempotencyKey: operationId,
           kind: claim.check.kind,
-          scenario: identifierScenario(identifier),
+          scenario: identifier ? identifierScenario(identifier) : "success",
+          footprintInput: claim.footprintInput,
           attempt: claim.attempt,
         },
         { clock, delayMs: options.delayMs ?? 5_000, deadlineMs, signal: options.signal },
@@ -171,7 +185,11 @@ export async function processCheckRun(
     if (
       result.operationId !== operationId ||
       result.fingerprint !== claim.run.fingerprint ||
-      result.kind !== claim.check.kind
+      result.kind !== claim.check.kind ||
+      (claim.check.kind === "loan_footprint" &&
+        (!claim.footprintInput ||
+          JSON.stringify(result.footprint) !==
+            JSON.stringify(evaluateFootprint(claim.footprintInput))))
     )
       throw new ProviderError("terminal_error", false);
   } catch (error) {
@@ -217,7 +235,7 @@ export async function processCheckRun(
     if (
       stale ||
       !check.active ||
-      !checksMayExecute(app.status) ||
+      (check.kind !== "loan_footprint" && !checksMayExecute(app.status)) ||
       !inputs.subjectActive ||
       inputs.missing.length
     ) {
@@ -308,13 +326,16 @@ export async function processCheckJobs(
     .from(applicationChecks)
     .innerJoin(applications, eq(applications.id, applicationChecks.applicationId))
     .where(
-      inArray(applications.status, [
-        "draft",
-        "collecting_information",
-        "needs_information",
-        "submitted",
-        "in_review",
-      ]),
+      or(
+        eq(applicationChecks.kind, "loan_footprint"),
+        inArray(applications.status, [
+          "draft",
+          "collecting_information",
+          "needs_information",
+          "submitted",
+          "in_review",
+        ]),
+      ),
     );
   for (const scope of scopes) {
     if (options.signal?.aborted) break;

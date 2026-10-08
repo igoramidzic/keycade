@@ -43,6 +43,7 @@ const statusLabels: Record<Status, string> = {
   cancelled: "Cancelled",
 };
 const prerequisiteLabels = {
+  business_address: "A complete business address is needed for the simulated country check.",
   identifier: "A synthetic identifier is needed.",
   owner_access: "The owner needs current portal access.",
   reviewed_documents: "Current document evidence needs bank review.",

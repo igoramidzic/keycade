@@ -164,7 +164,13 @@ async function capture(tx: Tx, app: App): Promise<SubmissionSnapshot> {
       and(eq(checkRuns.checkId, applicationChecks.id), eq(checkRuns.stale, false)),
     )
     .leftJoin(checkResolutions, eq(checkResolutions.runId, checkRuns.id))
-    .where(and(scope(applicationChecks, app), eq(applicationChecks.active, true)))
+    .where(
+      and(
+        scope(applicationChecks, app),
+        eq(applicationChecks.active, true),
+        inArray(applicationChecks.kind, ["identity", "fraud"]),
+      ),
+    )
     .orderBy(asc(applicationChecks.id));
   const [policy] = await tx
     .select()

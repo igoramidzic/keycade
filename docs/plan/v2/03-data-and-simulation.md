@@ -1,6 +1,6 @@
 # Version 2 data and simulation contracts
 
-Status: V2-01 setup, V2-02 borrower projection and V2-03 importer contracts are implemented and verified locally. V2-04 financial-record/document-metadata and V2-05 staff overview projection contracts are implemented and verified locally; the footprint contract remains proposed. Reuse current packages and services; choose concrete SQL/table/route names during the owning task. The [existing architecture](../02-architecture.md), [access rules](../03-domain-and-access.md) and [durable processing](../04-integrations-and-jobs.md) remain binding.
+Status: V2-01 setup, V2-02 borrower projection and V2-03 importer contracts are implemented and verified locally. V2-04 financial-record/document-metadata and V2-05 staff overview projection contracts are implemented and verified locally; V2-06 footprint contracts are also implemented and verified locally. Reuse current packages and services; choose concrete SQL/table/route names during the owning task. The [existing architecture](../02-architecture.md), [access rules](../03-domain-and-access.md) and [durable processing](../04-integrations-and-jobs.md) remain binding.
 
 ## Application intake and compatibility — V2-01
 
@@ -90,11 +90,11 @@ No uploaded text is evaluated, executed, browsed or treated as a system instruct
 
 ## Loan Footprint contract — V2-06
 
-Use the existing integration-run/check model with a new simulated geographic operation keyed to application address revision and a versioned `US-only-demo` policy. A complete valid address with country `US` yields clear; a valid non-US country yields outside-footprint/needs-review; absent/invalid country/address yields waiting-for-input/unable-to-verify. Do not infer clear from a failed job. Store the evaluated address snapshot reference, country, outcome/reason, policy, time and simulation provenance.
+The existing check/run model now contains staff-only `loan_footprint` checks keyed to application address revision and policy `US-only-demo-v1`. A complete valid address with country `US` yields clear; a valid non-US country yields outside-footprint/needs-review; absent/invalid country/address yields waiting-for-input/unable-to-verify. Do not infer clear from a failed job. Store the evaluated address snapshot reference, country, outcome/reason, policy, time and simulation provenance.
 
 Default to an informational lender check with no new submission/approval/funding gate; existing required checks retain their configured behavior. This demo rule is not real geographic underwriting. A future decision to make it mandatory must explicitly update a versioned requirement set and its tests.
 
-Use packaged mock map geometry and registered synthetic coordinates for known fixture addresses. Unknown coordinates give a map-unavailable placeholder while the country rule can still resolve. No live geocoding, map token, location search, billing or external address transmission. An address save schedules new work and invalidates the old result transactionally; stale job results cannot restore an obsolete pin or clear status. An authorized refresh is idempotent and asynchronous.
+Use packaged mock map geometry and registered synthetic coordinates for known fixture addresses. Unknown coordinates give a map-unavailable placeholder while the country rule can still resolve. No live geocoding, map token, location search, billing or external address transmission. An address save schedules new work and invalidates the old result transactionally; stale job results cannot restore an obsolete pin or clear status. An authorized refresh is idempotent and asynchronous. `POST /api/v1/banks/:bankId/applications/:applicationId/checks/:checkId/refresh` takes the current `runId` and `expectedAddressRevision`; one successor per source run is enforced by a scoped foreign key and unique constraint. Migration 0024 adds immutable input snapshots per generation and backfills existing synthetic applications, including frozen legacy records, without changing application/setup revisions or decision snapshots. Reconciliation and read projections reuse existing authorized Checks routes in both transports. Informational refresh remains available after decisions; identity/fraud lifecycle restrictions remain unchanged.
 
 ## Runtime and verification ownership
 

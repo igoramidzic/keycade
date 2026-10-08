@@ -1,6 +1,6 @@
 # V2 delivery and validation
 
-Planning date: October 8, 2026. V2-01–V2-05 are complete locally. V2-06–V2-08 are **Not started**. Only the task-specific evidence below proves v2 behavior.
+Planning date: October 8, 2026. V2-01–V2-06 are complete locally. V2-07–V2-08 are **Not started**. Only the task-specific evidence below proves v2 behavior.
 
 Read [the experience specification](02-experience-spec.md) and [the data and simulation specification](03-data-and-simulation.md) before implementing a task. The [main plan](../README.md), [architecture](../02-architecture.md), [access rules](../03-domain-and-access.md), and [verification discipline](../05-development-and-testing.md) still apply. Implement one bounded task or reviewable slice at a time.
 
@@ -13,11 +13,11 @@ Read [the experience specification](02-experience-spec.md) and [the data and sim
 | V2-03 | Protected text-to-fixture demo importer | — | T13, T14, D05 | Done — local acceptance below |
 | V2-04 | Document review and confirmed financial facts | V2-01, V2-03 | T14, T15, T19 | Done — local acceptance |
 | V2-05 | Lender application overview and evidence drill-down | V2-01, V2-04 | T10, T12, T16, T19, T21 | Done — local acceptance |
-| V2-06 | Simulated Loan Footprint | V2-01 | T16 | Not started |
+| V2-06 | Simulated Loan Footprint | V2-01 | T16 | Done — local acceptance |
 | V2-07 | Integrated local acceptance | V2-02, V2-03, V2-04, V2-05, V2-06 | T22 | Not started |
 | V2-08 | Hosted parity and deployment acceptance | V2-07 | D02, D03 | Not started |
 
-Existing prerequisites are recorded as complete in the main plan. D05 and some later follow-ups have only local evidence; V2-08 must carry the combined implementation through hosted validation. V2-01–V2-05 are complete, so V2-06 is next. Its informational geographic result can be exposed through the completed overview and existing Checks view.
+Existing prerequisites are recorded as complete in the main plan. D05 and some later follow-ups have only local evidence; V2-08 must carry the combined implementation through hosted validation. V2-01–V2-06 are complete, so V2-07 integrated local acceptance is next. Loan Footprint is available through the completed Overview and existing Checks view.
 
 ## Shared completion rules
 
@@ -267,9 +267,24 @@ Dependencies: V2-01; T16. Primary areas: address-bound simulated geographic resu
 2. Address edits invalidate older results/pins; duplicate deliveries and late results cannot restore an outdated green status. Real-PostgreSQL and both-transport checks enforce scope, revisions and revocation.
 3. Desktop/mobile keyboard users can open, inspect and close the modal with focus restored. Text communicates the result without reliance on map imagery or color; no real provider request is made.
 
-Implementation record: **Not started.**
+Implementation record: **Done — local acceptance, October 8, 2026.**
 
-Validation record: **Not run.** A map illustration alone is not geographic-result acceptance.
+- Lender Overview and Checks open the same accessible Geographic Eligibility dialog. It shows the saved address, explicit simulated status, evaluated time/address revision, policy, registered synthetic map/pin and historical runs. Unknown coordinates or a failed bundled illustration show Map location unavailable without changing the country result. Keyboard open/Escape/Close restore focus; scrolling keeps actions reachable on mobile. Pending, error, stale and lost-access states never retain a current green result or pin.
+- Existing `application_checks`/`check_runs` now support staff-only `loan_footprint` under `US-only-demo-v1`. Complete US addresses clear independently of coordinate availability; non-US returns needs-review and missing/invalid inputs wait. Database policy enforces `required=false` and no staff resolution override. No submission, approval or funding gate is introduced, and decision snapshots exclude this informational check.
+- Migration `0024_curious_spencer_smythe` adds address snapshots and scoped one-successor refresh links, then backfills checks and queued/waiting intent for existing synthetic applications, including frozen legacy records. It preserves application/setup revisions, existing evidence and decisions. Creates and address saves persist current intent and invalidate old claims in the same transaction. Worker completion validates current fingerprints, claim tokens, address snapshot and registered coordinates; duplicate or late deliveries cannot restore an obsolete result.
+- Staff `POST .../checks/:checkId/refresh` uses current run ID and expected address revision. Concurrent/replayed requests enqueue one successor with safe audit history. Informational checks may execute/refresh throughout the lifecycle without modifying frozen decision inputs. Existing identity/fraud guards remain; every environment remains a demo and the map/provider require no external request.
+
+Validation record — working tree based on `7795567`, October 8, 2026:
+
+- `pnpm check` passed Biome, package boundaries, all 12 workspace typechecks, root TypeScript and **399 unit tests across 38 files**. `pnpm build` passed all 12 workspaces. Thirteen UI state cases cover stale snapshots, pending/error evidence, structured-address comparisons and invalid/map-outside coordinates; provider/contracts cover delayed outcomes, invalid input and strict country/result agreement.
+- The final full real-PostgreSQL suite passed **477 cases across 50 files**, including 17 dedicated footprint cases, one upgrade case and 10 new cases across both Fastify and native Worker HTTP transports. Coverage includes all ten application lifecycle states with identical readiness before/after, automatic draft intent, rollback, simultaneous duplicate claims, refresh replay, stale in-flight results across an actual HTTP address edit, bank/application boundaries, staff revocation, borrower/adviser exclusion, malformed result/coordinate rejection, failures, scoped foreign keys and legacy/frozen migration preservation. A final 23-case footprint/activity rerun also passed after safe refresh-history labeling.
+- All **10 new desktop/mobile browser cases passed**, with no remaining failures/skips/flakes: registered map and both entry points, unregistered-US versus changed non-US address, missing address, queued/running/error/stale display, real image-render failure, asynchronous refresh, temporary read recovery and access-loss cleanup. Initial `.local/e2e-fb8pzW` passed eight; desktop failures were test-only hidden-history scope and Vite-inline-image interception assumptions. Corrected desktop cases passed `.local/e2e-kGIymX`; mobile counterparts already passed with the corrections. Desktop/mobile dialog screenshots were visually inspected, including current map, missing and non-US states.
+- **Six affected desktop/mobile regressions also passed**, bringing acceptance to **16 distinct browser cases**: existing synthetic identity/fraud review/retry, lender profile/stages/scenario layout, and two-party signatures through explicit simulated funding. `.local/e2e-yvepUC` passed eight of ten cases, including four strengthened footprint viewport/map checks and four overview/funding regressions. Its two old Checks failures were an obsolete borrower heading and a 25-second wait shorter than the established 30-second idle poll. Updated test expectations passed both layouts in `.local/e2e-8PaqNS`; no product timeout or polling change was made. Header/Close remained in the viewport while the map scrolled into view. Final local Markdown validation checked **298 paths/anchors across 45 files**, with zero errors; `git diff --check` passed.
+- The additive migration was applied to the project-owned local database with `pnpm db:migrate`, repeated successfully as a no-op, and authenticated database/schema readiness passed. Upgrade tests preserve existing application/setup records, address snapshots and frozen decisions. No data reset was used.
+- Logs are `.local/v2-06-validation`. Commands were `pnpm check`, `pnpm build`, `node_modules/node/bin/node --import tsx .local/v2-04-validation/integration.mjs .integration.test.ts`, and `node_modules/node/bin/node --import tsx scripts/e2e.ts tests/e2e/loan-footprint-v2.spec.ts`, with targeted desktop reruns. Pinned Node 24.21.0 and cached pnpm 10.34.6 were used. Local sandbox permissions were extended for the owned Podman database, loopback HTTP and test IPC. No hosted build/deployment or v2 hosted parity is claimed; V2-07 and V2-08 remain separate.
+
+Try locally: sign in to the lender console as `officer-a@example.test`, open an application and choose **Loan Footprint** in Overview or Checks. A saved US address evaluates after the configured simulation delay. The registered `123 Synthetic Avenue, Portland, ME 04101, US` fixture displays a labelled synthetic pin; another complete US address remains eligible with Map location unavailable. A legacy application without an address shows Needs address. Refresh creates one asynchronous successor and retains explicitly historical prior runs.
+
 
 ## V2-07 — Integrated local acceptance
 

@@ -77,6 +77,7 @@ const labels: Record<string, string> = {
   "document.category_corrected": "Document category reviewed",
   "check.completed": "Simulated check completed",
   "check.retried": "Simulated check retried",
+  "check.refreshed": "Simulated Loan Footprint refresh requested",
   "check.resolved": "Simulated check reviewed by staff",
   "enrichment.completed": "Simulated enrichment completed",
   "enrichment.requested": "Simulated enrichment requested",
