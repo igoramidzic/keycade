@@ -72,7 +72,14 @@ export function ApplicationTasks({
           `/applications/${applicationId}/signatures?bank=${encodeURIComponent(session.bank.slug)}${envelopeId ? `#envelope-${envelopeId}` : ""}`
         }
         errorMessage={errorMessage}
-        renderDocuments={documents.render}
+        // Shared business evidence goes through the dashboard sidebar uploader. Keep an
+        // in-task uploader only where that would broaden access or isn't permitted:
+        // private/assigned-only tasks and collaborators without general uploads.
+        renderDocuments={(taskId, onBusyChange, visibility) =>
+          visibility === "shared" && documents.canUploadGeneral
+            ? null
+            : documents.render(taskId, onBusyChange, visibility)
+        }
         reload={async () => {
           const updated = await tasks.refetch({ throwOnError: true });
           if (!updated.data) throw new Error("Tasks are unavailable.");

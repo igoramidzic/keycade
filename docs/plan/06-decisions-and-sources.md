@@ -1,5 +1,11 @@
 # Decisions, assumptions, and reference sources
 
+## Shorter borrower task cards — October 8, 2026
+
+The user found expanded tasks too long and wordy, questioned the per-task “Task documents” section beside the sidebar uploader and asked that finished tasks keep their place. Task rows now keep a fixed stage-then-creation order for borrowers and staff; state no longer reorders them. Answer tasks use their stored question as the field label. Reason, requirement source, assignee, fictional-data reminder and history move into one collapsed “Details and history” section. Stored requirement text is unchanged; existing applications keep their snapshots.
+
+Shared business tasks drop their in-task uploader in the borrower dashboard because the sidebar already accepts business files. The full Documents page can still attach a file to a task. The in-task uploader remains where the sidebar cannot be used without broadening access: private owner tasks, assigned-only tasks and collaborators without general upload permission. This narrows the V2-02 presentation only; backend document grants and task permissions are unchanged. The [follow-up record](v2/04-delivery-and-validation.md#shorter-task-cards--october-8-2026) owns validation.
+
 ## V2-07 integrated local acceptance — October 8, 2026
 
 The user's “Continue with v2” selects V2-07, the next ready task. Verify the combined implementation at `bf845a1` with fresh local tests, a connected new-applicant journey, explicit restricted/revoked API denials, additive migration upgrades and repeat initialization. The existing human review/signature/funding tests remain separate regressions; the connected financial-review journey does not bypass their gates. The [acceptance record](v2/04-delivery-and-validation.md#v2-07--integrated-local-acceptance) owns results and any repairs. Hosted deployment and paused CI remain outside this task.

@@ -249,7 +249,7 @@ test("submission, returned information, immutable resubmission, and explicit app
     await page.goto(url(borrower, app.id, "tasks"));
     await page.getByRole("button", { name: "Describe your business", exact: true }).click();
     await page
-      .getByLabel("Your answer", { exact: true })
+      .locator('[id^="task-answer-"]')
       .fill("Updated synthetic workshop details requested by the reviewer.");
     await page.getByRole("button", { name: "Save answer", exact: true }).click();
     await expect(page.getByRole("status").filter({ hasText: "Answer saved." })).toBeVisible();

@@ -55,9 +55,9 @@ for (const actor of ["borrower", "staff"] as const) {
     const task = initial.tasks.find((item) => item.title === "Describe your business");
     if (!task) throw new Error("Synthetic business description task missing.");
     await page.getByRole("button", { name: task.title, exact: true }).click();
-    const input = page.getByLabel(isBorrower ? "Your answer" : "Due date (optional)", {
-      exact: true,
-    });
+    const input = isBorrower
+      ? page.locator('[id^="task-answer-"]')
+      : page.getByLabel("Due date (optional)", { exact: true });
     const value = isBorrower ? `Synthetic saved answer ${randomUUID().slice(0, 8)}` : "2026-12-01";
     await input.fill(value);
 
@@ -153,7 +153,7 @@ test("stale task answers keep typed text until the borrower explicitly reloads t
     await signIn(applicant, borrower, "borrower@example.test");
     await applicant.goto(`${borrower}/applications/${applicationId}/tasks?bank=bank-a`);
     await applicant.getByRole("button", { name: title, exact: true }).click();
-    const answer = applicant.getByLabel("Your answer", { exact: true });
+    const answer = applicant.locator('[id^="task-answer-"]');
     await answer.fill("My unsaved fictional workshop description.");
     const visibleList = await tasksApi<TasksView>(applicant, "GET");
     const taskListPattern = /\/api\/v1\/banks\/[^/]+\/applications\/[^/]+\/tasks$/;

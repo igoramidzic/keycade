@@ -120,7 +120,7 @@ test("only the lender invites a lawyer, selects their tasks, and removes the act
     ).toHaveCount(0);
     await recipient.getByRole("button", { name: taskTitle, exact: true }).click();
     await recipient
-      .getByLabel("Your answer", { exact: true })
+      .locator('[id^="task-answer-"]')
       .fill("Synthetic legal summary for lender review.");
     await recipient.getByRole("button", { name: "Save answer", exact: true }).click();
     await expect(recipient.getByRole("status").filter({ hasText: "Answer saved" })).toBeVisible();

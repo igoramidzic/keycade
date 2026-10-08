@@ -252,9 +252,9 @@ test("approved terms progress through two signatures and explicit funding into o
       page.getByRole("button", { name: acknowledgement.title, exact: true }),
     ).toHaveAttribute("aria-expanded", "true");
     // A condition link selects details from the upfront task snapshot.
-    await expect(page.getByLabel("Your answer", { exact: true })).toBeVisible();
+    await expect(page.locator('[id^="task-answer-"]')).toBeVisible();
     await page
-      .getByLabel("Your answer", { exact: true })
+      .locator('[id^="task-answer-"]')
       .fill("I confirm the fictional closing details for this simulation.");
     await page.getByRole("button", { name: "Save answer", exact: true }).click();
     await expect(page.getByRole("status").filter({ hasText: "Answer saved." })).toBeVisible();

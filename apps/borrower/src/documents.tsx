@@ -171,5 +171,9 @@ export function useApplicationDocuments({
       </div>
     );
   }
-  return { pending: documents.isPending || !documents.isFetchedAfterMount, render };
+  return {
+    pending: documents.isPending || !documents.isFetchedAfterMount,
+    canUploadGeneral: documents.data?.canUpload === true,
+    render,
+  };
 }

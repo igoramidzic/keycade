@@ -40,14 +40,14 @@ test("contextual pages and browser Back preserve the open task and its unsaved a
   await toggle.focus();
   await page.keyboard.press("Enter");
   const draft = `Unsaved synthetic dashboard answer ${randomUUID().slice(0, 8)}`;
-  await tasks.getByLabel("Your answer", { exact: true }).fill(draft);
+  await tasks.locator('[id^="task-answer-"]').fill(draft);
   await page.getByRole("link", { name: "View documents", exact: true }).click();
   await expect(page).toHaveURL(`${borrower}${base}/documents?bank=bank-a`);
   await expect(page.getByRole("heading", { name: "Documents", exact: true })).toBeVisible();
   await page.goBack();
   await expect(page).toHaveURL(dashboard);
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
-  await expect(tasks.getByLabel("Your answer", { exact: true })).toHaveValue(draft);
+  await expect(tasks.locator('[id^="task-answer-"]')).toHaveValue(draft);
 
   await page.getByRole("link", { name: "View activity", exact: true }).click();
   await expect(
@@ -57,7 +57,7 @@ test("contextual pages and browser Back preserve the open task and its unsaved a
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(dashboard);
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
-  await expect(tasks.getByLabel("Your answer", { exact: true })).toHaveValue(draft);
+  await expect(tasks.locator('[id^="task-answer-"]')).toHaveValue(draft);
   await noOverflow(page);
 });
 

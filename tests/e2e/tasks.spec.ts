@@ -73,10 +73,11 @@ for (const [actor, origin, email] of [
       const toggle = page.getByRole("button", { name: title, exact: true });
       await toggle.click();
       await expect(toggle).toHaveAttribute("aria-expanded", "true");
-      await expect(page.getByLabel("Your answer", { exact: true })).toBeVisible();
-      await expect(
-        page.getByRole("heading", { name: "Task documents", exact: true }),
-      ).toBeVisible();
+      await expect(page.locator('[id^="task-answer-"]')).toBeVisible();
+      // Borrowers upload shared business files in the sidebar; staff keep task documents.
+      await expect(page.getByRole("heading", { name: "Task documents", exact: true })).toHaveCount(
+        actor === "staff" ? 1 : 0,
+      );
       await page.clock.runFor(100);
     }
     expect(detailRequests).toEqual([]);
@@ -141,7 +142,7 @@ test("application dashboard keeps tasks beside details on desktop and stacks the
     await first.click();
     await expect(first).toHaveAttribute("aria-expanded", "true");
     const expanded = taskPanel.locator(`[id="${controlledId}"]`);
-    await expect(expanded.getByLabel("Your answer", { exact: true })).toBeVisible();
+    await expect(expanded.locator('[id^="task-answer-"]')).toBeVisible();
     const triggerBox = await first.boundingBox();
     const expandedBox = await expanded.boundingBox();
     const rowBox = await first.locator("xpath=ancestor::li[1]").boundingBox();
@@ -154,16 +155,14 @@ test("application dashboard keeps tasks beside details on desktop and stacks the
     await expect(first).toHaveAttribute("aria-expanded", "false");
     await expect(expanded).toBeHidden();
     await first.click();
-    await expanded.getByLabel("Your answer", { exact: true }).fill("Unsaved synthetic draft");
+    await expanded.locator('[id^="task-answer-"]').fill("Unsaved synthetic draft");
     await next.click();
     await expect(
       page.getByRole("alert").filter({ hasText: "You have unsaved changes" }),
     ).toBeVisible();
     await expect(first).toHaveAttribute("aria-expanded", "true");
     await page.getByRole("button", { name: "Keep editing", exact: true }).click();
-    await expect(expanded.getByLabel("Your answer", { exact: true })).toHaveValue(
-      "Unsaved synthetic draft",
-    );
+    await expect(expanded.locator('[id^="task-answer-"]')).toHaveValue("Unsaved synthetic draft");
     await next.click();
     await page.getByRole("button", { name: "Discard changes", exact: true }).click();
     await expect(first).toHaveAttribute("aria-expanded", "false");
@@ -180,7 +179,7 @@ test("task switch confirmation stays locked until a pending answer save finishes
   const next = page.getByRole("button", { name: "Confirm business entity details", exact: true });
   const answer = `Synthetic answer saved during task switching ${randomUUID().slice(0, 8)}`;
   await current.click();
-  await page.getByLabel("Your answer", { exact: true }).fill(answer);
+  await page.locator('[id^="task-answer-"]').fill(answer);
   await next.click();
   const confirmation = page.getByRole("alert").filter({ hasText: "You have unsaved changes" });
   await expect(confirmation).toBeVisible();
@@ -211,7 +210,7 @@ test("task switch confirmation stays locked until a pending answer save finishes
     releaseAnswer();
     await expect(page.getByRole("status").filter({ hasText: "Answer saved." })).toBeVisible();
     await expect(confirmation).toBeHidden();
-    await expect(page.getByLabel("Your answer", { exact: true })).toHaveValue(answer);
+    await expect(page.locator('[id^="task-answer-"]')).toHaveValue(answer);
     await expect(
       page.getByRole("button", { name: "Submit for review", exact: true }),
     ).toBeEnabled();
@@ -220,7 +219,7 @@ test("task switch confirmation stays locked until a pending answer save finishes
     await expect(current).toHaveAttribute("aria-expanded", "false");
     await expect(confirmation).toBeHidden();
     await current.click();
-    await expect(page.getByLabel("Your answer", { exact: true })).toHaveValue(answer);
+    await expect(page.locator('[id^="task-answer-"]')).toHaveValue(answer);
     await noOverflow(page);
   } finally {
     releaseAnswer();
@@ -252,9 +251,7 @@ test("staff requests a task, borrower submits, staff returns changes and complet
     const applicant = await context.newPage();
     await signIn(applicant, borrower, "borrower@example.test");
     await applicant.getByRole("button", { name: title, exact: true }).click();
-    await applicant
-      .getByLabel("Your answer", { exact: true })
-      .fill("Synthetic equipment for the workshop.");
+    await applicant.locator('[id^="task-answer-"]').fill("Synthetic equipment for the workshop.");
     await applicant.getByRole("button", { name: "Save answer", exact: true }).click();
     await expect(applicant.getByRole("status").filter({ hasText: "Answer saved." })).toBeVisible();
     await expect(
@@ -271,7 +268,7 @@ test("staff requests a task, borrower submits, staff returns changes and complet
 
     await page.reload();
     await page.getByRole("button", { name: title, exact: true }).click();
-    await expect(page.getByLabel("Your answer", { exact: true })).toHaveValue(
+    await expect(page.locator('[id^="task-answer-"]')).toHaveValue(
       "Synthetic equipment for the workshop.",
     );
     await expect(page.getByRole("button", { name: "Complete task", exact: true })).toBeDisabled();
@@ -289,7 +286,7 @@ test("staff requests a task, borrower submits, staff returns changes and complet
       applicant.getByText("Please describe the equipment and delivery.", { exact: true }).first(),
     ).toBeVisible();
     await applicant
-      .getByLabel("Your answer", { exact: true })
+      .locator('[id^="task-answer-"]')
       .fill("Synthetic woodworking equipment with delivery to the fictional workshop.");
     await applicant.getByRole("button", { name: "Save answer", exact: true }).click();
     await expect(applicant.getByRole("status").filter({ hasText: "Answer saved." })).toBeVisible();
@@ -305,7 +302,7 @@ test("staff requests a task, borrower submits, staff returns changes and complet
       .fill("Synthetic revised explanation reviewed.");
     await page.getByRole("button", { name: "Complete task", exact: true }).click();
     await expect(page.getByRole("status").filter({ hasText: "Task completed" })).toBeVisible();
-    await page.getByText("Task history", { exact: true }).click();
+    await page.getByText("Details and history", { exact: true }).click();
     await expect(
       page.getByText("Synthetic equipment for the workshop.", { exact: true }),
     ).toBeVisible();
@@ -323,9 +320,13 @@ test("staff requests a task, borrower submits, staff returns changes and complet
     });
     await applicant.reload();
     await applicant.getByRole("button", { name: title, exact: true }).click();
-    await expect(
-      applicant.getByText("Synthetic revised explanation reviewed.", { exact: true }).first(),
-    ).toBeVisible();
+    // Completed review notes live in the collapsed details; only returned tasks show them inline.
+    const reviewNote = applicant.getByText("Synthetic revised explanation reviewed.", {
+      exact: true,
+    });
+    await expect(reviewNote).toBeHidden();
+    await applicant.getByText("Details and history", { exact: true }).click();
+    await expect(reviewNote).toBeVisible();
     await noOverflow(applicant);
     await applicant.screenshot({
       path: testInfo.outputPath("synthetic-borrower-task.png"),
