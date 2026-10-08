@@ -1,7 +1,9 @@
 import { type BusinessAddress, checksViewSchema } from "@keycade/contracts";
 import { Badge } from "@keycade/ui/components/badge";
 import { Button } from "@keycade/ui/components/button";
+import { cn } from "@keycade/ui/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
+import { CircleCheck, MapPin, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { ApiError, useStaffApi } from "./api";
 import {
@@ -32,26 +34,37 @@ export function LoanFootprintItem({
       void client.invalidateQueries({ queryKey: ["staff-workspace", applicationId] });
   }, [applicationId, client, display.stale, display.run?.stale, display.run?.id]);
   return (
-    <section aria-label="Loan Footprint" className="rounded-md border p-4">
+    <section aria-label="Loan Footprint" className="rounded-lg border bg-card px-4 py-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0 space-y-2">
-          <Button
-            variant="link"
-            className="h-auto max-w-full whitespace-normal p-0 text-left"
-            aria-haspopup="dialog"
-            onClick={() => setOpen(true)}
+        <div className="flex min-w-0 items-start gap-3">
+          <span
+            aria-hidden="true"
+            className={cn(
+              "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full",
+              display.clear ? "bg-success-soft text-success" : "bg-muted text-muted-foreground",
+            )}
           >
-            Loan Footprint
-          </Button>
-          <p
-            className={
-              display.clear
-                ? "text-sm text-green-700 dark:text-green-400"
-                : "text-sm text-muted-foreground"
-            }
-          >
-            {display.label}
-          </p>
+            <MapPin className="size-4" />
+          </span>
+          <div className="min-w-0 space-y-0.5">
+            <Button
+              variant="link"
+              className="h-auto max-w-full p-0 text-left font-semibold whitespace-normal"
+              aria-haspopup="dialog"
+              onClick={() => setOpen(true)}
+            >
+              Loan Footprint
+            </Button>
+            <p
+              className={cn(
+                "flex items-center gap-1.5 text-sm",
+                display.clear ? "font-medium text-success" : "text-muted-foreground",
+              )}
+            >
+              {display.clear && <CircleCheck aria-hidden="true" className="size-4" />}
+              {display.label}
+            </p>
+          </div>
         </div>
         <Badge variant="outline">Informational · Simulated</Badge>
       </div>
@@ -138,12 +151,18 @@ function LoanFootprintDialog({
         event.preventDefault();
         close();
       }}
-      className="fixed inset-0 m-auto max-h-[94dvh] w-[calc(100%-1rem)] max-w-2xl overflow-hidden rounded-xl border bg-background p-0 text-foreground shadow-xl backdrop:bg-black/50 sm:w-[calc(100%-3rem)]"
+      className="fixed inset-0 m-auto max-h-[94dvh] w-[calc(100%-1rem)] max-w-2xl overflow-hidden rounded-2xl border bg-background p-0 text-foreground shadow-lg backdrop:bg-foreground/40 backdrop:backdrop-blur-[2px] sm:w-[calc(100%-3rem)]"
     >
       <div className="flex max-h-[94dvh] min-w-0 flex-col">
-        <header className="flex shrink-0 items-start gap-3 border-b p-4 sm:px-6">
-          <div className="min-w-0 flex-1 space-y-1">
-            <h2 id={`${id}-title`} className="text-lg font-semibold">
+        <header className="flex shrink-0 items-start gap-3 border-b p-4 sm:px-6 sm:py-5">
+          <span
+            aria-hidden="true"
+            className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand"
+          >
+            <MapPin className="size-5" />
+          </span>
+          <div className="min-w-0 flex-1 space-y-0.5">
+            <h2 id={`${id}-title`} className="text-lg font-semibold tracking-tight">
               Geographic Eligibility
             </h2>
             <p id={`${id}-description`} className="text-sm text-muted-foreground">
@@ -157,6 +176,7 @@ function LoanFootprintDialog({
             aria-label="Close geographic eligibility"
             onClick={close}
           >
+            <X aria-hidden="true" data-icon="inline-start" />
             Close
           </Button>
         </header>
@@ -165,16 +185,23 @@ function LoanFootprintDialog({
             aria-label="Geographic result"
             className={
               display.clear
-                ? "rounded-lg border border-green-300 bg-green-50 p-4 text-green-900 dark:border-green-800 dark:bg-green-950 dark:text-green-100"
-                : "rounded-lg border bg-muted/30 p-4"
+                ? "rounded-lg border border-success/25 bg-success-soft p-4 text-foreground"
+                : "rounded-lg border bg-muted/40 p-4"
             }
           >
-            <p role="status" className="font-medium">
+            <p
+              role="status"
+              className={cn(
+                "flex items-center gap-2 font-semibold",
+                display.clear && "text-success",
+              )}
+            >
+              {display.clear && <CircleCheck aria-hidden="true" className="size-4.5" />}
               {display.label}.
             </p>
             <p className="mt-2 text-sm">{display.detail}</p>
           </section>
-          <dl className="grid min-w-0 gap-4 text-sm sm:grid-cols-2">
+          <dl className="grid min-w-0 gap-x-6 gap-y-4 text-sm sm:grid-cols-2 [&_dt]:text-xs [&_dt]:font-medium">
             <div className="sm:col-span-2">
               <dt className="text-muted-foreground">Saved business address</dt>
               <dd className="mt-1 break-words">{footprintAddress(savedAddress)}</dd>
@@ -237,7 +264,7 @@ function LoanFootprintDialog({
             </Button>
           </div>
           {check.runs.length > 1 && (
-            <details className="rounded-md border p-3">
+            <details className="rounded-lg border p-3">
               <summary className="cursor-pointer text-sm font-medium">
                 Previous footprint runs ({check.runs.length - 1})
               </summary>
@@ -302,7 +329,7 @@ function FootprintMap({
         />
         <span
           aria-hidden="true"
-          className="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-slate-900 shadow-md ring-4 ring-slate-900/20"
+          className="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-primary shadow-md ring-4 ring-primary/25"
           style={{ left: `${point.left}%`, top: `${point.top}%` }}
         />
       </div>

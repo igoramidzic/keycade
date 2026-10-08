@@ -115,7 +115,7 @@ export function createStaffApi(session: AuthenticatedSession, onDenied: () => vo
   ) => Promise<T> = (path, schema, options) => send(`${bankBase}/staff`, path, schema, options);
   const participantRequest: typeof request = (path, schema, options) =>
     send(bankBase, path, schema, options);
-  return { request, participantRequest, verify, bankBase };
+  return { request, participantRequest, verify, bankBase, bankName: session.bank.name };
 }
 export function formatAmount(amount: string | null) {
   if (!amount) return "Not provided";

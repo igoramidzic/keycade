@@ -31,7 +31,9 @@ import {
 } from "@keycade/ui/lib/demo-import-transfer";
 import { createDocumentTransfer } from "@keycade/ui/lib/document-transfer";
 import { documentRefreshInterval } from "@keycade/ui/lib/refresh-policy";
+import { cn } from "@keycade/ui/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ArrowRight, CloudUpload, FileText } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { Link } from "react-router";
 import { ApiError, errorMessage, request } from "./api";
@@ -338,7 +340,7 @@ function ApplicationUpload({
       entry.state !== "complete" || !versions.some((version) => version.id === entry.versionId),
   );
   return (
-    <Card role="region" aria-label="Upload other documents">
+    <Card role="region" aria-label="Upload other documents" className="gap-4">
       <CardHeader>
         <CardTitle>
           <h2>Upload other documents</h2>
@@ -395,9 +397,15 @@ function ApplicationUpload({
                       );
                   } else addFiles(Array.from(event.dataTransfer.files));
                 }}
-                className={`rounded-lg border-2 border-dashed p-4 text-center ${dragging ? "border-primary bg-muted" : "border-border"}`}
+                className={cn(
+                  "flex flex-col items-center rounded-xl border-2 border-dashed px-4 py-6 text-center transition-colors",
+                  dragging ? "border-brand bg-brand-soft/60" : "border-border bg-muted/30",
+                )}
               >
-                <p className="mb-3 text-sm">Drop PDF or image files here</p>
+                <span className="flex size-10 items-center justify-center rounded-full bg-brand-soft text-brand">
+                  <CloudUpload aria-hidden="true" className="size-5" />
+                </span>
+                <p className="mt-3 text-sm font-medium">Drop PDF or image files here</p>
                 <input
                   ref={picker}
                   id={pickerId}
@@ -416,11 +424,12 @@ function ApplicationUpload({
                   type="button"
                   variant="outline"
                   size="sm"
+                  className="mt-3"
                   onClick={() => picker.current?.click()}
                 >
                   Choose files
                 </Button>
-                <p className="mt-3 text-xs text-muted-foreground">
+                <p className="mt-3 text-xs leading-5 text-muted-foreground">
                   Up to {Math.round(data.limits.maxFileBytes / 1024 / 1024)} MiB per file. Add
                   personal evidence inside its private task.
                 </p>
@@ -434,31 +443,45 @@ function ApplicationUpload({
             {visibleQueue.length > 0 && (
               <ul
                 aria-label="Other document upload progress"
-                className="space-y-3"
+                className="space-y-2"
                 aria-live="polite"
               >
                 {visibleQueue.map((entry) => (
-                  <li key={entry.id} className="space-y-2 rounded-md border p-3">
-                    <p className="break-all text-sm font-medium">{entry.file.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {entry.state === "preparing"
-                        ? "Preparing upload…"
-                        : entry.state === "uploading"
-                          ? `Uploading · ${entry.percent}%`
-                          : entry.state === "complete"
-                            ? "Uploaded · awaiting simulated scan"
-                            : entry.error}
-                    </p>
+                  <li
+                    key={entry.id}
+                    className={cn(
+                      "space-y-2 rounded-lg border p-3",
+                      entry.state === "error" && "border-danger/30 bg-danger-soft/50",
+                    )}
+                  >
+                    <div className="flex items-start gap-2.5">
+                      <FileText
+                        aria-hidden="true"
+                        className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+                      />
+                      <div className="min-w-0 flex-1 space-y-0.5">
+                        <p className="break-all text-sm font-medium">{entry.file.name}</p>
+                        <p className="text-xs leading-5 text-muted-foreground">
+                          {entry.state === "preparing"
+                            ? "Preparing upload…"
+                            : entry.state === "uploading"
+                              ? `Uploading · ${entry.percent}%`
+                              : entry.state === "complete"
+                                ? "Uploaded · awaiting simulated scan"
+                                : entry.error}
+                        </p>
+                      </div>
+                    </div>
                     {(entry.state === "preparing" || entry.state === "uploading") && (
                       <progress
-                        className="h-2 w-full"
+                        className="block h-1.5 w-full appearance-none overflow-hidden rounded-full bg-muted [&::-moz-progress-bar]:bg-brand [&::-webkit-progress-bar]:bg-muted [&::-webkit-progress-value]:bg-brand [&::-webkit-progress-value]:transition-[width]"
                         max={100}
                         value={entry.percent}
                         aria-label={`Upload progress for ${entry.file.name}`}
                       />
                     )}
                     {entry.state === "error" && (
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-2 pl-6.5">
                         {entry.retryable && canUpload && (
                           <Button
                             size="sm"
@@ -491,40 +514,54 @@ function ApplicationUpload({
               </ul>
             )}
             {versions.length > 0 && (
-              <ul aria-label="Recent other documents" className="space-y-3">
-                {displayedVersions.map((version) => (
-                  <li key={version.id} className="space-y-2 rounded-md border p-3">
-                    <p className="break-all text-sm font-medium">{version.fileName}</p>
-                    <p className="text-xs text-muted-foreground">{generalUploadStatus(version)}</p>
-                    {version.canRetryScan && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={Boolean(action)}
-                        onClick={() => void retryVersion(version.id, "scan")}
-                      >
-                        Retry simulated scan
-                      </Button>
-                    )}
-                    {version.processing?.canRetry && version.scanState === "clean" && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={Boolean(action)}
-                        onClick={() => void retryVersion(version.id, "processing")}
-                      >
-                        Retry simulated processing
-                      </Button>
-                    )}
-                  </li>
-                ))}
-              </ul>
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">Recently uploaded</p>
+                <ul aria-label="Recent other documents" className="space-y-2">
+                  {displayedVersions.map((version) => (
+                    <li key={version.id} className="space-y-2 rounded-lg border p-3">
+                      <div className="flex items-start gap-2.5">
+                        <FileText
+                          aria-hidden="true"
+                          className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+                        />
+                        <div className="min-w-0 flex-1 space-y-0.5">
+                          <p className="break-all text-sm font-medium">{version.fileName}</p>
+                          <p className="text-xs leading-5 text-muted-foreground">
+                            {generalUploadStatus(version)}
+                          </p>
+                        </div>
+                      </div>
+                      {version.canRetryScan && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={Boolean(action)}
+                          onClick={() => void retryVersion(version.id, "scan")}
+                        >
+                          Retry simulated scan
+                        </Button>
+                      )}
+                      {version.processing?.canRetry && version.scanState === "clean" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={Boolean(action)}
+                          onClick={() => void retryVersion(version.id, "processing")}
+                        >
+                          Retry simulated processing
+                        </Button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
             <Link
               to={documentsHref}
-              className="inline-flex text-sm font-medium underline underline-offset-4"
+              className="inline-flex items-center gap-1 text-sm font-medium text-brand underline-offset-4 hover:underline"
             >
               View documents
+              <ArrowRight aria-hidden="true" className="size-3.5" />
             </Link>
           </>
         )}

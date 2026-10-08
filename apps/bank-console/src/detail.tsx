@@ -16,8 +16,21 @@ import {
   CardTitle,
 } from "@keycade/ui/components/card";
 import { useDemoApplication } from "@keycade/ui/components/demo-kit";
+import { EmptyState } from "@keycade/ui/components/empty-state";
 import { NativeSelect } from "@keycade/ui/components/native-select";
+import { backLinkClassName } from "@keycade/ui/components/page-header";
+import { applicationStatusTone, StatusPill } from "@keycade/ui/components/status-pill";
+import { cn } from "@keycade/ui/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  ArrowLeft,
+  Building2,
+  CircleCheck,
+  NotebookPen,
+  PencilLine,
+  StickyNote,
+  UserRound,
+} from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router";
 import { ApiError, formatAmount, useStaffApi } from "./api";
@@ -108,7 +121,11 @@ export function ApplicationDetail() {
   useDemoApplication(id ?? "", detail.error ? null : data?.businessName);
   return (
     <div className="space-y-6">
-      <Link to={queueHref} className="text-sm underline underline-offset-4">
+      <Link to={queueHref} className={backLinkClassName}>
+        <ArrowLeft
+          aria-hidden="true"
+          className="size-4 transition-transform group-hover/back:-translate-x-0.5"
+        />
         Back to applications
       </Link>
       {detail.isPending ? (
@@ -124,7 +141,8 @@ export function ApplicationDetail() {
               <ErrorNotice error={detail.error} onRetry={() => void detail.refetch()} />
             )}
             {Boolean((location.state as { created?: boolean } | null)?.created) && (
-              <Alert>
+              <Alert variant="success">
+                <CircleCheck aria-hidden="true" />
                 <AlertTitle>Draft created</AlertTitle>
                 <AlertDescription>
                   Your draft and prefilled details are saved. A simulated continuation email is
@@ -132,84 +150,132 @@ export function ApplicationDetail() {
                 </AlertDescription>
               </Alert>
             )}
-            <div className="flex flex-wrap items-start justify-between gap-5">
-              <div className="min-w-0 space-y-3">
-                <h1 className="break-words text-3xl font-semibold tracking-tight">
-                  {data.businessName ?? "Untitled application"}
-                </h1>
-                <p className="break-all text-sm text-muted-foreground">Application {data.id}</p>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="secondary">{statusLabels[data.status]}</Badge>
-                  <SetupBadge status={data.setup.status} />
-                  <Badge variant="outline">
-                    {data.source === "staff"
-                      ? "Staff created"
-                      : data.source === "borrower"
-                        ? "Borrower created"
-                        : "Synthetic fixture"}
-                  </Badge>
+            <div className="rounded-xl border bg-card shadow-xs">
+              <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-5 p-5 sm:p-6">
+                <div className="flex min-w-0 items-start gap-4">
+                  <span className="hidden size-12 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand sm:flex">
+                    <Building2 aria-hidden="true" className="size-6" />
+                  </span>
+                  <div className="min-w-0 space-y-2.5">
+                    <h1 className="text-2xl leading-tight font-semibold tracking-tight break-words sm:text-[1.75rem]">
+                      {data.businessName ?? "Untitled application"}
+                    </h1>
+                    <p className="text-xs break-all text-muted-foreground">Application {data.id}</p>
+                    <div className="flex flex-wrap gap-2">
+                      <StatusPill tone={applicationStatusTone(data.status)}>
+                        {statusLabels[data.status]}
+                      </StatusPill>
+                      <SetupBadge status={data.setup.status} />
+                      <Badge variant="outline">
+                        {data.source === "staff"
+                          ? "Staff created"
+                          : data.source === "borrower"
+                            ? "Borrower created"
+                            : "Synthetic fixture"}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-left sm:text-right">
+                  <p className="text-xs font-medium text-muted-foreground">Requested amount</p>
+                  <p className="mt-1 text-[1.75rem] leading-tight font-semibold tracking-tight tabular-nums">
+                    {formatAmount(data.requestedAmount)}
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {data.productName ?? "Product not provided"}
+                  </p>
                 </div>
               </div>
-              <div className="text-left sm:text-right">
-                <p className="text-xl font-medium">{formatAmount(data.requestedAmount)}</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {data.productName ?? "Product not provided"}
-                </p>
-              </div>
+              <nav
+                aria-label="Application sections"
+                className="flex gap-0.5 overflow-x-auto border-t px-2.5 [scrollbar-width:none] sm:px-3.5"
+              >
+                {Object.entries(tabs).map(([value, label]) => (
+                  <Link
+                    key={value}
+                    to={`/applications/${data.id}/${value}${bankQuery}`}
+                    aria-current={selected === value ? "page" : undefined}
+                    className={cn(
+                      "relative inline-flex h-12 shrink-0 items-center rounded-t-md px-2.5 text-[0.9375rem] font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
+                      selected === value
+                        ? "text-foreground after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full after:bg-primary"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {label}
+                  </Link>
+                ))}
+              </nav>
             </div>
-            <nav aria-label="Application sections" className="flex flex-wrap gap-2">
-              {Object.entries(tabs).map(([value, label]) => (
-                <Link
-                  key={value}
-                  to={`/applications/${data.id}/${value}${bankQuery}`}
-                  aria-current={selected === value ? "page" : undefined}
-                  className={`${buttonVariants({ variant: "ghost", size: "sm" })} ${selected === value ? "bg-card shadow-sm hover:bg-card" : "text-muted-foreground"}`}
-                >
-                  {label}
-                </Link>
-              ))}
-            </nav>
             {selected === "overview" && (
               <div className="space-y-6">
-                <ApplicationOverview key={data.id} workspace={data} navigationQuery={bankQuery} />
-                <Card className="shadow-sm ring-0">
-                  <CardHeader>
-                    <CardTitle>Borrower and setup</CardTitle>
-                    <CardDescription>
-                      Saved server progress, including unfinished drafts.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-5">
-                    <Contact workspace={data} />
-                    <dl className="space-y-4 text-sm">
-                      <Item label="Saved setup step">
-                        {data.setup.status === "completed"
-                          ? "Completed"
-                          : stepLabels[data.setup.currentStep]}
-                      </Item>
-                      <Item label="Confirmed questions">
-                        {data.setup.completedSteps
-                          .filter((step) => step !== "product")
-                          .map((step) => stepLabels[step])
-                          .join(", ") || "None yet"}
-                      </Item>
-                      <Item label="Skipped questions">
-                        {data.setup.skippedSteps.map((step) => stepLabels[step]).join(", ") ||
-                          "None"}
-                      </Item>
-                      {data.setup.completedAt && (
-                        <Item label="Setup completed">
-                          {new Date(data.setup.completedAt).toLocaleString()}
-                        </Item>
+                <ApplicationOverview
+                  key={data.id}
+                  workspace={data}
+                  navigationQuery={bankQuery}
+                  aside={
+                    <>
+                      {options.error ? (
+                        <ErrorNotice error={options.error} onRetry={() => void options.refetch()} />
+                      ) : (
+                        options.data && (
+                          <Assignment
+                            key={data.id}
+                            workspace={data}
+                            options={options.data}
+                            save={(body) => mutation("/assignment", body, "PATCH")}
+                            reload={reload}
+                          />
+                        )
                       )}
-                    </dl>
-                    {data.setup.status === "in_progress" && (
-                      <Button variant="outline" onClick={() => setPrefill(true)}>
-                        Edit prefilled answers
-                      </Button>
-                    )}
-                  </CardContent>
-                </Card>
+                      <Card className="gap-5">
+                        <CardHeader>
+                          <CardTitle className="flex items-center gap-2">
+                            <UserRound
+                              aria-hidden="true"
+                              className="size-4 text-muted-foreground"
+                            />
+                            Borrower and setup
+                          </CardTitle>
+                          <CardDescription>
+                            Saved server progress, including unfinished drafts.
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-5">
+                          <Contact workspace={data} />
+                          <dl className="space-y-4 text-sm">
+                            <Item label="Saved setup step">
+                              {data.setup.status === "completed"
+                                ? "Completed"
+                                : stepLabels[data.setup.currentStep]}
+                            </Item>
+                            <Item label="Confirmed questions">
+                              {data.setup.completedSteps
+                                .filter((step) => step !== "product")
+                                .map((step) => stepLabels[step])
+                                .join(", ") || "None yet"}
+                            </Item>
+                            <Item label="Skipped questions">
+                              {data.setup.skippedSteps.map((step) => stepLabels[step]).join(", ") ||
+                                "None"}
+                            </Item>
+                            {data.setup.completedAt && (
+                              <Item label="Setup completed">
+                                {new Date(data.setup.completedAt).toLocaleString()}
+                              </Item>
+                            )}
+                          </dl>
+                          {data.setup.status === "in_progress" && (
+                            <Button variant="outline" onClick={() => setPrefill(true)}>
+                              <PencilLine aria-hidden="true" data-icon="inline-start" />
+                              Edit prefilled answers
+                            </Button>
+                          )}
+                        </CardContent>
+                      </Card>
+                    </>
+                  }
+                />
                 {prefill && data.setup.status === "in_progress" && (
                   <PrefillForm
                     key={data.id}
@@ -225,19 +291,6 @@ export function ApplicationDetail() {
                     }}
                     onCancel={() => setPrefill(false)}
                   />
-                )}
-                {options.error ? (
-                  <ErrorNotice error={options.error} onRetry={() => void options.refetch()} />
-                ) : (
-                  options.data && (
-                    <Assignment
-                      key={data.id}
-                      workspace={data}
-                      options={options.data}
-                      save={(body) => mutation("/assignment", body, "PATCH")}
-                      reload={reload}
-                    />
-                  )
                 )}
               </div>
             )}
@@ -260,7 +313,13 @@ export function ApplicationDetail() {
               <Notes key={data.id} workspace={data} mutate={mutation} reload={reload} />
             )}
             {!Object.hasOwn(tabs, selected) && (
-              <p role="alert">This application section does not exist. Select a section above.</p>
+              <EmptyState
+                title={
+                  <span role="alert">
+                    This application section does not exist. Select a section above.
+                  </span>
+                }
+              />
             )}
           </>
         )
@@ -271,7 +330,7 @@ export function ApplicationDetail() {
 function Item({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <dt className="text-muted-foreground">{label}</dt>
+      <dt className="text-xs font-medium text-muted-foreground">{label}</dt>
       <dd className="mt-1 break-words">{children}</dd>
     </div>
   );
@@ -279,7 +338,7 @@ function Item({ label, children }: { label: string; children: React.ReactNode })
 function Contact({ workspace }: { workspace: StaffWorkspace }) {
   return (
     <div className="space-y-2">
-      <p className="break-all text-sm">
+      <p className="break-all text-sm font-medium">
         {workspace.contact?.email ?? "Borrower contact not provided"}
       </p>
       {workspace.contact && (
@@ -323,7 +382,7 @@ function Assignment({
   const [error, setError] = useState<unknown>(null);
   const [saved, setSaved] = useState(false);
   return (
-    <Card className="shadow-sm ring-0">
+    <Card className="gap-5">
       <CardHeader>
         <CardTitle>Staff assignment</CardTitle>
         <CardDescription>
@@ -358,7 +417,7 @@ function Assignment({
           <Field id="assigned-officer" label="Assigned officer">
             <NativeSelect
               id="assigned-officer"
-              className="w-full sm:max-w-sm"
+              className="w-full"
               value={value}
               disabled={busy}
               onChange={(event) => {
@@ -393,11 +452,12 @@ function Assignment({
             clear={() => setError(null)}
           />
           {saved && (
-            <p role="status" className="text-sm">
+            <p role="status" className="flex items-center gap-1.5 text-sm text-success">
+              <CircleCheck aria-hidden="true" className="size-4" />
               Assignment saved.
             </p>
           )}
-          <Button type="submit" disabled={busy}>
+          <Button type="submit" variant="outline" disabled={busy}>
             {busy ? "Saving…" : "Save assignment"}
           </Button>
         </form>
@@ -469,10 +529,13 @@ function Notes({
     }
   }
   return (
-    <div className="space-y-6">
-      <Card className="shadow-sm ring-0">
+    <div className="mx-auto max-w-3xl space-y-6">
+      <Card>
         <CardHeader>
-          <CardTitle>Internal notes</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <NotebookPen aria-hidden="true" className="size-4 text-muted-foreground" />
+            Internal notes
+          </CardTitle>
           <CardDescription>
             Visible only to authorized bank staff. Never shown in the borrower portal.
           </CardDescription>
@@ -505,7 +568,8 @@ function Notes({
               clear={() => setError(null)}
             />
             {saved && (
-              <p role="status" className="text-sm">
+              <p role="status" className="flex items-center gap-1.5 text-sm text-success">
+                <CircleCheck aria-hidden="true" className="size-4" />
                 Internal note added.
               </p>
             )}
@@ -517,9 +581,12 @@ function Notes({
       </Card>
       {workspace.notes.length ? (
         workspace.notes.map((note) => (
-          <Card key={note.id} className="shadow-sm ring-0">
+          <Card key={note.id} size="sm" className="gap-3 px-1">
             <CardHeader>
-              <CardTitle>{note.author.displayName}</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <StickyNote aria-hidden="true" className="size-4 text-muted-foreground" />
+                {note.author.displayName}
+              </CardTitle>
               <CardDescription>
                 Added {new Date(note.createdAt).toLocaleString()}
                 {note.updatedAt !== note.createdAt
@@ -548,7 +615,7 @@ function Notes({
           </Card>
         ))
       ) : (
-        <p className="text-sm text-muted-foreground">No internal notes yet.</p>
+        <EmptyState icon={StickyNote} title="No internal notes yet." />
       )}
     </div>
   );

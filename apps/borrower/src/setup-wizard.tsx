@@ -11,13 +11,25 @@ import {
 } from "@keycade/contracts";
 import { Alert, AlertDescription, AlertTitle } from "@keycade/ui/components/alert";
 import { Button, buttonVariants } from "@keycade/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@keycade/ui/components/card";
 import { useDemoApplication } from "@keycade/ui/components/demo-kit";
+import { LoadingState } from "@keycade/ui/components/empty-state";
 import { FundingPurposeIcon } from "@keycade/ui/components/funding-purpose-icon";
 import type { AuthenticatedSession } from "@keycade/ui/components/identity-portal";
 import { Input } from "@keycade/ui/components/input";
 import { SearchCombobox } from "@keycade/ui/components/search-combobox";
+import { cn } from "@keycade/ui/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  CircleCheck,
+  Info,
+  LockKeyhole,
+  Minus,
+  PencilLine,
+  Save,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router";
@@ -65,6 +77,25 @@ const optionalSteps: ApplicationSetupStep[] = [
   "website",
   "other_purpose",
 ];
+const sections: { title: string; steps: ApplicationSetupStep[] }[] = [
+  {
+    title: "Your business",
+    steps: ["business_name", "business_address", "business_ein", "industry", "website"],
+  },
+  { title: "Your financing", steps: ["amount", "purpose", "other_purpose"] },
+  { title: "Confirm", steps: ["review"] },
+];
+const sectionOf = (step: ApplicationSetupStep) =>
+  sections.find((section) => section.steps.includes(step))?.title ?? "Your financing";
+const helpText: Partial<Record<ApplicationSetupStep, string>> = {
+  business_name: "Use the name registered for your business, as it appears on official documents.",
+  business_address: "Where your business operates. We use this to confirm the lending area.",
+  industry: "Search in plain language, like “dental office” or “bakery”.",
+  website: "Optional. Share a public website if your business has one.",
+  amount: "Enter the amount you’d like to request. You can discuss changes with your lender.",
+  other_purpose: "Optional. A short description helps your lender understand your plans.",
+  review: "Check your answers before finishing setup. You can edit any of them.",
+};
 function fieldValue(data: ApplicationSetup, step: ApplicationSetupStep): string {
   if (step === "business_name") return data.businessName ?? "";
   if (step === "business_address") return JSON.stringify(data.businessAddress ?? blankAddress);
@@ -129,7 +160,8 @@ export function SetupWizard(props: {
     refetchOnMount: "always",
     gcTime: 0,
   });
-  if (query.isPending || query.isFetching) return <p role="status">Loading your saved setup…</p>;
+  if (query.isPending || query.isFetching)
+    return <LoadingState>Loading your saved setup…</LoadingState>;
   if (query.error) return <ErrorNotice error={query.error} onRetry={() => void query.refetch()} />;
   return query.data && <WizardForm {...props} initial={query.data} />;
 }
@@ -423,396 +455,539 @@ function WizardForm({
     ]
       .filter(Boolean)
       .join(" ") || undefined;
+  const stepState = (key: ApplicationSetupStep) =>
+    key === step
+      ? "current"
+      : saved.completedSteps.includes(key)
+        ? "complete"
+        : saved.skippedSteps.includes(key)
+          ? "skipped"
+          : "upcoming";
   return (
-    <section className="space-y-5">
-      <div className="space-y-2">
-        <div className="flex items-center justify-between gap-3 text-sm">
-          <span>Initial application setup</span>
-          <span aria-label="Setup progress">
+    <section className="grid items-start gap-8 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-12">
+      <div className="hidden lg:sticky lg:top-8 lg:block">
+        <p className="text-sm font-semibold">Initial application setup</p>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+          {steps.length - 1} short questions · Saved as you go
+        </p>
+        <div className="mt-6 space-y-6">
+          {sections.map((section) => {
+            const sectionSteps = steps.filter((key) => section.steps.includes(key));
+            if (!sectionSteps.length) return null;
+            return (
+              <div key={section.title}>
+                <p className="eyebrow">{section.title}</p>
+                <ol className="mt-2.5 space-y-0.5">
+                  {sectionSteps.map((key) => {
+                    const state = stepState(key);
+                    return (
+                      <li
+                        key={key}
+                        aria-current={state === "current" ? "step" : undefined}
+                        className={cn(
+                          "flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm",
+                          state === "current" && "bg-card font-medium shadow-xs ring-1 ring-border",
+                          state === "upcoming" && "text-muted-foreground",
+                        )}
+                      >
+                        <span
+                          aria-hidden="true"
+                          className={cn(
+                            "flex size-5 shrink-0 items-center justify-center rounded-full border",
+                            state === "complete" && "border-success bg-success text-white",
+                            state === "current" && "border-brand bg-brand-soft",
+                            state === "skipped" && "border-border bg-muted text-muted-foreground",
+                          )}
+                        >
+                          {state === "complete" ? (
+                            <Check className="size-3" strokeWidth={3} />
+                          ) : state === "current" ? (
+                            <span className="size-1.5 rounded-full bg-brand" />
+                          ) : state === "skipped" ? (
+                            <Minus className="size-3" />
+                          ) : null}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate">
+                          {key === "review"
+                            ? "Review and finish"
+                            : questions[key === "product" ? "amount" : key].label}
+                        </span>
+                        {state === "skipped" && (
+                          <span className="text-xs text-muted-foreground">Skipped</span>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
+            );
+          })}
+        </div>
+        <p className="mt-8 flex gap-2 rounded-lg border bg-card px-3 py-2.5 text-xs leading-5 text-muted-foreground">
+          <LockKeyhole aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
+          Use synthetic information only. Your answers are saved to this application.
+        </p>
+      </div>
+      <div className="min-w-0">
+        <div className="mb-3 flex items-center justify-between gap-3 text-sm">
+          <span className="font-medium lg:text-muted-foreground">
+            <span className="lg:hidden">Initial application setup</span>
+            <span className="hidden lg:inline">{sectionOf(step)}</span>
+          </span>
+          <span className="text-muted-foreground tabular-nums">
             Step {position + 1} of {steps.length}
           </span>
         </div>
         <progress
           aria-label="Setup progress"
-          className="h-1.5 w-full accent-primary"
+          className="mb-6 block h-1.5 w-full appearance-none overflow-hidden rounded-full bg-border [&::-moz-progress-bar]:rounded-full [&::-moz-progress-bar]:bg-brand [&::-webkit-progress-bar]:bg-border [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:bg-brand [&::-webkit-progress-value]:transition-[width] [&::-webkit-progress-value]:duration-500"
           value={position + 1}
           max={steps.length}
         />
-      </div>
-      <Card>
-        <CardHeader>
-          <CardTitle>
+        <div className="rounded-2xl border bg-card shadow-md">
+          <div className="px-5 pt-5 sm:px-10 sm:pt-8">
+            {position > 0 ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="-ml-2 text-muted-foreground"
+                disabled={busy}
+                onClick={() => void save(steps[position - 1] ?? "business_name", "back")}
+              >
+                <ArrowLeft aria-hidden="true" data-icon="inline-start" />
+                Back
+              </Button>
+            ) : (
+              <p className="eyebrow text-brand">{sectionOf(step)}</p>
+            )}
             <h1
               ref={heading}
               tabIndex={-1}
-              className="text-2xl leading-tight outline-none sm:text-3xl"
+              className="mt-4 text-[1.625rem] leading-tight font-semibold tracking-tight text-balance outline-none sm:text-[2rem]"
             >
               {question.title}
             </h1>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {selectedProduct && !selectedProduct.active && (
-            <Alert>
-              <AlertTitle>This financial product is no longer available</AlertTitle>
-              <AlertDescription>
-                Synthetic Business Credit is currently unavailable. Please contact the bank. Your
-                saved answers are safe.
-              </AlertDescription>
-            </Alert>
-          )}
-          <form
-            noValidate
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (step === "review") void finish();
-              else void save(steps[position + 1] ?? "review", "continue");
-            }}
-            className="space-y-6"
-          >
-            {step === "review" ? (
-              <dl className="divide-y rounded-lg border px-4">
-                {steps
-                  .filter((key) => key !== "review")
-                  .map((key) => (
-                    <div key={key} className="flex items-start justify-between gap-4 py-4">
-                      <div className="min-w-0">
-                        <dt className="text-xs text-muted-foreground">
-                          {questions[key === "product" ? "amount" : key].label}
-                        </dt>
-                        <dd className="mt-1 break-words text-sm font-medium">
-                          {saved.completedSteps.includes(key) || saved.skippedSteps.includes(key)
-                            ? reviewValue(saved, key)
-                            : "Not confirmed — review this answer"}
-                        </dd>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="link"
-                        size="sm"
-                        disabled={busy}
-                        aria-label={`Edit ${questions[key === "product" ? "amount" : key].label.toLowerCase()}`}
-                        onClick={() => void save(key, "edit")}
-                      >
-                        Edit
-                      </Button>
-                    </div>
-                  ))}
-                {saved.purpose && (
-                  <div className="py-4">
-                    <dt className="text-xs text-muted-foreground">
-                      Previous funding-purpose response
-                    </dt>
-                    <dd className="mt-1 break-words text-sm">{saved.purpose}</dd>
-                  </div>
-                )}
-              </dl>
-            ) : (
-              <div className="space-y-3">
-                {step === "business_address" ? (
-                  <fieldset
-                    className="space-y-4"
-                    disabled={busy}
-                    aria-describedby={failedField ? "answer-error" : undefined}
-                  >
-                    <legend className="mb-3 text-sm font-medium">Business address</legend>
-                    {addressFields.map(([key, label, autoComplete]) => (
-                      <div key={key} className="space-y-2">
-                        <label htmlFor={`setup-${key}`} className="text-sm font-medium">
-                          {label}
-                        </label>
-                        <Input
-                          id={`setup-${key}`}
-                          value={JSON.parse(value)[key] ?? ""}
-                          onChange={(event) =>
-                            form.setValue(
-                              "value",
-                              JSON.stringify({
-                                ...JSON.parse(value),
-                                [key]:
-                                  key === "countryCode"
-                                    ? event.target.value.toUpperCase()
-                                    : event.target.value,
-                              }),
-                              { shouldDirty: true },
-                            )
-                          }
-                          autoComplete={autoComplete}
-                          maxLength={key === "countryCode" ? 2 : key === "postalCode" ? 20 : 200}
-                          aria-invalid={Boolean(failedField)}
-                        />
-                      </div>
-                    ))}
-                    <p className="text-xs text-muted-foreground">
-                      Enter the two-letter country code, such as US or CA.
-                    </p>
-                  </fieldset>
-                ) : step === "purpose" ? (
-                  <fieldset
-                    disabled={busy}
-                    aria-describedby={failedField ? "answer-error" : "purpose-help"}
-                  >
-                    <legend className="mb-2 text-sm font-medium">Funding purposes</legend>
-                    <p id="purpose-help" className="mb-4 text-sm text-muted-foreground">
-                      Choose one or more purposes.
-                    </p>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      {fundingPurposeOptions.map((option) => (
-                        <label
-                          key={option.id}
-                          className={`flex cursor-pointer items-center gap-3 rounded-lg border p-4 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring ${purposes.includes(option.id) ? "border-primary bg-accent" : "border-input"}`}
+            {helpText[step] && (
+              <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
+                {helpText[step]}
+              </p>
+            )}
+          </div>
+          <div className="px-5 pt-6 pb-6 sm:px-10 sm:pb-8">
+            {selectedProduct && !selectedProduct.active && (
+              <Alert variant="warning" className="mb-6">
+                <AlertTitle>This financial product is no longer available</AlertTitle>
+                <AlertDescription>
+                  Synthetic Business Credit is currently unavailable. Please contact the bank. Your
+                  saved answers are safe.
+                </AlertDescription>
+              </Alert>
+            )}
+            <form
+              noValidate
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (step === "review") void finish();
+                else void save(steps[position + 1] ?? "review", "continue");
+              }}
+              className="space-y-6"
+            >
+              {step === "review" ? (
+                <dl className="divide-y overflow-hidden rounded-xl border">
+                  {steps
+                    .filter((key) => key !== "review")
+                    .map((key) => {
+                      const confirmed =
+                        saved.completedSteps.includes(key) || saved.skippedSteps.includes(key);
+                      return (
+                        <div
+                          key={key}
+                          className="flex items-start justify-between gap-4 px-4 py-3.5 sm:px-5"
                         >
-                          <FundingPurposeIcon id={option.id} />
-                          <span className="min-w-0 flex-1 text-sm font-medium">{option.label}</span>
-                          <input
-                            type="checkbox"
-                            className="size-4 accent-primary"
-                            checked={purposes.includes(option.id)}
-                            onChange={(event) =>
-                              form.setValue(
-                                "value",
-                                JSON.stringify(
-                                  event.target.checked
-                                    ? [...purposes, option.id]
-                                    : purposes.filter((id) => id !== option.id),
-                                ),
-                                { shouldDirty: true },
-                              )
-                            }
-                          />
-                        </label>
-                      ))}
-                    </div>
-                  </fieldset>
-                ) : (
-                  <>
-                    <label htmlFor="setup-answer" className="text-sm font-medium">
-                      {question.label}
-                    </label>
-                    {step === "industry" ? (
-                      <SearchCombobox
-                        id="setup-answer"
-                        value={industryByCode(value) ?? null}
-                        onSelect={(industry) =>
-                          form.setValue("value", industry.code, { shouldDirty: true })
-                        }
-                        search={searchIndustries}
-                        invalid={Boolean(failedField)}
-                        describedBy={answerDescription}
-                        disabled={inputDisabled}
-                      />
-                    ) : (
-                      <Input
-                        id="setup-answer"
-                        aria-label={question.label}
-                        {...form.register("value")}
-                        className="h-11"
-                        type={
-                          step === "business_ein" ? "password" : step === "website" ? "url" : "text"
-                        }
-                        inputMode={
-                          step === "amount"
-                            ? "decimal"
-                            : step === "business_ein"
-                              ? "numeric"
-                              : "text"
-                        }
-                        autoComplete={step === "business_name" ? "organization" : "off"}
-                        maxLength={
-                          step === "business_name"
-                            ? 200
-                            : step === "website"
-                              ? 2048
-                              : step === "other_purpose"
-                                ? 500
-                                : step === "business_ein"
-                                  ? 10
-                                  : 21
-                        }
-                        aria-invalid={Boolean(failedField)}
-                        aria-describedby={answerDescription}
-                        disabled={inputDisabled}
-                      />
-                    )}
-                    {step === "business_ein" && (
-                      <p id="answer-help" className="text-xs leading-5 text-muted-foreground">
-                        Synthetic information only. Use a supported demo EIN from 000000001 to
-                        000000007. Never enter a real EIN or SSN. You can skip this question.
-                      </p>
-                    )}
-                    {step === "website" && (
-                      <div className="space-y-1 text-sm text-muted-foreground">
-                        <p>
-                          {saved.industryCode
-                            ? `${industryByCode(saved.industryCode)?.title ?? "Industry"} · NAICS ${saved.industryCode}`
-                            : "Industry not provided"}
-                        </p>
-                        <Button
-                          type="button"
-                          variant="link"
-                          className="h-auto px-0"
-                          disabled={busy}
-                          onClick={() => void save("industry", "edit")}
-                        >
-                          Edit industry
-                        </Button>
-                      </div>
-                    )}
-                    {step === "amount" && selectedProduct && (
-                      <p id="answer-help" className="text-xs leading-5 text-muted-foreground">
-                        Synthetic Business Credit: {formatAmount(selectedProduct.minimumAmount)}–
-                        {formatAmount(selectedProduct.maximumAmount)}
-                      </p>
-                    )}
-                    {hasOptionalValue && (
-                      <div className="space-y-2 rounded-lg border p-3">
-                        <p className="break-words text-sm">
-                          Saved answer: {reviewValue(saved, step)}
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={busy || replacing}
-                            onClick={() => setReplacing(true)}
-                          >
-                            Replace saved{" "}
-                            {step === "business_ein" ? "EIN" : question.label.toLowerCase()}
-                          </Button>
+                          <div className="min-w-0">
+                            <dt className="text-xs font-medium text-muted-foreground">
+                              {questions[key === "product" ? "amount" : key].label}
+                            </dt>
+                            <dd
+                              className={cn(
+                                "mt-1 break-words text-sm font-medium",
+                                !confirmed && "text-warning",
+                              )}
+                            >
+                              {confirmed
+                                ? reviewValue(saved, key)
+                                : "Not confirmed — review this answer"}
+                            </dd>
+                          </div>
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
+                            className="-mr-2 shrink-0 text-brand"
                             disabled={busy}
-                            onClick={() => void save(step, "clear")}
+                            aria-label={`Edit ${questions[key === "product" ? "amount" : key].label.toLowerCase()}`}
+                            onClick={() => void save(key, "edit")}
                           >
-                            Clear saved{" "}
-                            {step === "business_ein" ? "EIN" : question.label.toLowerCase()}
+                            <PencilLine aria-hidden="true" data-icon="inline-start" />
+                            Edit
                           </Button>
                         </div>
+                      );
+                    })}
+                  {saved.purpose && (
+                    <div className="bg-muted/40 px-4 py-3.5 sm:px-5">
+                      <dt className="text-xs font-medium text-muted-foreground">
+                        Previous funding-purpose response
+                      </dt>
+                      <dd className="mt-1 break-words text-sm">{saved.purpose}</dd>
+                    </div>
+                  )}
+                </dl>
+              ) : (
+                <div className="space-y-3">
+                  {step === "business_address" ? (
+                    <fieldset
+                      className="grid gap-4 sm:grid-cols-2"
+                      disabled={busy}
+                      aria-describedby={failedField ? "answer-error" : undefined}
+                    >
+                      <legend className="sr-only">Business address</legend>
+                      {addressFields.map(([key, label, autoComplete]) => (
+                        <div
+                          key={key}
+                          className={cn(
+                            "space-y-2",
+                            (key === "line1" || key === "line2") && "sm:col-span-2",
+                          )}
+                        >
+                          <label htmlFor={`setup-${key}`} className="text-sm font-medium">
+                            {label}
+                          </label>
+                          <Input
+                            id={`setup-${key}`}
+                            className="h-11"
+                            value={JSON.parse(value)[key] ?? ""}
+                            onChange={(event) =>
+                              form.setValue(
+                                "value",
+                                JSON.stringify({
+                                  ...JSON.parse(value),
+                                  [key]:
+                                    key === "countryCode"
+                                      ? event.target.value.toUpperCase()
+                                      : event.target.value,
+                                }),
+                                { shouldDirty: true },
+                              )
+                            }
+                            autoComplete={autoComplete}
+                            maxLength={key === "countryCode" ? 2 : key === "postalCode" ? 20 : 200}
+                            aria-invalid={Boolean(failedField)}
+                          />
+                        </div>
+                      ))}
+                      <p className="text-xs leading-5 text-muted-foreground sm:col-span-2">
+                        Enter the two-letter country code, such as US or CA.
+                      </p>
+                    </fieldset>
+                  ) : step === "purpose" ? (
+                    <fieldset
+                      disabled={busy}
+                      aria-describedby={failedField ? "answer-error" : "purpose-help"}
+                    >
+                      <legend className="sr-only">Funding purposes</legend>
+                      <p id="purpose-help" className="mb-4 text-sm text-muted-foreground">
+                        Choose one or more purposes.
+                      </p>
+                      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        {fundingPurposeOptions.map((option) => (
+                          <label
+                            key={option.id}
+                            className="group/purpose flex cursor-pointer items-center gap-3.5 rounded-xl border bg-card p-3.5 transition-colors hover:border-foreground/25 has-checked:border-brand has-checked:bg-brand-soft/60 has-checked:ring-1 has-checked:ring-brand has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring"
+                          >
+                            <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted transition-colors group-has-checked/purpose:bg-brand [&_svg]:size-5 [&_svg]:text-muted-foreground group-has-checked/purpose:[&_svg]:text-primary-foreground">
+                              <FundingPurposeIcon id={option.id} />
+                            </span>
+                            <span className="min-w-0 flex-1 text-sm font-medium">
+                              {option.label}
+                            </span>
+                            <input
+                              type="checkbox"
+                              className="size-5 shrink-0 accent-primary"
+                              checked={purposes.includes(option.id)}
+                              onChange={(event) =>
+                                form.setValue(
+                                  "value",
+                                  JSON.stringify(
+                                    event.target.checked
+                                      ? [...purposes, option.id]
+                                      : purposes.filter((id) => id !== option.id),
+                                  ),
+                                  { shouldDirty: true },
+                                )
+                              }
+                            />
+                          </label>
+                        ))}
                       </div>
+                    </fieldset>
+                  ) : (
+                    <>
+                      <label htmlFor="setup-answer" className="text-sm font-medium">
+                        {question.label}
+                      </label>
+                      {step === "industry" ? (
+                        <SearchCombobox
+                          id="setup-answer"
+                          value={industryByCode(value) ?? null}
+                          onSelect={(industry) =>
+                            form.setValue("value", industry.code, { shouldDirty: true })
+                          }
+                          search={searchIndustries}
+                          invalid={Boolean(failedField)}
+                          describedBy={answerDescription}
+                          disabled={inputDisabled}
+                        />
+                      ) : (
+                        <div className="relative">
+                          {step === "amount" && (
+                            <span
+                              aria-hidden="true"
+                              className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-base font-medium text-muted-foreground"
+                            >
+                              $
+                            </span>
+                          )}
+                          <Input
+                            id="setup-answer"
+                            aria-label={question.label}
+                            {...form.register("value")}
+                            className={cn(
+                              "h-12 text-base md:text-base",
+                              step === "amount" && "pl-8 font-medium tabular-nums",
+                            )}
+                            type={
+                              step === "business_ein"
+                                ? "password"
+                                : step === "website"
+                                  ? "url"
+                                  : "text"
+                            }
+                            inputMode={
+                              step === "amount"
+                                ? "decimal"
+                                : step === "business_ein"
+                                  ? "numeric"
+                                  : "text"
+                            }
+                            autoComplete={step === "business_name" ? "organization" : "off"}
+                            maxLength={
+                              step === "business_name"
+                                ? 200
+                                : step === "website"
+                                  ? 2048
+                                  : step === "other_purpose"
+                                    ? 500
+                                    : step === "business_ein"
+                                      ? 10
+                                      : 21
+                            }
+                            aria-invalid={Boolean(failedField)}
+                            aria-describedby={answerDescription}
+                            disabled={inputDisabled}
+                          />
+                        </div>
+                      )}
+                      {step === "business_ein" && (
+                        <p
+                          id="answer-help"
+                          className="flex gap-2 rounded-lg bg-info-soft px-3 py-2.5 text-xs leading-5 text-foreground"
+                        >
+                          <Info aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-info" />
+                          <span>
+                            Synthetic information only. Use a supported demo EIN from 000000001 to
+                            000000007. Never enter a real EIN or SSN. You can skip this question.
+                          </span>
+                        </p>
+                      )}
+                      {step === "website" && (
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border bg-muted/40 px-3 py-2.5 text-sm text-muted-foreground">
+                          <p>
+                            {saved.industryCode
+                              ? `${industryByCode(saved.industryCode)?.title ?? "Industry"} · NAICS ${saved.industryCode}`
+                              : "Industry not provided"}
+                          </p>
+                          <Button
+                            type="button"
+                            variant="link"
+                            className="h-auto px-0"
+                            disabled={busy}
+                            onClick={() => void save("industry", "edit")}
+                          >
+                            Edit industry
+                          </Button>
+                        </div>
+                      )}
+                      {step === "amount" && selectedProduct && (
+                        <p id="answer-help" className="text-xs leading-5 text-muted-foreground">
+                          Synthetic Business Credit: {formatAmount(selectedProduct.minimumAmount)}–
+                          {formatAmount(selectedProduct.maximumAmount)}
+                        </p>
+                      )}
+                      {hasOptionalValue && (
+                        <div className="space-y-3 rounded-lg border bg-muted/40 p-4">
+                          <p className="flex items-start gap-2 break-words text-sm">
+                            <CircleCheck
+                              aria-hidden="true"
+                              className="mt-0.5 size-4 shrink-0 text-success"
+                            />
+                            <span>Saved answer: {reviewValue(saved, step)}</span>
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={busy || replacing}
+                              onClick={() => setReplacing(true)}
+                            >
+                              Replace saved{" "}
+                              {step === "business_ein" ? "EIN" : question.label.toLowerCase()}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              disabled={busy}
+                              onClick={() => void save(step, "clear")}
+                            >
+                              Clear saved{" "}
+                              {step === "business_ein" ? "EIN" : question.label.toLowerCase()}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  {failedField && (
+                    <p
+                      id="answer-error"
+                      role="alert"
+                      className="text-sm font-medium text-destructive"
+                    >
+                      {failedField}
+                    </p>
+                  )}
+                </div>
+              )}
+              {recoveryNotice && (
+                <Alert role="status" variant="info">
+                  <AlertTitle>Setup updated</AlertTitle>
+                  <AlertDescription>{recoveryNotice}</AlertDescription>
+                </Alert>
+              )}
+              {latestValue !== null && (
+                <Alert role="status" variant="info">
+                  <AlertTitle>Latest saved answer: {latestValue}</AlertTitle>
+                  <AlertDescription>
+                    {step === "business_ein"
+                      ? "Only the saved mask is shown. Choose Replace saved EIN to enter a replacement."
+                      : "Your entered answer is still in the field. Continue to save it using the latest version."}
+                  </AlertDescription>
+                </Alert>
+              )}
+              {Boolean(error) && (
+                <>
+                  <ErrorNotice error={error} />
+                  {error instanceof ApiError &&
+                    ["REVISION_CONFLICT", "SETUP_VERSION_UNSUPPORTED"].includes(error.code) && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={busy}
+                        onClick={() => void reloadLatest()}
+                      >
+                        Review latest saved version
+                      </Button>
                     )}
-                  </>
-                )}
-                {failedField && (
-                  <p id="answer-error" role="alert" className="text-sm text-destructive">
-                    {failedField}
-                  </p>
-                )}
-              </div>
-            )}
-            {recoveryNotice && (
-              <Alert role="status">
-                <AlertTitle>Setup updated</AlertTitle>
-                <AlertDescription>{recoveryNotice}</AlertDescription>
-              </Alert>
-            )}
-            {latestValue !== null && (
-              <Alert role="status">
-                <AlertTitle>Latest saved answer: {latestValue}</AlertTitle>
-                <AlertDescription>
-                  {step === "business_ein"
-                    ? "Only the saved mask is shown. Choose Replace saved EIN to enter a replacement."
-                    : "Your entered answer is still in the field. Continue to save it using the latest version."}
-                </AlertDescription>
-              </Alert>
-            )}
-            {Boolean(error) && (
-              <>
-                <ErrorNotice error={error} />
-                {error instanceof ApiError &&
-                  ["REVISION_CONFLICT", "SETUP_VERSION_UNSUPPORTED"].includes(error.code) && (
+                  {error instanceof ApiError && error.status === 401 && (
                     <Button
                       type="button"
                       variant="outline"
                       disabled={busy}
-                      onClick={() => void reloadLatest()}
+                      onClick={async () => {
+                        setBusy(true);
+                        try {
+                          await refreshSession();
+                        } catch (error) {
+                          setError(error);
+                        } finally {
+                          setBusy(false);
+                        }
+                      }}
                     >
-                      Review latest saved version
+                      Sign in again
                     </Button>
                   )}
-                {error instanceof ApiError && error.status === 401 && (
+                </>
+              )}
+              <p
+                role="status"
+                aria-live="polite"
+                className="text-xs text-muted-foreground empty:hidden"
+              >
+                {busy ? "Saving…" : null}
+              </p>
+              {step === "review" && (
+                <p className="flex gap-2.5 rounded-lg bg-muted/60 px-4 py-3 text-sm leading-6 text-muted-foreground">
+                  <Info aria-hidden="true" className="mt-1 size-4 shrink-0" />
+                  Finishing setup confirms these initial answers. It does not submit your
+                  application, approve financing, or complete later tasks.
+                </p>
+              )}
+              <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center">
+                <Button type="submit" size="lg" disabled={busy} className="sm:min-w-40">
+                  {busy ? "Saving…" : step === "review" ? "Finish setup" : "Continue"}
+                  {!busy && <ArrowRight aria-hidden="true" data-icon="inline-end" />}
+                </Button>
+                {optionalSteps.includes(step) && (
                   <Button
                     type="button"
                     variant="outline"
+                    size="lg"
                     disabled={busy}
-                    onClick={async () => {
-                      setBusy(true);
-                      try {
-                        await refreshSession();
-                      } catch (error) {
-                        setError(error);
-                      } finally {
-                        setBusy(false);
-                      }
-                    }}
+                    onClick={() => void save(steps[position + 1] ?? "review", "skip")}
                   >
-                    Sign in again
+                    Skip for now
                   </Button>
                 )}
-              </>
-            )}
-            <p
-              role="status"
-              aria-live="polite"
-              className="text-xs text-muted-foreground empty:hidden"
-            >
-              {busy ? "Saving…" : null}
+              </div>
+            </form>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-b-2xl border-t bg-muted/40 px-5 py-3.5 sm:px-10">
+            <p className="text-xs text-muted-foreground">
+              Application reference {applicationId.slice(0, 8)} · Synthetic information only
             </p>
-            {step === "review" && (
-              <p className="text-sm leading-6 text-muted-foreground">
-                Finishing setup confirms these initial answers. It does not submit your application,
-                approve financing, or complete later tasks.
-              </p>
-            )}
-            <div className="flex flex-wrap items-center gap-3">
-              <Button type="submit" disabled={busy}>
-                {busy ? "Saving…" : step === "review" ? "Finish setup" : "Continue"}
-              </Button>
-              {optionalSteps.includes(step) && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={busy}
-                  onClick={() => void save(steps[position + 1] ?? "review", "skip")}
-                >
-                  Skip for now
-                </Button>
-              )}
-              {position > 0 && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  disabled={busy}
-                  onClick={() => void save(steps[position - 1] ?? "business_name", "back")}
-                >
-                  Back
-                </Button>
-              )}
-            </div>
-            <div className="space-y-2 border-t pt-4">
-              <Button
-                type="button"
-                variant="link"
-                className="px-0"
-                disabled={busy}
-                onClick={() => void save(step, "later")}
-              >
-                Continue later
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-      <p className="text-center text-xs text-muted-foreground">
-        Application reference {applicationId.slice(0, 8)} · Synthetic information only
-      </p>
-      {saved.nextDestination === "closed" && (
-        <Link to="/" className={buttonVariants({ variant: "outline" })}>
-          Your applications
-        </Link>
-      )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="-mr-2"
+              disabled={busy}
+              onClick={() => void save(step, "later")}
+            >
+              <Save aria-hidden="true" data-icon="inline-start" />
+              Continue later
+            </Button>
+          </div>
+        </div>
+        {saved.nextDestination === "closed" && (
+          <Link to="/" className={cn(buttonVariants({ variant: "outline" }), "mt-6")}>
+            Your applications
+          </Link>
+        )}
+      </div>
     </section>
   );
 }

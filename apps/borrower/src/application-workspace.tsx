@@ -7,6 +7,7 @@ import {
   fundingPurposeOptions,
 } from "@keycade/contracts";
 import { Alert, AlertDescription, AlertTitle } from "@keycade/ui/components/alert";
+import { IdentityAvatar } from "@keycade/ui/components/app-shell";
 import { Badge } from "@keycade/ui/components/badge";
 import { Button, buttonVariants } from "@keycade/ui/components/button";
 import {
@@ -17,12 +18,29 @@ import {
   CardTitle,
 } from "@keycade/ui/components/card";
 import { useDemoApplication } from "@keycade/ui/components/demo-kit";
+import { EmptyState } from "@keycade/ui/components/empty-state";
 import type {
   AuthenticatedSession,
   IdentityControls,
 } from "@keycade/ui/components/identity-portal";
+import { backLinkClassName, PageHeader } from "@keycade/ui/components/page-header";
+import { applicationStatusTone, StatusPill } from "@keycade/ui/components/status-pill";
+import { cn } from "@keycade/ui/lib/utils";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Building2,
+  CircleCheck,
+  FilePenLine,
+  FileSignature,
+  FolderOpen,
+  History,
+  ListChecks,
+  Plus,
+  Users,
+} from "lucide-react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { AccountList } from "./accounts";
 import { ApplicationActivity } from "./activity";
@@ -90,40 +108,68 @@ function UpdatedAt({ value }: { value: string }) {
 }
 function Summary({ application }: { application: ApplicationSelection }) {
   return (
-    <dl className="grid gap-x-8 gap-y-4 text-sm sm:grid-cols-2">
-      <div>
-        <dt className="text-muted-foreground">Product</dt>
-        <dd className="mt-1 font-medium">{application.productName ?? "Not assigned"}</dd>
-      </div>
+    <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
       {application.accessScope === "full" && (
-        <div>
-          <dt className="text-muted-foreground">Requested amount</dt>
-          <dd className="mt-1 font-medium">
+        <div className="col-span-2">
+          <dt className="text-xs font-medium text-muted-foreground">Requested amount</dt>
+          <dd className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
             {application.requestedAmount
               ? formatAmount(application.requestedAmount)
               : "Not provided yet"}
           </dd>
         </div>
       )}
-      <div>
-        <dt className="text-muted-foreground">Status</dt>
-        <dd className="mt-1">{statusLabels[application.status]}</dd>
+      <div className="min-w-0">
+        <dt className="text-xs font-medium text-muted-foreground">Product</dt>
+        <dd className="mt-1 font-medium break-words">
+          {application.productName ?? "Not assigned"}
+        </dd>
+      </div>
+      <div className="min-w-0">
+        <dt className="text-xs font-medium text-muted-foreground">Status</dt>
+        <dd className="mt-1">
+          <StatusPill tone={applicationStatusTone(application.status)}>
+            {statusLabels[application.status]}
+          </StatusPill>
+        </dd>
       </div>
       {application.taskProgress && (
-        <div>
-          <dt className="text-muted-foreground">Required tasks satisfied</dt>
-          <dd className="mt-1">
-            {application.taskProgress.requiredCompleted} of {application.taskProgress.required}
+        <div className="min-w-0">
+          <dt className="text-xs font-medium text-muted-foreground">Required tasks satisfied</dt>
+          <dd className="mt-1 space-y-1.5">
+            <span className="font-medium tabular-nums">
+              {application.taskProgress.requiredCompleted} of {application.taskProgress.required}
+            </span>
+            <MeterBar
+              value={application.taskProgress.requiredCompleted}
+              max={application.taskProgress.required}
+            />
           </dd>
         </div>
       )}
-      <div>
-        <dt className="text-muted-foreground">Last updated</dt>
+      <div className="min-w-0">
+        <dt className="text-xs font-medium text-muted-foreground">Last updated</dt>
         <dd className="mt-1">
           <UpdatedAt value={application.updatedAt} />
         </dd>
       </div>
     </dl>
+  );
+}
+
+/** Decorative fill bar; the adjacent text states the exact count. */
+function MeterBar({ value, max, className }: { value: number; max: number; className?: string }) {
+  const percent = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
+  return (
+    <span
+      aria-hidden="true"
+      className={cn("block h-1.5 w-full overflow-hidden rounded-full bg-muted", className)}
+    >
+      <span
+        className="block h-full rounded-full bg-success transition-[width] duration-500"
+        style={{ width: `${percent}%` }}
+      />
+    </span>
   );
 }
 
@@ -184,16 +230,24 @@ export function ApplicationList({
     groups.set(key, [...(groups.get(key) ?? []), item]);
   }
   return (
-    <section className="space-y-6">
-      <div>
-        <p className="text-sm text-muted-foreground">You’re signed in</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">Your applications</h1>
-        <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          Choose an application to continue. Each has its own saved progress.
-        </p>
-      </div>
+    <section className="space-y-8">
+      <PageHeader
+        eyebrow="You’re signed in"
+        title="Your applications"
+        description="Choose an application to continue. Each has its own saved progress."
+        actions={
+          <Link
+            className={buttonVariants()}
+            to={`/apply?bank=${encodeURIComponent(session.bank.slug)}`}
+          >
+            <Plus aria-hidden="true" data-icon="inline-start" />
+            Start a new application
+          </Link>
+        }
+      />
       {saved && (
-        <Alert role="status">
+        <Alert role="status" variant="success">
+          <CircleCheck aria-hidden="true" />
           <AlertTitle>Your progress is saved.</AlertTitle>
           <AlertDescription>Continue setup whenever you’re ready.</AlertDescription>
         </Alert>
@@ -204,17 +258,14 @@ export function ApplicationList({
       ) : list.error && !list.isFetchNextPageError ? (
         <ErrorNotice error={list.error} onRetry={() => void list.refetch()} />
       ) : items.length === 0 ? (
-        <Card className="shadow-sm ring-0">
-          <CardHeader>
-            <CardTitle>No applications yet</CardTitle>
-            <CardDescription>
-              Start your first application when you’re ready. Only applications shared with your
-              account appear here.
-            </CardDescription>
-          </CardHeader>
-        </Card>
+        <EmptyState
+          titleAs="h2"
+          icon={FolderOpen}
+          title="No applications yet"
+          description="Start your first application when you’re ready. Only applications shared with your account appear here."
+        />
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-10">
           <p className="text-sm text-muted-foreground">
             {items.length} {items.length === 1 ? "application" : "applications"} shown
             {list.hasNextPage ? " · More available below" : ""}
@@ -222,32 +273,51 @@ export function ApplicationList({
           {[...groups].map(([key, applications]) => {
             const name = applications[0]?.businessName ?? "Business not provided";
             return (
-              <section key={key} aria-label={name} className="space-y-3">
-                <h2 className="break-words text-xl font-semibold">{name}</h2>
-                <div className="grid items-start gap-4 lg:grid-cols-2">
+              <section key={key} aria-label={name} className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-card text-muted-foreground shadow-xs">
+                    <Building2 aria-hidden="true" className="size-4.5" />
+                  </span>
+                  <h2 className="min-w-0 text-lg font-semibold tracking-tight break-words">
+                    {name}
+                  </h2>
+                </div>
+                <div className="grid items-stretch gap-4 lg:grid-cols-2">
                   {applications.map((application) => (
-                    <article key={application.id} aria-label={`Application ${application.id}`}>
-                      <Card className="shadow-sm ring-0">
-                        <CardHeader>
-                          <div className="flex flex-wrap items-center justify-between gap-2">
-                            <CardTitle>Application {application.id.slice(-8)}</CardTitle>
-                            {application.accessScope === "assigned" ? (
-                              <Badge variant="secondary">Limited access</Badge>
-                            ) : (
-                              <Badge variant="outline">
-                                {application.nextDestination === "closed"
-                                  ? "Closed"
+                    <article
+                      key={application.id}
+                      aria-label={`Application ${application.id}`}
+                      className="min-w-0"
+                    >
+                      <Card className="h-full gap-0 py-0 transition-shadow hover:shadow-md">
+                        <div className="flex flex-wrap items-start justify-between gap-3 px-6 pt-5">
+                          <p className="font-semibold tracking-tight">
+                            Application {application.id.slice(-8)}
+                          </p>
+                          {application.accessScope === "assigned" ? (
+                            <Badge variant="secondary">Limited access</Badge>
+                          ) : (
+                            <StatusPill
+                              tone={
+                                application.nextDestination === "closed"
+                                  ? "neutral"
                                   : application.setupStatus === "completed"
-                                    ? "Initial setup complete"
-                                    : "Setup in progress"}
-                              </Badge>
-                            )}
-                          </div>
-                        </CardHeader>
-                        <CardContent className="space-y-5">
+                                    ? "success"
+                                    : "warning"
+                              }
+                            >
+                              {application.nextDestination === "closed"
+                                ? "Closed"
+                                : application.setupStatus === "completed"
+                                  ? "Initial setup complete"
+                                  : "Setup in progress"}
+                            </StatusPill>
+                          )}
+                        </div>
+                        <div className="flex-1 space-y-4 px-6 pt-4 pb-5">
                           <Summary application={application} />
                           {application.nextDestination === "setup" && (
-                            <p className="text-sm text-muted-foreground">
+                            <p className="rounded-lg bg-warning-soft/70 px-3 py-2 text-sm text-foreground">
                               Next: {setupSteps[application.currentStep]}
                               {application.claimRequired ? " · Confirm this draft to continue" : ""}
                             </p>
@@ -257,6 +327,8 @@ export function ApplicationList({
                               Only your assigned work and permitted information will be available.
                             </p>
                           )}
+                        </div>
+                        <div className="flex items-center justify-end border-t bg-muted/40 px-6 py-3.5">
                           <Button
                             disabled={busy !== null}
                             variant={
@@ -269,8 +341,11 @@ export function ApplicationList({
                               : application.nextDestination === "setup"
                                 ? "Continue setup"
                                 : "Open application"}
+                            {busy !== application.id && (
+                              <ArrowRight aria-hidden="true" data-icon="inline-end" />
+                            )}
                           </Button>
-                        </CardContent>
+                        </div>
                       </Card>
                     </article>
                   ))}
@@ -292,12 +367,6 @@ export function ApplicationList({
           {list.isFetchingNextPage ? "Loading more…" : "Show more applications"}
         </Button>
       )}
-      <Link
-        className={buttonVariants({ variant: "outline" })}
-        to={`/apply?bank=${encodeURIComponent(session.bank.slug)}`}
-      >
-        Start a new application
-      </Link>
       {list.data && !list.error && <AccountList session={session} />}
     </section>
   );
@@ -402,14 +471,7 @@ function ScopedApplicationRoute({
   });
   const data = destination.data;
   useDemoApplication(applicationId, accessError || destination.error ? null : data?.businessName);
-  const back = (
-    <Link
-      className={buttonVariants({ variant: "outline" })}
-      to={`/?bank=${encodeURIComponent(session.bank.slug)}`}
-    >
-      Your applications
-    </Link>
-  );
+  const back = <BackToApplications bankSlug={session.bank.slug} />;
   if (accessError)
     return (
       <div className="space-y-4">
@@ -438,14 +500,16 @@ function ScopedApplicationRoute({
   if (!data) return null;
   if (data.nextDestination === "setup" && view === "review")
     return (
-      <section className="space-y-5">
-        {back}
-        <Link
-          className="block text-sm underline underline-offset-4"
-          to={applicationPath(applicationId, session.bank.slug, true)}
-        >
-          Return to setup
-        </Link>
+      <section className="mx-auto w-full max-w-4xl space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {back}
+          <Link
+            className={buttonVariants({ variant: "outline", size: "sm" })}
+            to={applicationPath(applicationId, session.bank.slug, true)}
+          >
+            Return to setup
+          </Link>
+        </div>
         <ApplicationReview session={session} applicationId={applicationId} />
       </section>
     );
@@ -455,16 +519,16 @@ function ScopedApplicationRoute({
     return <Navigate replace to={applicationPath(applicationId, session.bank.slug)} />;
   if (data.nextDestination === "setup")
     return (
-      <div className="mx-auto w-full max-w-3xl">
+      <div className="mx-auto w-full max-w-5xl">
         <SetupWizard
           key={`${session.bank.id}:${session.user.email}:${applicationId}`}
           session={session}
           applicationId={applicationId}
           refreshSession={controls.refreshSession}
         />
-        <p className="mt-6 text-center text-sm text-muted-foreground">
+        <p className="mt-8 text-center text-sm text-muted-foreground lg:ml-[18rem]">
           <Link
-            className="underline underline-offset-4"
+            className="underline underline-offset-4 hover:text-foreground"
             to={`/applications/${applicationId}/review?bank=${encodeURIComponent(session.bank.slug)}`}
           >
             Review status or withdraw this application
@@ -492,26 +556,17 @@ function ClosedApplication({
   data: ApplicationSelection;
   session: AuthenticatedSession;
 }) {
-  const bankSlug = session.bank.slug;
-  const back = (
-    <Link
-      className={buttonVariants({ variant: "outline" })}
-      to={`/?bank=${encodeURIComponent(bankSlug)}`}
-    >
-      Your applications
-    </Link>
-  );
   return (
-    <section className="w-full space-y-5">
-      {back}
-      <Card className="shadow-sm ring-0">
+    <section className="mx-auto w-full max-w-4xl space-y-6">
+      <BackToApplications bankSlug={session.bank.slug} />
+      <Card>
         <CardHeader>
           <CardTitle>
             <h1 className="text-2xl">This application is closed</h1>
           </CardTitle>
           <CardDescription>{data.businessName ?? "Business application"}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-5">
+        <CardContent className="space-y-6">
           <p className="text-sm leading-6">{statusDescriptions[data.status]}</p>
           <Summary application={data} />
         </CardContent>
@@ -520,6 +575,49 @@ function ClosedApplication({
     </section>
   );
 }
+
+function BackToApplications({ bankSlug }: { bankSlug: string }) {
+  return (
+    <Link className={backLinkClassName} to={`/?bank=${encodeURIComponent(bankSlug)}`}>
+      <ArrowLeft
+        aria-hidden="true"
+        className="size-4 transition-transform group-hover/back:-translate-x-0.5"
+      />
+      Your applications
+    </Link>
+  );
+}
+
+/** A titled sidebar panel on the borrower dashboard. */
+function SidePanel({
+  label,
+  title,
+  icon: Icon,
+  children,
+  className,
+}: {
+  label: string;
+  title: string;
+  icon: typeof History;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <section
+      aria-label={label}
+      className={cn("rounded-xl border bg-card p-5 shadow-xs", className)}
+    >
+      <h2 className="flex items-center gap-2 text-sm font-semibold">
+        <Icon aria-hidden="true" className="size-4 text-muted-foreground" />
+        {title}
+      </h2>
+      <div className="mt-3 space-y-3">{children}</div>
+    </section>
+  );
+}
+
+const quietLink =
+  "inline-flex items-center gap-1 text-sm font-medium text-brand underline-offset-4 hover:underline";
 
 function ApplicationPortal({
   session,
@@ -561,14 +659,7 @@ function ApplicationPortal({
   useDemoApplication(applicationId, detail.error ? null : detail.data?.businessName);
   const path = (section = "") =>
     `/applications/${applicationId}${section ? `/${section}` : ""}?bank=${encodeURIComponent(session.bank.slug)}`;
-  const back = (
-    <Link
-      className="inline-flex text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground"
-      to={`/?bank=${encodeURIComponent(session.bank.slug)}`}
-    >
-      Your applications
-    </Link>
-  );
+  const back = <BackToApplications bankSlug={session.bank.slug} />;
   if (detail.isPending || !detail.isFetchedAfterMount) return <Loading />;
   if (
     detail.error &&
@@ -618,25 +709,30 @@ function ApplicationPortal({
         navigate(`${url.pathname}${url.search}${url.hash}`);
       }}
     >
-      {back}
-      {detail.error && <ErrorNotice error={detail.error} onRetry={() => void detail.refetch()} />}
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 space-y-2">
-          <h1 className="break-words text-3xl font-semibold tracking-tight">
-            {data.businessName ?? "Business application"}
-          </h1>
-          <p className="text-sm text-muted-foreground">Application {data.id.slice(-8)}</p>
+      <div className="space-y-5">
+        {back}
+        {detail.error && <ErrorNotice error={detail.error} onRetry={() => void detail.refetch()} />}
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="min-w-0 space-y-2">
+            <p className="text-sm font-medium text-muted-foreground">
+              Application {data.id.slice(-8)}
+            </p>
+            <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight break-words sm:text-[2rem]">
+              {data.businessName ?? "Business application"}
+            </h1>
+          </div>
+          {limited && <Badge variant="secondary">Limited access</Badge>}
         </div>
-        {limited && <Badge variant="secondary">Limited access</Badge>}
-      </header>
+      </div>
       {["declined", "withdrawn"].includes(data.status) && (
-        <Alert role="status">
+        <Alert role="status" variant="warning">
           <AlertTitle>This application is closed</AlertTitle>
           <AlertDescription>{statusDescriptions[data.status]}</AlertDescription>
         </Alert>
       )}
       {!dashboard && (
-        <Link to={path()} className="inline-flex text-sm font-medium underline underline-offset-4">
+        <Link to={path()} className={cn(backLinkClassName, "text-foreground")}>
+          <ArrowLeft aria-hidden="true" className="size-4" />
           Back to task dashboard
         </Link>
       )}
@@ -650,17 +746,27 @@ function ApplicationPortal({
       >
         <section
           aria-label="Current application"
-          className="mb-5 space-y-2 rounded-xl bg-card p-4 lg:hidden"
+          className="mb-6 rounded-xl border bg-card p-4 shadow-xs lg:hidden"
         >
-          <h2 className="text-sm font-semibold">Current application</h2>
-          <p className="break-words text-sm">{data.businessName ?? "Business application"}</p>
-          <div className="flex flex-wrap items-center gap-2 text-sm">
-            <Badge variant="outline">{statusLabels[data.status]}</Badge>
-            {!limited && data.requestedAmount && <span>{formatAmount(data.requestedAmount)}</span>}
+          <h2 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+            Current application
+          </h2>
+          <p className="mt-1.5 font-medium break-words">
+            {data.businessName ?? "Business application"}
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+            <StatusPill tone={applicationStatusTone(data.status)}>
+              {statusLabels[data.status]}
+            </StatusPill>
+            {!limited && data.requestedAmount && (
+              <span className="font-semibold tabular-nums">
+                {formatAmount(data.requestedAmount)}
+              </span>
+            )}
           </div>
         </section>
-        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] xl:gap-8">
-          <section aria-label="Application tasks" className="min-w-0">
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,22.5rem)] xl:gap-8">
+          <section aria-label="Application tasks" className="min-w-0 space-y-6">
             <ApplicationTasks
               session={session}
               applicationId={applicationId}
@@ -669,41 +775,62 @@ function ApplicationPortal({
             />
             <section
               aria-label="Application actions"
-              className="mt-5 space-y-4 rounded-xl bg-card p-5"
+              className="rounded-xl border bg-card shadow-xs"
             >
-              <h2 className="text-sm font-semibold">Next steps</h2>
-              {data.canReview && (
-                <div className="space-y-2">
-                  <p className="text-sm text-muted-foreground">
-                    {data.status === "needs_information"
-                      ? "Review the lender’s request, complete any returned tasks, then resubmit."
-                      : "Review your application’s status and available submission actions."}
-                  </p>
-                  <Link className={buttonVariants({ variant: "outline" })} to={path("review")}>
-                    Review and submit application
-                  </Link>
-                </div>
-              )}
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  Open your permitted simulated signature requests.
-                </p>
-                <Link
-                  to={path("signatures")}
-                  className="inline-flex text-sm font-medium underline underline-offset-4"
+              <h2 className="border-b px-5 py-4 text-base font-semibold tracking-tight sm:px-6">
+                Next steps
+              </h2>
+              <ul className="divide-y">
+                {data.canReview && (
+                  <ActionRow
+                    icon={FilePenLine}
+                    text={
+                      data.status === "needs_information"
+                        ? "Review the lender’s request, complete any returned tasks, then resubmit."
+                        : "Review your application’s status and available submission actions."
+                    }
+                  >
+                    <Link
+                      className={buttonVariants({ variant: "outline", size: "sm" })}
+                      to={path("review")}
+                    >
+                      Review and submit application
+                    </Link>
+                  </ActionRow>
+                )}
+                <ActionRow
+                  icon={FileSignature}
+                  text="Open your permitted simulated signature requests."
                 >
-                  View signatures
-                </Link>
-              </div>
-              {data.canReview && ["approved", "closing", "funded"].includes(data.status) && (
-                <Link to={path("closing")} className={buttonVariants({ variant: "outline" })}>
-                  {data.status === "funded" ? "View funded account" : "View closing requirements"}
-                </Link>
-              )}
+                  <Link to={path("signatures")} className={quietLink}>
+                    View signatures
+                    <ArrowRight aria-hidden="true" className="size-3.5" />
+                  </Link>
+                </ActionRow>
+                {data.canReview && ["approved", "closing", "funded"].includes(data.status) && (
+                  <ActionRow
+                    icon={ListChecks}
+                    text={
+                      data.status === "funded"
+                        ? "Simulated funding is recorded for this application."
+                        : "Complete remaining closing conditions and signatures."
+                    }
+                  >
+                    <Link
+                      to={path("closing")}
+                      className={buttonVariants({ variant: "outline", size: "sm" })}
+                    >
+                      {data.status === "funded"
+                        ? "View funded account"
+                        : "View closing requirements"}
+                    </Link>
+                  </ActionRow>
+                )}
+              </ul>
             </section>
           </section>
-          <aside aria-label="Application details" className="min-w-0 space-y-6">
-            <Card className="shadow-sm ring-0">
+          <aside aria-label="Application details" className="min-w-0 space-y-5">
+            <Card className="gap-5">
               <CardHeader>
                 <CardTitle>
                   <h2>Application details</h2>
@@ -715,7 +842,7 @@ function ApplicationPortal({
               <CardContent className="space-y-5">
                 <div className="space-y-1">
                   {!limited && (
-                    <p className="break-words text-3xl font-semibold tracking-tight">
+                    <p className="text-[2rem] leading-tight font-semibold tracking-tight break-words tabular-nums">
                       {data.requestedAmount
                         ? formatAmount(data.requestedAmount)
                         : "Amount not provided"}
@@ -727,18 +854,21 @@ function ApplicationPortal({
                 </div>
                 {!limited && (data.fundingPurposes.length > 0 || data.purpose) && (
                   <div className="text-sm">
-                    <p className="text-muted-foreground">Funding purposes</p>
-                    <p className="mt-1 whitespace-pre-wrap break-words">
-                      {data.fundingPurposes.length > 0
-                        ? data.fundingPurposes
-                            .map(
-                              (id) =>
-                                fundingPurposeOptions.find((option) => option.id === id)?.label ??
-                                id,
-                            )
-                            .join(", ")
-                        : data.purpose}
-                    </p>
+                    <p className="text-xs font-medium text-muted-foreground">Funding purposes</p>
+                    {data.fundingPurposes.length > 0 ? (
+                      <ul aria-label="Funding purposes" className="mt-2 flex flex-wrap gap-1.5">
+                        {data.fundingPurposes.map((id) => (
+                          <li
+                            key={id}
+                            className="rounded-full border bg-muted/50 px-2.5 py-0.5 text-xs font-medium"
+                          >
+                            {fundingPurposeOptions.find((option) => option.id === id)?.label ?? id}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-1 whitespace-pre-wrap break-words">{data.purpose}</p>
+                    )}
                     {data.fundingPurposes.includes("other") && data.otherPurposeDetail && (
                       <p className="mt-2 whitespace-pre-wrap break-words">
                         {data.otherPurposeDetail}
@@ -746,10 +876,12 @@ function ApplicationPortal({
                     )}
                   </div>
                 )}
-                <div className="space-y-3 rounded-lg bg-muted/60 p-4">
+                <div className="space-y-3 rounded-lg border bg-muted/40 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                    <span className="text-muted-foreground">Current stage</span>
-                    <Badge variant="outline">{statusLabels[data.status]}</Badge>
+                    <span className="text-xs font-medium text-muted-foreground">Current stage</span>
+                    <StatusPill tone={applicationStatusTone(data.status)}>
+                      {statusLabels[data.status]}
+                    </StatusPill>
                   </div>
                   <p className="text-sm leading-6 text-muted-foreground">
                     {limited
@@ -757,7 +889,10 @@ function ApplicationPortal({
                       : statusDescriptions[data.status]}
                   </p>
                   {!limited && data.setupStatus === "completed" && (
-                    <Badge variant="secondary">Initial setup complete</Badge>
+                    <Badge variant="success">
+                      <CircleCheck aria-hidden="true" data-icon="inline-start" />
+                      Initial setup complete
+                    </Badge>
                   )}
                 </div>
                 <ApplicationTimeline application={data} />
@@ -766,9 +901,12 @@ function ApplicationPortal({
                 </p>
               </CardContent>
             </Card>
-            <details className="rounded-xl bg-card p-5">
-              <summary className="cursor-pointer text-sm font-medium">Task readiness</summary>
-              <div className="mt-4">
+            <details className="group/readiness rounded-xl border bg-card shadow-xs">
+              <summary className="disclosure flex items-center justify-between gap-3 rounded-xl px-5 py-4 text-sm font-semibold hover:bg-muted/40">
+                Task readiness
+                <ChevronIcon />
+              </summary>
+              <div className="border-t px-5 py-4">
                 <ApplicationReadiness
                   session={session}
                   applicationId={applicationId}
@@ -783,38 +921,35 @@ function ApplicationPortal({
               onAccessLost={onAccessLost}
               documentsHref={path("documents")}
             />
-            <section aria-label="Application contacts" className="space-y-4 rounded-xl bg-card p-5">
-              <h2 className="text-sm font-semibold">Your loan officer</h2>
+            <SidePanel label="Application contacts" title="Your loan officer" icon={Users}>
               {data.loanOfficer ? (
-                <div className="space-y-1 text-sm">
-                  <p>{data.loanOfficer.displayName}</p>
-                  <p className="break-all text-muted-foreground">{data.loanOfficer.email}</p>
-                  <Badge variant="secondary">Synthetic contact</Badge>
+                <div className="flex items-center gap-3">
+                  <IdentityAvatar email={data.loanOfficer.email} className="size-10" />
+                  <div className="min-w-0 space-y-0.5 text-sm">
+                    <p className="font-medium">{data.loanOfficer.displayName}</p>
+                    <p className="break-all text-muted-foreground">{data.loanOfficer.email}</p>
+                    <Badge variant="secondary">Synthetic contact</Badge>
+                  </div>
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
                   A loan officer has not been assigned yet.
                 </p>
               )}
-              <Link
-                to={path("people")}
-                className="inline-flex text-sm font-medium underline underline-offset-4"
-              >
+              <Link to={path("people")} className={quietLink}>
                 People and access
+                <ArrowRight aria-hidden="true" className="size-3.5" />
               </Link>
-            </section>
-            <section aria-label="Application history" className="space-y-2 px-5">
-              <h2 className="text-sm font-semibold">History</h2>
+            </SidePanel>
+            <SidePanel label="Application history" title="History" icon={History}>
               <p className="text-sm text-muted-foreground">
                 See the activity you have permission to view.
               </p>
-              <Link
-                to={path("activity")}
-                className="inline-flex text-sm font-medium underline underline-offset-4"
-              >
+              <Link to={path("activity")} className={quietLink}>
                 View activity
+                <ArrowRight aria-hidden="true" className="size-3.5" />
               </Link>
-            </section>
+            </SidePanel>
           </aside>
         </div>
       </div>
@@ -845,5 +980,46 @@ function ApplicationPortal({
         </div>
       )}
     </section>
+  );
+}
+
+function ActionRow({
+  icon: Icon,
+  text,
+  children,
+}: {
+  icon: typeof History;
+  text: string;
+  children: ReactNode;
+}) {
+  return (
+    <li className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+      <div className="flex min-w-0 items-start gap-3">
+        <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+          <Icon aria-hidden="true" className="size-4" />
+        </span>
+        <p className="text-sm leading-6 text-muted-foreground">{text}</p>
+      </div>
+      <div className="shrink-0 pl-11 sm:pl-0">{children}</div>
+    </li>
+  );
+}
+
+function ChevronIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 16 16"
+      className="size-4 shrink-0 text-muted-foreground transition-transform group-open/readiness:rotate-180"
+    >
+      <path
+        d="m4 6 4 4 4-4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }

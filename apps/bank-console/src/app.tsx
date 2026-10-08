@@ -1,14 +1,35 @@
 import { staffOptionsSchema } from "@keycade/contracts";
+import {
+  AppFooter,
+  AppHeader,
+  HeaderPortal,
+  HeaderSlotProvider,
+  IdentityAvatar,
+  shellWidth,
+  useHeaderSlot,
+} from "@keycade/ui/components/app-shell";
 import { Badge } from "@keycade/ui/components/badge";
-import { Button } from "@keycade/ui/components/button";
+import { BrandLockup } from "@keycade/ui/components/brand";
+import { Button, buttonVariants } from "@keycade/ui/components/button";
 import { useDemoUploadAvailability } from "@keycade/ui/components/demo-kit";
+import { EmptyState } from "@keycade/ui/components/empty-state";
 import {
   type AuthenticatedSession,
   type Confirmation,
   type IdentityControls,
   IdentityPortal,
 } from "@keycade/ui/components/identity-portal";
+import { cn } from "@keycade/ui/lib/utils";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  BarChart3,
+  Briefcase,
+  CheckCircle2,
+  FileQuestion,
+  Inbox,
+  LogOut,
+  Scale,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router";
 import { ApiError, createStaffApi, StaffApiContext } from "./api";
@@ -21,47 +42,101 @@ import { ErrorNotice, Loading } from "./ui";
 export function BankApp({ confirmation }: { confirmation: Confirmation }) {
   const location = useLocation();
   const navigate = useNavigate();
+  const header = useHeaderSlot();
   const bankSlug = new URLSearchParams(location.search).get("bank") ?? "bank-a";
   return (
-    <div className="flex min-h-screen flex-col bg-muted text-foreground">
-      <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4">
+    <div className="flex min-h-screen flex-col bg-canvas text-foreground">
+      <a
+        href="#main"
+        className="sr-only z-50 rounded-md bg-primary px-4 py-2 text-primary-foreground focus:not-sr-only focus:absolute focus:left-4 focus:top-4"
+      >
         Skip to content
       </a>
-      <header className="bg-card">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-5">
+      <AppHeader
+        slotRef={header.ref}
+        brand={
           <Link
             to={`/?bank=${encodeURIComponent(bankSlug)}`}
-            className="font-semibold tracking-tight"
+            className="min-w-0 rounded-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
           >
-            Keycade Bank Console
+            <BrandLockup name="Keycade Bank Console" detail="Staff workspace" />
           </Link>
-          <Badge variant="secondary">Staff workspace</Badge>
-        </div>
-      </header>
-      <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-5 py-8">
-        <IdentityPortal
-          portal="staff"
-          confirmation={confirmation}
-          bankSlug={bankSlug}
-          onSignedIn={(path) =>
-            navigate(
-              `${path === "/demo-inbox" ? path : "/"}?bank=${encodeURIComponent(bankSlug)}`,
-              { replace: true },
-            )
-          }
-          renderAuthenticated={(session, controls) => (
-            <Workspace
-              key={`${session.bank.id}:${session.user.email}:${session.authenticationMethod}`}
-              session={session}
-              controls={controls}
-            />
-          )}
-        />
-      </main>
-      <footer className="px-5 py-6 text-center text-xs leading-5 text-muted-foreground">
-        Synthetic lending demo · Use fictional information only. No real credit decisions or money
-        movement.
-      </footer>
+        }
+      />
+      <HeaderSlotProvider slot={header.slot}>
+        <main id="main" className={cn(shellWidth, "flex-1 py-8 sm:py-10")}>
+          <IdentityPortal
+            portal="staff"
+            confirmation={confirmation}
+            bankSlug={bankSlug}
+            aside={<StaffWelcome />}
+            onSignedIn={(path) =>
+              navigate(
+                `${path === "/demo-inbox" ? path : "/"}?bank=${encodeURIComponent(bankSlug)}`,
+                { replace: true },
+              )
+            }
+            renderAuthenticated={(session, controls) => (
+              <Workspace
+                key={`${session.bank.id}:${session.user.email}:${session.authenticationMethod}`}
+                session={session}
+                controls={controls}
+              />
+            )}
+          />
+        </main>
+      </HeaderSlotProvider>
+      <AppFooter />
+    </div>
+  );
+}
+
+function StaffWelcome() {
+  const points = [
+    {
+      icon: Briefcase,
+      title: "One queue for every application",
+      text: "Search, filter and pick up drafts and submitted applications across your bank.",
+    },
+    {
+      icon: BarChart3,
+      title: "Reviewed financials and evidence",
+      text: "Business profile, financial history and documents side by side.",
+    },
+    {
+      icon: Scale,
+      title: "Guarded decisions",
+      text: "Human review, closing and simulated funding with a full audit trail.",
+    },
+  ];
+  return (
+    <div className="max-w-xl">
+      <p className="eyebrow text-brand">Bank staff</p>
+      <p className="mt-3 text-3xl leading-tight font-semibold tracking-tight text-balance sm:text-4xl">
+        Every application, clearly laid out.
+      </p>
+      <p className="mt-4 text-base leading-7 text-pretty text-muted-foreground">
+        Review what each borrower has provided, what’s outstanding and what needs your decision.
+      </p>
+      <ul className="mt-8 space-y-5">
+        {points.map((point) => (
+          <li key={point.title} className="flex gap-4">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-lg border bg-card text-brand shadow-xs">
+              <point.icon aria-hidden="true" className="size-5" />
+            </span>
+            <span className="min-w-0">
+              <span className="block font-medium">{point.title}</span>
+              <span className="mt-0.5 block text-sm leading-6 text-muted-foreground">
+                {point.text}
+              </span>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-8 flex items-center gap-2 text-xs text-muted-foreground">
+        <CheckCircle2 aria-hidden="true" className="size-4 text-success" />
+        Bank membership is verified separately from borrower access.
+      </p>
     </div>
   );
 }
@@ -129,37 +204,45 @@ function Workspace({
   return (
     <QueryClientProvider client={client}>
       <StaffApiContext.Provider value={api}>
-        <div className="mb-8 flex flex-wrap items-start justify-between gap-4 pb-2">
-          <div className="space-y-1">
-            <p className="font-medium">{session.bank.name}</p>
-            <p className="break-all text-sm text-muted-foreground">{session.user.email}</p>
+        <HeaderPortal>
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-2 max-sm:w-full max-sm:justify-between sm:justify-end">
+            <div className="flex min-w-0 items-center gap-2.5 sm:order-last sm:border-l sm:pl-3">
+              <IdentityAvatar email={session.user.email} />
+              <div className="min-w-0 space-y-0.5">
+                <p className="max-w-[16rem] truncate text-xs font-medium">{session.user.email}</p>
+                <Badge variant="secondary" className="h-5">
+                  {session.authenticationMethod === "demo"
+                    ? "Demo access · email unverified"
+                    : "Email verified"}
+                </Badge>
+              </div>
+            </div>
             {session.demoInboxEnabled && (
               <Link
                 to={`/demo-inbox?bank=${encodeURIComponent(session.bank.slug)}`}
-                className="block text-sm underline underline-offset-4"
+                className={buttonVariants({ variant: "ghost", size: "sm" })}
               >
+                <Inbox aria-hidden="true" />
                 Demo inbox
               </Link>
             )}
-            <Badge variant="secondary">
-              {session.authenticationMethod === "demo"
-                ? "Demo access · email unverified"
-                : "Email verified"}
-            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              className="sm:order-last"
+              disabled={controls.busy}
+              onClick={async () => {
+                if (await controls.signOut()) {
+                  client.clear();
+                  navigate(`/?bank=${encodeURIComponent(session.bank.slug)}`, { replace: true });
+                }
+              }}
+            >
+              <LogOut aria-hidden="true" />
+              Sign out
+            </Button>
           </div>
-          <Button
-            variant="outline"
-            disabled={controls.busy}
-            onClick={async () => {
-              if (await controls.signOut()) {
-                client.clear();
-                navigate(`/?bank=${encodeURIComponent(session.bank.slug)}`, { replace: true });
-              }
-            }}
-          >
-            Sign out
-          </Button>
-        </div>
+        </HeaderPortal>
         {controls.error && (
           <p role="alert" className="mb-5 text-sm text-destructive">
             {controls.error}
@@ -184,12 +267,16 @@ function Workspace({
             <Route
               path="*"
               element={
-                <>
-                  <h1 className="text-2xl font-semibold">Page not found</h1>
-                  <Link to="/" className="mt-4 inline-block underline">
-                    Back to applications
-                  </Link>
-                </>
+                <EmptyState
+                  titleAs="h1"
+                  icon={FileQuestion}
+                  title="Page not found"
+                  action={
+                    <Link to="/" className={buttonVariants()}>
+                      Back to applications
+                    </Link>
+                  }
+                />
               }
             />
           </Routes>

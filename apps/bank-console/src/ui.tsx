@@ -1,12 +1,17 @@
 import { Alert, AlertDescription, AlertTitle } from "@keycade/ui/components/alert";
 import { Badge } from "@keycade/ui/components/badge";
 import { Button } from "@keycade/ui/components/button";
+import { LoadingState } from "@keycade/ui/components/empty-state";
+import type { StatusTone } from "@keycade/ui/components/status-pill";
+import { textareaClassName } from "@keycade/ui/components/textarea";
+import { CircleAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { ApiError } from "./api";
 
 export function ErrorNotice({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
   return (
     <Alert variant="destructive" role="alert">
+      <CircleAlert aria-hidden="true" />
       <AlertTitle>We couldn’t complete that request</AlertTitle>
       <AlertDescription>
         <p>
@@ -21,7 +26,7 @@ export function ErrorNotice({ error, onRetry }: { error: unknown; onRetry?: () =
           </p>
         )}
         {onRetry && (
-          <Button variant="outline" onClick={onRetry}>
+          <Button variant="outline" size="sm" onClick={onRetry}>
             Try again
           </Button>
         )}
@@ -30,11 +35,7 @@ export function ErrorNotice({ error, onRetry }: { error: unknown; onRetry?: () =
   );
 }
 export function Loading({ children = "Loading applications…" }: { children?: ReactNode }) {
-  return (
-    <p role="status" className="py-10 text-center text-muted-foreground">
-      {children}
-    </p>
-  );
+  return <LoadingState>{children}</LoadingState>;
 }
 export function Field({ label, id, children }: { label: string; id: string; children: ReactNode }) {
   return (
@@ -70,12 +71,15 @@ export const stepLabels: Record<string, string> = {
   industry: "Industry",
   review: "Review answers",
 };
+const setupTone: Record<"in_progress" | "completed", StatusTone> = {
+  in_progress: "warning",
+  completed: "success",
+};
 export function SetupBadge({ status }: { status: "in_progress" | "completed" }) {
   return (
-    <Badge variant={status === "completed" ? "secondary" : "outline"}>
+    <Badge variant={setupTone[status] === "success" ? "success" : "warning"}>
       {status === "completed" ? "Setup complete" : "Setup incomplete"}
     </Badge>
   );
 }
-export const textareaClass =
-  "min-h-28 w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50";
+export const textareaClass = textareaClassName;

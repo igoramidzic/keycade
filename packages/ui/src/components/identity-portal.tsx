@@ -9,7 +9,17 @@ import {
 } from "@keycade/ui/components/card";
 import { Input } from "@keycade/ui/components/input";
 import { rememberSession } from "@keycade/ui/lib/session-snapshot";
-import { Check, CircleAlert, LoaderCircle, LockKeyhole, Mail } from "lucide-react";
+import { cn } from "cn";
+import {
+  Check,
+  CircleAlert,
+  Inbox,
+  LoaderCircle,
+  LockKeyhole,
+  Mail,
+  MailCheck,
+  ShieldAlert,
+} from "lucide-react";
 import { type FormEvent, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 declare const __KEYCADE_PUBLIC__: { hosted: boolean; mailpitUrl: string | null };
@@ -91,6 +101,8 @@ export function IdentityPortal({
   onApplicationCreated,
   onSignedIn,
   renderAuthenticated,
+  cardId = "identity",
+  aside,
 }: {
   portal: "borrower" | "staff";
   confirmation?: Confirmation;
@@ -101,6 +113,10 @@ export function IdentityPortal({
   onApplicationCreated?: (id: string) => void;
   onSignedIn?: (returnPath?: string) => void;
   renderAuthenticated?: (session: AuthenticatedSession, controls: IdentityControls) => ReactNode;
+  /** Element id for the sign-in card. */
+  cardId?: string;
+  /** Optional welcome content shown beside the card on signed-out screens. */
+  aside?: ReactNode;
 }) {
   const initialConfirmation =
     confirmation && !handledConfirmations.has(confirmation) ? confirmation : undefined;
@@ -431,18 +447,26 @@ export function IdentityPortal({
     unavailable: "Sign-in is temporarily unavailable",
   };
 
-  return (
-    <Card id="identity" className="mx-auto h-fit w-full max-w-3xl">
-      <CardHeader>
-        <div className="mb-2 flex items-center gap-2 text-muted-foreground">
-          <LockKeyhole aria-hidden="true" className="size-5" />
-          <span className="text-sm">{bankName}</span>
+  const ScreenIcon =
+    screen === "inbox"
+      ? MailCheck
+      : screen === "denied" || screen === "expired" || screen === "unavailable"
+        ? ShieldAlert
+        : LockKeyhole;
+  const card = (
+    <Card id={cardId} className="mx-auto h-fit w-full max-w-lg shadow-md">
+      <CardHeader className="gap-3">
+        <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
+          <span className="flex size-9 items-center justify-center rounded-lg bg-brand-soft text-brand">
+            <ScreenIcon aria-hidden="true" className="size-4.5" />
+          </span>
+          <span className="text-sm font-medium text-foreground">{bankName}</span>
           <Badge variant="outline">Demo</Badge>
         </div>
-        <CardTitle className="text-xl" aria-live="polite">
+        <CardTitle className="pt-1 text-2xl font-semibold tracking-tight" aria-live="polite">
           {titles[screen]}
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-pretty">
           {useDemo
             ? isStaff
               ? "Enter a seeded staff email to open the local demo immediately. Bank membership is still required."
@@ -480,6 +504,7 @@ export function IdentityPortal({
                 onChange={(event) => setEmail(event.target.value)}
                 disabled={busy}
                 aria-describedby="email-help"
+                className="h-11"
               />
               <p id="email-help" className="text-xs leading-5 text-muted-foreground">
                 {isStarting
@@ -487,8 +512,14 @@ export function IdentityPortal({
                   : "Requesting access won’t start a new application."}
               </p>
             </div>
-            <Button type="submit" disabled={busy} className="w-full">
-              {useDemo ? <LockKeyhole aria-hidden="true" /> : <Mail aria-hidden="true" />}
+            <Button type="submit" size="lg" disabled={busy} className="w-full">
+              {busy ? (
+                <LoaderCircle aria-hidden="true" className="animate-spin" />
+              ) : useDemo ? (
+                <LockKeyhole aria-hidden="true" />
+              ) : (
+                <Mail aria-hidden="true" />
+              )}
               {isStarting
                 ? busy
                   ? "Starting application…"
@@ -524,9 +555,18 @@ export function IdentityPortal({
                 ? "Your simulated message will appear in the demo inbox. Open it and confirm to continue. No email is sent externally."
                 : "If this address can sign in, a link will arrive shortly. Open the email and confirm to continue."}
             </p>
-            <p className="break-all text-sm font-medium">{email}</p>
+            <p className="flex items-center gap-2.5 rounded-lg border bg-muted/60 px-3 py-2.5 text-sm font-medium break-all">
+              <Mail aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+              {email}
+            </p>
             {session.demoInboxEnabled && (
-              <Button disabled={busy} className="w-full" onClick={() => void openDemoInbox()}>
+              <Button
+                size="lg"
+                disabled={busy}
+                className="w-full"
+                onClick={() => void openDemoInbox()}
+              >
+                <Inbox aria-hidden="true" />
                 {busy ? "Opening demo inbox…" : "Open demo inbox"}
               </Button>
             )}
@@ -536,7 +576,7 @@ export function IdentityPortal({
             </p>
             <Button
               variant="outline"
-              className="h-auto w-full whitespace-normal py-2"
+              className="h-auto w-full whitespace-normal py-2.5"
               onClick={startAgain}
             >
               {isStarting
@@ -551,7 +591,7 @@ export function IdentityPortal({
               Continue only if you requested this email. Confirming signs you in on this browser and
               uses the link once.
             </p>
-            <Button onClick={() => void confirmLink()} disabled={busy} className="w-full">
+            <Button size="lg" onClick={() => void confirmLink()} disabled={busy} className="w-full">
               {busy ? "Confirming…" : "Confirm and sign in"}
             </Button>
           </div>
@@ -567,12 +607,17 @@ export function IdentityPortal({
         )}
         {(screen === "signed-in" || screen === "denied") && session.authenticated && (
           <div className="space-y-4">
-            <div className="rounded-lg border p-4">
+            <div
+              className={cn(
+                "rounded-lg border p-4",
+                screen === "denied" ? "border-warning/25 bg-warning-soft" : "bg-muted/50",
+              )}
+            >
               <p className="mb-2 flex items-center gap-2 text-sm font-medium">
                 {screen === "signed-in" ? (
-                  <Check aria-hidden="true" className="size-4" />
+                  <Check aria-hidden="true" className="size-4 text-success" />
                 ) : (
-                  <CircleAlert aria-hidden="true" className="size-4" />
+                  <CircleAlert aria-hidden="true" className="size-4 text-warning" />
                 )}
                 {screen === "signed-in"
                   ? session.authenticationMethod === "demo"
@@ -619,16 +664,16 @@ export function IdentityPortal({
         {error && (
           <p
             role="alert"
-            className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm leading-6 text-destructive"
+            className="rounded-lg border border-danger/25 bg-danger-soft p-3 text-sm leading-6 text-danger"
           >
             {error}
           </p>
         )}
         {!__KEYCADE_PUBLIC__.hosted && (
-          <div className="space-y-2 border-t pt-4 text-xs leading-5 text-muted-foreground">
+          <div className="space-y-1.5 rounded-lg bg-muted/70 px-4 py-3 text-xs leading-5 text-muted-foreground">
             <p>
               Synthetic demo email:{" "}
-              <span className="break-all font-medium">
+              <span className="break-all font-medium text-foreground">
                 {isStaff ? "officer-a@example.test" : "borrower@example.test"}
               </span>
             </p>
@@ -650,12 +695,19 @@ export function IdentityPortal({
           </div>
         )}
         {__KEYCADE_PUBLIC__.hosted && (
-          <p className="border-t pt-4 text-xs leading-5 text-muted-foreground">
+          <p className="rounded-lg bg-muted/70 px-4 py-3 text-xs leading-5 text-muted-foreground">
             Email sign-in is available in the local development demo. Hosted email delivery is not
             configured.
           </p>
         )}
       </CardContent>
     </Card>
+  );
+  if (!aside) return card;
+  return (
+    <div className="grid w-full items-center gap-10 py-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,32rem)] lg:gap-16 lg:py-8">
+      <div className="order-2 min-w-0 lg:order-1">{aside}</div>
+      <div className="order-1 min-w-0 lg:order-2">{card}</div>
+    </div>
   );
 }

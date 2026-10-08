@@ -15,7 +15,18 @@ import {
   type SecureTaskInputData,
   type TaskInputKind,
 } from "@keycade/ui/components/secure-task-input";
-import { ChevronDown, Circle, CircleAlert, CircleCheck, CircleMinus, Clock3 } from "lucide-react";
+import { textareaClassName } from "@keycade/ui/components/textarea";
+import { cn } from "cn";
+import {
+  ChevronDown,
+  Circle,
+  CircleAlert,
+  CircleCheck,
+  CircleDot,
+  CircleMinus,
+  Clock3,
+  Plus,
+} from "lucide-react";
 import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
 
 type Stage = "submission" | "approval" | "closing";
@@ -96,8 +107,7 @@ const stageLabels: Record<Stage, string> = {
   approval: "Approval",
   closing: "Closing",
 };
-const textareaClass =
-  "min-h-28 w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50";
+const textareaClass = textareaClassName;
 const displayDate = (date: string) => new Date(date).toLocaleDateString();
 const dateInput = (date: string | null) => date?.slice(0, 10) ?? "";
 const dueDate = (date: string) => (date ? new Date(`${date}T23:59:59.000Z`).toISOString() : null);
@@ -246,13 +256,17 @@ export function TasksManager({
   const assignee = (id: string | null) =>
     data.assignees.find((person) => person.id === id)?.displayName ??
     (id ? "Assigned participant" : "Unassigned");
+  const requiredPercent =
+    data.progress.required > 0
+      ? Math.round((data.progress.requiredCompleted / data.progress.required) * 100)
+      : 0;
   return (
-    <Card className="gap-5 ring-0 shadow-sm">
-      <CardHeader className="gap-3">
+    <Card className="gap-0 py-0">
+      <CardHeader className="gap-4 border-b px-5 py-5 sm:px-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
             <CardTitle>
-              <h2>Tasks</h2>
+              <h2 className="text-lg">Tasks</h2>
             </CardTitle>
             <CardDescription>Complete your checklist, one task at a time.</CardDescription>
           </div>
@@ -263,24 +277,36 @@ export function TasksManager({
               disabled={busy}
               onClick={() => setCreating(!creating)}
             >
+              {!creating && <Plus aria-hidden="true" data-icon="inline-start" />}
               {creating ? "Close new task" : "Add task"}
             </Button>
           )}
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pt-1">
-          <p className="text-xs text-muted-foreground" aria-label="Visible task progress">
-            <span className="font-medium text-foreground">
-              {data.progress.requiredCompleted} of {data.progress.required}
-            </span>{" "}
-            required tasks satisfied
-          </p>
+        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+          <div className="min-w-48 flex-1 space-y-2">
+            <p className="text-sm text-muted-foreground" aria-label="Visible task progress">
+              <span className="font-semibold text-foreground tabular-nums">
+                {data.progress.requiredCompleted} of {data.progress.required}
+              </span>{" "}
+              required tasks satisfied
+            </p>
+            <span
+              aria-hidden="true"
+              className="block h-2 w-full max-w-md overflow-hidden rounded-full bg-muted"
+            >
+              <span
+                className="block h-full rounded-full bg-success transition-[width] duration-500"
+                style={{ width: `${requiredPercent}%` }}
+              />
+            </span>
+          </div>
           <div className="flex items-center gap-2">
             <label htmlFor="task-filter" className="sr-only">
               Show
             </label>
             <NativeSelect
               id="task-filter"
-              className="h-8 text-xs"
+              size="sm"
               value={filter}
               disabled={busy}
               onChange={(event) => setFilter(event.target.value as "active" | "all")}
@@ -291,7 +317,7 @@ export function TasksManager({
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-7 px-5 py-5 sm:px-6">
         {notice && (
           <p role="status" className="text-sm">
             {notice}
@@ -324,8 +350,8 @@ export function TasksManager({
             .map((group) => (
               <section key={group.title} className="space-y-3" aria-label={group.title}>
                 <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-sm font-medium">{group.title}</h3>
-                  <span className="text-xs text-muted-foreground">
+                  <h3 className="text-sm font-semibold">{group.title}</h3>
+                  <span className="text-xs text-muted-foreground tabular-nums">
                     {
                       group.tasks.filter(
                         (task) => task.state === "completed" || task.state === "waived",
@@ -337,6 +363,21 @@ export function TasksManager({
                 <ul className="space-y-2">
                   {group.tasks.map((task) => {
                     const expanded = selected === task.id;
+                    const actionable =
+                      task.state === "open" &&
+                      (task.canEdit || task.canSubmit || Boolean(task.secureInput?.canEdit));
+                    const tone =
+                      task.state === "completed" || task.state === "waived"
+                        ? "success"
+                        : task.state === "submitted"
+                          ? "info"
+                          : task.state === "needs_changes"
+                            ? "warning"
+                            : task.state === "cancelled"
+                              ? "muted"
+                              : actionable || staffView
+                                ? "brand"
+                                : "muted";
                     const StatusIcon =
                       task.state === "completed" || task.state === "waived"
                         ? CircleCheck
@@ -346,11 +387,17 @@ export function TasksManager({
                             ? CircleAlert
                             : task.state === "cancelled"
                               ? CircleMinus
-                              : Circle;
+                              : actionable
+                                ? CircleDot
+                                : Circle;
                     return (
                       <li
                         key={task.id}
-                        className={`overflow-hidden rounded-lg ${expanded ? "bg-muted/40" : ""}`}
+                        className={cn(
+                          "overflow-hidden rounded-xl border bg-card transition-colors",
+                          expanded ? "border-brand/35 shadow-sm" : "hover:border-foreground/20",
+                          task.state === "cancelled" && "bg-muted/40",
+                        )}
                       >
                         <h4>
                           <button
@@ -362,29 +409,56 @@ export function TasksManager({
                             aria-describedby={`task-status-${task.id}`}
                             disabled={busy}
                             onClick={() => selectTask(expanded ? null : task.id)}
-                            className="flex w-full items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:opacity-50"
+                            className={cn(
+                              "flex w-full items-center gap-3.5 px-4 py-3.5 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:opacity-50 sm:px-5",
+                              expanded && "bg-muted/40",
+                            )}
                           >
-                            <StatusIcon
+                            <span
                               aria-hidden="true"
-                              className={`size-5 shrink-0 ${task.state === "needs_changes" ? "text-destructive" : "text-muted-foreground"}`}
-                            />
+                              className={cn(
+                                "flex size-9 shrink-0 items-center justify-center rounded-full",
+                                tone === "success" && "bg-success-soft text-success",
+                                tone === "info" && "bg-info-soft text-info",
+                                tone === "warning" && "bg-warning-soft text-warning",
+                                tone === "brand" && "bg-brand-soft text-brand",
+                                tone === "muted" && "bg-muted text-muted-foreground",
+                              )}
+                            >
+                              <StatusIcon className="size-[1.125rem]" />
+                            </span>
                             <span className="min-w-0 flex-1 space-y-1">
-                              <span className="block break-words text-sm font-medium leading-5">
+                              <span
+                                className={cn(
+                                  "block break-words text-sm leading-5 font-medium",
+                                  task.state === "cancelled" && "text-muted-foreground",
+                                )}
+                              >
                                 {task.title}
                               </span>
                               <span
                                 id={`task-status-${task.id}`}
-                                className="block text-xs leading-4 text-muted-foreground"
+                                className="block text-xs leading-5 text-muted-foreground"
                               >
-                                {!staffView && task.state === "open"
-                                  ? task.canEdit || task.canSubmit || task.secureInput?.canEdit
-                                    ? "Needs your action"
-                                    : task.inputKind === "signature"
-                                      ? "Signature request"
-                                      : "Waiting for assignee"
-                                  : !staffView && task.state === "submitted"
-                                    ? "Submitted / Waiting for lender review"
-                                    : stateLabels[task.state]}{" "}
+                                <span
+                                  className={cn(
+                                    "font-medium",
+                                    tone === "success" && "text-success",
+                                    tone === "info" && "text-info",
+                                    tone === "warning" && "text-warning",
+                                    tone === "brand" && "text-brand",
+                                  )}
+                                >
+                                  {!staffView && task.state === "open"
+                                    ? task.canEdit || task.canSubmit || task.secureInput?.canEdit
+                                      ? "Needs your action"
+                                      : task.inputKind === "signature"
+                                        ? "Signature request"
+                                        : "Waiting for assignee"
+                                    : !staffView && task.state === "submitted"
+                                      ? "Submitted / Waiting for lender review"
+                                      : stateLabels[task.state]}
+                                </span>{" "}
                                 · {stageLabels[task.stage]}
                                 {!task.required && " · Optional"}
                                 {task.dueAt && ` · Due ${displayDate(task.dueAt)}`}
@@ -392,7 +466,10 @@ export function TasksManager({
                             </span>
                             <ChevronDown
                               aria-hidden="true"
-                              className={`size-4 shrink-0 text-muted-foreground transition-transform ${expanded ? "rotate-180" : ""}`}
+                              className={cn(
+                                "size-4 shrink-0 text-muted-foreground transition-transform",
+                                expanded && "rotate-180",
+                              )}
                             />
                           </button>
                         </h4>
@@ -401,7 +478,7 @@ export function TasksManager({
                             id={`task-detail-${task.id}`}
                             role="region"
                             aria-labelledby={`task-toggle-${task.id}`}
-                            className="pb-1"
+                            className="border-t pb-1"
                           >
                             {pendingSelection && (
                               <div
@@ -504,7 +581,7 @@ export function TasksManager({
                                 />
                                 {renderDocuments &&
                                   ["answer", "signature"].includes(task.inputKind ?? "answer") && (
-                                    <div className="p-4 pt-0 sm:p-5 sm:pt-0">
+                                    <div className="px-4 pb-4 sm:px-5 sm:pb-5">
                                       {renderDocuments(task.id, setUploading, task.visibility)}
                                     </div>
                                   )}
@@ -519,11 +596,11 @@ export function TasksManager({
               </section>
             ))
         ) : (
-          <p className="text-sm text-muted-foreground">
+          <p className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
             No {filter === "active" ? "applicable " : ""}tasks are visible for your account.
           </p>
         )}
-        <p className="text-xs leading-5 text-muted-foreground">
+        <p className="border-t pt-4 text-xs leading-5 text-muted-foreground">
           Simulated requirements · Use fictional information only. Saving answers does not submit or
           approve this application.
         </p>
@@ -606,18 +683,18 @@ function TaskDetail({
   return (
     <div className="space-y-5 p-4 sm:p-5">
       {task.inputKind !== "tax_authorization" && (
-        <p className="text-sm leading-6 text-muted-foreground">{task.description}</p>
+        <p className="text-sm leading-6 text-foreground/90">{task.description}</p>
       )}
       <p className="text-xs text-muted-foreground">
         {task.source === "manual" ? "Staff requested" : "Product requirement"} ·{" "}
         {task.required ? "Required" : "Optional"} · {assigneeName}
         {task.visibility === "private" && " · Owner private"}
       </p>
-      <div className="text-sm">
+      <div className="rounded-lg bg-muted/50 px-4 py-3 text-sm">
         <p className="font-medium">Why this applies</p>
-        <p className="mt-1 text-muted-foreground">{task.reason}</p>
+        <p className="mt-1 leading-6 text-muted-foreground">{task.reason}</p>
       </div>
-      {task.dueAt && <p className="text-sm">Due {displayDate(task.dueAt)}</p>}
+      {task.dueAt && <p className="text-sm font-medium">Due {displayDate(task.dueAt)}</p>}
       {(error || stale) && (
         <Alert variant="destructive" role="alert">
           <AlertTitle>
@@ -638,8 +715,8 @@ function TaskDetail({
         </p>
       )}
       {task.reviews.length > 0 && (
-        <div className="space-y-2 rounded-lg bg-background p-4">
-          <h4 className="text-sm font-medium">Bank review</h4>
+        <div className="space-y-2 rounded-lg border border-warning/25 bg-warning-soft/60 p-4">
+          <h4 className="text-sm font-semibold">Bank review</h4>
           {task.reviews.slice(0, 1).map((review) => (
             <div key={review.id} className="text-sm">
               <p>
@@ -690,7 +767,7 @@ function TaskDetail({
         </div>
       ) : (
         <form
-          className="space-y-3"
+          className="space-y-3 rounded-lg border bg-card p-4"
           onSubmit={(event) => {
             event.preventDefault();
             void save(
@@ -778,7 +855,7 @@ function TaskDetail({
         (task.inputKind ?? "answer") === "answer" &&
         !["completed", "waived", "cancelled"].includes(task.state) && (
           <form
-            className="space-y-4 pt-3"
+            className="space-y-4 rounded-lg border bg-card p-4"
             onSubmit={(event) => {
               event.preventDefault();
               void save(
@@ -789,7 +866,7 @@ function TaskDetail({
               );
             }}
           >
-            <h4 className="font-medium">Assignment</h4>
+            <h4 className="text-sm font-semibold">Assignment</h4>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <label className="text-sm" htmlFor={`assignee-${task.id}`}>
@@ -834,8 +911,8 @@ function TaskDetail({
           </form>
         )}
       {task.canReview && !["completed", "waived", "cancelled"].includes(task.state) && (
-        <div className="space-y-3 pt-3">
-          <h4 className="font-medium">Review task</h4>
+        <div className="space-y-3 rounded-lg border bg-card p-4">
+          <h4 className="text-sm font-semibold">Review task</h4>
           <label className="block text-sm" htmlFor={`review-reason-${task.id}`}>
             Review or waiver reason
           </label>
@@ -901,8 +978,14 @@ function TaskDetail({
           </p>
         </div>
       )}
-      <details className="pt-2">
-        <summary className="cursor-pointer text-sm font-medium">Task history</summary>
+      <details className="group/history border-t pt-4">
+        <summary className="disclosure flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground">
+          <ChevronDown
+            aria-hidden="true"
+            className="size-4 -rotate-90 transition-transform group-open/history:rotate-0"
+          />
+          Task history
+        </summary>
         <div className="mt-3 space-y-4 text-sm">
           <p className="text-muted-foreground">
             Occurrence {task.occurrence} · Record revision {task.revision} · Answer revision{" "}
@@ -1001,7 +1084,7 @@ function ManualTask({
     }
   }
   return (
-    <Card>
+    <Card className="bg-muted/30 shadow-none">
       <CardHeader>
         <CardTitle>
           <h3>Add a task</h3>
@@ -1113,9 +1196,10 @@ function ManualTask({
               />
             </div>
           </div>
-          <label className="flex items-center gap-2 text-sm">
+          <label className="flex items-center gap-2.5 text-sm font-medium">
             <input
               type="checkbox"
+              className="size-4 accent-primary"
               checked={required}
               disabled={busy}
               onChange={(event) => setRequired(event.target.checked)}
