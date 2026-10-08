@@ -2,7 +2,7 @@
 
 **V2-05 — [lender overview and evidence drilldowns](v2/04-delivery-and-validation.md#v2-05--lender-overview-and-evidence-drilldowns) is complete locally, October 8, 2026.** Overview now shows business/loan details, reviewed financial cards with accessible period history, grouped tax evidence, stage requirements/checks and recent activity. Exact source previews preserve keyboard focus; queue filters and page survive navigation. Validation passed **373 unit tests, 449 PostgreSQL tests, all 12 builds/typechecks and 42 distinct desktop/mobile browser cases**. V2-01–V2-04 remain complete; **V2-06 is the next default task**. V2-06–V2-08 remain **Not started**. No v2 hosted deployment is claimed.
 
-V2-04 delivered private document preview, explicit financial acceptance/rejection/correction, immutable provenance and frozen decision references. Its [local acceptance](v2/04-delivery-and-validation.md#v2-04--document-workspace-and-reviewed-financial-facts) records **367 unit tests, 442 PostgreSQL tests, all 12 builds/typechecks and 46 distinct desktop/mobile browser cases** at that checkpoint.
+V2-04 delivered private document preview, explicit financial acceptance/rejection/correction, immutable provenance and frozen decision references. Its [local acceptance](v2/04-delivery-and-validation.md#v2-04--document-workspace-and-reviewed-financial-facts) records **367 unit tests, 442 PostgreSQL tests, all 12 builds/typechecks and 46 distinct desktop/mobile browser cases** at that checkpoint. The [modal preview stability follow-up](v2/04-delivery-and-validation.md#modal-preview-stability--october-8-2026) is complete locally: the scrollbar-driven redraw loop is fixed, with all 16 document-workspace browser cases, 373 unit tests and all 12 builds/typechecks passing.
 
 V2-03 delivered five registered text filenames that generate synthetic PDFs with exact-byte validation, retained recipe/application snapshots and typed simulated findings through the protected upload pipeline. Its [local acceptance](v2/04-delivery-and-validation.md#v2-03--demo-text-importer-and-registered-fixtures) records **362 unit tests, 418 PostgreSQL tests, all 12 builds/typechecks and 40 desktop/mobile browser cases** at that checkpoint.
 
@@ -23,6 +23,8 @@ Acceptance covers all eight required journeys: repeatable clean setup and databa
 The [task preload and quieter dashboard](tasks/T12-tasks-and-requirements.md#upfront-task-details-and-quieter-dashboard--october-7-2026) and [hosted demo access](tasks/D03-hosted-demo-parity.md) address the user's follow-ups. The separately requested [request-efficiency work](tasks/D04-hosted-performance.md) records session/polling and database-placement improvements. The hosted Closing request fell from 7.958 seconds to 1.527 seconds in the same-application acceptance probe; the recorded page timings explicitly include test pacing.
 
 The [October 7 hosted-demo clarification](tasks/D03-hosted-demo-parity.md) applies to every environment: production remains a simulation, with local-equivalent demo sign-in and simulated email. D03 resolved the hosted `AUTH_DELIVERY_UNAVAILABLE` gap and verified the synthetic inbox on the production URLs.
+
+The requested [readable default typography](v2/04-delivery-and-validation.md#readable-default-typography--october-8-2026) follow-up is complete locally: regular compact text is 16px and secondary text/small buttons are 14px at default browser settings. Six desktop/mobile layout cases, 373 unit tests and all 12 builds/typechecks passed.
 
 ## Agreed outcome
 

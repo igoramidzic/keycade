@@ -9,6 +9,11 @@
 @source "../";
 
 @theme inline {
+  /* Keep compact UI copy readable at the browser's default 16px root size. */
+  --text-xs: 0.875rem;
+  --text-xs--line-height: calc(1.25 / 0.875);
+  --text-sm: 1rem;
+  --text-sm--line-height: 1.5;
   --font-heading: var(--font-sans);
   --font-sans: "Geist Variable", sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);

@@ -146,9 +146,13 @@ export default function DocumentPdfPreview({
     };
   }, [pdf, page, zoom, width]);
   return (
-    <div ref={host} className="min-w-0 w-full">
+    <div ref={host} className="relative min-w-0 w-full">
+      {/* Rendering status must not change overflow and retrigger the width observer. */}
       {rendering && (
-        <p role="status" className="p-3 text-sm text-muted-foreground">
+        <p
+          role="status"
+          className="pointer-events-none absolute inset-x-0 top-0 z-10 bg-background/90 p-3 text-sm text-muted-foreground"
+        >
           Rendering PDF page…
         </p>
       )}

@@ -23,7 +23,13 @@ const env = readEnvironment();
 const borrower = `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
 const staff = `http://127.0.0.1:${env.BANK_CONSOLE_PORT ?? 3002}`;
 const seededApplication = "60000000-0000-4000-8000-000000000001";
-test.use({ trace: "off", screenshot: "off", video: "off", actionTimeout: 15_000 });
+test.use({
+  trace: "off",
+  screenshot: "off",
+  video: "off",
+  actionTimeout: 15_000,
+  launchOptions: { ignoreDefaultArgs: ["--hide-scrollbars"] },
+});
 test.setTimeout(120_000);
 
 async function signIn(page: Page, origin = staff, email = "officer-a@example.test") {
@@ -241,6 +247,99 @@ test("three fiscal-year documents keep preview, analysis, source metadata and or
     if (!path) throw new Error("Expected the original synthetic PDF download.");
     expect(await readFile(path)).toEqual(uploaded.file.buffer);
   }
+});
+
+test.describe("PDF layout stability", () => {
+  test("fit-width PDF preview settles near the scrollbar threshold after opening, paging and resizing", async ({
+    page,
+  }) => {
+    await signIn(page);
+    await openDocuments(page);
+    // Custom Chromium scrollbars reserve layout width, exercising classic
+    // scrollbar layout even on hosts using overlay scrollbars.
+    await page.addStyleTag({
+      content: "[data-preview-url]::-webkit-scrollbar { width: 16px; height: 16px; }",
+    });
+    const uploaded = await uploadRecipe(page, seededApplication, "business-tax-return-2023");
+    const { dialog } = await openWorkspace(page, uploaded.row, uploaded.file.name);
+    expect(await previewBytes(dialog)).toEqual([...uploaded.file.buffer]);
+    const preview = dialog.getByRole("region", { name: "Document preview", exact: true });
+    const canvas = preview.locator("canvas");
+    const scroller = preview.locator("[data-preview-url]");
+
+    async function setScrollbarThreshold() {
+      const scrollbarWidth = await scroller.evaluate((element) => {
+        const canvas = element.querySelector("canvas")!;
+        const style = getComputedStyle(element);
+        const fullWidth =
+          element.getBoundingClientRect().width -
+          Number.parseFloat(style.borderLeftWidth) -
+          Number.parseFloat(style.borderRightWidth);
+        const html = element as HTMLElement;
+        html.style.overflowY = "scroll";
+        const scrollbarWidth = fullWidth - element.clientWidth;
+        // A fitted page fits, while a 44px in-flow rendering status would overflow.
+        html.style.maxHeight = `${fullWidth * (canvas.height / canvas.width) + 20}px`;
+        html.style.minHeight = "0";
+        html.style.overflowY = "auto";
+        return scrollbarWidth;
+      });
+      expect(scrollbarWidth).toBeGreaterThan(10);
+    }
+    async function expectSettledPreview(pageNumber: number) {
+      // Let browser layout and ResizeObserver deliver the requested geometry change.
+      await preview.evaluate(
+        () =>
+          new Promise<void>((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+          ),
+      );
+      await expect(
+        preview.getByRole("region", { name: `PDF page text, page ${pageNumber}`, exact: true }),
+      ).not.toBeEmpty();
+      await expect(preview.getByRole("status")).toHaveCount(0);
+      const rendering = await canvas.evaluate(
+        (element) =>
+          new Promise<{ canvasChanges: number; renderingFrames: number; emptyFrames: number }>(
+            (resolve) => {
+              let canvasChanges = 0;
+              let renderingFrames = 0;
+              let emptyFrames = 0;
+              const observer = new MutationObserver((changes) => {
+                canvasChanges += changes.length;
+              });
+              observer.observe(element, { attributes: true, attributeFilter: ["width", "height"] });
+              const preview = element.closest("[aria-label='Document preview']")!;
+              const deadline = performance.now() + 1_000;
+              function frame() {
+                if (preview.querySelector("[role='status']")) renderingFrames++;
+                if (!element.width || !element.height) emptyFrames++;
+                if (performance.now() < deadline) requestAnimationFrame(frame);
+                else {
+                  observer.disconnect();
+                  resolve({ canvasChanges, renderingFrames, emptyFrames });
+                }
+              }
+              requestAnimationFrame(frame);
+            },
+          ),
+      );
+      expect(rendering).toEqual({ canvasChanges: 0, renderingFrames: 0, emptyFrames: 0 });
+    }
+
+    await setScrollbarThreshold();
+    await expectSettledPreview(1);
+    await dialog.getByRole("button", { name: "Next page", exact: true }).click();
+    await expectSettledPreview(2);
+    await dialog.getByRole("button", { name: "Zoom in", exact: true }).click();
+    await expectSettledPreview(2);
+    await dialog.getByRole("button", { name: "Fit", exact: true }).click();
+    await expectSettledPreview(2);
+    const viewport = page.viewportSize()!;
+    await page.setViewportSize({ width: viewport.width - 40, height: viewport.height });
+    await setScrollbarThreshold();
+    await expectSettledPreview(2);
+  });
 });
 
 test("preview loading and failure stay recoverable and clean Blob resources are released on close", async ({

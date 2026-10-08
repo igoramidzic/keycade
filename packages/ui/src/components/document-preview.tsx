@@ -225,6 +225,7 @@ export function DocumentPreview({
         <div
           data-preview-url={url}
           className="max-h-[65dvh] min-h-80 flex-1 overflow-auto rounded-lg border bg-muted sm:min-h-[28rem]"
+          style={{ scrollbarGutter: "stable" }}
         >
           {pdf && bytes ? (
             PdfViewer ? (

@@ -172,7 +172,7 @@ Dependencies: V2-01, V2-03; T14, T15, T19. Primary areas: shared document viewer
 2. Real-PostgreSQL and both-transport tests verify deliberate confirmation, rejection/correction history, decimal money values, period/unit separation, conflicting revisions, duplicate commands and immutable provenance.
 3. Replacing/reclassifying/reprocessing evidence cannot silently update confirmed metrics. Old sources are visibly stale, current confirmed selection follows the documented rule, and frozen decision evidence remains unchanged.
 4. Bank/application/document permissions apply independently to bytes, metadata, analysis, versions and confirmed facts. Test guessed IDs, restricted roles and revocation while a modal is open; preview resources are released when closed or denied.
-5. Browser checks cover desktop split view, mobile layout, keyboard open/close and focus return, loading/failed preview, analysis selection and explicit financial confirmation. No real OCR provider is called.
+5. Browser checks cover desktop split view, mobile layout, keyboard open/close and focus return, loading/failed preview, analysis selection and explicit financial confirmation. Fit-width rendering must settle with classic scrollbars after opening, page changes, zoom/Fit and resizing. No real OCR provider is called.
 
 Implementation record: **Done — local acceptance, October 8, 2026.**
 
@@ -196,6 +196,15 @@ Commands used were `pnpm check`, `pnpm build`, the guarded `node_modules/node/bi
 During local verification, the borrower Vite process on port 3001 retained a cached shared-contract export graph. Restarting that watcher restored the existing exports; no package-export workaround was needed. The migration is additive, with ordinary startup/initialization still preserving application data.
 
 Try locally: sign into the lender console as `officer-a@example.test`, open an editable synthetic application and its Documents view, then use the Scenario kit's text importer to upload the three year-specific tax fixtures. Wait for clean scan and simulated interpretation, then open a file's document workspace. Compare its selected version, period and original suggestion; select a financial field, choose Accept/Reject/Correct, enter a review reason and apply. A changed prior accepted amount requires explicit replacement confirmation. Inspect review history and version/source labels. Metadata expected-period edits or a replacement PDF require fresh source review; they do not silently change the accepted value. Financial review is separate from accepting task evidence or deciding the application.
+
+### Modal preview stability — October 8, 2026
+
+Follow-up status: **Done — local acceptance.**
+
+- Reproduced a fit-width feedback loop near the preview's scrollbar threshold: the in-flow rendering status changed overflow, changing the measured width and starting another render. The failing baseline recorded 160 canvas dimension mutations and 40 rendering-status frames in one second (`.local/e2e-l6B3NV/shard-1.log`).
+- The rendering status is now an overlay, and the preview reserves scrollbar space. Page/version/access cleanup still immediately clears private pixels; authorized byte loading, controls and resource release retain their existing behavior. The regression enables classic scrollbars and checks rendered text plus a full second without canvas dimension changes, recurring loading status or empty frames after each interaction.
+- The full document-workspace suite passed **16 desktop/mobile cases with zero failures, skips or flakes** (`.local/e2e-3PfOb5`). Both layouts passed the new stability regression after opening, changing pages, zooming, returning to Fit and resizing. Existing exact-byte/source, reviewed financial, history, recovery, access-loss and private-resource cleanup cases also passed. Command: `node_modules/node/bin/node --import tsx scripts/e2e.ts tests/e2e/document-workspace.spec.ts`.
+- `pnpm check` passed Biome, boundaries, all 12 workspace typechecks, root TypeScript and 373 unit tests across 37 files. `pnpm build` passed all 12 workspaces. Logs are in `.local/modal-glitch`. The running local modal was visually checked after zooming and returning to Fit. No backend, schema, dependency or hosted deployment changes are included.
 
 ## V2-05 — Lender overview and evidence drilldowns
 
@@ -232,6 +241,14 @@ Validation record — working tree based on `fcd45b3`, October 8, 2026:
 - Logs are in `.local/v2-05-validation`. Commands were `pnpm check`, `pnpm build`, `node_modules/node/bin/node --import tsx .local/v2-04-validation/integration.mjs .integration.test.ts`, the final HTTP-only rerun with `apps/api/test/document-workspace.integration.test.ts`, and `node_modules/node/bin/node --import tsx scripts/e2e.ts` with `tests/e2e/lender-overview-v2.spec.ts` (targeted `--grep`/`--project` reruns), or `tests/e2e/staff-workspace.spec.ts tests/e2e/document-workspace.spec.ts`. Pinned Node 24.21.0 and the cached pnpm 10.34.6 CLI were placed on `PATH`; local sandbox permissions were extended for the owned Podman target, loopback services and test-runner IPC. No hosted deployment or v2 hosted parity is claimed.
 
 Try locally: sign in as `officer-a@example.test`, filter the application queue and open an application. Overview shows its saved profile, loan and stages. Import three year-specific synthetic tax fixtures from Documents, explicitly accept revenue/adjusted-income suggestions, then return to Overview. Expand Business tax returns to inspect each file and its version count; expand either financial card to compare the available periods and open exact source evidence. Close the document to return to the same group/source; Back to applications restores the queue filters and page.
+
+### Readable default typography — October 8, 2026
+
+Follow-up status: **Done — local acceptance.** Regular compact UI copy now uses 1rem (16px at the default browser setting); secondary copy and small buttons use 0.875rem (14px). Shared Tailwind text tokens and the small-button variant replace the prior 14px/12px/12.8px mix. Rem units preserve browser font preferences. Acceptance requires the overview, borrower dashboard and document modal to remain usable on desktop and mobile with the larger text.
+
+- Live browser measurements confirmed a 16px root and 16px/14px UI text. Desktop and 390px mobile overview were visually inspected without page-level horizontal overflow.
+- All **six existing desktop/mobile layout cases passed**, with zero failures/skips/flakes (`.local/e2e-E8a3F1`): lender business/loan details and scenario controls, borrower progress/sidebar reachability, and three fiscal-year document previews. Ran `node_modules/node/bin/node --import tsx scripts/e2e.ts tests/e2e/lender-overview-v2.spec.ts tests/e2e/borrower-dashboard-v2.spec.ts tests/e2e/document-workspace.spec.ts --grep 'v2 business and loan details|application progress expands|three fiscal-year documents'`.
+- `pnpm check` passed Biome, boundaries, all 12 workspace typechecks, root TypeScript and 373 unit tests. `pnpm build` passed all 12 workspaces. Logs are `.local/modal-glitch/typography-*.log`. This is a local styling change; no hosted deployment is claimed.
 
 ## V2-06 — Simulated Loan Footprint
 
