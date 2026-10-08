@@ -1,6 +1,6 @@
 # V2 delivery and validation
 
-Planning date: October 8, 2026. V2-01 is complete locally; the remaining tasks are **Not started**. Only the task-specific evidence below proves v2 behavior.
+Planning date: October 8, 2026. V2-01 and V2-02 are complete locally. V2-03–V2-08 are **Not started**. Only the task-specific evidence below proves v2 behavior.
 
 Read [the experience specification](02-experience-spec.md) and [the data and simulation specification](03-data-and-simulation.md) before implementing a task. The [main plan](../README.md), [architecture](../02-architecture.md), [access rules](../03-domain-and-access.md), and [verification discipline](../05-development-and-testing.md) still apply. Implement one bounded task or reviewable slice at a time.
 
@@ -9,7 +9,7 @@ Read [the experience specification](02-experience-spec.md) and [the data and sim
 | ID | Deliverable | V2 dependencies | Existing prerequisites | Status |
 | --- | --- | --- | --- | --- |
 | V2-01 | Expanded resumable intake | — | T07, T08, T15 | Done — local acceptance below |
-| V2-02 | Borrower task dashboard without top tabs | V2-01 | T09, T11–T13, T17–T21, D05 | Not started |
+| V2-02 | Borrower task dashboard without top tabs | V2-01 | T09, T11–T13, T17–T21, D05 | Done — local acceptance below |
 | V2-03 | Protected text-to-fixture demo importer | — | T13, T14, D05 | Not started |
 | V2-04 | Document review and confirmed financial facts | V2-01, V2-03 | T14, T15, T19 | Not started |
 | V2-05 | Lender application overview and evidence drill-down | V2-01, V2-04 | T10, T12, T16, T19, T21 | Not started |
@@ -86,9 +86,37 @@ Dependencies: V2-01; T09, T11–T13, T17–T21, D05. Primary areas: borrower app
 3. Restricted and revoked participants cannot infer private tasks/documents from cards, counters or progress, or upload through a generic right-rail target. Verify backend denial and clear sensitive cached content on access loss.
 4. Desktop/mobile keyboard journeys cover uploads, focus order, long task lists, reopening a task, active application switching, incomplete setup and scenario-kit expansion without overlap.
 
-Implementation record: **Not started.**
+Implementation record: **Done — local acceptance, October 8, 2026.**
 
-Validation record: **Not run.** No borrower navigation or layout change is claimed.
+- Replaced borrower application tabs with a task dashboard, scoped personal/assigned/business groups (including completed assignments), actionable state labels, current-stage timeline and sidebar general uploads. Mobile shows a compact application summary above tasks, then the same progress/upload/contact regions below.
+- Contextual documents, signing, review/submission, closing/account, people and activity routes retain their old URLs. Returning or using browser Back preserves the mounted task editor and its unsaved values; completed terminal applications retain inspectable tasks/history with an explicit closed outcome.
+- Timeline events project persisted setup completion, review events and closing commands in revision order. Loan Booked requires the existing funded-account link. The officer contact is the actual assigned active synthetic staff member, or a safe unassigned state. Withdrawals retain any previously reached approval/closing milestone without implying future completion. No new mutable workflow stage or schema migration is introduced.
+- Sidebar uploads use current backend general-upload permission, private reservation/byte/scan/processing APIs and stable retry keys. They never link evidence to a task automatically. Assigned collaborators retain their task-specific destinations. The demo kit registers only visible upload targets, prioritizes an expanded task over the general uploader and restores the previous target after navigation.
+- Read or mutation access denial removes application/list/account caches and unmounts retained editors; identity/application changes create independent queues and editors. Private findings, hidden counts, raw identifiers and loan-account details remain backend restricted.
+
+Validation record — working tree based on `f46aa06`, October 8, 2026:
+
+- Final `pnpm check` and `pnpm build` passed: Biome/boundaries, all 12 workspace typechecks/builds and **320 unit tests**. After the final denial-latch adjustment, borrower typecheck/build and repository Biome passed again.
+- Full real-PostgreSQL integration passed: **396 tests across 41 files**, including repeated timeline ordering, cross-bank/direct-ID denial, restricted counts/terms, revoked contact/membership, linked funding and both HTTP transports. A second full `pnpm test:integration` run passed after the assignment projection change, using the installed Node 24 runtime. No runner source changed.
+- **96 distinct desktop/mobile browser cases verified across coordinated runs**, not one clean 96-case invocation. The main 76-case selection initially passed 70; focused reruns repaired all six failures. Fourteen document-processing/task-conflict cases, four dashboard safety cases and two actual sidebar-drop cases complete the 96-case coverage. All runners stopped and removed their disposable databases.
+- Browser evidence: main `.local/e2e-dJfRT3`; focused desktop `.local/e2e-SsGSt0` (4/5 initially, final signing repaired separately); collaborators `.local/e2e-MrKTlG` (2/2); final signing `.local/e2e-hJ8ODU` (2/2); documents/conflicts `.local/e2e-cUxYUE` (12/14 initially) plus label correction `.local/e2e-Emddv6` (2/2); safety `.local/e2e-kEd6PK` (4/4); sidebar drop `.local/e2e-rxeiAj` (2/2).
+- Verified no application tabs, compact mobile summary, long lists, task switching/reopening, setup/application selection, keyboard/file-picker and actual file-drop uploads, ambiguous-response retry without duplicate versions, scan/processing retry, unchanged task evidence after general upload, contextual routes and Back, unsaved edits, terminal history, full approval/signing/closing/funding, restricted general-upload denial and same-session revocation. Safety cases retain a denied workspace through 30 seconds of polling and require explicit fresh-data retry; hidden tasks cannot remain demo upload targets. Desktop/mobile screenshots were visually inspected, with no horizontal overflow or demo-kit overlap.
+- Initial checks caught a denial-latch remount bug, retained-editor task deep-link handling and demo-target restoration, all corrected and reverified. Browser fixtures now wait for actual response/control readiness, pace multi-actor journeys and park inactive test pages; application timeouts and rate limits are unchanged. Assertions were updated for contextual closed banners and borrower action labels.
+
+Browser commands used (Node 24 was selected with `PATH="$PWD/node_modules/.bin:$PATH"`):
+
+```sh
+pnpm test:e2e tests/e2e/borrower-dashboard-v2.spec.ts tests/e2e/borrower-workspace.spec.ts tests/e2e/tasks.spec.ts tests/e2e/documents.spec.ts tests/e2e/collaborator-upload.spec.ts tests/e2e/review.spec.ts tests/e2e/closing.spec.ts tests/e2e/request-efficiency.spec.ts tests/e2e/demo-scenarios.spec.ts tests/e2e/signatures.spec.ts tests/e2e/activity-operations.spec.ts
+pnpm test:e2e tests/e2e/closing.spec.ts tests/e2e/review.spec.ts tests/e2e/signatures.spec.ts tests/e2e/borrower-workspace.spec.ts tests/e2e/tasks.spec.ts --project=desktop --grep "approved terms progress|staff-on-behalf submission|two intended signers|portal polling|application dashboard keeps tasks"
+pnpm test:e2e tests/e2e/collaborator-upload.spec.ts
+pnpm test:e2e tests/e2e/signatures.spec.ts --grep "two intended signers"
+pnpm test:e2e tests/e2e/document-processing.spec.ts tests/e2e/task-conflicts.spec.ts
+pnpm test:e2e tests/e2e/document-processing.spec.ts --grep "borrower tax uploads"
+pnpm test:e2e tests/e2e/borrower-dashboard-safety.spec.ts
+pnpm test:e2e tests/e2e/borrower-sidebar-drop.spec.ts
+```
+
+Local scope only. V2-03–V2-08 remain unstarted; no deployment or hosted parity is claimed.
 
 ## V2-03 — Demo text importer and registered fixtures
 

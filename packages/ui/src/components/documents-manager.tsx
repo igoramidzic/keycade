@@ -104,6 +104,7 @@ export function DocumentsManager({
   taskId,
   taskVisibility,
   onBusyChange,
+  active = true,
 }: {
   data: DocumentsData;
   begin: (files: UploadInput[]) => Promise<{ uploads: UploadResult[] }>;
@@ -128,6 +129,7 @@ export function DocumentsManager({
   taskId?: string;
   taskVisibility?: "shared" | "assigned" | "private";
   onBusyChange?: (busy: boolean) => void;
+  active?: boolean;
 }) {
   const pickerId = useId();
   const demoKit = useDemoKit();
@@ -179,6 +181,7 @@ export function DocumentsManager({
     () => undefined,
   );
   demoUpload.current = (document) => {
+    if (!active) return;
     if (demoKit && !demoKit.uploadsEnabled) return;
     if (document.subject !== demoSubject) {
       setError(
@@ -196,14 +199,16 @@ export function DocumentsManager({
   const demoUploadsEnabled = demoKit?.uploadsEnabled ?? true;
   const demoTargetTitle = data.uploadTasks.find((task) => task.id === uploadTask)?.title;
   useEffect(() => {
-    if (!registerDemoUpload || !demoUploadsEnabled || !canUpload || !validTask) return;
+    if (!active || !registerDemoUpload || !demoUploadsEnabled || !canUpload || !validTask) return;
     return registerDemoUpload({
       id: `${data.applicationId}:${uploadTask || "application"}`,
       label: demoTargetTitle ?? "Application documents",
       subject: demoSubject,
+      priority: uploadTask ? 1 : 0,
       upload: (document) => demoUpload.current(document),
     });
   }, [
+    active,
     registerDemoUpload,
     demoUploadsEnabled,
     canUpload,

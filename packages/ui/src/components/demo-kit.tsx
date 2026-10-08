@@ -7,6 +7,7 @@ import { Badge } from "@keycade/ui/components/badge";
 import { Button } from "@keycade/ui/components/button";
 import { NativeSelect } from "@keycade/ui/components/native-select";
 import { createDemoDocumentFile, demoDocumentMime } from "@keycade/ui/lib/demo-document-transfer";
+import { preferredDemoUploadTarget } from "@keycade/ui/lib/demo-upload-targets";
 import {
   Copy,
   Download,
@@ -31,6 +32,7 @@ export type DemoUploadTarget = {
   id: string;
   label: string;
   subject: DemoDocument["subject"];
+  priority?: number;
   upload: (document: DemoDocument) => void;
 };
 type DemoKitContextValue = {
@@ -78,9 +80,8 @@ export function DemoKitProvider({ children }: { children: ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [uploadsEnabled, setUploadAvailability] = useState(true);
   const [applications, setApplications] = useState<{ token: symbol; name: string | null }[]>([]);
-  const [uploadTarget, setUploadTarget] = useState<(DemoUploadTarget & { token: symbol }) | null>(
-    null,
-  );
+  const [uploadTargets, setUploadTargets] = useState<(DemoUploadTarget & { token: symbol })[]>([]);
+  const uploadTarget = preferredDemoUploadTarget(uploadTargets);
   const dialog = useRef<HTMLDialogElement>(null);
   const mobileToggle = useRef<HTMLButtonElement>(null);
   const registerApplication = useCallback((_id: string, name: string | null | undefined) => {
@@ -90,8 +91,8 @@ export function DemoKitProvider({ children }: { children: ReactNode }) {
   }, []);
   const registerUploadTarget = useCallback((target: DemoUploadTarget) => {
     const token = Symbol();
-    setUploadTarget({ ...target, token });
-    return () => setUploadTarget((current) => (current?.token === token ? null : current));
+    setUploadTargets((current) => [...current, { ...target, token }]);
+    return () => setUploadTargets((current) => current.filter((entry) => entry.token !== token));
   }, []);
   useEffect(() => {
     const query = window.matchMedia("(min-width: 1280px)");

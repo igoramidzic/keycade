@@ -1,6 +1,6 @@
 import { rememberSession } from "@keycade/ui/lib/session-snapshot";
 import { afterEach, expect, test, vi } from "vitest";
-import { ApiError, request } from "./api";
+import { ApiError, onApplicationAccessLoss, request } from "./api";
 
 const session = {
   authenticated: true as const,
@@ -9,6 +9,58 @@ const session = {
   csrfToken: "a".repeat(64),
 };
 const schema = { parse: (value: unknown) => value };
+
+test("mutation access loss invalidates its exact application and unsubscribed editors stay untouched", async () => {
+  rememberSession(session);
+  const listener = vi.fn();
+  const stop = onApplicationAccessLoss(listener);
+  const path = `/api/v1/banks/${session.bank.id}/applications/application-a/tasks/task-a/answer`;
+  const options = {
+    bankId: session.bank.id,
+    actorEmail: session.user.email,
+    method: "PATCH" as const,
+    body: { answer: "Synthetic" },
+  };
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      Response.json({ error: { code: "FORBIDDEN", message: "Access removed" } }, { status: 403 }),
+    ),
+  );
+  try {
+    await expect(request(path, schema, options)).rejects.toMatchObject({ status: 403 });
+    expect(listener).toHaveBeenCalledExactlyOnceWith({
+      bankId: session.bank.id,
+      actorEmail: session.user.email,
+      applicationId: "application-a",
+      error: expect.any(ApiError),
+    });
+  } finally {
+    stop();
+  }
+  await expect(request(path, schema, options)).rejects.toMatchObject({ status: 403 });
+  expect(listener).toHaveBeenCalledTimes(1);
+});
+
+test("temporary application failures preserve retained editing state", async () => {
+  rememberSession(session);
+  const listener = vi.fn();
+  const stop = onApplicationAccessLoss(listener);
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => Response.json({ error: { code: "UNAVAILABLE" } }, { status: 503 })),
+  );
+  try {
+    await expect(
+      request(`/api/v1/banks/${session.bank.id}/applications/application-a/tasks`, schema, {
+        bankId: session.bank.id,
+      }),
+    ).rejects.toMatchObject({ status: 503 });
+    expect(listener).not.toHaveBeenCalled();
+  } finally {
+    stop();
+  }
+});
 afterEach(() => {
   vi.unstubAllGlobals();
   rememberSession({ authenticated: false });

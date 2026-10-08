@@ -108,14 +108,17 @@ test("partial upload failure preserves a valid file and retries a lost upload ac
   await signIn(page, borrower, "borrower@example.test");
   const good = `synthetic-good-${randomUUID().slice(0, 8)}.pdf`;
   const spoof = `synthetic-spoof-${randomUUID().slice(0, 8)}.pdf`;
-  await page.getByLabel("Choose document files", { exact: true }).setInputFiles([
-    file(good),
-    {
-      name: spoof,
-      mimeType: "application/pdf",
-      buffer: Buffer.from("This is synthetic text, not a PDF."),
-    },
-  ]);
+  await page
+    .getByRole("region", { name: "Document upload drop area", exact: true })
+    .getByLabel("Choose document files", { exact: true })
+    .setInputFiles([
+      file(good),
+      {
+        name: spoof,
+        mimeType: "application/pdf",
+        buffer: Buffer.from("This is synthetic text, not a PDF."),
+      },
+    ]);
   await expect(page.getByRole("listitem", { name: `Upload ${good}`, exact: true })).toContainText(
     "Uploaded.",
   );
@@ -145,7 +148,10 @@ test("partial upload failure preserves a valid file and retries a lost upload ac
       });
     } else await route.continue();
   });
-  await page.getByLabel("Choose document files", { exact: true }).setInputFiles(file(acknowledged));
+  await page
+    .getByRole("region", { name: "Document upload drop area", exact: true })
+    .getByLabel("Choose document files", { exact: true })
+    .setInputFiles(file(acknowledged));
   const retry = page.getByRole("listitem", { name: `Upload ${acknowledged}`, exact: true });
   await expect(retry.getByRole("alert")).toContainText("acknowledgement");
   await retry.getByRole("button", { name: "Retry upload", exact: true }).click();
@@ -176,7 +182,10 @@ test("an in-flight upload can be cancelled and retried independently", async ({ 
     const sent = page.waitForRequest(
       (request) => request.method() === "PUT" && pattern.test(request.url()),
     );
-    await page.getByLabel("Choose document files", { exact: true }).setInputFiles(file(name));
+    await page
+      .getByRole("region", { name: "Document upload drop area", exact: true })
+      .getByLabel("Choose document files", { exact: true })
+      .setInputFiles(file(name));
     await sent;
     const upload = page.getByRole("listitem", { name: `Upload ${name}`, exact: true });
     await expect(upload.getByRole("progressbar")).toBeVisible();
@@ -204,18 +213,21 @@ test("blocked and failed simulated scans stay quarantined and a transient scan c
   await signIn(page, borrower, "borrower@example.test");
   const blockedName = `synthetic-blocked-${randomUUID().slice(0, 8)}.pdf`;
   const retryName = `synthetic-scan-retry-${randomUUID().slice(0, 8)}.pdf`;
-  await page.getByLabel("Choose document files", { exact: true }).setInputFiles([
-    {
-      name: blockedName,
-      mimeType: "application/pdf",
-      buffer: Buffer.from(syntheticDocumentPdf("blocked")),
-    },
-    {
-      name: retryName,
-      mimeType: "application/pdf",
-      buffer: Buffer.from(syntheticDocumentPdf("scan-transient")),
-    },
-  ]);
+  await page
+    .getByRole("region", { name: "Document upload drop area", exact: true })
+    .getByLabel("Choose document files", { exact: true })
+    .setInputFiles([
+      {
+        name: blockedName,
+        mimeType: "application/pdf",
+        buffer: Buffer.from(syntheticDocumentPdf("blocked")),
+      },
+      {
+        name: retryName,
+        mimeType: "application/pdf",
+        buffer: Buffer.from(syntheticDocumentPdf("scan-transient")),
+      },
+    ]);
   const blocked = page.getByRole("listitem", { name: `Document ${blockedName}`, exact: true });
   const retry = page.getByRole("listitem", { name: `Document ${retryName}`, exact: true });
   await expect(blocked).toContainText("Blocked by simulated scan", { timeout: 25_000 });
@@ -236,7 +248,10 @@ test("documents load inside an assigned task and denied lists have a retry path"
   await page.getByRole("button", { name: "Describe your business", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Task documents", exact: true })).toBeVisible();
   const name = `synthetic-task-${randomUUID().slice(0, 8)}.pdf`;
-  await page.getByLabel("Choose document files", { exact: true }).setInputFiles(file(name));
+  await page
+    .getByRole("region", { name: "Application tasks", exact: true })
+    .getByLabel("Choose document files", { exact: true })
+    .setInputFiles(file(name));
   await expect(page.getByRole("listitem", { name: `Document ${name}`, exact: true })).toContainText(
     "Describe your business",
   );

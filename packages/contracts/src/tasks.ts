@@ -51,6 +51,7 @@ export const taskSummarySchema = z.object({
   revision: z.number().int().positive(),
   evidenceRevision: z.number().int().nonnegative(),
   assigneeParticipantId: z.string().uuid().nullable(),
+  assignedToYou: z.boolean().default(false),
   subjectUserId: z.string().uuid().nullable(),
   dueAt: z.string().datetime().nullable(),
   canEdit: z.boolean(),

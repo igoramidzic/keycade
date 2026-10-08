@@ -1,5 +1,13 @@
 # Decisions, assumptions, and reference sources
 
+## V2-02 borrower dashboard implementation — October 8, 2026
+
+“Continue with v2” selects the next ready task, V2-02. Keep the remaining backlog bounded and retain its existing dependencies. The borrower application now uses one task dashboard and contextual destinations; lender tabs remain unchanged. Existing reminder, task and signing links retain their authorized URLs. Editors stay mounted within the application while visiting contextual screens, but access loss, identity changes and application changes discard their private state. No browser persistence stores these drafts.
+
+Progress is a read projection over setup completion, review events and closing commands, ordered by persisted application revision. Repeated requests for information preserve earlier review events. Loan Booked means the existing linked simulated funded account, not a new state or servicing. Loan officer details come only from an actual active synthetic same-bank assignment. The sidebar uploader uses existing general-document authorization and never automatically satisfies a task. Personal evidence stays in its private task. Demo upload target registration follows visible context, with the current task taking priority over a general upload destination.
+
+No migration, external service, real communication or hosted deployment is needed for this task. The [V2-02 record](v2/04-delivery-and-validation.md#v2-02--borrower-task-dashboard) owns fresh acceptance evidence; the later document-importer and hosted-parity tasks keep their planned scope.
+
 ## V2-01 setup implementation — October 8, 2026
 
 The user requested the first ready v2 task to completion for local testing. Implement only V2-01 here; the remaining v2 tasks keep their dependencies and scope. Setup definition 2 retains the fixed Synthetic Business Credit product, uses an explicit structured country/address, normalizes optional HTTP/HTTPS websites without fetching them, and stores ordered unique purpose IDs with catalog version `2026-01`. The former `purpose` column remains historical free text. New purpose selection never guesses or overwrites the old response.

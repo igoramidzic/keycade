@@ -159,6 +159,13 @@ describe("participant task grants and owner facts on PostgreSQL", () => {
     const view = await tasks.read(target.actor, ids.bankA, ids.applicationSmall);
     expect(view.tasks.map((row) => row.id).sort()).toEqual([selected.id, second.id].sort());
     expect(view.tasks.every((row) => row.canEdit)).toBe(true);
+    expect(view.tasks.every((row) => row.visibility === "shared" && row.assignedToYou)).toBe(true);
+    expect(
+      (await tasks.detail(borrower, ids.bankA, ids.applicationSmall, selected.id)).assignedToYou,
+    ).toBe(false);
+    expect(
+      (await tasks.detail(officer, ids.bankA, ids.applicationSmall, selected.id)).assignedToYou,
+    ).toBe(false);
     const current = view.tasks.find((row) => row.id === selected.id);
     if (!current) throw new Error("Expected assigned task.");
     expect(current.revision).toBe(selected.revision + 1);
@@ -216,6 +223,23 @@ describe("participant task grants and owner facts on PostgreSQL", () => {
         )
       ).invitations.filter((row) => row.id === invitation.id),
     ).toHaveLength(1);
+    await tasks.review(
+      officer,
+      ids.bankA,
+      ids.applicationSmall,
+      selected.id,
+      {
+        expectedRevision: submitted.revision,
+        decision: "completed",
+        reason: "Synthetic assigned evidence accepted",
+      },
+      randomUUID(),
+    );
+    expect(
+      (await tasks.read(target.actor, ids.bankA, ids.applicationSmall)).tasks.find(
+        (row) => row.id === selected.id,
+      ),
+    ).toMatchObject({ visibility: "shared", state: "completed", assignedToYou: true });
   });
 
   it("rejects stale selections and rolls back all grants when a selected task changes before acceptance", async () => {
@@ -620,7 +644,12 @@ describe("participant task grants and owner facts on PostgreSQL", () => {
     const history = await invite(service, target, [original.id]);
     await service.acceptInvitation(target.actor, ids.bankA, history.id, randomUUID());
     const granted = await tasks.detail(target.actor, ids.bankA, ids.applicationSmall, original.id);
-    expect(granted).toMatchObject({ state: "completed", canEdit: false, canSubmit: false });
+    expect(granted).toMatchObject({
+      state: "completed",
+      canEdit: false,
+      canSubmit: false,
+      assignedToYou: false,
+    });
     expect(granted.answers[0]?.authorUserId).toBe(target.id);
     await expect(
       tasks.saveAnswer(

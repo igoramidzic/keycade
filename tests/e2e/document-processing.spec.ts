@@ -32,11 +32,14 @@ async function noOverflow(page: Page) {
 }
 async function upload(page: Page, scenario: string) {
   const name = `synthetic-${scenario}-${randomUUID().slice(0, 8)}.pdf`;
-  await page.getByLabel("Choose document files", { exact: true }).setInputFiles({
-    name,
-    mimeType: "application/pdf",
-    buffer: Buffer.from(syntheticDocumentPdf(scenario)),
-  });
+  await page
+    .getByRole("region", { name: "Document upload drop area", exact: true })
+    .getByLabel("Choose document files", { exact: true })
+    .setInputFiles({
+      name,
+      mimeType: "application/pdf",
+      buffer: Buffer.from(syntheticDocumentPdf(scenario)),
+    });
   const document = page.getByRole("listitem", { name: `Document ${name}`, exact: true });
   await expect(document).toBeVisible();
   return { name, document };
@@ -108,7 +111,7 @@ test("borrower tax uploads appear in grouped tabs with unverified suggestions an
   });
   const statusId = await task.getAttribute("aria-describedby");
   if (!statusId) throw new Error("Expected the task status label.");
-  await expect(page.locator(`[id="${statusId}"]`)).toContainText("Open");
+  await expect(page.locator(`[id="${statusId}"]`)).toContainText("Needs your action");
   await task.click();
   const answer = page.getByLabel("Your answer", { exact: true });
   const currentAnswer = await answer.inputValue();

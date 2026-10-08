@@ -98,6 +98,12 @@ test("application dashboard keeps tasks beside details on desktop and stacks the
     const details = page.getByRole("complementary", { name: "Application details", exact: true });
     await expect(taskPanel.getByRole("heading", { name: "Tasks", exact: true })).toBeVisible();
     await expect(details).toBeVisible();
+    await expect(
+      page.getByRole("navigation", { name: "Application sections", exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      details.getByRole("heading", { name: "Upload other documents", exact: true }),
+    ).toBeVisible();
     const taskBox = await taskPanel.boundingBox();
     const detailsBox = await details.boundingBox();
     if (!taskBox || !detailsBox) throw new Error("Expected visible application dashboard regions.");
@@ -107,6 +113,11 @@ test("application dashboard keeps tasks beside details on desktop and stacks the
       expect(detailsBox.y).toBeLessThan(taskBox.y + taskBox.height);
     } else {
       expect(detailsBox.y).toBeGreaterThanOrEqual(taskBox.y + taskBox.height - 1);
+      const summary = page.getByRole("region", { name: "Current application", exact: true });
+      await expect(summary).toBeVisible();
+      const summaryBox = await summary.boundingBox();
+      if (!summaryBox) throw new Error("Expected the compact mobile application summary.");
+      expect(summaryBox.y + summaryBox.height).toBeLessThanOrEqual(taskBox.y + 1);
       expect(Math.abs(detailsBox.x - taskBox.x)).toBeLessThanOrEqual(2);
     }
     await noOverflow(page);

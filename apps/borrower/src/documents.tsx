@@ -10,7 +10,7 @@ import { createDocumentTransfer } from "@keycade/ui/lib/document-transfer";
 import { documentRefreshInterval } from "@keycade/ui/lib/refresh-policy";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { ApiError, errorMessage, request } from "./api";
+import { ApiError, errorMessage, reportApplicationAccessLoss, request } from "./api";
 import { ErrorNotice, Loading } from "./workspace-ui";
 
 type DocumentsProps = {
@@ -18,6 +18,7 @@ type DocumentsProps = {
   applicationId: string;
   taskId?: string;
   onBusyChange?: (busy: boolean) => void;
+  active?: boolean;
 };
 export function ApplicationDocuments(props: DocumentsProps) {
   const workspace = useApplicationDocuments(props);
@@ -27,7 +28,8 @@ export function ApplicationDocuments(props: DocumentsProps) {
 export function useApplicationDocuments({
   session,
   applicationId,
-}: Pick<DocumentsProps, "session" | "applicationId">) {
+  active = true,
+}: Pick<DocumentsProps, "session" | "applicationId" | "active">) {
   const client = useQueryClient();
   const [accessError, setAccessError] = useState<unknown>(null);
   const base = `/api/v1/banks/${session.bank.id}/applications/${applicationId}/documents`;
@@ -37,6 +39,7 @@ export function useApplicationDocuments({
     try {
       return await operation();
     } catch (error) {
+      reportApplicationAccessLoss(base, options, error);
       if (error instanceof ApiError && [401, 403, 404].includes(error.status))
         setAccessError(error);
       throw error;
@@ -44,12 +47,13 @@ export function useApplicationDocuments({
   }
   const documents = useQuery({
     queryKey,
+    enabled: active,
     queryFn: ({ signal }) => request(base, documentsViewSchema, { ...options, signal }),
     retry: false,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
     refetchInterval: (query) =>
-      query.state.error ? false : documentRefreshInterval(query.state.data),
+      !active || query.state.error ? false : documentRefreshInterval(query.state.data),
   });
   const transfer = createDocumentTransfer({
     base,
@@ -111,6 +115,7 @@ export function useApplicationDocuments({
           data={documents.data}
           taskId={taskId}
           taskVisibility={taskVisibility}
+          active={active}
           onBusyChange={onBusyChange}
           errorMessage={errorMessage}
           reload={reload}

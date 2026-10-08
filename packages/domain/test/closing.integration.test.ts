@@ -26,6 +26,7 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   type Actor,
+  createApplicationService,
   createChecksService,
   createClosingService,
   createDocumentsService,
@@ -719,6 +720,20 @@ describe("approved closing and immutable simulated funding", () => {
       ),
     ).toBe(true);
     expect((await closing().listAccounts(other, ids.bankA)).accounts).toEqual([]);
+    const portalService = createApplicationService(database.db);
+    const fullPortal = await portalService.portal(borrower, ids.bankA, f.id);
+    expect(fullPortal.fundedAccountId).toBe(funded.account?.id);
+    expect(fullPortal.timelineEvents.map((event) => event.status)).toEqual([
+      "setup_completed",
+      "submitted",
+      "in_review",
+      "approved",
+      "closing",
+      "funded",
+    ]);
+    expect((await portalService.portal(officer, ids.bankA, f.id)).fundedAccountId).toBe(
+      funded.account?.id,
+    );
     await database.db
       .update(applicationParticipants)
       .set({ role: "adviser", scope: "assigned", taskIds: [f.envelope.taskId] })
@@ -729,11 +744,20 @@ describe("approved closing and immutable simulated funding", () => {
       ),
     ).toBe(false);
     await expect(closing().read(borrower, ids.bankA, f.id)).rejects.toMatchObject(denied);
+    expect((await portalService.portal(borrower, ids.bankA, f.id)).fundedAccountId).toBeNull();
+    await database.db
+      .update(applicationParticipants)
+      .set({ scope: "full" })
+      .where(eq(applicationParticipants.id, f.participant.id));
+    expect((await portalService.portal(borrower, ids.bankA, f.id)).fundedAccountId).toBeNull();
     await database.db
       .update(applicationParticipants)
       .set({ role: "applicant_admin", scope: "full", revokedAt: now })
       .where(eq(applicationParticipants.id, f.envelope.second.id));
     expect((await closing().listAccounts(f.envelope.secondActor, ids.bankA)).accounts).toEqual([]);
+    await expect(
+      portalService.portal(f.envelope.secondActor, ids.bankA, f.id),
+    ).rejects.toMatchObject(denied);
     await expect(closing().read(officer, ids.bankB, f.id)).rejects.toMatchObject(denied);
   });
   it("database constraints preserve one funding event, scope and exact approved amount", async () => {

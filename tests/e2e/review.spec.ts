@@ -180,7 +180,9 @@ test("submission, returned information, immutable resubmission, and explicit app
     await signIn(officer, staff);
     await officer.goto(`${staff}/api/ready`);
     const app = await createApplication(page);
-    await page.goto(url(borrower, app.id));
+    await page.goto(`${borrower}/applications/${app.id}?bank=bank-a`);
+    await page.getByRole("link", { name: "Review and submit application", exact: true }).click();
+    await expect(page).toHaveURL(url(borrower, app.id));
     await expect(
       page.getByRole("region", { name: "Submission readiness", exact: true }),
     ).toContainText("Describe your business");
@@ -412,7 +414,7 @@ test("staff-on-behalf submission and stale decision forms require explicit reloa
     await expect(officer.getByText("Decline recorded", { exact: true })).toBeVisible();
     await page.goto(url(borrower, app.id));
     await expect(
-      page.getByRole("heading", { name: "This application is closed", exact: true }),
+      page.getByRole("status").filter({ hasText: "This application is closed" }),
     ).toBeVisible();
     await expect(
       page.getByText("The application does not meet the simulated review criteria.", {

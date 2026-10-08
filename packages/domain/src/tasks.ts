@@ -573,6 +573,7 @@ export function createTasksService(
       revision: task.revision,
       evidenceRevision: task.evidenceRevision,
       assigneeParticipantId: task.assigneeParticipantId,
+      assignedToYou: own,
       subjectUserId: task.subjectUserId,
       dueAt: task.dueAt?.toISOString() ?? null,
       canEdit: mutable && own && evidenceEditable(status, task.stage),

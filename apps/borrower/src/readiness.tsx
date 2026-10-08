@@ -9,11 +9,14 @@ import { ErrorNotice, Loading } from "./workspace-ui";
 export function ApplicationReadiness({
   session,
   applicationId,
+  active = true,
 }: {
   session: AuthenticatedSession;
   applicationId: string;
+  active?: boolean;
 }) {
   const readiness = useQuery({
+    enabled: active,
     queryKey: ["readiness", session.bank.id, session.user.email, applicationId],
     queryFn: ({ signal }) =>
       request(
@@ -25,7 +28,7 @@ export function ApplicationReadiness({
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
     refetchInterval: (query) =>
-      query.state.error ? false : readinessRefreshInterval(query.state.data),
+      !active || query.state.error ? false : readinessRefreshInterval(query.state.data),
   });
   if (readiness.isPending || !readiness.isFetchedAfterMount) return <Loading />;
   if (

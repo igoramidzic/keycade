@@ -146,6 +146,25 @@ test("an invited adviser uploads assigned evidence without private access and lo
     const visible = await workflowApi<TasksView>(adviser, "GET", `${base}/tasks`);
     expect(visible.tasks.map((task) => task.id)).toEqual([assigned.id]);
     expect(visible.tasks[0]?.assigneeParticipantId).toBe(accepted.id);
+    const generalDocuments = await workflowApi<DocumentsView>(adviser, "GET", `${base}/documents`);
+    expect(generalDocuments.canUpload).toBe(false);
+    expect(generalDocuments.uploadTasks.map((task) => task.id)).toEqual([assigned.id]);
+    const genericUploadKey = randomUUID();
+    const genericUpload = await workflowApi<{
+      uploads: { idempotencyKey: string; error?: string; uploadId?: string }[];
+    }>(adviser, "POST", `${base}/documents/uploads`, {
+      files: [
+        {
+          idempotencyKey: genericUploadKey,
+          fileName: "synthetic-denied-general.pdf",
+          mimeType: "application/pdf",
+          expectedSize: pdf.length,
+        },
+      ],
+    });
+    expect(genericUpload.uploads).toEqual([
+      { idempotencyKey: genericUploadKey, error: expect.any(String) },
+    ]);
     const privateContent = `${base}/documents/versions/${privateDocument.currentVersionId}/content`;
     expect(await status(adviser, `${base}/tasks/${privateTask.id}`)).toBe(404);
     expect(await status(adviser, privateContent)).toBe(404);
@@ -156,6 +175,25 @@ test("an invited adviser uploads assigned evidence without private access and lo
       adviser.getByRole("heading", { name: "Task documents", exact: true }),
     ).toBeVisible();
     await expect(adviser.getByText(privateName, { exact: true })).toHaveCount(0);
+    await expect(
+      adviser
+        .getByRole("region", { name: "Your tasks", exact: true })
+        .getByRole("button", { name: assigned.title, exact: true }),
+    ).toBeVisible();
+    const sidebar = adviser.getByRole("complementary", {
+      name: "Application details",
+      exact: true,
+    });
+    await expect(sidebar).toBeVisible();
+    await expect(sidebar.getByRole("button", { name: "Choose files", exact: true })).toHaveCount(0);
+    await expect(
+      sidebar.getByRole("region", { name: "Other document upload drop area", exact: true }),
+    ).toHaveCount(0);
+    await expect(adviser.getByRole("button", { name: privateTask.title, exact: true })).toHaveCount(
+      0,
+    );
+    await expect(adviser.getByText("$10,000", { exact: true })).toHaveCount(0);
+    await expect(adviser.getByText("$5,000,000", { exact: true })).toHaveCount(0);
     const fileName = `synthetic-adviser-statement-${randomUUID().slice(0, 8)}.pdf`;
     const picker = adviser.waitForEvent("filechooser");
     await adviser.getByRole("button", { name: "Choose files", exact: true }).focus();
@@ -197,14 +235,26 @@ test("an invited adviser uploads assigned evidence without private access and lo
     });
 
     await officer.goto(url(staff, "participants"));
-    await adviser.goto(url(borrower, "tasks", assigned.id));
-    await expect(
-      adviser.getByRole("listitem", { name: `Document ${fileName}`, exact: true }),
-    ).toBeVisible();
     const participant = officer
       .getByRole("listitem")
       .filter({ hasText: email })
       .filter({ has: officer.getByRole("button", { name: "Remove access", exact: true }) });
+    // Finish the officer's paced workspace load before queuing the borrower's reads.
+    await expect(participant).toBeVisible();
+    testInfo.annotations.push({
+      type: "reload_pacing_backlog_ms",
+      description: String(Math.max(0, nextRequestAt - Date.now())),
+    });
+    const reloadedDocuments = adviser.waitForResponse(
+      (response) =>
+        response.request().method() === "GET" &&
+        new URL(response.url()).pathname.endsWith(`${base}/documents`),
+    );
+    await adviser.goto(url(borrower, "tasks", assigned.id));
+    expect((await reloadedDocuments).status()).toBe(200);
+    await expect(
+      adviser.getByRole("listitem", { name: `Document ${fileName}`, exact: true }),
+    ).toBeVisible();
     await participant.getByRole("button", { name: "Remove access", exact: true }).click();
     await expect(
       officer.getByRole("status").filter({ hasText: "Participant access removed." }),

@@ -1,6 +1,6 @@
 # Version 2 data and simulation contracts
 
-Status: V2-01 setup contract implemented locally; the remaining contracts are proposed, not implemented APIs/tables. Reuse current packages and services; choose concrete SQL/table/route names during the owning task. The [existing architecture](../02-architecture.md), [access rules](../03-domain-and-access.md) and [durable processing](../04-integrations-and-jobs.md) remain binding.
+Status: V2-01 setup and V2-02 borrower projection contracts are implemented and verified locally. Importer, financial-record and footprint contracts remain proposed. Reuse current packages and services; choose concrete SQL/table/route names during the owning task. The [existing architecture](../02-architecture.md), [access rules](../03-domain-and-access.md) and [durable processing](../04-integrations-and-jobs.md) remain binding.
 
 ## Application intake and compatibility — V2-01
 

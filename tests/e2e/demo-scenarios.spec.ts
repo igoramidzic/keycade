@@ -224,11 +224,14 @@ test("kit downloads, internal drags, and keyboard uploads use real PDFs and reta
 
   // Classification comes from registered contents even when the borrower renames the PDF.
   const renamed = `renamed-synthetic-ein-${randomUUID().slice(0, 8)}.pdf`;
-  await page.getByLabel("Choose document files", { exact: true }).setInputFiles({
-    name: renamed,
-    mimeType: "application/pdf",
-    buffer: Buffer.from(createDemoDocumentPdf(fixture("clear-ein"), businessName)),
-  });
+  await page
+    .getByRole("region", { name: "Document upload drop area", exact: true })
+    .getByLabel("Choose document files", { exact: true })
+    .setInputFiles({
+      name: renamed,
+      mimeType: "application/pdf",
+      buffer: Buffer.from(createDemoDocumentPdf(fixture("clear-ein"), businessName)),
+    });
   const ein = page.getByRole("listitem", { name: `Document ${renamed}`, exact: true });
   await expect(ein).toContainText("Business name matches", { timeout: 30_000 });
   await page.getByRole("tab", { name: /^Business\/legal/ }).click();

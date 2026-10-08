@@ -35,6 +35,7 @@ export type TaskSummary = {
   revision: number;
   evidenceRevision: number;
   assigneeParticipantId: string | null;
+  assignedToYou?: boolean;
   subjectUserId: string | null;
   dueAt: string | null;
   canEdit: boolean;
@@ -143,9 +144,11 @@ export function TasksManager({
   renderDocuments,
   signatureHref,
   initialTaskId,
+  borrowerBusinessName,
 }: {
   data: TasksData;
   initialTaskId?: string | null;
+  borrowerBusinessName?: string;
   mutate: (
     path: string,
     body: object,
@@ -174,6 +177,19 @@ export function TasksManager({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [pendingSelection, setPendingSelection] = useState<{ id: string | null } | null>(null);
   const confirmRef = useRef<HTMLDivElement>(null);
+  const lastRequestedTask = useRef(initialTaskId);
+  useEffect(() => {
+    // A contextual closing/reminder link may change the requested task while
+    // this editor stays mounted. Honor the new intent through the same dirty guard.
+    if (lastRequestedTask.current === initialTaskId) return;
+    lastRequestedTask.current = initialTaskId;
+    if (
+      initialTaskId &&
+      initialTaskId !== selected &&
+      data.tasks.some((task) => task.id === initialTaskId)
+    )
+      selectTask(initialTaskId);
+  });
   useEffect(() => {
     if (pendingSelection) confirmRef.current?.focus();
   }, [pendingSelection]);
@@ -181,15 +197,33 @@ export function TasksManager({
   const visible = data.tasks.filter(
     (task) => filter === "all" || task.state !== "cancelled" || task.id === selected,
   );
-  const staffView = data.canManage || data.assignees.length > 0;
+  const staffView = borrowerBusinessName === undefined;
+  if (!staffView) {
+    const priority: Record<State, number> = {
+      needs_changes: 0,
+      open: 1,
+      submitted: 2,
+      completed: 3,
+      waived: 3,
+      cancelled: 4,
+    };
+    const stages: Record<Stage, number> = { submission: 0, approval: 1, closing: 2 };
+    visible.sort(
+      (a, b) => priority[a.state] - priority[b.state] || stages[a.stage] - stages[b.stage],
+    );
+  }
   const groups = [
     {
       title: staffView ? "Private and assigned tasks" : "Your tasks",
-      tasks: visible.filter((task) => task.visibility !== "shared"),
+      tasks: visible.filter(
+        (task) => task.visibility !== "shared" || (!staffView && task.assignedToYou),
+      ),
     },
     {
-      title: staffView ? "Business tasks" : "Tasks for your business",
-      tasks: visible.filter((task) => task.visibility === "shared"),
+      title: staffView ? "Business tasks" : `Tasks for ${borrowerBusinessName}`,
+      tasks: visible.filter(
+        (task) => task.visibility === "shared" && (staffView || !task.assignedToYou),
+      ),
     },
   ];
   function selectTask(id: string | null) {
@@ -342,7 +376,16 @@ export function TasksManager({
                                 id={`task-status-${task.id}`}
                                 className="block text-xs leading-4 text-muted-foreground"
                               >
-                                {stateLabels[task.state]} · {stageLabels[task.stage]}
+                                {!staffView && task.state === "open"
+                                  ? task.canEdit || task.canSubmit || task.secureInput?.canEdit
+                                    ? "Needs your action"
+                                    : task.inputKind === "signature"
+                                      ? "Signature request"
+                                      : "Waiting for assignee"
+                                  : !staffView && task.state === "submitted"
+                                    ? "Submitted / Waiting for lender review"
+                                    : stateLabels[task.state]}{" "}
+                                · {stageLabels[task.stage]}
                                 {!task.required && " · Optional"}
                                 {task.dueAt && ` · Due ${displayDate(task.dueAt)}`}
                               </span>

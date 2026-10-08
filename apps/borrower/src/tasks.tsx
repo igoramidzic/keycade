@@ -10,12 +10,16 @@ import { ErrorNotice, Loading } from "./workspace-ui";
 export function ApplicationTasks({
   session,
   applicationId,
+  businessName,
+  active = true,
 }: {
   session: AuthenticatedSession;
   applicationId: string;
+  businessName: string;
+  active?: boolean;
 }) {
   const client = useQueryClient();
-  const documents = useApplicationDocuments({ session, applicationId });
+  const documents = useApplicationDocuments({ session, applicationId, active });
   const [accessError, setAccessError] = useState<unknown>(null);
   async function guarded<T>(operation: () => Promise<T>) {
     try {
@@ -31,11 +35,12 @@ export function ApplicationTasks({
   const queryKey = ["tasks", session.bank.id, session.user.email, applicationId];
   const tasks = useQuery({
     queryKey,
+    enabled: active,
     queryFn: ({ signal }) => request(base, tasksViewSchema, { ...options, signal }),
     retry: false,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
-    refetchInterval: 15_000,
+    refetchInterval: active ? 15_000 : false,
   });
   if (accessError)
     return (
@@ -60,6 +65,7 @@ export function ApplicationTasks({
     <div className="space-y-5">
       {tasks.error && <ErrorNotice error={tasks.error} onRetry={() => void tasks.refetch()} />}
       <TasksManager
+        borrowerBusinessName={businessName}
         initialTaskId={new URLSearchParams(window.location.search).get("task")}
         data={tasks.data}
         signatureHref={(envelopeId) =>

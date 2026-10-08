@@ -181,6 +181,15 @@ for (const transport of ["fastify", "worker"] as const) {
           remainingTasks: expect.any(Number),
           accessScope: "full",
           canReview: true,
+          timelineEvents: [
+            {
+              id: seedIds.applicationSmall,
+              status: "setup_completed",
+              createdAt: expect.any(String),
+            },
+          ],
+          loanOfficer: null,
+          fundedAccountId: null,
         });
         for (const [applicationId, code] of [
           [seedIds.applicationSetupDraft, "SETUP_REQUIRED"],
@@ -255,6 +264,9 @@ for (const transport of ["fastify", "worker"] as const) {
           remainingTasks: expect.any(Number),
           accessScope: "assigned",
           canReview: false,
+          timelineEvents: [],
+          loanOfficer: null,
+          fundedAccountId: null,
         });
         expect((await c.call(`${bankPath}/${draft.id}`, adviser)).body).toMatchObject({
           purpose: null,

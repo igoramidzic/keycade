@@ -2,13 +2,14 @@ import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { readEnvironment } from "@keycade/config/server";
 import { syntheticDocumentPdf } from "@keycade/integrations/document-fixtures";
-import { expect, type Page, test } from "@playwright/test";
+import { type BrowserContext, expect as baseExpect, type Page, test } from "@playwright/test";
 import { messages, openLink, waitForLink } from "./identity-helpers";
 
 const env = readEnvironment();
 const borrower = `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
 const staff = `http://127.0.0.1:${env.BANK_CONSOLE_PORT ?? 3002}`;
 const applicationId = "60000000-0000-4000-8000-000000000001";
+const expect = baseExpect.configure({ timeout: 15_000 });
 test.use({ trace: "off", screenshot: "off", video: "off", actionTimeout: 15000 });
 test.setTimeout(150000);
 const url = (origin: string, section: string) =>
@@ -57,11 +58,14 @@ async function fixture(page: Page) {
   await page.goto(url(staff, "documents"));
   await page.getByLabel("Attach to", { exact: true }).selectOption(taskId);
   const fileName = `synthetic-agreement-${randomUUID().slice(0, 8)}.pdf`;
-  await page.getByLabel("Choose document files", { exact: true }).setInputFiles({
-    name: fileName,
-    mimeType: "application/pdf",
-    buffer: Buffer.from(syntheticDocumentPdf("clean-tax")),
-  });
+  await page
+    .getByRole("region", { name: "Document upload drop area", exact: true })
+    .getByLabel("Choose document files", { exact: true })
+    .setInputFiles({
+      name: fileName,
+      mimeType: "application/pdf",
+      buffer: Buffer.from(syntheticDocumentPdf("clean-tax")),
+    });
   const document = page.getByRole("listitem", { name: `Document ${fileName}`, exact: true });
   await expect(document.getByRole("button", { name: "Download", exact: true })).toBeVisible({
     timeout: 25000,
@@ -93,6 +97,20 @@ test("two intended signers complete a simulated request through emailed continua
   page,
   browser,
 }, testInfo) => {
+  test.setTimeout(240_000);
+  let nextRequestAt = 0;
+  async function pace(context: BrowserContext) {
+    // Three signed-in browsers share the unchanged application IP request budget.
+    await context.route("**/api/**", async (route) => {
+      if (!route.request().url().includes("/api/v1/auth/session")) {
+        const startAt = Math.max(Date.now(), nextRequestAt);
+        nextRequestAt = startAt + 800;
+        await new Promise((resolve) => setTimeout(resolve, startAt - Date.now()));
+      }
+      await route.continue().catch(() => undefined);
+    });
+  }
+  await pace(page.context());
   await signIn(page, staff, "officer-a@example.test");
   const source = await fixture(page);
   const email = `signature-browser-${randomUUID()}@example.test`;
@@ -107,12 +125,15 @@ test("two intended signers complete a simulated request through emailed continua
   });
   const signerContext = await browser.newContext({ viewport: page.viewportSize() });
   const applicantContext = await browser.newContext({ viewport: page.viewportSize() });
+  await pace(signerContext);
+  await pace(applicantContext);
   try {
     const signer = await signerContext.newPage();
     await openLink(signer, await waitForLink(borrower, email, previous));
     await signer.getByRole("button", { name: "Confirm and sign in", exact: true }).click();
     await signer.getByRole("button", { name: "Accept invitation", exact: true }).click();
     await expect(signer.getByRole("heading", { name: "Tasks", exact: true })).toBeVisible();
+    await signer.goto("about:blank");
     await page.goto(url(staff, "signatures"));
     await page.getByLabel("Signature task", { exact: true }).selectOption(source.taskId);
     await page.getByLabel("Current document", { exact: true }).selectOption(source.sourceVersionId);
@@ -129,13 +150,23 @@ test("two intended signers complete a simulated request through emailed continua
     await expect(envelope.getByText("Sent in demo", { exact: true })).toBeVisible({
       timeout: 25000,
     });
+    await page.goto(`${staff}/api/ready`);
     const applicant = await applicantContext.newPage();
     await signIn(applicant, borrower, "borrower@example.test");
+    const loadedSignatures = applicant.waitForResponse(
+      (response) =>
+        response.request().method() === "GET" &&
+        new URL(response.url()).pathname.endsWith(`/applications/${applicationId}/signatures`),
+    );
     await applicant.goto(url(borrower, "signatures"));
+    expect((await loadedSignatures).status()).toBe(200);
     const own = applicant.getByRole("region", {
       name: `Signature request ${source.title}`,
       exact: true,
     });
+    await expect(
+      own.getByRole("button", { name: "View source document", exact: true }),
+    ).toBeVisible();
     const sourceDownload = applicant.waitForEvent("download");
     await own.getByRole("button", { name: "View source document", exact: true }).click();
     expect((await sourceDownload).suggestedFilename()).toBe(source.fileName);
@@ -148,6 +179,7 @@ test("two intended signers complete a simulated request through emailed continua
     await expect(
       own.getByRole("button", { name: "Download simulated artifact", exact: true }),
     ).toHaveCount(0);
+    await applicant.goto(`${borrower}/api/ready`);
     await openLink(signer, await waitForLink(borrower, email, beforeSend));
     await signer.getByRole("button", { name: "Confirm and sign in", exact: true }).click();
     const invited = signer.getByRole("region", {

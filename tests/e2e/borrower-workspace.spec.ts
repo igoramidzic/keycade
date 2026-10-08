@@ -116,39 +116,38 @@ test("business groups show granted applications and portal navigation keeps appl
   await expect(page.getByText("Initial setup complete", { exact: true })).toBeVisible();
   await expect(page.getByRole("progressbar")).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath("synthetic-overview.png"), fullPage: true });
-  await page.getByRole("link", { name: "Tasks", exact: true }).click();
-  await expect(page).toHaveURL(applicationUrl(ids.small, "tasks"));
   await expect(page.getByRole("heading", { name: "Tasks", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "Application sections", exact: true }),
+  ).toHaveCount(0);
   for (const section of [
-    { path: "documents", label: "Documents" },
-    { path: "activity", label: "Activity" },
+    { path: "documents", label: "View documents", heading: "Documents" },
+    { path: "signatures", label: "View signatures", heading: "Simulated signatures" },
+    { path: "activity", label: "View activity", heading: "Application activity" },
+    { path: "people", label: "People and access", heading: "People with portal access" },
   ]) {
     await page.getByRole("link", { name: section.label, exact: true }).click();
     await expect(page).toHaveURL(applicationUrl(ids.small, section.path));
-    if (section.path === "activity")
-      await expect(
-        page.getByRole("heading", { name: "Application activity", exact: true }),
-      ).toBeVisible();
-    else
-      await expect(page.getByRole("region", { name: "Document upload drop area" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: section.heading, exact: true })).toBeVisible();
+    await expect(
+      page.getByRole("navigation", { name: "Application sections", exact: true }),
+    ).toHaveCount(0);
     await noOverflow(page);
+    await page.reload();
+    await expect(page.getByRole("heading", { name: section.heading, exact: true })).toBeVisible();
+    await page.getByRole("link", { name: "Back to task dashboard", exact: true }).click();
+    await expect(page).toHaveURL(applicationUrl(ids.small));
+    await expect(page.getByRole("heading", { name: "Tasks", exact: true })).toBeVisible();
   }
-  await page.reload();
-  await expect(
-    page.getByRole("heading", { name: "Application activity", exact: true }),
-  ).toBeVisible();
-  await page.getByRole("link", { name: "People", exact: true }).click();
-  await expect(page).toHaveURL(applicationUrl(ids.small, "people"));
-  await expect(
-    page.getByRole("heading", { name: "People with portal access", exact: true }),
-  ).toBeVisible();
+  await page.getByRole("link", { name: "People and access", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Invite a collaborator", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Send invitation", exact: true })).toHaveCount(0);
+  await page.getByRole("link", { name: "Back to task dashboard", exact: true }).click();
+  await expect(
+    page.getByRole("link", { name: "Review and submit application", exact: true }),
   ).toBeVisible();
-  await expect(page.getByLabel("Role", { exact: true })).toHaveValue("adviser");
-  await expect(page.getByLabel("Access scope", { exact: true })).toHaveValue("assigned");
-  await expect(page.getByRole("button", { name: "Send invitation", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Review", exact: true })).toBeVisible();
   expect(backgroundReviewReads).toBe(0);
   await noOverflow(page);
   await page.getByRole("link", { name: "Your applications", exact: true }).click();
@@ -159,7 +158,11 @@ test("business groups show granted applications and portal navigation keeps appl
   await expect(
     page.getByRole("heading", { name: "Synthetic Maple Supply", exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("$5,000,000", { exact: true })).toBeVisible();
+  await expect(
+    page
+      .getByRole("complementary", { name: "Application details", exact: true })
+      .getByText("$5,000,000", { exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByRole("main").getByText("Synthetic equipment purchase", { exact: true }),
   ).toHaveCount(0);
@@ -239,7 +242,9 @@ test("limited invited participants see scoped summaries without applicant setup 
     .getByRole("button", { name: "Open application", exact: true })
     .click();
   await expect(page.getByText("Limited access", { exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Review", exact: true })).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: "Review and submit application", exact: true }),
+  ).toHaveCount(0);
   await expect(
     page.getByRole("main").getByText("Synthetic equipment purchase", { exact: true }),
   ).toHaveCount(0);
@@ -247,11 +252,10 @@ test("limited invited participants see scoped summaries without applicant setup 
   await page.goto(applicationUrl(ids.small, "setup"));
   await expect(page).toHaveURL(applicationUrl(ids.small));
   await expect(page.getByLabel("Legal business name", { exact: true })).toHaveCount(0);
-  await page.getByRole("link", { name: "Tasks", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Tasks", exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByText("Limited access", { exact: true })).toBeVisible();
-  await page.getByRole("link", { name: "People", exact: true }).click();
+  await page.getByRole("link", { name: "People and access", exact: true }).click();
   await expect(page).toHaveURL(applicationUrl(ids.small, "people"));
   await expect(
     page.getByRole("heading", { name: "People with portal access", exact: true }),
@@ -400,7 +404,7 @@ test("portal polling replaces an application that closes with its closed state",
   closed = true;
   await page.clock.fastForward(30_001);
   await expect(
-    page.getByRole("heading", { name: "This application is closed", exact: true }),
+    page.getByRole("status").filter({ hasText: "This application is closed" }),
   ).toBeVisible();
   expect(detailReads).toBeGreaterThan(initialReads);
   await expect(
@@ -440,7 +444,6 @@ test("an invited participant with full scope is not told unfinished applicant se
   ).toBeVisible();
   await expect(page.getByText("Initial setup complete", { exact: true })).toHaveCount(0);
   await expect(page.getByLabel("Legal business name", { exact: true })).toHaveCount(0);
-  await page.getByRole("link", { name: "Tasks", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Tasks", exact: true })).toBeVisible();
   await noOverflow(page);
 });

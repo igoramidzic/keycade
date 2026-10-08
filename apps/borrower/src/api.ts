@@ -10,16 +10,46 @@ export class ApiError extends Error {
     super(message);
   }
 }
+type RequestOptions = {
+  method?: "GET" | "POST" | "PATCH" | "DELETE";
+  body?: object;
+  signal?: AbortSignal;
+  bankId?: string;
+  actorEmail?: string;
+};
+type AccessLoss = { bankId: string; applicationId: string; actorEmail?: string; error: ApiError };
+const accessListeners = new Set<(event: AccessLoss) => void>();
+export function onApplicationAccessLoss(listener: (event: AccessLoss) => void) {
+  accessListeners.add(listener);
+  return () => {
+    accessListeners.delete(listener);
+  };
+}
+export function reportApplicationAccessLoss(path: string, options: RequestOptions, error: unknown) {
+  if (!(error instanceof ApiError) || ![401, 403, 404].includes(error.status)) return;
+  const match = /^\/api\/v1\/banks\/([^/]+)\/applications\/([^/?]+)(?:[/?]|$)/.exec(path);
+  if (!match?.[1] || !match[2]) return;
+  for (const listener of accessListeners)
+    listener({ bankId: match[1], applicationId: match[2], actorEmail: options.actorEmail, error });
+}
 export async function request<T>(
   path: string,
   schema: { parse(input: unknown): T },
-  options: {
-    method?: "GET" | "POST" | "PATCH" | "DELETE";
-    body?: object;
-    signal?: AbortSignal;
-    bankId?: string;
-    actorEmail?: string;
-  } = {},
+  options: RequestOptions = {},
+): Promise<T> {
+  try {
+    return await performRequest(path, schema, options);
+  } catch (error) {
+    // Mutations are not query-cache errors. Notify the mounted application too,
+    // so an access denial clears every retained editor immediately.
+    reportApplicationAccessLoss(path, options, error);
+    throw error;
+  }
+}
+async function performRequest<T>(
+  path: string,
+  schema: { parse(input: unknown): T },
+  options: RequestOptions,
 ): Promise<T> {
   const method = options.method ?? "GET";
   let csrf: string | undefined;

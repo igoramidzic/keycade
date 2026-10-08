@@ -139,6 +139,21 @@ export const applicationSetupSchema = applicationSelectionSchema.extend({
   skippedSteps: z.array(applicationSetupStepSchema),
   completedAt: z.string().datetime().nullable(),
 });
+export const applicationTimelineEventSchema = z.object({
+  id: z.string().uuid(),
+  status: z.enum([
+    "setup_completed",
+    "submitted",
+    "in_review",
+    "needs_information",
+    "approved",
+    "declined",
+    "withdrawn",
+    "closing",
+    "funded",
+  ]),
+  createdAt: z.string().datetime(),
+});
 export const applicationPortalSchema = applicationSelectionSchema.extend({
   purpose: z.string().nullable(),
   fundingPurposes: fundingPurposesSchema,
@@ -146,6 +161,11 @@ export const applicationPortalSchema = applicationSelectionSchema.extend({
   otherPurposeDetail: z.string().nullable(),
   remainingTasks: z.number().int().nonnegative(),
   canReview: z.boolean().default(false),
+  timelineEvents: z.array(applicationTimelineEventSchema),
+  loanOfficer: z
+    .object({ displayName: z.string(), email: z.string().email(), synthetic: z.literal(true) })
+    .nullable(),
+  fundedAccountId: z.string().uuid().nullable(),
 });
 export const applicationPageSchema = z.object({
   items: z.array(applicationSelectionSchema),
@@ -162,3 +182,4 @@ export type ApplicationSetup = z.infer<typeof applicationSetupSchema>;
 export type ApplicationPage = z.infer<typeof applicationPageSchema>;
 
 export type ApplicationPortal = z.infer<typeof applicationPortalSchema>;
+export type ApplicationTimelineEvent = z.infer<typeof applicationTimelineEventSchema>;

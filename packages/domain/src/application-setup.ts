@@ -19,15 +19,18 @@ import {
   applicantContacts,
   applicationParticipants,
   applicationRequests,
+  applicationReviewEvents,
   applicationSetups,
   applications,
   auditEvents,
   bankMemberships,
   banks,
   businesses,
+  closingCommands,
   type Database,
   type DatabaseTransaction,
   identityRateLimits,
+  loanAccounts,
   loanProducts,
   users,
 } from "@keycade/db";
@@ -676,8 +679,99 @@ export function createApplicationService(
       const access = await requireApplicantPortalAccess(tx, actor, bankId, applicationId);
       await reconcileTasks(tx, bankId, applicationId, randomUUID(), clock());
       const selected = await summary(tx, actor, row, setup, access);
+      // Project only general milestones. Reasons, private notes, task IDs, account
+      // terms and participant identities never enter the borrower timeline.
+      const reviewEvents = await tx
+        .select({
+          id: applicationReviewEvents.id,
+          action: applicationReviewEvents.action,
+          revision: applicationReviewEvents.applicationRevision,
+          createdAt: applicationReviewEvents.createdAt,
+        })
+        .from(applicationReviewEvents)
+        .where(
+          and(
+            eq(applicationReviewEvents.bankId, bankId),
+            eq(applicationReviewEvents.applicationId, applicationId),
+          ),
+        );
+      const closingEvents = await tx
+        .select({
+          id: closingCommands.id,
+          action: closingCommands.action,
+          revision: closingCommands.applicationRevision,
+          createdAt: closingCommands.createdAt,
+        })
+        .from(closingCommands)
+        .where(
+          and(eq(closingCommands.bankId, bankId), eq(closingCommands.applicationId, applicationId)),
+        );
+      const statusByAction = {
+        submit: "submitted",
+        start_review: "in_review",
+        request_information: "needs_information",
+        approve: "approved",
+        decline: "declined",
+        withdraw: "withdrawn",
+        start: "closing",
+        fund: "funded",
+      } as const;
+      const [loanOfficer] = row.assignedStaffId
+        ? await tx
+            .select({
+              displayName: users.displayName,
+              email: users.email,
+              synthetic: users.synthetic,
+            })
+            .from(bankMemberships)
+            .innerJoin(users, eq(users.id, bankMemberships.userId))
+            .where(
+              and(
+                eq(bankMemberships.bankId, bankId),
+                eq(bankMemberships.userId, row.assignedStaffId),
+                isNull(bankMemberships.revokedAt),
+                eq(users.synthetic, true),
+              ),
+            )
+        : [];
+      // Match the funded-account service's authority; full collaborators still
+      // do not receive account identities through this more general portal read.
+      const accountAllowed =
+        access.kind === "staff" ||
+        (access.kind === "participant" &&
+          access.role === "applicant_admin" &&
+          access.scope === "full");
+      const [account] =
+        accountAllowed && row.status === "funded"
+          ? await tx
+              .select({ id: loanAccounts.id })
+              .from(loanAccounts)
+              .where(
+                and(eq(loanAccounts.bankId, bankId), eq(loanAccounts.applicationId, applicationId)),
+              )
+          : [];
       return applicationPortalSchema.parse({
         ...selected,
+        timelineEvents: [
+          ...(setup.completedAt
+            ? [
+                {
+                  id: applicationId,
+                  status: "setup_completed",
+                  createdAt: setup.completedAt.toISOString(),
+                },
+              ]
+            : []),
+          ...[...reviewEvents, ...closingEvents]
+            .sort((left, right) => left.revision - right.revision)
+            .map((event) => ({
+              id: event.id,
+              status: statusByAction[event.action],
+              createdAt: event.createdAt.toISOString(),
+            })),
+        ],
+        loanOfficer: loanOfficer ?? null,
+        fundedAccountId: account?.id ?? null,
         canReview:
           actor.kind === "user" &&
           row.synthetic &&

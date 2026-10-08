@@ -21,13 +21,15 @@ import type {
   AuthenticatedSession,
   IdentityControls,
 } from "@keycade/ui/components/identity-portal";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router";
 import { AccountList } from "./accounts";
 import { ApplicationActivity } from "./activity";
-import { ApiError, formatAmount, request } from "./api";
+import { ApiError, formatAmount, onApplicationAccessLoss, request } from "./api";
+import { ApplicationTimeline } from "./application-timeline";
 import { ApplicationClosing } from "./closing";
+import { DashboardUpload } from "./dashboard-upload";
 import { ApplicationDocuments } from "./documents";
 import { ApplicationPeople } from "./participants";
 import { ApplicationReadiness } from "./readiness";
@@ -311,8 +313,82 @@ export function ApplicationRoute({
   controls: IdentityControls;
 }) {
   const { applicationId = "", "*": view = "" } = useParams();
+  return (
+    <ScopedApplicationRoute
+      key={`${session.bank.id}:${session.user.email}:${applicationId}`}
+      session={session}
+      setup={setup}
+      controls={controls}
+      applicationId={applicationId}
+      view={view}
+    />
+  );
+}
+
+function ScopedApplicationRoute({
+  session,
+  setup,
+  controls,
+  applicationId,
+  view,
+}: {
+  session: AuthenticatedSession;
+  setup: boolean;
+  controls: IdentityControls;
+  applicationId: string;
+  view: string;
+}) {
+  const client = useQueryClient();
+  const [accessError, setAccessError] = useState<unknown>(null);
+  const denied = useRef(false);
+  const loseAccess = useCallback(
+    (error: unknown) => {
+      if (denied.current) return;
+      denied.current = true;
+      // Keep the denial above the destination observer. Removing its cached data
+      // must not remount the portal and silently restore discarded editors.
+      setAccessError(error);
+      const scoped = (query: { queryKey: readonly unknown[] }) =>
+        query.queryKey.includes(session.bank.id) &&
+        query.queryKey.includes(session.user.email) &&
+        (query.queryKey.includes(applicationId) ||
+          ["applications", "accounts"].includes(String(query.queryKey[0])));
+      void client.cancelQueries({ predicate: scoped });
+      client.removeQueries({ predicate: scoped });
+    },
+    [client, session.bank.id, session.user.email, applicationId],
+  );
+  useEffect(
+    () =>
+      onApplicationAccessLoss((event) => {
+        if (
+          event.bankId === session.bank.id &&
+          event.applicationId === applicationId &&
+          (!event.actorEmail || event.actorEmail === session.user.email)
+        )
+          loseAccess(event.error);
+      }),
+    [applicationId, session.bank.id, session.user.email, loseAccess],
+  );
+  useEffect(
+    () =>
+      client.getQueryCache().subscribe((event) => {
+        if (event.type !== "updated" || event.action.type !== "error") return;
+        const error = event.query.state.error;
+        if (
+          event.query.queryKey.includes(applicationId) &&
+          event.query.queryKey.includes(session.bank.id) &&
+          event.query.queryKey.includes(session.user.email) &&
+          error instanceof ApiError &&
+          [401, 403, 404].includes(error.status)
+        )
+          loseAccess(error);
+      }),
+    [client, applicationId, session.bank.id, session.user.email, loseAccess],
+  );
   const destination = useQuery({
     queryKey: ["destination", session.bank.id, session.user.email, applicationId, setup],
+    enabled: !accessError,
     queryFn: ({ signal }) =>
       request(
         `/api/v1/banks/${session.bank.id}/applications/${applicationId}/destination`,
@@ -325,7 +401,7 @@ export function ApplicationRoute({
     gcTime: 0,
   });
   const data = destination.data;
-  useDemoApplication(applicationId, destination.error ? null : data?.businessName);
+  useDemoApplication(applicationId, accessError || destination.error ? null : data?.businessName);
   const back = (
     <Link
       className={buttonVariants({ variant: "outline" })}
@@ -334,8 +410,25 @@ export function ApplicationRoute({
       Your applications
     </Link>
   );
-  if (destination.isPending || destination.isFetching) return <Loading />;
-  if (destination.error)
+  if (accessError)
+    return (
+      <div className="space-y-4">
+        {back}
+        <ErrorNotice
+          error={accessError}
+          onRetry={() => {
+            denied.current = false;
+            setAccessError(null);
+          }}
+        />
+      </div>
+    );
+  if (destination.isPending) return <Loading />;
+  if (
+    destination.error &&
+    (!data ||
+      (destination.error instanceof ApiError && [401, 403, 404].includes(destination.error.status)))
+  )
     return (
       <div className="space-y-4">
         <ErrorNotice error={destination.error} onRetry={() => void destination.refetch()} />
@@ -379,7 +472,7 @@ export function ApplicationRoute({
         </p>
       </div>
     );
-  if (data.nextDestination === "closed" && data.status !== "funded")
+  if (data.nextDestination === "closed" && data.setupStatus !== "completed")
     return <ClosedApplication data={data} session={session} />;
   return (
     <ApplicationPortal
@@ -387,6 +480,7 @@ export function ApplicationRoute({
       session={session}
       applicationId={applicationId}
       view={view}
+      onAccessLost={loseAccess}
     />
   );
 }
@@ -427,25 +521,30 @@ function ClosedApplication({
   );
 }
 
-const views = [
-  "Overview",
-  "Tasks",
-  "Documents",
-  "Signatures",
-  "Review",
-  "Closing",
-  "People",
-  "Activity",
-] as const;
 function ApplicationPortal({
   session,
   applicationId,
   view,
+  onAccessLost,
 }: {
   session: AuthenticatedSession;
   applicationId: string;
   view: string;
+  onAccessLost: (error: unknown) => void;
 }) {
+  const navigate = useNavigate();
+  const active = view || "overview";
+  const dashboard = active === "overview" || active === "tasks";
+  const contextRef = useRef<HTMLDivElement>(null);
+  const returnFocus = useRef<HTMLElement | null>(null);
+  const previousView = useRef(active);
+  useEffect(() => {
+    if (previousView.current !== active) {
+      if (dashboard) returnFocus.current?.focus();
+      else contextRef.current?.focus();
+      previousView.current = active;
+    }
+  }, [active, dashboard]);
   const detail = useQuery({
     queryKey: ["portal", session.bank.id, session.user.email, applicationId],
     queryFn: ({ signal }) =>
@@ -459,6 +558,7 @@ function ApplicationPortal({
     refetchOnWindowFocus: true,
     refetchInterval: 30_000,
   });
+  useDemoApplication(applicationId, detail.error ? null : detail.data?.businessName);
   const path = (section = "") =>
     `/applications/${applicationId}${section ? `/${section}` : ""}?bank=${encodeURIComponent(session.bank.slug)}`;
   const back = (
@@ -487,12 +587,37 @@ function ApplicationPortal({
   }
   const data = detail.data;
   if (!data) return null;
-  if (data.nextDestination === "closed" && data.status !== "funded")
-    return <ClosedApplication data={data} session={session} />;
   const limited = data.accessScope === "assigned";
-  const active = view || "overview";
   return (
-    <section className="space-y-6">
+    <section
+      className="space-y-6"
+      onClick={(event) => {
+        // Shared workflow components use ordinary anchors. Keep their same-application
+        // destinations in this mounted workspace so returning preserves task edits.
+        if (
+          event.defaultPrevented ||
+          event.button !== 0 ||
+          event.metaKey ||
+          event.ctrlKey ||
+          event.shiftKey ||
+          event.altKey
+        )
+          return;
+        const link = (event.target as HTMLElement).closest("a");
+        if (!link || link.target || link.hasAttribute("download")) return;
+        const url = new URL(link.href);
+        if (
+          url.origin !== window.location.origin ||
+          !(
+            url.pathname === `/applications/${applicationId}` ||
+            url.pathname.startsWith(`/applications/${applicationId}/`)
+          )
+        )
+          return;
+        event.preventDefault();
+        navigate(`${url.pathname}${url.search}${url.hash}`);
+      }}
+    >
       {back}
       {detail.error && <ErrorNotice error={detail.error} onRetry={() => void detail.refetch()} />}
       <header className="flex flex-wrap items-start justify-between gap-3">
@@ -504,34 +629,80 @@ function ApplicationPortal({
         </div>
         {limited && <Badge variant="secondary">Limited access</Badge>}
       </header>
-      <nav aria-label="Application sections" className="flex flex-wrap gap-1">
-        {views
-          .filter((label) => {
-            if (label === "Review") return data.canReview;
-            if (label === "Closing")
-              return data.canReview && ["approved", "closing", "funded"].includes(data.status);
-            return true;
-          })
-          .map((label) => {
-            const key = label.toLowerCase();
-            return (
-              <Link
-                key={key}
-                to={path(key === "overview" ? "" : key)}
-                aria-current={active === key ? "page" : undefined}
-                className={`${buttonVariants({ variant: "ghost", size: "sm" })} ${active === key ? "bg-card shadow-sm hover:bg-card" : "text-muted-foreground"}`}
-              >
-                {label}
-              </Link>
-            );
-          })}
-      </nav>
-      {active === "overview" || active === "tasks" ? (
+      {["declined", "withdrawn"].includes(data.status) && (
+        <Alert role="status">
+          <AlertTitle>This application is closed</AlertTitle>
+          <AlertDescription>{statusDescriptions[data.status]}</AlertDescription>
+        </Alert>
+      )}
+      {!dashboard && (
+        <Link to={path()} className="inline-flex text-sm font-medium underline underline-offset-4">
+          Back to task dashboard
+        </Link>
+      )}
+      <div
+        hidden={!dashboard}
+        onClickCapture={(event) => {
+          const target = event.target as HTMLElement;
+          const link = target.closest("a");
+          if (link) returnFocus.current = link;
+        }}
+      >
+        <section
+          aria-label="Current application"
+          className="mb-5 space-y-2 rounded-xl bg-card p-4 lg:hidden"
+        >
+          <h2 className="text-sm font-semibold">Current application</h2>
+          <p className="break-words text-sm">{data.businessName ?? "Business application"}</p>
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <Badge variant="outline">{statusLabels[data.status]}</Badge>
+            {!limited && data.requestedAmount && <span>{formatAmount(data.requestedAmount)}</span>}
+          </div>
+        </section>
         <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] xl:gap-8">
           <section aria-label="Application tasks" className="min-w-0">
-            <ApplicationTasks session={session} applicationId={applicationId} />
+            <ApplicationTasks
+              session={session}
+              applicationId={applicationId}
+              businessName={data.businessName ?? "your business"}
+              active={dashboard}
+            />
+            <section
+              aria-label="Application actions"
+              className="mt-5 space-y-4 rounded-xl bg-card p-5"
+            >
+              <h2 className="text-sm font-semibold">Next steps</h2>
+              {data.canReview && (
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    {data.status === "needs_information"
+                      ? "Review the lender’s request, complete any returned tasks, then resubmit."
+                      : "Review your application’s status and available submission actions."}
+                  </p>
+                  <Link className={buttonVariants({ variant: "outline" })} to={path("review")}>
+                    Review and submit application
+                  </Link>
+                </div>
+              )}
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  Open your permitted simulated signature requests.
+                </p>
+                <Link
+                  to={path("signatures")}
+                  className="inline-flex text-sm font-medium underline underline-offset-4"
+                >
+                  View signatures
+                </Link>
+              </div>
+              {data.canReview && ["approved", "closing", "funded"].includes(data.status) && (
+                <Link to={path("closing")} className={buttonVariants({ variant: "outline" })}>
+                  {data.status === "funded" ? "View funded account" : "View closing requirements"}
+                </Link>
+              )}
+            </section>
           </section>
-          <aside aria-label="Application details" className="min-w-0 space-y-6 lg:sticky lg:top-6">
+          <aside aria-label="Application details" className="min-w-0 space-y-6">
             <Card className="shadow-sm ring-0">
               <CardHeader>
                 <CardTitle>
@@ -589,57 +760,89 @@ function ApplicationPortal({
                     <Badge variant="secondary">Initial setup complete</Badge>
                   )}
                 </div>
-                {data.canReview && ["approved", "closing", "funded"].includes(data.status) && (
-                  <Link to={path("closing")} className={buttonVariants({ variant: "outline" })}>
-                    {data.status === "funded" ? "View funded account" : "View closing requirements"}
-                  </Link>
-                )}
+                <ApplicationTimeline application={data} />
                 <p className="text-xs text-muted-foreground">
                   Updated <UpdatedAt value={data.updatedAt} />
                 </p>
               </CardContent>
             </Card>
-            <ApplicationReadiness session={session} applicationId={applicationId} />
-            {data.canReview && (
-              <Link className={buttonVariants({ variant: "outline" })} to={path("review")}>
-                Review and submit application
+            <details className="rounded-xl bg-card p-5">
+              <summary className="cursor-pointer text-sm font-medium">Task readiness</summary>
+              <div className="mt-4">
+                <ApplicationReadiness
+                  session={session}
+                  applicationId={applicationId}
+                  active={dashboard}
+                />
+              </div>
+            </details>
+            <DashboardUpload
+              session={session}
+              applicationId={applicationId}
+              active={dashboard}
+              onAccessLost={onAccessLost}
+              documentsHref={path("documents")}
+            />
+            <section aria-label="Application contacts" className="space-y-4 rounded-xl bg-card p-5">
+              <h2 className="text-sm font-semibold">Your loan officer</h2>
+              {data.loanOfficer ? (
+                <div className="space-y-1 text-sm">
+                  <p>{data.loanOfficer.displayName}</p>
+                  <p className="break-all text-muted-foreground">{data.loanOfficer.email}</p>
+                  <Badge variant="secondary">Synthetic contact</Badge>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  A loan officer has not been assigned yet.
+                </p>
+              )}
+              <Link
+                to={path("people")}
+                className="inline-flex text-sm font-medium underline underline-offset-4"
+              >
+                People and access
               </Link>
-            )}
-            <section aria-label="Application documents" className="space-y-3 px-4">
-              <h2 className="text-sm font-semibold">Documents</h2>
-              <p className="text-sm leading-6 text-muted-foreground">
-                Upload and view permitted evidence, with private files and simulated scan status.
+            </section>
+            <section aria-label="Application history" className="space-y-2 px-5">
+              <h2 className="text-sm font-semibold">History</h2>
+              <p className="text-sm text-muted-foreground">
+                See the activity you have permission to view.
               </p>
               <Link
-                to={path("documents")}
-                className="inline-flex text-sm font-medium underline underline-offset-4 hover:text-muted-foreground"
+                to={path("activity")}
+                className="inline-flex text-sm font-medium underline underline-offset-4"
               >
-                View documents
+                View activity
               </Link>
             </section>
           </aside>
         </div>
-      ) : active === "closing" ? (
-        <ApplicationClosing session={session} applicationId={applicationId} />
-      ) : active === "review" ? (
-        <ApplicationReview session={session} applicationId={applicationId} />
-      ) : active === "people" ? (
-        <ApplicationPeople session={session} applicationId={applicationId} />
-      ) : active === "documents" ? (
-        <ApplicationDocuments session={session} applicationId={applicationId} />
-      ) : active === "signatures" ? (
-        <ApplicationSignatures session={session} applicationId={applicationId} />
-      ) : active === "activity" ? (
-        <ApplicationActivity session={session} applicationId={applicationId} />
-      ) : (
-        <Card className="shadow-sm ring-0">
-          <CardHeader>
-            <CardTitle>
-              <h2>Page not found</h2>
-            </CardTitle>
-            <CardDescription>Choose an application section above.</CardDescription>
-          </CardHeader>
-        </Card>
+      </div>
+      {!dashboard && (
+        <div ref={contextRef} tabIndex={-1} className="outline-none">
+          {active === "closing" ? (
+            <ApplicationClosing session={session} applicationId={applicationId} />
+          ) : active === "review" ? (
+            <ApplicationReview session={session} applicationId={applicationId} />
+          ) : active === "people" ? (
+            <ApplicationPeople session={session} applicationId={applicationId} />
+          ) : active === "documents" ? (
+            <ApplicationDocuments session={session} applicationId={applicationId} />
+          ) : active === "signatures" ? (
+            <ApplicationSignatures session={session} applicationId={applicationId} />
+          ) : active === "activity" ? (
+            <ApplicationActivity session={session} applicationId={applicationId} />
+          ) : (
+            <Card className="shadow-sm ring-0">
+              <CardHeader>
+                <CardTitle>
+                  <h2>Page not found</h2>
+                </CardTitle>
+                <CardDescription>Return to your task dashboard to continue.</CardDescription>
+              </CardHeader>
+            </Card>
+          )}
+        </div>
       )}
     </section>
   );

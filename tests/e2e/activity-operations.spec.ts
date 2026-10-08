@@ -34,11 +34,14 @@ test("staff retries failed work and both dashboards show only currently permitte
   await signIn(page, staff, "officer-a@example.test");
   await page.goto(`${staff}/applications/${id}/documents?bank=bank-a`);
   const fileName = `synthetic-operations-${randomUUID().slice(0, 8)}.pdf`;
-  await page.getByLabel("Choose document files", { exact: true }).setInputFiles({
-    name: fileName,
-    mimeType: "application/pdf",
-    buffer: Buffer.from(syntheticDocumentPdf("scan-transient")),
-  });
+  await page
+    .getByRole("region", { name: "Document upload drop area", exact: true })
+    .getByLabel("Choose document files", { exact: true })
+    .setInputFiles({
+      name: fileName,
+      mimeType: "application/pdf",
+      buffer: Buffer.from(syntheticDocumentPdf("scan-transient")),
+    });
   const document = page.getByRole("listitem", { name: `Document ${fileName}`, exact: true });
   await expect(document).toContainText("Simulated scan failed", { timeout: 25000 });
   await page.goto(`${staff}/applications/${id}/operations?bank=bank-a`);

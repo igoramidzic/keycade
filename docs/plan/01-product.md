@@ -1,6 +1,6 @@
 # Product scope and user journeys
 
-The [v2 screenshot-driven update](v2/README.md) is the current product direction, planned on October 8, 2026. V2-01 setup is implemented locally; the remaining v2 tasks are planned. The detailed [experience specification](v2/02-experience-spec.md) and [screenshot findings](v2/01-screenshot-findings.md) distinguish observed reference behavior from decisions for Keycade. Existing task validation records describe the implemented baseline; they do not establish v2 acceptance.
+The [v2 screenshot-driven update](v2/README.md) is the current product direction, planned on October 8, 2026. V2-01 setup and V2-02 borrower dashboard are implemented and verified locally; V2-03–V2-08 remain planned. The detailed [experience specification](v2/02-experience-spec.md) and [screenshot findings](v2/01-screenshot-findings.md) distinguish observed reference behavior from decisions for Keycade. Existing task validation records describe the implemented baseline; they do not establish v2 acceptance.
 
 ## Product intent
 

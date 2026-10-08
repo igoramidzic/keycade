@@ -237,12 +237,20 @@ test("approved terms progress through two signatures and explicit funding into o
       console.log("Hosted closing: both intended signers completed the current closing agreement.");
     await signer.goto("about:blank");
 
-    await page.goto(url(borrower, "closing"));
+    if (hosted) await page.goto(url(borrower, "closing"));
+    else {
+      await page.goto(`${borrower}${base}?bank=bank-a`);
+      await page.getByRole("link", { name: "View closing requirements", exact: true }).click();
+      await expect(page).toHaveURL(url(borrower, "closing"));
+    }
     const condition = page.getByRole("listitem", {
       name: `Closing condition ${acknowledgement.title}`,
       exact: true,
     });
     await condition.getByRole("link", { name: "View task", exact: true }).click();
+    await expect(
+      page.getByRole("button", { name: acknowledgement.title, exact: true }),
+    ).toHaveAttribute("aria-expanded", "true");
     // A condition link selects details from the upfront task snapshot.
     await expect(page.getByLabel("Your answer", { exact: true })).toBeVisible();
     await page
@@ -306,7 +314,12 @@ test("approved terms progress through two signatures and explicit funding into o
     await expect(
       officer.getByRole("button", { name: "Record simulated funding", exact: true }),
     ).toHaveCount(0);
-    await page.goto(url(borrower, "closing"));
+    if (hosted) await page.goto(url(borrower, "closing"));
+    else {
+      await page.goto(`${borrower}${base}?bank=bank-a`);
+      await page.getByRole("link", { name: "View funded account", exact: true }).click();
+      await expect(page).toHaveURL(url(borrower, "closing"));
+    }
     const account = page.getByRole("article", {
       name: `Funded account ${funded.account?.id}`,
       exact: true,
