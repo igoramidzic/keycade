@@ -15,6 +15,7 @@ export * from "./setup-catalog.js";
 export * from "./setup-identifier.js";
 export * from "./signatures.js";
 export * from "./staff.js";
+export * from "./staff-overview.js";
 export const errorSchema = z.object({
   error: z.object({ code: z.string(), message: z.string(), requestId: z.string().uuid() }),
 });

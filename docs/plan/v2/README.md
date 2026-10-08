@@ -1,8 +1,8 @@
 # Version 2 — Borrower tasks and lender application records
 
-Planning date: October 8, 2026. **V2-01–V2-04 complete locally; V2-05–V2-08 not started.** This is the next implementation backlog, based on the user's twelve Cascading AI reference images and accompanying instructions. It extends the completed first-release plan. V2-01–V2-04 are implemented and verified locally; later tasks remain planned. V2-04 acceptance covers 367 unit tests, 442 PostgreSQL tests, all 12 builds/typechecks and 46 distinct desktop/mobile browser cases.
+Planning date: October 8, 2026. **V2-01–V2-05 complete locally; V2-06–V2-08 not started.** This backlog follows the user's twelve Cascading AI reference images and written instructions. V2-05 delivers the lender overview, reviewed financial history and grouped evidence while retaining existing workflows. Its local acceptance covers **373 unit tests, 449 PostgreSQL tests, all 12 builds/typechecks and 42 distinct desktop/mobile browser cases**. Hosted acceptance remains separate.
 
-Start with [screenshot findings](01-screenshot-findings.md), then [experience requirements](02-experience-spec.md), [data and simulation contracts](03-data-and-simulation.md), and [delivery tasks and validation](04-delivery-and-validation.md). Read the [existing plan](../README.md) and its architecture/access rules as well. When implementation is requested without a task number, start at V2-05, the first unfinished task with completed dependencies.
+Start with [screenshot findings](01-screenshot-findings.md), then [experience requirements](02-experience-spec.md), [data and simulation contracts](03-data-and-simulation.md), and [delivery tasks and validation](04-delivery-and-validation.md). Read the [existing plan](../README.md) and its architecture/access rules as well. When implementation is requested without a task number, start at V2-06, the first unfinished task with completed dependencies.
 
 ## Outcome
 
@@ -30,12 +30,12 @@ Removal means replacing navigation or a particular interaction, not deleting sto
 | V2-02 | [Borrower dashboard without tabs](04-delivery-and-validation.md#v2-02--borrower-task-dashboard) | V2-01 | Done — local acceptance |
 | V2-03 | [Demo text importer and document fixtures](04-delivery-and-validation.md#v2-03--demo-text-importer-and-registered-fixtures) | Completed baseline D05, T13, T14 | Done — local acceptance |
 | V2-04 | [Document review and financial records](04-delivery-and-validation.md#v2-04--document-workspace-and-reviewed-financial-facts) | V2-01, V2-03 | Done — local acceptance |
-| V2-05 | [Lender overview and evidence drilldowns](04-delivery-and-validation.md#v2-05--lender-overview-and-evidence-drilldowns) | V2-01, V2-04 | Not started |
+| V2-05 | [Lender overview and evidence drilldowns](04-delivery-and-validation.md#v2-05--lender-overview-and-evidence-drilldowns) | V2-01, V2-04 | Done — local acceptance |
 | V2-06 | [Simulated Loan Footprint](04-delivery-and-validation.md#v2-06--simulated-loan-footprint) | V2-01 | Not started |
 | V2-07 | [Integrated local acceptance](04-delivery-and-validation.md#v2-07--integrated-local-acceptance) | V2-02 through V2-06 | Not started |
 | V2-08 | [Hosted parity](04-delivery-and-validation.md#v2-08--hosted-parity-and-deployment-slice) | V2-07, completed D02/D03 | Not started |
 
-V2-05 is next. V2-06 can proceed alongside overview work because V2-01 is complete. The task file owns full dependencies and acceptance criteria. Update both indexes and each task's validation record as implementation progresses.
+V2-06 is next. Its overview entry point can now use the completed V2-05 workspace. The task file owns full dependencies and acceptance criteria. Update both indexes and each task's validation record as implementation progresses.
 
 ## Authority and boundaries
 

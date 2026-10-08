@@ -164,7 +164,7 @@ export async function validateDocumentGrants(
 }
 
 export function createDocumentsService(
-  db: Database,
+  db: Pick<Database, "transaction" | "select">,
   options: {
     clock?: () => Date;
     scanDelayMs?: number;

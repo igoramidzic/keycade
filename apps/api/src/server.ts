@@ -63,6 +63,7 @@ import {
   staffApplicationSchema,
   staffNoteParamsSchema,
   staffOptionsSchema,
+  staffOverviewSchema,
   staffPageQuerySchema,
   staffSessionSchema,
   staffWorkspaceSchema,
@@ -91,6 +92,7 @@ import {
   readPublicIntake,
   readStaffApplication,
   readStaffOptions,
+  readStaffOverview,
   readStaffWorkspace,
   requireBankStaff,
   updateApplicationPurpose,
@@ -1174,6 +1176,20 @@ export async function buildServer(options: ServerOptions) {
         request.body,
         request.id,
       );
+    },
+  );
+  app.get(
+    "/api/v1/banks/:bankId/applications/:applicationId/overview",
+    {
+      schema: {
+        params: applicationParamsSchema,
+        response: { 200: staffOverviewSchema, ...responses },
+      },
+    },
+    async (request) => {
+      const { bankId, applicationId } = request.params;
+      assertSessionBank(request.authentication, bankId);
+      return readStaffOverview(options.db, request.authentication.actor, bankId, applicationId);
     },
   );
   const financialFactsBase = "/api/v1/banks/:bankId/applications/:applicationId/financial-facts";

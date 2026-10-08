@@ -58,6 +58,7 @@ import {
   staffApplicationSchema,
   staffNoteParamsSchema,
   staffOptionsSchema,
+  staffOverviewSchema,
   staffPageQuerySchema,
   staffSessionSchema,
   staffWorkspaceSchema,
@@ -85,6 +86,7 @@ import {
   readPublicIntake,
   readStaffApplication,
   readStaffOptions,
+  readStaffOverview,
   readStaffWorkspace,
   requireBankStaff,
   updateApplicationPurpose,
@@ -232,6 +234,9 @@ export async function handleWorkerRequest(
         info: { title: "Keycade simulation API", version: "0.1.0" },
         paths: {
           ...workflowOpenApi(workflows.routes),
+          "/api/v1/banks/{bankId}/applications/{applicationId}/overview": {
+            get: { parameters, responses: applicationResponses(staffOverviewSchema) },
+          },
           "/api/v1/banks/{bankId}/applications/{applicationId}/documents": {
             get: { parameters, responses: applicationResponses(documentsViewSchema) },
           },
@@ -861,6 +866,19 @@ export async function handleWorkerRequest(
           );
       }
       return failure(404, "NOT_FOUND", "Resource not found.");
+    }
+    const overviewMatch = /^\/api\/v1\/banks\/([^/]+)\/applications\/([^/]+)\/overview$/.exec(path);
+    if (overviewMatch && get) {
+      const { bankId, applicationId } = applicationParamsSchema.parse({
+        bankId: overviewMatch[1],
+        applicationId: overviewMatch[2],
+      });
+      assertSessionBank(authentication, bankId);
+      return json(
+        staffOverviewSchema.parse(
+          await readStaffOverview(deps.db, authentication.actor, bankId, applicationId),
+        ),
+      );
     }
     const financialFactsMatch =
       /^\/api\/v1\/banks\/([^/]+)\/applications\/([^/]+)\/financial-facts$/.exec(path);

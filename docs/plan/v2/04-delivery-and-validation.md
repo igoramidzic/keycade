@@ -1,6 +1,6 @@
 # V2 delivery and validation
 
-Planning date: October 8, 2026. V2-01–V2-04 are complete locally. V2-05–V2-08 are **Not started**. Only the task-specific evidence below proves v2 behavior.
+Planning date: October 8, 2026. V2-01–V2-05 are complete locally. V2-06–V2-08 are **Not started**. Only the task-specific evidence below proves v2 behavior.
 
 Read [the experience specification](02-experience-spec.md) and [the data and simulation specification](03-data-and-simulation.md) before implementing a task. The [main plan](../README.md), [architecture](../02-architecture.md), [access rules](../03-domain-and-access.md), and [verification discipline](../05-development-and-testing.md) still apply. Implement one bounded task or reviewable slice at a time.
 
@@ -12,12 +12,12 @@ Read [the experience specification](02-experience-spec.md) and [the data and sim
 | V2-02 | Borrower task dashboard without top tabs | V2-01 | T09, T11–T13, T17–T21, D05 | Done — local acceptance below |
 | V2-03 | Protected text-to-fixture demo importer | — | T13, T14, D05 | Done — local acceptance below |
 | V2-04 | Document review and confirmed financial facts | V2-01, V2-03 | T14, T15, T19 | Done — local acceptance |
-| V2-05 | Lender application overview and evidence drill-down | V2-01, V2-04 | T10, T12, T16, T19, T21 | Not started |
+| V2-05 | Lender application overview and evidence drill-down | V2-01, V2-04 | T10, T12, T16, T19, T21 | Done — local acceptance |
 | V2-06 | Simulated Loan Footprint | V2-01 | T16 | Not started |
 | V2-07 | Integrated local acceptance | V2-02, V2-03, V2-04, V2-05, V2-06 | T22 | Not started |
 | V2-08 | Hosted parity and deployment acceptance | V2-07 | D02, D03 | Not started |
 
-Existing prerequisites are recorded as complete in the main plan. D05 and some later follow-ups have only local evidence; V2-08 must carry the combined implementation through hosted validation. V2-01–V2-04 are complete, so V2-05 is next. V2-06 can be implemented and demonstrated from the existing lender Checks view before V2-05 adds its overview entry point.
+Existing prerequisites are recorded as complete in the main plan. D05 and some later follow-ups have only local evidence; V2-08 must carry the combined implementation through hosted validation. V2-01–V2-05 are complete, so V2-06 is next. Its informational geographic result can be exposed through the completed overview and existing Checks view.
 
 ## Shared completion rules
 
@@ -215,9 +215,23 @@ Dependencies: V2-01, V2-04; T10, T12, T16, T19, T21. Primary areas: lender works
 3. Overview financial values use V2-04's confirmed fact policy and link to the exact evidence. Selecting a financial card opens period history with a chart and equivalent accessible table; unavailable/noncomparable periods are not fabricated. Stale/unconfirmed/missing facts and incomplete legacy details remain distinguishable.
 4. Real-PostgreSQL/HTTP checks cover scoped aggregate counts and facts, bank isolation, stale revisions and lifecycle restrictions. Desktop/mobile keyboard checks cover drill-down, history, empty states and scenario-panel layout.
 
-Implementation record: **Not started.**
+Implementation record: **Done — local acceptance, October 8, 2026.**
 
-Validation record: **Not run.** Existing lender tabs and queue are baseline functionality only.
+- The default lender Overview retains every section tab and queue filter/page context. Business profile and loan application sections show saved legal/address/website/NAICS details, amount/purposes, staff assignment and actual stage; absent optional/legacy details are explicit. Existing prefill, handoff, assignment and notes remain reachable.
+- Revenue and explicitly adjusted net income cards use V2-04 accepted facts, retaining exact USD decimals and separate missing, unconfirmed, current and stale-source states. Expand a card for a chart and equivalent table grouped by business snapshot, currency/unit, basis and comparable period shape. Only existing reviewed periods appear; no zero fill, computed DSCR, inferred adjusted income or percentage change is introduced. Each source opens its exact document/version/analysis run in the existing private workspace.
+- A staff-only `GET /api/v1/banks/:bankId/applications/:applicationId/overview` in both HTTP transports reads financial facts and visible documents within one application transaction. The tax group separates logical documents, uploaded versions, financial-review states and distinct reviewed fiscal periods; task-evidence acceptance is separately labelled. Personal tax evidence is excluded. Reanalysis/pending replacements preserve an explicit previous-classification state; manual category corrections remain authoritative.
+- Expandable application stages distinguish action-required requirements, submitted review actions, finished/cancelled records, completed setup answers and simulated check results. Recent authorized activity links to full history. This adds no new write command, migration, workflow gate, approval action or provider. Loan Footprint remains V2-06.
+- Document dialogs stay inside the expanded Overview and return keyboard focus. A fresh document-list read precedes unavailable-source checks, preventing old cached lists from incorrectly denying newly discovered documents. New application revisions refresh the profile/stage record, and source review invalidates the aggregate; source buttons retain focus across immutable accepted revisions.
+
+Validation record — working tree based on `fcd45b3`, October 8, 2026:
+
+- `pnpm check` passed Biome, package boundaries, all 12 workspace typechecks, root TypeScript and 373 unit tests across 37 files. `pnpm build` passed all 12 workspaces.
+- The final full real-PostgreSQL suite passed **449 cases across 48 files**, including seven new overview cases, both HTTP transports and the existing financial revision/lifecycle/immutable snapshot cases. Scope/revocation, logical documents versus replacement versions, duplicate periods, explicit rejection, pending reanalysis and manual category overrides are covered. The final HTTP follow-up after native OpenAPI registration passed four cases. No schema or migration changed.
+- **42 distinct desktop/mobile browser cases passed.** The existing staff workspace and document-workspace regressions passed all 30 cases with zero failures/skips/flakes (`.local/e2e-jLqf1Y`). The 12 new overview cases passed through final targeted runs: profile/stages, grouped three-year previews and loading/retry in `.local/e2e-GkWK4N` (shards 2, 3, 5, 7, 8, 10); final queue/empty-state keyboard cases in `.local/e2e-c7c7ju`; cached replacement on both layouts and mobile financial history in `.local/e2e-4Fiy5N` (shards 2–4); final desktop financial history in `.local/e2e-atefsX`. Earlier failed attempts exposed a real rapid-filter URL race and lazy-cache refresh gap, plus fixture selector/timing issues. Each affected case was repaired and passed; runtime rate limits stayed enabled, with deliberate request pacing only in the dense financial browser fixture.
+- Desktop/mobile overview screenshots and financial chart/table regions were visually inspected. Evidence groups and exact private PDF bytes/analysis periods, stale accepted sources, focus restoration, empty states and demo-panel layout passed; horizontal table scrolling stays within the financial card on mobile. Final local Markdown verification checked **289 paths/anchors across 45 files** with zero errors; `git diff --check` passed.
+- Logs are in `.local/v2-05-validation`. Commands were `pnpm check`, `pnpm build`, `node_modules/node/bin/node --import tsx .local/v2-04-validation/integration.mjs .integration.test.ts`, the final HTTP-only rerun with `apps/api/test/document-workspace.integration.test.ts`, and `node_modules/node/bin/node --import tsx scripts/e2e.ts` with `tests/e2e/lender-overview-v2.spec.ts` (targeted `--grep`/`--project` reruns), or `tests/e2e/staff-workspace.spec.ts tests/e2e/document-workspace.spec.ts`. Pinned Node 24.21.0 and the cached pnpm 10.34.6 CLI were placed on `PATH`; local sandbox permissions were extended for the owned Podman target, loopback services and test-runner IPC. No hosted deployment or v2 hosted parity is claimed.
+
+Try locally: sign in as `officer-a@example.test`, filter the application queue and open an application. Overview shows its saved profile, loan and stages. Import three year-specific synthetic tax fixtures from Documents, explicitly accept revenue/adjusted-income suggestions, then return to Overview. Expand Business tax returns to inspect each file and its version count; expand either financial card to compare the available periods and open exact source evidence. Close the document to return to the same group/source; Back to applications restores the queue filters and page.
 
 ## V2-06 — Simulated Loan Footprint
 

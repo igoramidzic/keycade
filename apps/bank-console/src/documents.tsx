@@ -23,7 +23,10 @@ export function ApplicationDocuments(props: DocumentsProps) {
   return workspace.render(props.taskId, props.onBusyChange);
 }
 
-export function useApplicationDocuments({ applicationId }: Pick<DocumentsProps, "applicationId">) {
+export function useApplicationDocuments({
+  applicationId,
+  lazy = false,
+}: Pick<DocumentsProps, "applicationId"> & { lazy?: boolean }) {
   const api = useStaffApi();
   const client = useQueryClient();
   const [accessError, setAccessError] = useState<unknown>(null);
@@ -31,6 +34,7 @@ export function useApplicationDocuments({ applicationId }: Pick<DocumentsProps, 
     documentId: string;
     versionId: string;
     originTaskId: string | null;
+    runId?: string;
   } | null>(null);
   const base = `/applications/${applicationId}/documents`;
   const financialBase = `/applications/${applicationId}/financial-facts`;
@@ -49,7 +53,7 @@ export function useApplicationDocuments({ applicationId }: Pick<DocumentsProps, 
   const documents = useQuery({
     queryKey,
     queryFn: ({ signal }) => api.participantRequest(base, documentsViewSchema, { signal }),
-    enabled: !accessError,
+    enabled: !accessError && (!lazy || selected !== null),
     retry: false,
     refetchOnMount: "always",
     refetchOnWindowFocus: true,
@@ -83,6 +87,8 @@ export function useApplicationDocuments({ applicationId }: Pick<DocumentsProps, 
     if (
       selected &&
       documents.data &&
+      !documents.isFetching &&
+      !documents.error &&
       !documents.data.documents.some(
         (document) =>
           document.id === selected.documentId &&
@@ -98,7 +104,7 @@ export function useApplicationDocuments({ applicationId }: Pick<DocumentsProps, 
         ),
       );
     }
-  }, [documents.data, selected]);
+  }, [documents.data, documents.isFetching, documents.error, selected]);
   const transfer = createDocumentTransfer({
     base: `${api.bankBase}${base}`,
     verify: api.verify,
@@ -110,6 +116,7 @@ export function useApplicationDocuments({ applicationId }: Pick<DocumentsProps, 
     await Promise.all([
       client.invalidateQueries({ queryKey: ["staff-tasks", applicationId] }),
       client.invalidateQueries({ queryKey: ["staff-workspace", applicationId] }),
+      client.invalidateQueries({ queryKey: ["staff-overview", applicationId] }),
       client.invalidateQueries({ queryKey: ["staff-queue"] }),
     ]);
   }
@@ -119,7 +126,9 @@ export function useApplicationDocuments({ applicationId }: Pick<DocumentsProps, 
     taskId?: string,
     onBusyChange?: (busy: boolean) => void,
     taskVisibility?: "shared" | "assigned" | "private",
+    workspaceOnly = false,
   ) {
+    if (workspaceOnly && !selected && !accessError) return null;
     if (accessError)
       return (
         <ErrorNotice
@@ -141,76 +150,89 @@ export function useApplicationDocuments({ applicationId }: Pick<DocumentsProps, 
     )
       return <ErrorNotice error={documents.error} onRetry={() => void documents.refetch()} />;
     if (!documents.data) return null;
+    if (
+      workspaceOnly &&
+      selected &&
+      documents.isFetching &&
+      !documents.data.documents.some(
+        (document) =>
+          document.id === selected.documentId &&
+          document.versions.some((version) => version.id === selected.versionId),
+      )
+    )
+      return <Loading>Loading selected document…</Loading>;
     return (
       <div className="space-y-4">
         {documents.error && (
           <ErrorNotice error={documents.error} onRetry={() => void documents.refetch()} />
         )}
-        <DocumentsManager
-          key={taskId ?? "application"}
-          data={documents.data}
-          taskId={taskId}
-          taskVisibility={taskVisibility}
-          onBusyChange={onBusyChange}
-          onOpenDocument={(documentId, versionId) =>
-            setSelected({ documentId, versionId, originTaskId: taskId ?? null })
-          }
-          errorMessage={errorMessage}
-          reload={reload}
-          begin={(files) =>
-            guarded(() =>
-              api.participantRequest(`${base}/uploads`, documentUploadResultSchema, {
-                method: "POST",
-                body: { files },
-              }),
-            )
-          }
-          upload={(id, file, progress, signal) =>
-            guarded(() => transfer.upload(id, file, progress, signal))
-          }
-          cancel={(id) =>
-            guarded(() =>
-              api.participantRequest(`${base}/uploads/${id}`, documentActionResultSchema, {
-                method: "DELETE",
-              }),
-            )
-          }
-          download={(id, fileName) => guarded(() => transfer.download(id, fileName))}
-          retryScan={(id) =>
-            guarded(() =>
-              api.participantRequest(
-                `${base}/versions/${id}/retry-scan`,
-                documentActionResultSchema,
-                {
+        {!workspaceOnly && (
+          <DocumentsManager
+            key={taskId ?? "application"}
+            data={documents.data}
+            taskId={taskId}
+            taskVisibility={taskVisibility}
+            onBusyChange={onBusyChange}
+            onOpenDocument={(documentId, versionId) =>
+              setSelected({ documentId, versionId, originTaskId: taskId ?? null })
+            }
+            errorMessage={errorMessage}
+            reload={reload}
+            begin={(files) =>
+              guarded(() =>
+                api.participantRequest(`${base}/uploads`, documentUploadResultSchema, {
                   method: "POST",
-                  body: {},
-                },
-              ),
-            )
-          }
-          retryProcessing={(id) =>
-            guarded(() =>
-              api.participantRequest(
-                `${base}/versions/${id}/retry-processing`,
-                documentActionResultSchema,
-                { method: "POST", body: {} },
-              ),
-            )
-          }
-          correctCategory={(id, versionId, category, reason, expectedRevision) =>
-            guarded(() =>
-              api.participantRequest(`${base}/${id}/category`, documentActionResultSchema, {
-                method: "POST",
-                body: {
-                  versionId,
-                  category,
-                  reason,
-                  expectedRevision,
-                },
-              }),
-            )
-          }
-        />
+                  body: { files },
+                }),
+              )
+            }
+            upload={(id, file, progress, signal) =>
+              guarded(() => transfer.upload(id, file, progress, signal))
+            }
+            cancel={(id) =>
+              guarded(() =>
+                api.participantRequest(`${base}/uploads/${id}`, documentActionResultSchema, {
+                  method: "DELETE",
+                }),
+              )
+            }
+            download={(id, fileName) => guarded(() => transfer.download(id, fileName))}
+            retryScan={(id) =>
+              guarded(() =>
+                api.participantRequest(
+                  `${base}/versions/${id}/retry-scan`,
+                  documentActionResultSchema,
+                  {
+                    method: "POST",
+                    body: {},
+                  },
+                ),
+              )
+            }
+            retryProcessing={(id) =>
+              guarded(() =>
+                api.participantRequest(
+                  `${base}/versions/${id}/retry-processing`,
+                  documentActionResultSchema,
+                  { method: "POST", body: {} },
+                ),
+              )
+            }
+            correctCategory={(id, versionId, category, reason, expectedRevision) =>
+              guarded(() =>
+                api.participantRequest(`${base}/${id}/category`, documentActionResultSchema, {
+                  method: "POST",
+                  body: {
+                    versionId,
+                    category,
+                    reason,
+                    expectedRevision,
+                  },
+                }),
+              )
+            }
+          />
+        )}
         {selected &&
           selected.originTaskId === (taskId ?? null) &&
           documents.data.documents
@@ -220,6 +242,7 @@ export function useApplicationDocuments({ applicationId }: Pick<DocumentsProps, 
                 key={document.id}
                 document={document}
                 initialVersionId={selected.versionId}
+                initialRunId={selected.runId}
                 facts={facts.data ?? null}
                 factsError={facts.error ? errorMessage(facts.error) : null}
                 preview={(id, signal) => guarded(() => transfer.preview(id, signal))}
@@ -284,5 +307,11 @@ export function useApplicationDocuments({ applicationId }: Pick<DocumentsProps, 
       </div>
     );
   }
-  return { pending: documents.isPending || !documents.isFetchedAfterMount, render };
+  return {
+    pending: documents.isPending || !documents.isFetchedAfterMount,
+    render,
+    renderWorkspace: () => render(undefined, undefined, undefined, true),
+    openDocument: (documentId: string, versionId: string, runId?: string) =>
+      setSelected({ documentId, versionId, runId, originTaskId: null }),
+  };
 }

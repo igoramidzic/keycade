@@ -1,6 +1,6 @@
 # Version 2 experience requirements
 
-Status: V2-01 setup, V2-02 borrower dashboard and V2-03 demo text importer are implemented and verified locally; V2-04 document review and financial facts are also implemented and verified locally; V2-05–V2-08 remain planned. [Screenshot findings](01-screenshot-findings.md) identify the evidence and exclusions; [data contracts](03-data-and-simulation.md) define persistence and authority. Task IDs refer to [delivery](04-delivery-and-validation.md).
+Status: V2-01 setup, V2-02 borrower dashboard and V2-03 demo text importer are implemented and verified locally; V2-04 document review and financial facts are also implemented and verified locally; V2-05 lender overview and evidence drilldowns are also implemented and verified locally; V2-06–V2-08 remain planned. [Screenshot findings](01-screenshot-findings.md) identify the evidence and exclusions; [data contracts](03-data-and-simulation.md) define persistence and authority. Task IDs refer to [delivery](04-delivery-and-validation.md).
 
 ## Setup wizard — V2-01
 
@@ -84,7 +84,7 @@ Clicking an individual item opens the document workspace. Close returns to the s
 
 ## Document workspace — V2-04
 
-Implementation status: **Done — local acceptance, October 8, 2026**. Lender Documents opens the workspace with a selected immutable version, Analysis, Document Info and Versions views. The shared private preview uses bundled PDF.js with selectable text, page navigation and zoom; the actual preview has been visually inspected and desktop/mobile acceptance passed. Authorized original-file downloads and existing scan/processing recovery remain available. V2-05 still owns entry from grouped Overview evidence.
+Implementation status: **Done — local acceptance, October 8, 2026**. Lender Documents opens the workspace with a selected immutable version, Analysis, Document Info and Versions views. The shared private preview uses bundled PDF.js with selectable text, page navigation and zoom; the actual preview has been visually inspected and desktop/mobile acceptance passed. Authorized original-file downloads and existing scan/processing recovery remain available. V2-05 now supplies grouped Overview evidence and financial-history source entry points.
 
 The implemented review action supports supplied monetary candidates from the registered tax and statement fixtures. Staff select Accept, Reject or Correct, inspect the current and proposed values, provide a reason and explicitly confirm a changed accepted amount. Corrections replace the exact decimal value only; the field's metric, actual period, basis and USD/money unit remain tied to the source. An incorrect period requires corrected document information or matching evidence, not moving a suggestion into another year. Missing or mismatched business identity prevents adoption.
 

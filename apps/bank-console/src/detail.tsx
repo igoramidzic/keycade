@@ -1,6 +1,4 @@
 import {
-  fundingPurposeOptions,
-  industryByCode,
   type StaffNote,
   type StaffOptions,
   type StaffWorkspace,
@@ -19,7 +17,6 @@ import {
 } from "@keycade/ui/components/card";
 import { useDemoApplication } from "@keycade/ui/components/demo-kit";
 import { NativeSelect } from "@keycade/ui/components/native-select";
-import { TaskProgress } from "@keycade/ui/components/tasks-manager";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useState } from "react";
 import { Link, useLocation, useParams } from "react-router";
@@ -29,6 +26,7 @@ import { ApplicationClosing } from "./closing";
 import { StaffActivity, StaffOperations } from "./diagnostics";
 import { ApplicationDocuments } from "./documents";
 import { PrefillForm } from "./forms";
+import { ApplicationOverview } from "./overview";
 import { ApplicationParticipants } from "./participants";
 import { ApplicationReview } from "./review";
 import { ApplicationSignatures } from "./signatures";
@@ -63,8 +61,23 @@ export function ApplicationDetail() {
   const id = params.applicationId;
   const selected = params["*"] || "overview";
   const location = useLocation();
-  const bank = new URLSearchParams(location.search).get("bank");
-  const bankQuery = bank ? `?bank=${encodeURIComponent(bank)}` : "";
+  const search = new URLSearchParams(location.search);
+  const bank = search.get("bank");
+  const navigation = new URLSearchParams();
+  if (bank) navigation.set("bank", bank);
+  if (search.has("queue")) navigation.set("queue", search.get("queue") ?? "");
+  const bankQuery = navigation.size ? `?${navigation}` : "";
+  const queue = new URLSearchParams(search.get("queue") ?? "");
+  for (const name of [...queue.keys()])
+    if (
+      !["bank", "search", "status", "productId", "assigneeId", "sort", "limit", "page"].includes(
+        name,
+      )
+    )
+      queue.delete(name);
+  if (bank) queue.set("bank", bank);
+  else queue.delete("bank");
+  const queueHref = queue.size ? `/?${queue}` : "/";
   const key = ["staff-workspace", id];
   const detail = useQuery({
     queryKey: key,
@@ -95,12 +108,14 @@ export function ApplicationDetail() {
   useDemoApplication(id ?? "", detail.error ? null : data?.businessName);
   return (
     <div className="space-y-6">
-      <Link to={`/${bankQuery}`} className="text-sm underline underline-offset-4">
+      <Link to={queueHref} className="text-sm underline underline-offset-4">
         Back to applications
       </Link>
       {detail.isPending ? (
         <Loading>Loading application…</Loading>
-      ) : detail.error && !data ? (
+      ) : detail.error &&
+        (!data ||
+          (detail.error instanceof ApiError && [401, 403, 404].includes(detail.error.status))) ? (
         <ErrorNotice error={detail.error} onRetry={() => void detail.refetch()} />
       ) : (
         data && (
@@ -156,116 +171,43 @@ export function ApplicationDetail() {
             </nav>
             {selected === "overview" && (
               <div className="space-y-6">
-                <div className="grid gap-6 lg:grid-cols-2">
-                  <Card className="shadow-sm ring-0">
-                    <CardHeader>
-                      <CardTitle>Application overview</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <dl className="space-y-4 text-sm">
-                        <Item label="Legal business name">
-                          {data.businessName ?? "Not provided"}
-                        </Item>
-                        <Item label="Funding purposes">
-                          {data.fundingPurposes.length
-                            ? data.fundingPurposes
-                                .map(
-                                  (id) =>
-                                    fundingPurposeOptions.find((option) => option.id === id)?.label,
-                                )
-                                .join(", ")
-                            : "Not provided"}
-                        </Item>
-                        {data.otherPurposeDetail && (
-                          <Item label="Other purpose details">{data.otherPurposeDetail}</Item>
-                        )}
-                        {data.purpose && (
-                          <Item label="Previous purpose response">{data.purpose}</Item>
-                        )}
-                        <Item label="Business address">
-                          {data.businessAddress
-                            ? [
-                                data.businessAddress.line1,
-                                data.businessAddress.line2,
-                                data.businessAddress.locality,
-                                data.businessAddress.region,
-                                data.businessAddress.postalCode,
-                                data.businessAddress.countryCode,
-                              ]
-                                .filter(Boolean)
-                                .join(", ")
-                            : "Not provided"}
-                        </Item>
-                        <Item label="Website">{data.website ?? "Not provided"}</Item>
-                        <Item label="Industry">
-                          {data.industryCode
-                            ? `${data.industryCode} · ${industryByCode(data.industryCode)?.title ?? data.industryTaxonomyVersion}`
-                            : "Not provided"}
-                        </Item>
-                        <Item label="Created by">
-                          {data.createdBy
-                            ? `${data.createdBy.displayName} (${data.createdBy.email})`
-                            : "Not recorded"}
-                        </Item>
-                        <Item label="Created">{new Date(data.createdAt).toLocaleString()}</Item>
-                        <Item label="Last updated">
-                          {new Date(data.updatedAt).toLocaleString()}
-                        </Item>
-                      </dl>
-                    </CardContent>
-                  </Card>
-                  <Card className="shadow-sm ring-0">
-                    <CardHeader>
-                      <CardTitle>Borrower and setup</CardTitle>
-                      <CardDescription>
-                        Saved server progress, including unfinished drafts.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-5">
-                      <Contact workspace={data} />
-                      <dl className="space-y-4 text-sm">
-                        <Item label="Saved setup step">
-                          {data.setup.status === "completed"
-                            ? "Completed"
-                            : stepLabels[data.setup.currentStep]}
-                        </Item>
-                        <Item label="Confirmed questions">
-                          {data.setup.completedSteps
-                            .filter((step) => step !== "product")
-                            .map((step) => stepLabels[step])
-                            .join(", ") || "None yet"}
-                        </Item>
-                        <Item label="Skipped questions">
-                          {data.setup.skippedSteps.map((step) => stepLabels[step]).join(", ") ||
-                            "None"}
-                        </Item>
-                        {data.setup.completedAt && (
-                          <Item label="Setup completed">
-                            {new Date(data.setup.completedAt).toLocaleString()}
-                          </Item>
-                        )}
-                      </dl>
-                      {data.setup.status === "in_progress" && (
-                        <Button variant="outline" onClick={() => setPrefill(true)}>
-                          Edit prefilled answers
-                        </Button>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
+                <ApplicationOverview key={data.id} workspace={data} navigationQuery={bankQuery} />
                 <Card className="shadow-sm ring-0">
                   <CardHeader>
-                    <CardTitle>Task progress</CardTitle>
-                    <CardDescription>Current requirements for this application.</CardDescription>
+                    <CardTitle>Borrower and setup</CardTitle>
+                    <CardDescription>
+                      Saved server progress, including unfinished drafts.
+                    </CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-4">
-                    <TaskProgress progress={data.tasks} />
-                    <Link
-                      className={buttonVariants({ variant: "outline" })}
-                      to={`/applications/${data.id}/tasks${bankQuery}`}
-                    >
-                      View tasks
-                    </Link>
+                  <CardContent className="space-y-5">
+                    <Contact workspace={data} />
+                    <dl className="space-y-4 text-sm">
+                      <Item label="Saved setup step">
+                        {data.setup.status === "completed"
+                          ? "Completed"
+                          : stepLabels[data.setup.currentStep]}
+                      </Item>
+                      <Item label="Confirmed questions">
+                        {data.setup.completedSteps
+                          .filter((step) => step !== "product")
+                          .map((step) => stepLabels[step])
+                          .join(", ") || "None yet"}
+                      </Item>
+                      <Item label="Skipped questions">
+                        {data.setup.skippedSteps.map((step) => stepLabels[step]).join(", ") ||
+                          "None"}
+                      </Item>
+                      {data.setup.completedAt && (
+                        <Item label="Setup completed">
+                          {new Date(data.setup.completedAt).toLocaleString()}
+                        </Item>
+                      )}
+                    </dl>
+                    {data.setup.status === "in_progress" && (
+                      <Button variant="outline" onClick={() => setPrefill(true)}>
+                        Edit prefilled answers
+                      </Button>
+                    )}
                   </CardContent>
                 </Card>
                 {prefill && data.setup.status === "in_progress" && (

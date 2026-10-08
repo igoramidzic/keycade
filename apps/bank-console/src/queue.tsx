@@ -35,7 +35,9 @@ export function ApplicationQueue() {
       api.request(`/applications?${encoded}`, staffApplicationPageSchema, { signal }),
   });
   function change(key: string, value: string) {
-    const next = new URLSearchParams(params);
+    // Router navigation commits the URL before React necessarily renders new search params.
+    // Compose quick consecutive filter changes from that committed location.
+    const next = new URLSearchParams(window.location.search);
     if (value) next.set(key, value);
     else next.delete(key);
     if (key !== "page") next.delete("page");
@@ -196,7 +198,7 @@ export function ApplicationQueue() {
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div className="min-w-0 space-y-2">
                         <Link
-                          to={`/applications/${item.id}/overview${bankQuery}`}
+                          to={`/applications/${item.id}/overview${bankQuery}${bankQuery ? "&" : "?"}queue=${encodeURIComponent(params.toString())}`}
                           className="break-words text-lg font-medium underline-offset-4 hover:underline"
                         >
                           {item.businessName ?? "Untitled application"}

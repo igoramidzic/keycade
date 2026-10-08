@@ -22,6 +22,7 @@ import { useEffect, useId, useRef, useState } from "react";
 export function DocumentWorkspace({
   document: file,
   initialVersionId,
+  initialRunId,
   facts,
   factsError,
   preview,
@@ -37,6 +38,7 @@ export function DocumentWorkspace({
 }: {
   document: DocumentView;
   initialVersionId: string;
+  initialRunId?: string;
   facts: FinancialFactsView | null;
   factsError?: string | null;
   preview: (versionId: string, signal: AbortSignal) => Promise<Blob>;
@@ -59,7 +61,7 @@ export function DocumentWorkspace({
   const closeButton = useRef<HTMLButtonElement>(null);
   const titleId = useId();
   const [versionId, setVersionId] = useState(initialVersionId);
-  const [runSelection, setRunSelection] = useState<string | null>(null);
+  const [runSelection, setRunSelection] = useState<string | null>(initialRunId ?? null);
   const [page, setPage] = useState(1);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

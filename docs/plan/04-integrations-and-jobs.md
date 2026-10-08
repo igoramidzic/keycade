@@ -2,7 +2,7 @@
 
 The first release uses fake adapters with realistic asynchronous behavior. They require no external credentials, make no live financial checks, and send no external email. Interface boundaries must allow replacement without rewriting application use cases.
 
-The [v2 data and simulation plan](v2/03-data-and-simulation.md) has locally implemented V2-01 setup contracts; its importer, financial-fact and geography work remain planned. It adds a protected text-trigger demo importer, a richer lender document viewer, explicit financial-fact adoption and mock geography while retaining these durability and access contracts.
+The [v2 data and simulation plan](v2/03-data-and-simulation.md) has locally implemented setup, importer, financial-fact and lender-projection contracts; geography remains V2-06. It adds a protected text-trigger demo importer, a richer lender document viewer, explicit financial-fact adoption and mock geography while retaining these durability and access contracts.
 
 ## Provider contracts
 

@@ -69,7 +69,7 @@ Each submission freezes its application facts, business facts, applicable requir
 
 Application status is independent from upload, job, task, and signature states. An OCR failure does not change the entire application to a nonexistent “failed” status.
 
-## V2 evidence groups and reviewed financial facts — planned
+## V2 evidence groups and reviewed financial facts — implemented locally
 
 An evidence group is an authorized projection over documents, their current versions and related work, not a new task state. A group containing three tax returns reports three permitted documents; version history does not inflate the count. Completion of a related requirement remains governed by task evidence review. Group counts, modal reads and historical versions must not expose another bank, application or restricted participant's evidence.
 

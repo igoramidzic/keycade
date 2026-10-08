@@ -159,6 +159,7 @@ for (const transport of ["fastify", "worker"] as const) {
         staff = await client(ids.officerA),
         outsider = await client(ids.officerB);
       const factsPath = base.replace(/documents$/, "financial-facts");
+      const overviewPath = base.replace(/documents$/, "overview");
       try {
         const sample = await user.sample(
           transport === "fastify" ? "business-tax-return-2023" : "business-tax-return-2024",
@@ -197,6 +198,12 @@ for (const transport of ["fastify", "worker"] as const) {
         };
         expect((await user.call(factsPath)).status).toBe(404);
         expect((await outsider.call(factsPath)).status).toBe(404);
+        expect((await user.call(overviewPath)).status).toBe(404);
+        expect((await outsider.call(overviewPath)).status).toBe(404);
+        expect(
+          (await staff.call(overviewPath.replace(ids.applicationSmall, ids.applicationOtherBank)))
+            .status,
+        ).toBe(404);
         expect((await user.call(factsPath, "POST", command)).status).toBe(404);
         expect((await staff.call(factsPath, "POST", command, "bad")).status).toBe(403);
         expect(
@@ -225,6 +232,23 @@ for (const transport of ["fastify", "worker"] as const) {
             sourceStale: false,
             originalCandidate: expect.objectContaining({ value: candidate.value }),
           }),
+        );
+        const overview = await staff.call(overviewPath);
+        expect(overview.status, JSON.stringify(overview.body)).toBe(200);
+        expect(overview.body.financialFacts).toEqual(reviewed.body);
+        expect(overview.body.taxDocuments.documents).toContainEqual(
+          expect.objectContaining({
+            documentId: upload.documentId,
+            currentVersionId: upload.versionId,
+            versionCount: 1,
+            reviewStatus: "reviewed",
+            acceptedFactCount: 1,
+            subjectKind: "business",
+            period: candidate.period,
+          }),
+        );
+        expect(overview.body.taxDocuments.documentCount).toBe(
+          overview.body.taxDocuments.documents.length,
         );
         expect(await staff.call(factsPath, "POST", command)).toEqual(reviewed);
         expect(
