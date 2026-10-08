@@ -26,7 +26,7 @@ The [task preload and quieter dashboard](tasks/T12-tasks-and-requirements.md#upf
 
 The [October 7 hosted-demo clarification](tasks/D03-hosted-demo-parity.md) applies to every environment: production remains a simulation, with local-equivalent demo sign-in and simulated email. D03 resolved the hosted `AUTH_DELIVERY_UNAVAILABLE` gap and verified the synthetic inbox on the production URLs.
 
-The requested [shorter task cards](v2/04-delivery-and-validation.md#shorter-task-cards--october-8-2026) follow-up is in progress locally: the task list sits on the page with each task as its own card, tasks keep a fixed stage order, answer tasks show their question with details collapsed at the bottom, and shared borrower tasks rely on the sidebar uploader. Typecheck and 419 unit tests pass; browser validation is running.
+The requested [shorter task cards](v2/04-delivery-and-validation.md#shorter-task-cards--october-8-2026) follow-up is complete on `main`: the task list sits on the page with each task as its own card, tasks keep a fixed stage order, answer tasks show their question with details collapsed at the bottom, and shared borrower tasks rely on the sidebar uploader. All 12 typechecks, 419 unit tests and 72 distinct desktop/mobile browser cases passed locally.
 
 The requested [readable default typography](v2/04-delivery-and-validation.md#readable-default-typography--october-8-2026) follow-up is complete locally: regular compact text is 16px and secondary text/small buttons are 14px at default browser settings. Six desktop/mobile layout cases, 373 unit tests and all 12 builds/typechecks passed.
 

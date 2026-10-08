@@ -120,17 +120,19 @@ Local scope only. At the V2-02 checkpoint, V2-03–V2-08 remained unstarted; no 
 
 ### Shorter task cards — October 8, 2026
 
-Follow-up status: **In progress — browser validation running.** The user found expanded borrower tasks long and wordy, questioned the per-task document section beside the sidebar uploader and asked that finished tasks keep their place.
+Follow-up status: **Done — local acceptance.** The user found expanded borrower tasks long and wordy, questioned the per-task document section beside the sidebar uploader and asked that finished tasks keep their place.
 
 - The task list sits directly on the page canvas: its title, progress and filter are no longer wrapped in an outer card, and each task row is the only card surface. Staff assignment and review forms inside an expanded task are divider-separated sections rather than nested boxes. This restores the intended no-nested-cards layout, which no committed version of the redesign carried.
 - Rows keep stage order (submission, approval, closing), then the server's creation order, for borrowers and staff. Saving, submitting, review or completion never moves a row.
 - An answer task shows its stored question as the field label, then Save/Submit. Readiness confirmations ask “Are you ready to provide this information?” and keep their stored instructions in Details. The reason, requirement source, required/optional, assignee, owner-private flag, fictional-data reminder and answer/review history share one collapsed **Details and history** section. A **Changes requested** note appears above the field only while the task is returned. The separate disclaimer, due line (still in the row summary) and bordered answer box are gone.
 - The borrower dashboard drops the in-task uploader from shared business tasks, since the sidebar already accepts business files and the Documents page can still attach a file to a specific task. Private owner tasks, assigned-only tasks and collaborators without general upload permission keep the in-task uploader so personal or restricted evidence never goes through the general target. Staff task documents are unchanged. No backend grant, schema or stored requirement text changed.
 
-Validation so far (working tree on `c40f71b`, Node 24.21.0, local PostgreSQL 16 and Mailpit because Podman is unavailable in this sandbox; a gitignored copy of `scripts/e2e.ts` skipped only the Podman ownership check):
+Validation at `00065d7` on `main`, October 8, 2026 (Node 24.21.0; local PostgreSQL 16 and Mailpit because Podman is unavailable in this sandbox; a gitignored copy of `scripts/e2e.ts` skipped only the Podman container-ownership check and pointed Playwright at the preinstalled Chromium):
 
 - `pnpm typecheck` passed all 12 workspaces and root TypeScript; `pnpm test` passed **419 unit tests**; `scripts/boundaries.ts` passed. Biome reports one pre-existing formatting error in `packages/ui/src/components/animated-collapse.tsx`, outside this change.
-- `tests/e2e/tasks.spec.ts`: 10 of 12 passed (`.local/e2e-PQ4ISE`). The two desktop failures were stale assertions (staff still show task documents; completed review notes now sit in Details); their corrected mobile runs passed. The combined affected-spec rerun is in progress.
+- **72 distinct desktop/mobile browser cases verified.** `tasks.spec.ts` and `borrower-dashboard-v2.spec.ts` passed 18/18 (`.local/e2e-T1IkhY`). Documents, dashboard safety, checks, closing, document processing, participants, review, signatures, task conflicts, collaborator upload and sidebar drop passed 53/54 (`.local/e2e-nZBNej`). The failing desktop `checks.spec.ts` case hit a strict-mode match on two owner identifier tasks, because the dashboard-safety spec earlier in the same run adds a synthetic owner to the same seeded application; `checks.spec.ts` alone passed 2/2 (`.local/e2e-qO4p0B`).
+- Updated assertions: the answer field is located by its `task-answer-` id instead of the removed “Your answer” label; shared borrower tasks have no task documents while staff still do; history opens from “Details and history”; completed review notes are inside Details; the documents spec attaches a file to a task from the Documents page.
+- Desktop/mobile borrower and staff screenshots were inspected: the task list sits on the page with each task as its own card, the expanded task shows the question, field and actions, and Details holds the reason, metadata and history. The task order was unchanged after saving and submitting an answer.
 
 ## V2-03 — Demo text importer and registered fixtures
 
