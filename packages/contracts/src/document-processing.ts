@@ -25,12 +25,36 @@ export const documentProcessingStateSchema = z.enum([
   "needs_review",
   "failed",
 ]);
+export const documentFieldPeriodSchema = z
+  .strictObject({
+    start: z.iso.date(),
+    end: z.iso.date(),
+    basis: z.enum(["fiscal_year", "statement"]),
+  })
+  .refine((period) => period.start <= period.end, "A period must end on or after its start.");
+export const extractedFieldProvenanceSchema = z.strictObject({
+  recipeId: z.enum([
+    "business-tax-return-2023",
+    "business-tax-return-2024",
+    "business-tax-return-2025",
+    "business-bank-statement-2026-01",
+    "business-tax-return-review",
+  ]),
+  recipeVersion: z.literal(1),
+  sourcePage: z.number().int().min(1).max(2),
+  sourceLabel: z.string().min(1).max(120),
+  period: documentFieldPeriodSchema,
+  currency: z.literal("USD").nullable(),
+  subject: z.literal("business"),
+  supplied: z.literal(true),
+});
 export const extractedDocumentFieldSchema = z
   .strictObject({
     key: z.string().min(1).max(80),
     label: z.string().min(1).max(120),
     value: z.string().max(500),
     kind: z.enum(["text", "money", "year"]),
+    provenance: extractedFieldProvenanceSchema.optional(),
   })
   .refine(
     (field) =>
@@ -40,7 +64,16 @@ export const extractedDocumentFieldSchema = z
           ? /^\d{4}$/.test(field.value)
           : true,
     "Extracted values must match their declared type.",
+  )
+  .refine(
+    (field) =>
+      !field.provenance ||
+      (field.kind === "money"
+        ? field.provenance.currency === "USD"
+        : field.provenance.currency === null),
+    "Currency must match the supplied field type.",
   );
+export type ExtractedDocumentField = z.infer<typeof extractedDocumentFieldSchema>;
 export const documentFindingSchema = z.strictObject({
   code: z.enum(["business_name_match", "business_name_mismatch", "cash_flow", "document_review"]),
   severity: z.enum(["clear", "warning"]),
@@ -58,6 +91,20 @@ export const documentInterpretationResultSchema = z.strictObject({
   extractedFields: z.array(extractedDocumentFieldSchema).max(25),
   findings: z.array(documentFindingSchema).max(10).default([]),
   comparedApplicationBusinessName: z.string().min(1).max(200).nullable().default(null),
+  demoImportFixture: z
+    .strictObject({
+      recipeId: z.enum([
+        "business-tax-return-2023",
+        "business-tax-return-2024",
+        "business-tax-return-2025",
+        "business-bank-statement-2026-01",
+        "business-tax-return-review",
+      ]),
+      recipeVersion: z.literal(1),
+      businessName: z.string().min(1).max(200),
+      applicationRevision: z.number().int().nonnegative(),
+    })
+    .optional(),
   completedAt: z.string().datetime(),
 });
 export const correctDocumentCategorySchema = z.strictObject({

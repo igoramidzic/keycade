@@ -1,3 +1,4 @@
+import type { DemoImportContext } from "@keycade/contracts/demo-import";
 import { Alert, AlertDescription, AlertTitle } from "@keycade/ui/components/alert";
 import { Badge } from "@keycade/ui/components/badge";
 import { Button } from "@keycade/ui/components/button";
@@ -21,6 +22,14 @@ import {
   demoDocumentMime,
   readDemoDocumentDrag,
 } from "@keycade/ui/lib/demo-document-transfer";
+import {
+  createDemoImportFile,
+  type DemoImportPreview,
+  type DemoImportSource,
+  demoImportMime,
+  readDemoImportDrag,
+  sameDemoImportContext,
+} from "@keycade/ui/lib/demo-import-transfer";
 import { FileUp } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
@@ -53,6 +62,7 @@ export type DocumentsData = {
   uploadTasks: { id: string; title: string }[];
   limits: { maxFileBytes: number; maxBatchFiles: number; allowedMimeTypes: string[] };
   documents: DocumentData[];
+  demoImportContext?: DemoImportContext | null;
 };
 export type UploadInput = {
   fileName: string;
@@ -61,6 +71,7 @@ export type UploadInput = {
   idempotencyKey: string;
   taskId?: string;
   replacesDocumentId?: string;
+  demoImport?: DemoImportSource;
 };
 export type UploadResult = { idempotencyKey: string } & (
   | { uploadId: string; alreadyFinalized: boolean }
@@ -195,6 +206,21 @@ export function DocumentsManager({
       createDemoDocumentFile(document, demoKit?.businessName ?? "Synthetic Cedar Workshop"),
     ]);
   };
+  const demoImportUpload = useRef<(preview: DemoImportPreview) => void>(() => undefined);
+  demoImportUpload.current = (preview) => {
+    if (!active || !demoKit?.uploadsEnabled) return;
+    if (demoSubject !== "business") {
+      setError(
+        "Open application Documents or a business task to upload this business demo document.",
+      );
+      return;
+    }
+    if (!sameDemoImportContext(preview.fixture, data.demoImportContext ?? undefined)) {
+      setError("The application snapshot changed. Import the text file again before uploading.");
+      return;
+    }
+    addFiles([createDemoImportFile(preview.fixture)], preview.source);
+  };
   const registerDemoUpload = demoKit?.registerUploadTarget;
   const demoUploadsEnabled = demoKit?.uploadsEnabled ?? true;
   const demoTargetTitle = data.uploadTasks.find((task) => task.id === uploadTask)?.title;
@@ -206,6 +232,9 @@ export function DocumentsManager({
       subject: demoSubject,
       priority: uploadTask ? 1 : 0,
       upload: (document) => demoUpload.current(document),
+      demoImportContext:
+        demoSubject === "business" ? (data.demoImportContext ?? undefined) : undefined,
+      uploadImport: (preview) => demoImportUpload.current(preview),
     });
   }, [
     active,
@@ -217,6 +246,7 @@ export function DocumentsManager({
     uploadTask,
     demoTargetTitle,
     demoSubject,
+    data.demoImportContext,
   ]);
   function update(id: string, changes: Partial<QueueFile>) {
     if (mounted.current)
@@ -284,7 +314,7 @@ export function DocumentsManager({
       if (mounted.current) await reload().catch(() => undefined);
     }
   }
-  function addFiles(files: File[]) {
+  function addFiles(files: File[], demoImport?: DemoImportSource) {
     setDragging(false);
     setError(null);
     if (!canUpload || !files.length) return;
@@ -322,6 +352,7 @@ export function DocumentsManager({
           idempotencyKey: crypto.randomUUID(),
           ...(linkedTask ? { taskId: linkedTask } : {}),
           ...(replacement ? { replacesDocumentId: replacement.id } : {}),
+          ...(demoImport ? { demoImport } : {}),
         },
       };
     });
@@ -418,7 +449,15 @@ export function DocumentsManager({
               onDragLeave={() => setDragging(false)}
               onDrop={(event) => {
                 event.preventDefault();
-                if (event.dataTransfer.types.includes(demoDocumentMime)) {
+                if (event.dataTransfer.types.includes(demoImportMime)) {
+                  setDragging(false);
+                  const preview = readDemoImportDrag(event.dataTransfer);
+                  if (preview) demoImportUpload.current(preview);
+                  else
+                    setError(
+                      "This imported demo preview is unavailable. Import the text file again.",
+                    );
+                } else if (event.dataTransfer.types.includes(demoDocumentMime)) {
                   setDragging(false);
                   const sample = readDemoDocumentDrag(event.dataTransfer);
                   if (!sample) {

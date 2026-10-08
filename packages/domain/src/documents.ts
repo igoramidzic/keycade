@@ -1,9 +1,17 @@
+import { createHash } from "node:crypto";
 import {
   beginDocumentUploadSchema,
   correctDocumentCategorySchema,
   documentMimeTypes,
   documentsViewSchema,
 } from "@keycade/contracts";
+import {
+  createDemoImportPdf,
+  type DemoImportFixture,
+  demoImportFixtureFor,
+  demoImportFixtureSchema,
+  validateDemoTextImport,
+} from "@keycade/contracts/demo-import";
 import {
   applications,
   applicationTasks,
@@ -295,6 +303,13 @@ export function createDocumentsService(
       expectedSize: version.sizeBytes,
       sizeBytes: version.sizeBytes,
       sha256: version.sha256,
+      expectedSha256: version.demoImportFixture
+        ? createHash("sha256")
+            .update(
+              createDemoImportPdf(version.demoImportFixture.recipeId, version.demoImportFixture),
+            )
+            .digest("hex")
+        : undefined,
       uploadState: version.uploadState,
       alreadyFinalized: version.uploadState === "uploaded",
     };
@@ -363,6 +378,18 @@ export function createDocumentsService(
         canUpload:
           editable(app.status) &&
           (access.kind === "staff" || (access.kind === "participant" && access.scope === "full")),
+        demoImportContext:
+          app.synthetic &&
+          app.businessName &&
+          ((editable(app.status) &&
+            (access.kind === "staff" ||
+              (access.kind === "participant" && access.scope === "full"))) ||
+            tasks.some(
+              (task) =>
+                task.visibility !== "private" && mayUploadTask(actor, access, task, app.status),
+            ))
+            ? { businessName: app.businessName, applicationRevision: app.revision }
+            : null,
         uploadTasks: tasks
           .filter((task) => mayUploadTask(actor, access, task, app.status))
           .map(({ id, title }) => ({ id, title })),
@@ -384,6 +411,27 @@ export function createDocumentsService(
     const data = parsed.data;
     if (data.expectedSize > limits.maxFileBytes)
       throw new DomainError("INVALID_INPUT", 413, "This file exceeds the upload size limit.");
+    let fixture: DemoImportFixture | null = null;
+    if (data.demoImport) {
+      try {
+        const recipe = validateDemoTextImport({
+          fileName: data.demoImport.fileName,
+          bytes: new TextEncoder().encode(data.demoImport.text),
+        });
+        fixture = demoImportFixtureFor(recipe.id, data.demoImport.context);
+        if (
+          data.mimeType !== "application/pdf" ||
+          createDemoImportPdf(recipe.id, data.demoImport.context).length !== data.expectedSize
+        )
+          throw new Error("Choose the generated synthetic PDF.");
+      } catch (error) {
+        throw new DomainError(
+          "INVALID_INPUT",
+          400,
+          error instanceof Error ? error.message : "Choose a registered demo text recipe.",
+        );
+      }
+    }
     return db.transaction(async (tx) => {
       const { app, access, userId } = await context(tx, actor, bankId, applicationId, true);
       const { idempotencyKey, ...payload } = data;
@@ -423,6 +471,13 @@ export function createDocumentsService(
           invalid("This upload has expired. Start a new upload.");
         return descriptor(existing);
       }
+      if (
+        fixture &&
+        (!app.synthetic ||
+          fixture.businessName !== app.businessName ||
+          fixture.applicationRevision !== app.revision)
+      )
+        invalid("The application changed. Refresh the document area and import the sample again.");
       let document: Document;
       if (data.replacesDocumentId) {
         document = await loadDocument(
@@ -435,12 +490,14 @@ export function createDocumentsService(
         );
         if (data.taskId && data.taskId !== document.taskId) return deny();
         if (!(await canWrite(tx, actor, access, document, app.status))) return deny();
+        if (fixture && document.visibility === "private") return deny();
       } else {
         let task: Task | undefined;
         if (data.taskId) {
           task = await taskFor(tx, bankId, applicationId, data.taskId);
           if (!task || !mayUploadTask(actor, access, task, app.status)) return deny();
           if (task.visibility === "private" && !task.subjectUserId) return deny();
+          if (fixture && task.visibility === "private") return deny();
         } else if (
           !editable(app.status) ||
           !(access.kind === "staff" || (access.kind === "participant" && access.scope === "full"))
@@ -480,6 +537,7 @@ export function createDocumentsService(
           fileName: data.fileName,
           mimeType: data.mimeType,
           sizeBytes: data.expectedSize,
+          demoImportFixture: fixture,
           storageKey: id,
           uploadedByUserId: userId,
           keyHash,
@@ -523,7 +581,7 @@ export function createDocumentsService(
     bankId: string,
     applicationId: string,
     uploadId: string,
-    content: { size: number; sha256: string },
+    content: { size: number; sha256: string; demoImportFixture?: DemoImportFixture | null },
     requestId: string,
   ) {
     return db.transaction(async (tx) => {
@@ -547,6 +605,22 @@ export function createDocumentsService(
           400,
           "The uploaded content does not match the reservation.",
         );
+      const fixture = version.demoImportFixture ?? content.demoImportFixture ?? null;
+      if (fixture) {
+        const parsed = demoImportFixtureSchema.safeParse(fixture);
+        if (
+          !parsed.success ||
+          createHash("sha256")
+            .update(createDemoImportPdf(parsed.data.recipeId, parsed.data))
+            .digest("hex") !== content.sha256
+        )
+          throw new DomainError(
+            "INVALID_INPUT",
+            400,
+            "The uploaded bytes do not match the registered demo recipe.",
+          );
+        if (document.visibility === "private") return deny();
+      }
       if (version.uploadState === "uploaded") {
         if (content.sha256 !== version.sha256)
           throw new DomainError(
@@ -566,6 +640,7 @@ export function createDocumentsService(
         .set({
           uploadState: "uploaded",
           sha256: content.sha256,
+          demoImportFixture: fixture,
           uploadedAt: now,
           scanAvailableAt: new Date(now.getTime() + delay),
         })

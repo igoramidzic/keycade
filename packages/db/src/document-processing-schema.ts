@@ -31,7 +31,27 @@ export type DocumentInterpretationResult = {
   category: DocumentCategory;
   confidence: number;
   needsReview: boolean;
-  extractedFields: { key: string; label: string; value: string; kind: "text" | "money" | "year" }[];
+  extractedFields: {
+    key: string;
+    label: string;
+    value: string;
+    kind: "text" | "money" | "year";
+    provenance?: {
+      recipeId:
+        | "business-tax-return-2023"
+        | "business-tax-return-2024"
+        | "business-tax-return-2025"
+        | "business-bank-statement-2026-01"
+        | "business-tax-return-review";
+      recipeVersion: 1;
+      sourcePage: number;
+      sourceLabel: string;
+      period: { start: string; end: string; basis: "fiscal_year" | "statement" };
+      currency: "USD" | null;
+      subject: "business";
+      supplied: true;
+    };
+  }[];
   findings?: {
     code: "business_name_match" | "business_name_mismatch" | "cash_flow" | "document_review";
     severity: "clear" | "warning";
@@ -39,6 +59,17 @@ export type DocumentInterpretationResult = {
     detail: string;
   }[];
   comparedApplicationBusinessName?: string | null;
+  demoImportFixture?: {
+    recipeId:
+      | "business-tax-return-2023"
+      | "business-tax-return-2024"
+      | "business-tax-return-2025"
+      | "business-bank-statement-2026-01"
+      | "business-tax-return-review";
+    recipeVersion: 1;
+    businessName: string;
+    applicationRevision: number;
+  };
   completedAt: string;
 };
 const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();

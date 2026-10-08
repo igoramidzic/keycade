@@ -9,7 +9,12 @@ export interface PrivateDocumentStorage {
   write(
     key: string,
     source: ByteSource,
-    options: { expectedSize: number; mimeType: string; maxFileBytes: number },
+    options: {
+      expectedSize: number;
+      mimeType: string;
+      maxFileBytes: number;
+      expectedSha256?: string;
+    },
   ): Promise<{ size: number; sha256: string }>;
   open(key: string): Promise<{ body: ReadableStream<Uint8Array>; size: number } | null>;
   remove(key: string): Promise<void>;

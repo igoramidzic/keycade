@@ -49,6 +49,12 @@ export function createLocalDocumentStorage(root: string): PrivateDocumentStorage
           throw new DomainError("INVALID_INPUT", 400, "The upload was incomplete. Retry the file.");
         validateDocumentContent(head, tail, options.mimeType, size);
         const sha256 = digest.digest("hex");
+        if (options.expectedSha256 && options.expectedSha256 !== sha256)
+          throw new DomainError(
+            "INVALID_INPUT",
+            400,
+            "The uploaded bytes do not match the registered demo recipe. Retry the generated PDF.",
+          );
         await file.sync();
         await file.close();
         try {

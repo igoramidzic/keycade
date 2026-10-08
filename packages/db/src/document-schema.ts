@@ -4,6 +4,7 @@ import {
   foreignKey,
   index,
   integer,
+  jsonb,
   pgTable,
   text,
   timestamp,
@@ -67,6 +68,13 @@ export const documentVersions = pgTable(
     mimeType: text("mime_type").$type<"application/pdf" | "image/jpeg" | "image/png">().notNull(),
     sizeBytes: integer("size_bytes").notNull(),
     sha256: text("sha256"),
+    // Recipe and application snapshot validated against the exact generated PDF bytes.
+    demoImportFixture: jsonb("demo_import_fixture").$type<{
+      recipeId: string;
+      recipeVersion: 1;
+      businessName: string;
+      applicationRevision: number;
+    }>(),
     storageKey: text("storage_key").notNull().unique(),
     uploadState: text("upload_state")
       .$type<"staged" | "uploaded" | "abandoned" | "missing">()

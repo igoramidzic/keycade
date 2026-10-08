@@ -4,10 +4,19 @@ import {
   documentInterpretationResultSchema,
   extractedDocumentFieldSchema,
 } from "@keycade/contracts";
+import {
+  createDemoImportPdf,
+  demoImportFixtureFor,
+  demoImportRecipes,
+} from "@keycade/contracts/demo-import";
 import { createDemoDocumentPdf, demoDocuments } from "@keycade/contracts/demo-scenarios";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { documentDigest } from "./document-content.js";
-import { demoDocumentFixture, syntheticDocumentPdf } from "./document-fixtures.js";
+import {
+  demoDocumentFixture,
+  demoImportDocumentFixture,
+  syntheticDocumentPdf,
+} from "./document-fixtures.js";
 import { interpretSyntheticDocument } from "./document-interpretation.js";
 import { simulateDocumentScan } from "./document-scan.js";
 import { systemClock } from "./provider.js";
@@ -269,5 +278,103 @@ describe("schema-validated simulated document interpretation", () => {
     ).rejects.toMatchObject({ code: "terminal_error", retryable: false });
     await vi.advanceTimersByTimeAsync(5000);
     await terminal;
+  });
+});
+
+describe("content-bound imported document interpretation", () => {
+  const context = { businessName: "Synthetic Aspen Studio", applicationRevision: 12 };
+  const imported = (recipeId: string) => ({
+    ...request("unknown"),
+    businessName: context.businessName,
+    demoImportFixture: demoImportFixtureFor(recipeId, context),
+    sha256: documentDigest(createDemoImportPdf(recipeId, context)),
+  });
+  it.each(demoImportRecipes)(
+    "returns printed, typed, version-bound $id facts only after delay",
+    async (recipe) => {
+      vi.useFakeTimers();
+      const input = imported(recipe.id);
+      let complete = false;
+      const pending = interpretSyntheticDocument(input, options()).then((result) => {
+        complete = true;
+        return result;
+      });
+      await vi.advanceTimersByTimeAsync(4999);
+      expect(complete).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      const result = await pending;
+      expect(result).toMatchObject({
+        runId: input.runId,
+        versionId: input.versionId,
+        category: recipe.category,
+        needsReview: recipe.outcome === "needs_review",
+        demoImportFixture: input.demoImportFixture,
+      });
+      for (const field of result.extractedFields) {
+        expect(field.provenance).toMatchObject({
+          recipeId: recipe.id,
+          recipeVersion: 1,
+          period: recipe.period,
+          subject: "business",
+          supplied: true,
+        });
+        expect(field.provenance?.currency).toBe(field.kind === "money" ? "USD" : null);
+      }
+      expect(demoImportDocumentFixture(input.sha256, context)?.fixture).toEqual(
+        input.demoImportFixture,
+      );
+    },
+  );
+  it("retains the original recipe/name/revision while a renamed application yields a mismatch", async () => {
+    vi.useFakeTimers();
+    const input = {
+      ...imported("business-tax-return-2024"),
+      businessName: "Synthetic Renamed Studio",
+    };
+    const pending = interpretSyntheticDocument(input, options());
+    await vi.advanceTimersByTimeAsync(5000);
+    const result = await pending;
+    expect(result).toMatchObject({
+      needsReview: true,
+      comparedApplicationBusinessName: input.businessName,
+      demoImportFixture: { businessName: context.businessName, applicationRevision: 12 },
+    });
+    expect(result.findings).toContainEqual(
+      expect.objectContaining({ code: "business_name_mismatch", severity: "warning" }),
+    );
+    expect(result.extractedFields.find((field) => field.key === "business_name")?.value).toBe(
+      context.businessName,
+    );
+    expect(
+      demoImportDocumentFixture(input.sha256, { ...context, businessName: input.businessName }),
+    ).toBeNull();
+  });
+  it("does not grant fixture behavior for arbitrary bytes or forged snapshot metadata", async () => {
+    vi.useFakeTimers();
+    const valid = imported("business-tax-return-2023");
+    for (const input of [
+      { ...valid, sha256: request("unknown").sha256 },
+      { ...valid, demoImportFixture: { ...valid.demoImportFixture, applicationRevision: 13 } },
+      { ...valid, demoImportFixture: { ...valid.demoImportFixture, businessName: "Forged name" } },
+      { ...valid, demoImportFixture: undefined },
+    ]) {
+      const pending = interpretSyntheticDocument(input, options());
+      await vi.advanceTimersByTimeAsync(5000);
+      const result = await pending;
+      expect(result).toMatchObject({ category: "other", needsReview: true, extractedFields: [] });
+      expect(result.demoImportFixture).toBeUndefined();
+    }
+  });
+  it("never turns a missing business into a favorable match or missing facts into zeroes", async () => {
+    vi.useFakeTimers();
+    const pending = interpretSyntheticDocument(
+      { ...imported("business-tax-return-review"), businessName: null },
+      options(),
+    );
+    await vi.advanceTimersByTimeAsync(5000);
+    const result = await pending;
+    expect(result.needsReview).toBe(true);
+    expect(result.findings.every((finding) => finding.severity === "warning")).toBe(true);
+    expect(result.extractedFields.some((field) => field.key === "adjusted_net_income")).toBe(false);
   });
 });

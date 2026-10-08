@@ -1,5 +1,15 @@
 # Decisions, assumptions, and reference sources
 
+## V2-03 protected text importer — October 8, 2026
+
+The next “Continue with v2” request selects V2-03 only. Five version-1 recipes use the planned exact filenames; NFC normalization and case folding allow uppercase spelling without accepting paths, compatibility aliases or extra extensions. UTF-8 text is bounded to 64 KiB and ten files, remains inert, and is never stored in application records or audit payloads. The panel previews recipe periods and supplied values before an explicit upload.
+
+The existing protected upload reservation accepts optional importer input and checks it against the current authorized synthetic application name and application revision. Migration `0022_demo_import_fixtures.sql` adds a nullable recipe/context snapshot to immutable document versions. No separate name-revision column is needed: the application revision fences preview-to-reservation edits, while processing compares the actual current name so unrelated application edits do not invent a name mismatch. Context-free generic downloads remain available without granting application access.
+
+Generated PDFs carry a bounded recipe/context marker. The server reconstructs the complete registered PDF and validates exact bytes; the marker alone has no authority. This preserves classification for downloaded or renamed generated PDFs, while arbitrary PDFs with recognized filenames remain ordinary content. Import reservations enforce the expected checksum before local/R2 immutable publication, allowing corrected retries. Authorization, private-task boundaries, quarantine, clean-scan processing intent, retry/stale protection and explicit human evidence review remain in the existing pipeline.
+
+Tax years 2023–2025 include distinct net-sales and ordinary-income values and a separate supporting schedule with explicitly supplied adjustments/adjusted income. The review recipe deliberately names another synthetic business and leaves adjusted income unknown. Bank deposits remain deposits. Typed suggestions retain recipe, period, USD and source-page provenance; reviewed adoption and the document workspace remain V2-04. This is a local implementation; hosted parity remains V2-08.
+
 ## V2-02 borrower dashboard implementation — October 8, 2026
 
 “Continue with v2” selects the next ready task, V2-02. Keep the remaining backlog bounded and retain its existing dependencies. The borrower application now uses one task dashboard and contextual destinations; lender tabs remain unchanged. Existing reminder, task and signing links retain their authorized URLs. Editors stay mounted within the application while visiting contextual screens, but access loss, identity changes and application changes discard their private state. No browser persistence stores these drafts.

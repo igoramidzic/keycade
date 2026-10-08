@@ -67,6 +67,12 @@ export function createR2DocumentStorage(
         if (failure) throw failure.error;
         for (const result of results) if (result.status === "rejected") throw result.reason;
         const sha256 = hash.digest("hex");
+        if (options.expectedSha256 && options.expectedSha256 !== sha256)
+          throw new DomainError(
+            "INVALID_INPUT",
+            400,
+            "The uploaded bytes do not match the registered demo recipe. Retry the generated PDF.",
+          );
         const staged = await bucket.get(temporary);
         if (!staged) throw new Error("Staged document is missing.");
         const published = await bucket.put(key, staged.body, {

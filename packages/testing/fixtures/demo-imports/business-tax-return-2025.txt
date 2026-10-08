@@ -1,0 +1,3 @@
+Keycade synthetic demo trigger for the 2025 business tax return.
+Drop this file into the demo kit's Import demo text files area.
+The filename selects the registered recipe; this text does not define or change its values.

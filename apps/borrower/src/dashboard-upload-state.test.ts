@@ -10,6 +10,7 @@ function version(overrides: Partial<DocumentVersion> = {}): DocumentVersion {
     mimeType: "application/pdf",
     sizeBytes: 100,
     sha256: null,
+    demoImportFixture: null,
     uploadState: "uploaded",
     scanState: "clean",
     scanErrorCode: null,
@@ -58,6 +59,7 @@ test("the general upload projection excludes task/private evidence and supersede
     applicationId: "application",
     simulation: true,
     canUpload: true,
+    demoImportContext: null,
     uploadTasks: [],
     limits: { maxFileBytes: 1000, maxBatchFiles: 5, allowedMimeTypes: ["application/pdf"] },
     documents: [

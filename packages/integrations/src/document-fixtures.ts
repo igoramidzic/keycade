@@ -1,4 +1,14 @@
 import {
+  createDemoImportPdf,
+  type DemoImportContext,
+  type DemoImportFixture,
+  demoImportFields,
+  demoImportFixtureFor,
+  demoImportFixtureSchema,
+  demoImportRecipe,
+  demoImportRecipes,
+} from "@keycade/contracts/demo-import";
+import {
   createDemoDocumentPdf,
   type DemoDocument,
   demoDocumentBusinessName,
@@ -68,6 +78,30 @@ export function demoDocumentFixture(
     for (const name of names) {
       if (documentDigest(createDemoDocumentPdf(document, name)) === sha256)
         return { document, businessName: demoDocumentBusinessName(document, name) };
+    }
+  }
+  return null;
+}
+
+/** Stored identity is only a hint: regeneration must match the complete uploaded content digest. */
+export function demoImportDocumentFixture(
+  sha256: string,
+  contextOrFixture: DemoImportContext | DemoImportFixture,
+) {
+  const metadata =
+    "recipeId" in contextOrFixture
+      ? [contextOrFixture]
+      : demoImportRecipes.map((recipe) => demoImportFixtureFor(recipe.id, contextOrFixture));
+  for (const input of metadata) {
+    const parsed = demoImportFixtureSchema.safeParse(input);
+    if (!parsed.success) continue;
+    const fixture = parsed.data;
+    if (documentDigest(createDemoImportPdf(fixture.recipeId, fixture)) === sha256) {
+      return {
+        recipe: demoImportRecipe(fixture.recipeId),
+        fixture,
+        fields: demoImportFields(fixture),
+      };
     }
   }
   return null;

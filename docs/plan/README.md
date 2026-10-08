@@ -1,6 +1,8 @@
 # Keycade implementation plan
 
-**V2-02 — [borrower task dashboard](v2/04-delivery-and-validation.md#v2-02--borrower-task-dashboard) is complete locally, October 8, 2026.** The borrower has one dashboard with personal/assigned/business tasks, persisted-stage progress, actual sidebar uploads and contextual documents, signing, submission, closing, people and history. Validation passed 320 unit tests, 396 PostgreSQL tests, all 12 builds/typechecks and 96 distinct desktop/mobile browser cases across the recorded runs and focused repairs. [V2-01 expanded setup](v2/04-delivery-and-validation.md#v2-01--setup-contracts-migration-and-wizard) remains complete. V2-03–V2-08 remain **Not started**; V2-03 is the next default task. No v2 hosted deployment is claimed.
+**V2-03 — [demo text importer](v2/04-delivery-and-validation.md#v2-03--demo-text-importer-and-registered-fixtures) is complete locally, October 8, 2026.** Five registered text filenames generate synthetic PDFs with exact-byte validation, retained recipe/application snapshots and typed simulated findings through the existing protected upload pipeline. Validation passed **362 unit tests, 418 PostgreSQL tests, all 12 builds/typechecks and 40 desktop/mobile browser cases**. V2-01 and V2-02 remain complete; V2-04 is the next default task. V2-04–V2-08 remain **Not started**. No v2 hosted deployment is claimed.
+
+V2-02 delivered the borrower task dashboard with personal/assigned/business tasks, persisted-stage progress, sidebar uploads and contextual documents, signing, submission, closing, people and history. Its [local acceptance](v2/04-delivery-and-validation.md#v2-02--borrower-task-dashboard) records the historical validation boundary.
 
 Planning baseline: October 6, 2026. The first local-foundation milestone (T01–T05) is complete and verified. Cloudflare is the intended deployment target; five Keycade Workers are deployed and their Neon/Hyperdrive connections are verified. Neon PostgreSQL is linked and migrated through GitHub Actions; the initial apply and repeat no-op run passed. Separate CI validation is paused for faster demo deployment at the user's request.
 
@@ -54,7 +56,7 @@ Read the [v2 experience](v2/02-experience-spec.md) and [data/simulation contract
 | --- | --- | --- | --- |
 | V2-01 | [Expanded setup and migration](v2/04-delivery-and-validation.md#v2-01--setup-contracts-migration-and-wizard) | T07, T08, T15 | Done — [local acceptance](v2/04-delivery-and-validation.md#v2-01--setup-contracts-migration-and-wizard) |
 | V2-02 | [Borrower task dashboard without top tabs](v2/04-delivery-and-validation.md#v2-02--borrower-task-dashboard) | V2-01; existing borrower/task/signing/review/closing work and D05 | Done — [local acceptance](v2/04-delivery-and-validation.md#v2-02--borrower-task-dashboard) |
-| V2-03 | [Filename-driven demo text importer](v2/04-delivery-and-validation.md#v2-03--demo-text-importer-and-registered-fixtures) | T13, T14, D05 | Not started |
+| V2-03 | [Filename-driven demo text importer](v2/04-delivery-and-validation.md#v2-03--demo-text-importer-and-registered-fixtures) | T13, T14, D05 | Done — [local acceptance](v2/04-delivery-and-validation.md#v2-03--demo-text-importer-and-registered-fixtures) |
 | V2-04 | [Document workspace and reviewed financial facts](v2/04-delivery-and-validation.md#v2-04--document-workspace-and-reviewed-financial-facts) | V2-01, V2-03; T14, T15, T19 | Not started |
 | V2-05 | [Lender overview and evidence drilldowns](v2/04-delivery-and-validation.md#v2-05--lender-overview-and-evidence-drilldowns) | V2-01, V2-04; T10, T12, T16, T19, T21 | Not started |
 | V2-06 | [Simulated Loan Footprint map](v2/04-delivery-and-validation.md#v2-06--simulated-loan-footprint) | V2-01, T16 | Not started |

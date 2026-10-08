@@ -21,6 +21,14 @@ import {
   demoDocumentMime,
   readDemoDocumentDrag,
 } from "@keycade/ui/lib/demo-document-transfer";
+import {
+  createDemoImportFile,
+  type DemoImportPreview,
+  type DemoImportSource,
+  demoImportMime,
+  readDemoImportDrag,
+  sameDemoImportContext,
+} from "@keycade/ui/lib/demo-import-transfer";
 import { createDocumentTransfer } from "@keycade/ui/lib/document-transfer";
 import { documentRefreshInterval } from "@keycade/ui/lib/refresh-policy";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -233,7 +241,7 @@ function ApplicationUpload({
       if (mounted.current && !denied.current) await guarded(reload).catch(() => undefined);
     }
   }
-  function addFiles(files: File[]) {
+  function addFiles(files: File[], demoImport?: DemoImportSource) {
     setDragging(false);
     setMessage(null);
     if (!canUpload || !data || !files.length) return;
@@ -263,6 +271,7 @@ function ApplicationUpload({
           mimeType: file.type,
           expectedSize: file.size,
           idempotencyKey: crypto.randomUUID(),
+          ...(demoImport ? { demoImport } : {}),
         },
       };
     });
@@ -279,6 +288,15 @@ function ApplicationUpload({
     }
     addFiles([createDemoDocumentFile(document, demoKit.businessName)]);
   };
+  const demoImportUpload = useRef<(preview: DemoImportPreview) => void>(() => undefined);
+  demoImportUpload.current = (preview) => {
+    if (!active || !demoKit?.uploadsEnabled || !canUpload) return;
+    if (!sameDemoImportContext(preview.fixture, data?.demoImportContext ?? undefined)) {
+      setMessage("The application snapshot changed. Import the text file again before uploading.");
+      return;
+    }
+    addFiles([createDemoImportFile(preview.fixture)], preview.source);
+  };
   const registerDemoUpload = demoKit?.registerUploadTarget;
   const demoEnabled = demoKit?.uploadsEnabled;
   useEffect(() => {
@@ -288,8 +306,10 @@ function ApplicationUpload({
       label: "Other application documents",
       subject: "business",
       upload: (document) => demoUpload.current(document),
+      demoImportContext: data?.demoImportContext ?? undefined,
+      uploadImport: (preview) => demoImportUpload.current(preview),
     });
-  }, [active, applicationId, registerDemoUpload, demoEnabled, canUpload]);
+  }, [active, applicationId, registerDemoUpload, demoEnabled, canUpload, data?.demoImportContext]);
   async function retryVersion(versionId: string, kind: "scan" | "processing") {
     setAction(versionId);
     setMessage(null);
@@ -359,7 +379,14 @@ function ApplicationUpload({
                 onDrop={(event) => {
                   event.preventDefault();
                   setDragging(false);
-                  if (event.dataTransfer.types.includes(demoDocumentMime)) {
+                  if (event.dataTransfer.types.includes(demoImportMime)) {
+                    const preview = readDemoImportDrag(event.dataTransfer);
+                    if (preview) demoImportUpload.current(preview);
+                    else
+                      setMessage(
+                        "This imported demo preview is unavailable. Import the text file again.",
+                      );
+                  } else if (event.dataTransfer.types.includes(demoDocumentMime)) {
                     const sample = readDemoDocumentDrag(event.dataTransfer);
                     if (sample) demoUpload.current(sample.document);
                     else

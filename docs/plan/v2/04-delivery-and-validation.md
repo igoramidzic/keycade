@@ -1,6 +1,6 @@
 # V2 delivery and validation
 
-Planning date: October 8, 2026. V2-01 and V2-02 are complete locally. V2-03–V2-08 are **Not started**. Only the task-specific evidence below proves v2 behavior.
+Planning date: October 8, 2026. V2-01–V2-03 are complete locally. V2-04–V2-08 are **Not started**. Only the task-specific evidence below proves v2 behavior.
 
 Read [the experience specification](02-experience-spec.md) and [the data and simulation specification](03-data-and-simulation.md) before implementing a task. The [main plan](../README.md), [architecture](../02-architecture.md), [access rules](../03-domain-and-access.md), and [verification discipline](../05-development-and-testing.md) still apply. Implement one bounded task or reviewable slice at a time.
 
@@ -10,14 +10,14 @@ Read [the experience specification](02-experience-spec.md) and [the data and sim
 | --- | --- | --- | --- | --- |
 | V2-01 | Expanded resumable intake | — | T07, T08, T15 | Done — local acceptance below |
 | V2-02 | Borrower task dashboard without top tabs | V2-01 | T09, T11–T13, T17–T21, D05 | Done — local acceptance below |
-| V2-03 | Protected text-to-fixture demo importer | — | T13, T14, D05 | Not started |
+| V2-03 | Protected text-to-fixture demo importer | — | T13, T14, D05 | Done — local acceptance below |
 | V2-04 | Document review and confirmed financial facts | V2-01, V2-03 | T14, T15, T19 | Not started |
 | V2-05 | Lender application overview and evidence drill-down | V2-01, V2-04 | T10, T12, T16, T19, T21 | Not started |
 | V2-06 | Simulated Loan Footprint | V2-01 | T16 | Not started |
 | V2-07 | Integrated local acceptance | V2-02, V2-03, V2-04, V2-05, V2-06 | T22 | Not started |
 | V2-08 | Hosted parity and deployment acceptance | V2-07 | D02, D03 | Not started |
 
-Existing prerequisites are recorded as complete in the main plan. D05 and some later follow-ups have only local evidence; V2-08 must carry the combined implementation through hosted validation. V2-01 and V2-03 can proceed independently. V2-06 can be implemented and demonstrated from the existing lender Checks view before V2-05 adds its overview entry point.
+Existing prerequisites are recorded as complete in the main plan. D05 and some later follow-ups have only local evidence; V2-08 must carry the combined implementation through hosted validation. V2-01 and V2-03 are complete, so V2-04 is next. V2-06 can be implemented and demonstrated from the existing lender Checks view before V2-05 adds its overview entry point.
 
 ## Shared completion rules
 
@@ -116,7 +116,7 @@ pnpm test:e2e tests/e2e/borrower-dashboard-safety.spec.ts
 pnpm test:e2e tests/e2e/borrower-sidebar-drop.spec.ts
 ```
 
-Local scope only. V2-03–V2-08 remain unstarted; no deployment or hosted parity is claimed.
+Local scope only. At the V2-02 checkpoint, V2-03–V2-08 remained unstarted; no deployment or hosted parity was claimed. The current task index supersedes that historical status.
 
 ## V2-03 — Demo text importer and registered fixtures
 
@@ -137,9 +137,22 @@ Dependencies: T13, T14, D05. Primary areas: demo catalog/transfer UI, protected 
 4. Processing failures retain permitted clean original downloads and retry history. Staff corrections and accepted task evidence remain separate from mock findings; no field confirmation or requirement completion occurs automatically.
 5. Desktop/mobile keyboard and drag/drop flows expose equivalent behavior, clear loading/errors and no scenario-panel overlap. Ordinary renamed PDFs retain content-based classification.
 
-Implementation record: **Not started.**
+Implementation record: **Done — local acceptance, October 8, 2026.**
 
-Validation record: **Not run.** D05's existing evidence does not cover the new importer.
+- The shared demo panel accepts the five exact registered text basenames through its picker or drop area. It shows generated PDF type, period, exact supplied amounts, application snapshot, printed business and simulated outcome before Download/Drag/Upload. UTF-8 validation rejects paths, ambiguous extensions, compatibility aliases, hidden controls, malformed bytes, oversized input and batches above ten. Text instructions remain inert; unknown files create no evidence.
+- Three two-page tax returns (2023–2025) print net sales and ordinary income separately from explicit adjustments/adjusted income on a supporting schedule. The January statement preserves deposits as deposits; the review sample names another fictional business and leaves missing adjusted income unknown. Typed suggestions carry period, USD, recipe and source-page provenance. Ready-to-use text stubs are under `packages/testing/fixtures/demo-imports`.
+- Both transports use the existing authenticated reservation, private streaming storage, scan and delayed interpretation. Migration `0022_demo_import_fixtures.sql` adds a nullable immutable-version recipe/context snapshot. Import reservations validate current application context and expected bytes; local and R2 storage reject an altered checksum before publishing. The server recognizes downloaded/renamed generated PDFs only by exact reconstruction of every byte, never a filename or unverified marker.
+- Existing permission/lifecycle gates, idempotency, retry history and stale-version/name protection remain authoritative. Business importer samples cannot enter private-subject targets. No result confirms financial facts, completes evidence review or advances an application. V2-04 owns the separate reviewed-fact workflow. Independent backend/UI review found and closed the configurable batch-limit edge case.
+
+Validation record — October 8, 2026:
+
+- **362 unit tests across 34 files passed** with `node_modules/node/bin/node node_modules/vitest/vitest.mjs run --exclude '**/*.integration.test.ts'`. New coverage includes strict names/UTF-8/size/batch validation, inert instructions, all five PDFs, Unicode contexts, byte tampering, printed/source periods, supplied versus missing adjusted income, retained-name comparisons, drag metadata and checksum-before-publication recovery for local/R2 storage. The first sandboxed run could not open loopback test sockets; the final run passed with local networking enabled.
+- **418 real-PostgreSQL tests across 44 files passed**, including 22 new importer/domain/both-transport/upgrade cases. Ran the installed Vitest `run .integration.test.ts` after the existing `assertLocalTarget`, `assertOwnedDatabase` and `waitForDatabase` preflight, with the local test URL passed only in process memory. Covers cross-bank/application/restricted/revoked/private denial, forged requests and bytes, idempotent versus intentional separate uploads, audit rollback, fixed importer batch limits, delayed scan/interpretation, duplicate/stale delivery, replacement/name changes and no automatic review. The existing suite also preserves blocked-scan, failed-processing/download and correction-history behavior.
+- **40 desktop/mobile browser cases passed with no failures, skips or flaky cases.** New importer suite: 12/12, report `.local/e2e-caaHdt`; existing scenario/document/processing regressions: 28/28, `.local/e2e-n3tjR2`. Commands used `node_modules/node/bin/node --import tsx scripts/e2e.ts` with `tests/e2e/demo-text-import.spec.ts`, then `tests/e2e/demo-scenarios.spec.ts tests/e2e/documents.spec.ts tests/e2e/document-processing.spec.ts`. Coverage includes both dashboards, borrower sidebar, keyboard/picker/drop parity, ordinary text denial, renamed PDF behavior, recoverable errors, restricted targets and layout. Initial test-selector/fixture errors were repaired before the final passing runs. Desktop/mobile preview screenshots in the importer report were visually inspected.
+- All **12 workspace typechecks and builds**, root TypeScript, Biome and browser-boundary checks passed. All **268 local Markdown paths/anchors** and `git diff --check` passed. The host pnpm launcher could not verify its registry signature; installed Node 24.21.0 and repository binaries ran the corresponding package scripts directly, with no dependency or lockfile changes. Final check/build/unit/integration logs are under `.local/v2-03-validation`.
+- All five generated PDFs were parsed with pypdf and their printed periods/values checked; standard tax, adjustment, statement and review pages were rendered with Poppler and visually verified. QA PDFs/renders are in `.local/v2-03-validation/pdfs`. The additive migration applied to a populated pre-0022 test database without changing historical documents, and repeat migration/seed passed. Local development migration apply/repeat no-op and schema readiness passed; restarting the existing worker watcher restored API readiness with database and worker both ready. No data reset or hosted deployment occurred.
+
+Try locally: open the borrower or staff application and its demo kit, choose one of the `.txt` files in `packages/testing/fixtures/demo-imports`, review the generated facts, then Upload or drag the preview to the authorized upload area. Open Documents to inspect the clean PDF and delayed simulated findings. V2-04 is the next default task.
 
 ## V2-04 — Document workspace and reviewed financial facts
 

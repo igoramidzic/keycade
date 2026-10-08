@@ -2,7 +2,7 @@
 
 ## Version 2 requirements — October 8, 2026
 
-V2-01 and V2-02 are implemented and verified locally; the [setup evidence](v2/04-delivery-and-validation.md#v2-01--setup-contracts-migration-and-wizard) and [dashboard evidence](v2/04-delivery-and-validation.md#v2-02--borrower-task-dashboard) record the exact verified scope. V2-03–V2-08 remain **planned**. See [the source inventory](v2/01-screenshot-findings.md), [v2 plan](v2/README.md) and [task acceptance records](v2/04-delivery-and-validation.md). The baseline evidence below remains historical; it does not prove these changes.
+V2-01–V2-03 are implemented and verified locally; the [setup evidence](v2/04-delivery-and-validation.md#v2-01--setup-contracts-migration-and-wizard) and [dashboard evidence](v2/04-delivery-and-validation.md#v2-02--borrower-task-dashboard) record the exact verified scope. The [importer evidence](v2/04-delivery-and-validation.md#v2-03--demo-text-importer-and-registered-fixtures) records V2-03 completion. V2-04–V2-08 remain **planned**. See [the source inventory](v2/01-screenshot-findings.md), [v2 plan](v2/README.md) and [task acceptance records](v2/04-delivery-and-validation.md). The baseline evidence below remains historical; it does not prove these changes.
 
 | New or updated requirement | Coverage | Required proof |
 | --- | --- | --- |
@@ -14,7 +14,7 @@ V2-01 and V2-02 are implemented and verified locally; the [setup evidence](v2/04
 | Expand three tax returns, then open each document | V2-04/V2-05 | Visible logical-document counts, stored periods and current review state; same authorized version in preview, metadata and analysis; missing/duplicate-period handling. |
 | Preview on left; document info, analysis, findings and extracted values on right | V2-04 | Accessible desktop/mobile dialog; metadata/subject/period; private bytes, version/history/retry states; synthetic narrative and exact source references. |
 | Use extracted revenue/sales and other facts to update the record | V2-04/V2-05 | Explicit reviewed adoption; current/proposed comparison, period/currency/source provenance, immutable revisions, concurrency/idempotency and frozen-snapshot protection. |
-| Drag text into demo section and use filename to mock a document/result | V2-03 | Exact registered basenames generate synthetic tax/statement PDFs; unknown names fail helpfully; real protected pipeline; ordinary uploads remain content-bound; no real OCR/AI calls. |
+| Drag text into demo section and use filename to mock a document/result | V2-03 done locally | Five exact basenames, bounded inert UTF-8, byte-validated recipe snapshots, protected upload/scan/delayed processing, three tax periods and explicit adjustment provenance. Verified with 362 unit, 418 PostgreSQL and 40 desktop/mobile browser tests; no automatic fact adoption or real OCR/AI. |
 | Loan Footprint opens geographic modal/map; US clear, outside US not clear | V2-06 | Mock map/address, explicit missing input, address revision invalidation; non-US negative test; no real geocoder or automatic credit determination. |
 | Preserve all-environment demo and current access/lifecycle guarantees | V2-01–V2-08 | Real PostgreSQL and both-transport negative cases during each task, scoped metrics/bytes/counts, stale jobs/revocation; no real external actions or servicing. |
 | Prove combined behavior locally and on hosted demo separately | V2-07/V2-08 | Fresh/upgrade journeys and desktop/mobile acceptance; actual five-Worker deployment slice and private-byte/analysis/fact/geography read-back before claiming parity. |

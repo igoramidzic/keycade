@@ -3,7 +3,12 @@ import {
   type DocumentInterpretationResult,
   documentInterpretationResultSchema,
 } from "@keycade/contracts";
-import { demoDocumentFixture, documentFixtureScenario } from "./document-fixtures.js";
+import { type DemoImportFixture, demoImportBusinessName } from "@keycade/contracts/demo-import";
+import {
+  demoDocumentFixture,
+  demoImportDocumentFixture,
+  documentFixtureScenario,
+} from "./document-fixtures.js";
 import { ProviderError, type ProviderOptions } from "./provider.js";
 
 export interface DocumentInterpretationRequest {
@@ -14,6 +19,7 @@ export interface DocumentInterpretationRequest {
   sha256: string;
   attempt: number;
   businessName?: string | null;
+  demoImportFixture?: DemoImportFixture | null;
 }
 
 const normalizeBusinessName = (name: string) => name.trim().toLowerCase().replace(/\s+/g, " ");
@@ -113,6 +119,56 @@ function demoResult(
   };
 }
 
+function importedResult(
+  fixture: NonNullable<ReturnType<typeof demoImportDocumentFixture>>,
+  applicationBusinessName: string | null | undefined,
+) {
+  const businessName = demoImportBusinessName(fixture.fixture);
+  const matches =
+    !!applicationBusinessName &&
+    normalizeBusinessName(businessName) === normalizeBusinessName(applicationBusinessName);
+  const findings: DocumentFinding[] = [
+    {
+      code: !applicationBusinessName
+        ? "document_review"
+        : matches
+          ? "business_name_match"
+          : "business_name_mismatch",
+      severity: matches ? "clear" : "warning",
+      title: matches ? "Business name matches" : "Business name needs review",
+      detail: matches
+        ? `This registered synthetic PDF names ${businessName}, matching this application's business name. Human review is required.`
+        : applicationBusinessName
+          ? `The synthetic PDF names ${businessName}; this application names ${applicationBusinessName}. Request corrected evidence.`
+          : "An application business name is required before this synthetic document can be compared.",
+    },
+  ];
+  if (fixture.recipe.outcome === "needs_review")
+    findings.push({
+      code: "document_review",
+      severity: "warning",
+      title: "Adjusted income was not supplied",
+      detail:
+        "The printed supporting schedule leaves adjustments and adjusted income unknown. No missing value has been inferred or filled with zero.",
+    });
+  if (fixture.recipe.category === "bank_statement")
+    findings.push({
+      code: "cash_flow",
+      severity: "clear",
+      title: "Synthetic statement amounts reconcile",
+      detail: fixture.recipe.summary,
+    });
+  return {
+    category: fixture.recipe.category,
+    confidence: 0.97,
+    needsReview: findings.some((finding) => finding.severity === "warning"),
+    extractedFields: fixture.fields,
+    findings,
+    comparedApplicationBusinessName: applicationBusinessName ?? null,
+    demoImportFixture: fixture.fixture,
+  };
+}
+
 /** Registered synthetic content hashes, never filenames, select the deterministic demo result. */
 export async function interpretSyntheticDocument(
   request: DocumentInterpretationRequest,
@@ -120,6 +176,9 @@ export async function interpretSyntheticDocument(
 ): Promise<DocumentInterpretationResult> {
   const scenario = documentFixtureScenario(request.sha256);
   const demo = demoDocumentFixture(request.sha256, request.businessName);
+  const imported = request.demoImportFixture
+    ? demoImportDocumentFixture(request.sha256, request.demoImportFixture)
+    : null;
   const controller = new AbortController();
   const abort = () => controller.abort();
   options.signal?.addEventListener("abort", abort, { once: true });
@@ -136,6 +195,15 @@ export async function interpretSyntheticDocument(
       request.attempt === 1
     )
       throw new ProviderError("transient_error", true);
+    if (imported)
+      return documentInterpretationResultSchema.parse({
+        provider: "keycade-document-interpretation-v1",
+        simulated: true,
+        runId: request.runId,
+        versionId: request.versionId,
+        ...importedResult(imported, request.businessName),
+        completedAt: options.clock.now().toISOString(),
+      });
     if (demo)
       return documentInterpretationResultSchema.parse({
         provider: "keycade-document-interpretation-v1",

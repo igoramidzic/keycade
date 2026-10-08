@@ -1,3 +1,4 @@
+import type { DemoImportContext } from "@keycade/contracts/demo-import";
 import {
   type DemoDocument,
   demoDocumentBusinessName,
@@ -5,8 +6,10 @@ import {
 } from "@keycade/contracts/demo-scenarios";
 import { Badge } from "@keycade/ui/components/badge";
 import { Button } from "@keycade/ui/components/button";
+import { DemoTextImporter } from "@keycade/ui/components/demo-text-importer";
 import { NativeSelect } from "@keycade/ui/components/native-select";
 import { createDemoDocumentFile, demoDocumentMime } from "@keycade/ui/lib/demo-document-transfer";
+import type { DemoImportPreview } from "@keycade/ui/lib/demo-import-transfer";
 import { preferredDemoUploadTarget } from "@keycade/ui/lib/demo-upload-targets";
 import {
   Copy,
@@ -34,6 +37,8 @@ export type DemoUploadTarget = {
   subject: DemoDocument["subject"];
   priority?: number;
   upload: (document: DemoDocument) => void;
+  demoImportContext?: DemoImportContext;
+  uploadImport?: (preview: DemoImportPreview) => void;
 };
 type DemoKitContextValue = {
   businessName: string;
@@ -335,6 +340,7 @@ function DemoKitPanel({
           </p>
         </details>
       </section>
+      <DemoTextImporter uploadTarget={uploadTarget} />
       <section aria-label="Demo documents" className="space-y-3">
         <h3 className="text-sm font-semibold">Drag a PDF into the upload area</h3>
         <p className="text-xs leading-5 text-indigo-800">

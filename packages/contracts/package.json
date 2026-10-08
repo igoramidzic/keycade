@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./demo-import": "./src/demo-import.ts",
     "./demo-scenarios": "./src/demo-scenarios.ts",
     "./industry-search": "./src/industry-search.ts"
   },

@@ -1,0 +1,1 @@
+ALTER TABLE "document_versions" ADD COLUMN "demo_import_fixture" jsonb;

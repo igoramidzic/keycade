@@ -1,5 +1,10 @@
 import { z } from "zod";
 import {
+  demoImportContextSchema,
+  demoImportFixtureSchema,
+  demoTextImportRequestSchema,
+} from "./demo-import.js";
+import {
   documentCategorySchema,
   documentProcessingStateSchema,
   documentProcessingViewSchema,
@@ -25,6 +30,7 @@ export const beginDocumentUploadSchema = z.strictObject({
   expectedSize: z.number().int().positive(),
   taskId: z.string().uuid().optional(),
   replacesDocumentId: z.string().uuid().optional(),
+  demoImport: demoTextImportRequestSchema.optional(),
 });
 export const beginDocumentBatchSchema = z.strictObject({
   files: z.array(beginDocumentUploadSchema).min(1),
@@ -50,6 +56,7 @@ export const documentVersionSchema = z.object({
   mimeType: documentMimeTypeSchema,
   sizeBytes: z.number().int().positive(),
   sha256: z.string().nullable(),
+  demoImportFixture: demoImportFixtureSchema.nullable().default(null),
   uploadState: documentUploadStateSchema,
   scanState: documentScanStateSchema,
   scanErrorCode: z.string().nullable(),
@@ -74,6 +81,7 @@ export const documentsViewSchema = z.object({
   applicationId: z.string().uuid(),
   simulation: z.literal(true),
   canUpload: z.boolean(),
+  demoImportContext: demoImportContextSchema.nullable().default(null),
   uploadTasks: z.array(z.object({ id: z.string().uuid(), title: z.string() })),
   limits: z.object({
     maxFileBytes: z.number().int().positive(),

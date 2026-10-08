@@ -4,6 +4,7 @@ import {
   type DocumentsView,
   documentUploadResultSchema,
 } from "@keycade/contracts";
+import { demoImportMaxFiles, readDemoImportPdfFixture } from "@keycade/contracts/demo-import";
 import type { Database } from "@keycade/db";
 import { type Actor, createDocumentsService, DomainError } from "@keycade/domain";
 import type { ByteSource, PrivateDocumentStorage } from "@keycade/integrations/documents";
@@ -27,10 +28,20 @@ export function createDocumentTransport(db: Database, options: DocumentTransport
   return {
     async list(actor: Actor, bank: string, app: string): Promise<DocumentsView> {
       const view = await service.list(actor, bank, app);
-      return { ...view, canUpload: !!options.documentStorage && view.canUpload };
+      return {
+        ...view,
+        canUpload: !!options.documentStorage && view.canUpload,
+        demoImportContext: options.documentStorage ? view.demoImportContext : null,
+      };
     },
     async begin(actor: Actor, bank: string, app: string, input: unknown, requestId: string) {
       const body = beginDocumentBatchSchema.parse(input);
+      if (body.files.filter((file) => file.demoImport).length > demoImportMaxFiles)
+        throw new DomainError(
+          "INVALID_INPUT",
+          400,
+          `Import up to ${demoImportMaxFiles} demo text files at a time.`,
+        );
       if (body.files.length > limits.maxBatchFiles)
         throw new DomainError(
           "INVALID_INPUT",
@@ -66,12 +77,39 @@ export function createDocumentTransport(db: Database, options: DocumentTransport
       requestId: string,
     ) {
       const upload = await service.upload(actor, bank, app, uploadId);
-      const bytes = await storage().write(upload.storageKey, source, {
+      // Inspect only the bounded synthetic PDF format. Ordinary uploads stay streamed.
+      const sample =
+        upload.mimeType === "application/pdf" && upload.expectedSize <= 128 * 1024
+          ? new Uint8Array(upload.expectedSize)
+          : null;
+      const inspected: ByteSource = {
+        cancel: (reason) => source.cancel?.(reason) ?? Promise.resolve(),
+        async *[Symbol.asyncIterator]() {
+          let offset = 0;
+          for await (const chunk of source) {
+            if (sample && offset + chunk.length <= sample.length) sample.set(chunk, offset);
+            offset += chunk.length;
+            yield chunk;
+          }
+        },
+      };
+      const bytes = await storage().write(upload.storageKey, inspected, {
         expectedSize: upload.expectedSize,
         mimeType: upload.mimeType,
         maxFileBytes: limits.maxFileBytes,
+        expectedSha256: upload.expectedSha256,
       });
-      await service.finalizeUpload(actor, bank, app, uploadId, bytes, requestId);
+      await service.finalizeUpload(
+        actor,
+        bank,
+        app,
+        uploadId,
+        {
+          ...bytes,
+          demoImportFixture: sample ? readDemoImportPdfFixture(sample) : null,
+        },
+        requestId,
+      );
       return { ok: true as const };
     },
     async cancel(actor: Actor, bank: string, app: string, uploadId: string, requestId: string) {

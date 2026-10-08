@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { documentInterpretationResultSchema } from "@keycade/contracts";
+import { demoImportFixtureSchema } from "@keycade/contracts/demo-import";
 import {
   applications,
   auditEvents,
@@ -177,6 +178,9 @@ export async function processDocumentInterpretations(
           sha256: input.version.sha256 ?? "",
           attempt: claim.attempt,
           businessName: input.application.businessName,
+          demoImportFixture: input.version.demoImportFixture
+            ? demoImportFixtureSchema.parse(input.version.demoImportFixture)
+            : null,
         },
         { clock, delayMs, deadlineMs, signal: options.signal },
       ),

@@ -75,6 +75,7 @@ export async function assertSchemaReady(connectionString: string): Promise<void>
     await pool.query("SELECT task_id, task_revision, decision, reason FROM task_reviews LIMIT 0");
     await pool.query("SELECT task_id, participant_id FROM task_assignments LIMIT 0");
     await pool.query("SELECT removed_at FROM business_relationships LIMIT 0");
+    await pool.query("SELECT demo_import_fixture FROM document_versions LIMIT 0");
   } catch {
     throw new Error(
       "Database schema is missing, behind, or unusable. Run pnpm db:migrate against the project local database.",

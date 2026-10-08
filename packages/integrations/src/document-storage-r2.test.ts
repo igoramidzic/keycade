@@ -37,6 +37,37 @@ async function within<T>(operation: Promise<T>) {
   }
 }
 describe("R2 upload cancellation", () => {
+  it("does not publish a generated recipe when its reserved checksum differs", async () => {
+    const { bucket, storage } = fixture();
+    const bytes = syntheticDocumentPdf("clean-tax");
+    bucket.put.mockImplementation(async (_key, input) => {
+      if (!input || typeof input !== "object" || !("getReader" in input))
+        throw new Error("Expected stream input.");
+      const reader = input.getReader();
+      while (!(await reader.read()).done) {
+        /* consume staging */
+      }
+      return {} as Awaited<ReturnType<R2Bucket["put"]>>;
+    });
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(bytes);
+        controller.close();
+      },
+    });
+    await expect(
+      storage.write("recipe-version", webByteSource(body), {
+        expectedSize: bytes.length,
+        maxFileBytes: bytes.length,
+        mimeType: "application/pdf",
+        expectedSha256: "0".repeat(64),
+      }),
+    ).rejects.toMatchObject({ code: "INVALID_INPUT" });
+    expect(bucket.put).toHaveBeenCalledTimes(1);
+    expect(bucket.put.mock.calls[0]?.[0]).toMatch(/^staging-/);
+    expect(bucket.get).not.toHaveBeenCalled();
+    expect(bucket.delete).toHaveBeenCalledExactlyOnceWith(expect.stringMatching(/^staging-/));
+  });
   it("interrupts a stalled upstream read after a midstream R2 failure and removes staging", async () => {
     const { bucket, storage } = fixture();
     const bytes = syntheticDocumentPdf("clean-tax");

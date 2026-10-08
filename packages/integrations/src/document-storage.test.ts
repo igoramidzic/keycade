@@ -21,6 +21,27 @@ afterEach(async () => {
   vi.useRealTimers();
 });
 describe("private document storage", () => {
+  it("rejects altered recipe bytes before publishing and permits a corrected retry", async () => {
+    const { storage, directory } = await fixture();
+    const bytes = syntheticDocumentPdf("clean-tax");
+    const changed = new Uint8Array(bytes);
+    const offset = Buffer.from(bytes).indexOf("SYNTHETIC");
+    changed[offset] = 88;
+    const options = {
+      expectedSize: bytes.length,
+      maxFileBytes: bytes.length,
+      mimeType: "application/pdf",
+      expectedSha256: documentDigest(bytes),
+    };
+    await expect(storage.write("recipe-version", source(changed), options)).rejects.toMatchObject({
+      code: "INVALID_INPUT",
+    });
+    expect(await readdir(directory)).toEqual([]);
+    await expect(storage.write("recipe-version", source(bytes), options)).resolves.toEqual({
+      size: bytes.length,
+      sha256: documentDigest(bytes),
+    });
+  });
   it("streams immutable bytes with private permissions and concurrent duplicate retry protection", async () => {
     const { storage, directory } = await fixture();
     const bytes = syntheticDocumentPdf("clean-tax");
