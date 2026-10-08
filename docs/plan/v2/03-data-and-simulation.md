@@ -1,6 +1,6 @@
 # Version 2 data and simulation contracts
 
-Status: V2-01 setup, V2-02 borrower projection and V2-03 importer contracts are implemented and verified locally. V2-04 financial-record/document-metadata and V2-05 staff overview projection contracts are implemented and verified locally; V2-06 footprint contracts are also implemented and verified locally. Reuse current packages and services; choose concrete SQL/table/route names during the owning task. The [existing architecture](../02-architecture.md), [access rules](../03-domain-and-access.md) and [durable processing](../04-integrations-and-jobs.md) remain binding.
+Status: V2-01 setup, V2-02 borrower projection and V2-03 importer contracts are implemented and verified locally. V2-04 financial-record/document-metadata and V2-05 staff overview projection contracts are implemented and verified locally; V2-06 footprint contracts are also implemented and verified locally. V2-08 verifies the actual hosted importer/R2/fact-review/footprint slice; see [hosted acceptance](04-delivery-and-validation.md#v2-08--hosted-parity-and-deployment-slice). Reuse current packages and services; choose concrete SQL/table/route names during the owning task. The [existing architecture](../02-architecture.md), [access rules](../03-domain-and-access.md) and [durable processing](../04-integrations-and-jobs.md) remain binding.
 
 ## Application intake and compatibility — V2-01
 

@@ -1,6 +1,6 @@
 # T13 — Private documents and upload on both dashboards
 
-V2 amendment — October 8, 2026, **not implemented**: [V2-02](../v2/04-delivery-and-validation.md#v2-02--borrower-task-dashboard) adds actual borrower-sidebar upload; [V2-03](../v2/04-delivery-and-validation.md#v2-03--demo-text-importer-and-registered-fixtures) adds demo-panel text-to-PDF generation; [V2-04](../v2/04-delivery-and-validation.md#v2-04--document-workspace-and-reviewed-financial-facts) adds the private split preview. Ordinary supported types/limits, quarantine, immutable versions and access guards remain. Each new task adds its own byte-path, denial and browser acceptance; `.txt` is not a general document-upload type.
+V2 amendment — October 8, 2026, **implemented; acceptance recorded in the linked v2 tasks**: [V2-02](../v2/04-delivery-and-validation.md#v2-02--borrower-task-dashboard) adds actual borrower-sidebar upload; [V2-03](../v2/04-delivery-and-validation.md#v2-03--demo-text-importer-and-registered-fixtures) adds demo-panel text-to-PDF generation; [V2-04](../v2/04-delivery-and-validation.md#v2-04--document-workspace-and-reviewed-financial-facts) adds the private split preview. Ordinary supported types/limits, quarantine, immutable versions and access guards remain. Each new task adds its own byte-path, denial and browser acceptance; `.txt` is not a general document-upload type.
 
 Dependencies: T12. Read [document pipeline](../04-integrations-and-jobs.md#document-pipeline).
 

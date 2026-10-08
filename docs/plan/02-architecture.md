@@ -1,6 +1,6 @@
 # Architecture and repository layout
 
-The [v2 plan](v2/README.md) adds planned experience and data contracts to the existing architecture. V2-01–V2-06 are implemented locally with task-specific validation records; V2-07 integrated local acceptance is complete; V2-08 hosted parity remains planned. Historical task records do not prove v2 behavior. Follow [the experience specification](v2/02-experience-spec.md), [data and simulation contracts](v2/03-data-and-simulation.md), and [delivery/validation plan](v2/04-delivery-and-validation.md) for its bounded changes.
+The [v2 plan](v2/README.md) adds planned experience and data contracts to the existing architecture. V2-01–V2-06 are implemented locally with task-specific validation records; V2-07 integrated local acceptance is complete; V2-08 hosted parity is complete. Historical task records do not prove v2 behavior. Follow [the experience specification](v2/02-experience-spec.md), [data and simulation contracts](v2/03-data-and-simulation.md), and [delivery/validation plan](v2/04-delivery-and-validation.md) for its bounded changes.
 
 ## Deployment target
 

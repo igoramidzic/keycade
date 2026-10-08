@@ -1,6 +1,6 @@
 # Passwordless access test guide
 
-Implemented October 6, 2026: T06, following the local and hosted foundation. This is a deliberate stopping point before application creation (T07).
+Historical T06 guide, implemented October 6, 2026, before application creation (T07). See the [current demo guide](../../README.md) for application workflows and the hosted inbox.
 
 ## Run locally
 
@@ -29,7 +29,7 @@ The signed-in screen is an access checkpoint. It does not yet list or create app
 
 ## Hosted boundary
 
-This change is local and has not been deployed. Hosted request-link returns `503 AUTH_DELIVERY_UNAVAILABLE`; the UI explains that local email sign-in is available. The native API uses the same session service and security rules, but hosted end-to-end sign-in awaits a configured simulated email destination and authorized synthetic bank/staff fixtures. Do not expose Mailpit publicly. Neon migrations remain owned by GitHub Actions.
+The original T06 checkpoint was local. [D03](tasks/D03-hosted-demo-parity.md#hosted-acceptance--october-7-2026) subsequently added the hosted private simulated inbox, and [V2-08](v2/04-delivery-and-validation.md#v2-08--hosted-parity-and-deployment-slice) verifies hosted confirmation, link replay denial, setup resume and staff access. Native API/jobs readiness requires valid simulated-inbox configuration; unavailable delivery returns `503 AUTH_DELIVERY_UNAVAILABLE` without partial authentication or intake writes. No real email is sent. Do not expose Mailpit publicly. Neon migrations remain owned by GitHub Actions.
 
 ## Validation record
 

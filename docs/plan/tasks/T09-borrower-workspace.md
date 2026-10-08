@@ -1,6 +1,6 @@
 # T09 — Borrower dashboard and portal after setup
 
-V2 amendment — October 8, 2026, **not implemented**: [V2-02](../v2/04-delivery-and-validation.md#v2-02--borrower-task-dashboard), after V2-01, replaces the borrower application tab bar with one tasks-left/progress-and-upload-right dashboard. Its acceptance supersedes the tab-navigation criteria below while preserving authorized contextual signing, submission, closing, documents, people/activity and existing deep links. Business/application selection and funded summaries remain. Baseline Done evidence is not v2 acceptance.
+V2 amendment — October 8, 2026, **implemented; acceptance recorded in the linked v2 tasks**: [V2-02](../v2/04-delivery-and-validation.md#v2-02--borrower-task-dashboard), after V2-01, replaces the borrower application tab bar with one tasks-left/progress-and-upload-right dashboard. Its acceptance supersedes the tab-navigation criteria below while preserving authorized contextual signing, submission, closing, documents, people/activity and existing deep links. Business/application selection and funded summaries remain. Baseline Done evidence is not v2 acceptance.
 
 Dependencies: T08. Read [product](../01-product.md) and [access rules](../03-domain-and-access.md).
 

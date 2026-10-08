@@ -1,6 +1,6 @@
 # T10 — Bank application queue and staff workspace
 
-V2 amendment — October 8, 2026, **not implemented**: [V2-05](../v2/04-delivery-and-validation.md#v2-05--lender-overview-and-evidence-drilldowns), after V2-01/V2-04, owns the richer business/loan/financial overview and stage/evidence drilldowns. Keep the queue, lender tabs and staff-created handoff. V2-01 updates compatible optional prefills; V2-05 adds source-backed financial, group-count and navigation acceptance. The original baseline remains completed.
+V2 amendment — October 8, 2026, **implemented; acceptance recorded in the linked v2 tasks**: [V2-05](../v2/04-delivery-and-validation.md#v2-05--lender-overview-and-evidence-drilldowns), after V2-01/V2-04, owns the richer business/loan/financial overview and stage/evidence drilldowns. Keep the queue, lender tabs and staff-created handoff. V2-01 updates compatible optional prefills; V2-05 adds source-backed financial, group-count and navigation acceptance. The original baseline remains completed.
 
 Dependencies: T07. Read [staff journey](../01-product.md) and [access matrix](../03-domain-and-access.md#access-matrix).
 
@@ -87,3 +87,7 @@ Validation, using the repository's pinned Node 24 runtime:
 - `pnpm build` — all 12 workspace builds passed. Existing borrower/staff bundle-size warnings remain nonblocking.
 - `pnpm test:e2e tests/e2e/staff-workspace.spec.ts` — 16 desktop/mobile cases passed with zero failures, skips or flaky cases. An initial run exposed outdated test scoping: the D05 sidebar duplicated business text and document articles, and default-bank URLs omit the optional bank query. Correcting assertions to use the actual application/review regions produced the clean rerun. Private evidence: `.local/e2e-QCjWoS/summary.json`; synthetic desktop/mobile staff screenshots were captured, and the desktop overview was visually inspected. Owned browser processes and the disposable database were cleaned up.
 - Final Biome, root TypeScript and `git diff --check` passed after test-assertion corrections. No persistent records were reset, no schema migration was needed and no external email was sent.
+
+## V2 hosted deployment follow-up — October 8, 2026
+
+The officer-created handoff and V2-05 overview are included in the five-Worker release at `75b1f96`. [V2-08 hosted acceptance](../v2/04-delivery-and-validation.md#v2-08--hosted-parity-and-deployment-slice) verifies officer-prefilled unfinished setup, lender document review, financial history and scoped access denials. The earlier local record remains the evidence for the full queue/handoff matrix. All behavior remains simulated.

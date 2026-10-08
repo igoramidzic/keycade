@@ -2,7 +2,7 @@
 
 This is the target model, not a requirement to create every table in T03. Add each feature's records and migration in its owning task.
 
-The [v2 data contracts](v2/03-data-and-simulation.md) were planned on October 8, 2026; V2-01–V2-06 data contracts are implemented locally; V2-07 integrated local acceptance is complete and V2-08 hosted acceptance remains planned. They extend the validated baseline with versioned setup fields, reviewed application financial facts, evidence projections and simulated geography; see [delivery and validation](v2/04-delivery-and-validation.md).
+The [v2 data contracts](v2/03-data-and-simulation.md) were planned on October 8, 2026; V2-01–V2-06 data contracts are implemented locally; V2-07 integrated local acceptance is complete and V2-08 hosted acceptance is complete. They extend the validated baseline with versioned setup fields, reviewed application financial facts, evidence projections and simulated geography; see [delivery and validation](v2/04-delivery-and-validation.md).
 
 ## Core entities
 

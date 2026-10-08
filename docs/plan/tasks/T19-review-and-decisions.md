@@ -1,6 +1,6 @@
 # T19 — Submission, bank review, and decisions
 
-V2 amendment — October 8, 2026, **not implemented**: [V2-04](../v2/04-delivery-and-validation.md#v2-04--document-workspace-and-reviewed-financial-facts) introduces explicit reviewed adoption of extracted application facts with immutable provenance. Its acceptance preserves submitted/decided snapshots and lifecycle locks; lender adoption is not a loan decision or task acceptance. [V2-02](../v2/04-delivery-and-validation.md#v2-02--borrower-task-dashboard) keeps submission reachable contextually after removing borrower tabs. Existing state transitions remain authoritative.
+V2 amendment — October 8, 2026, **implemented; acceptance recorded in the linked v2 tasks**: [V2-04](../v2/04-delivery-and-validation.md#v2-04--document-workspace-and-reviewed-financial-facts) introduces explicit reviewed adoption of extracted application facts with immutable provenance. Its acceptance preserves submitted/decided snapshots and lifecycle locks; lender adoption is not a loan decision or task acceptance. [V2-02](../v2/04-delivery-and-validation.md#v2-02--borrower-task-dashboard) keeps submission reachable contextually after removing borrower tabs. Existing state transitions remain authoritative.
 
 Dependencies: T10, T12, T16. Read [application lifecycle](../03-domain-and-access.md#application-lifecycle).
 

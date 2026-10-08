@@ -1,6 +1,6 @@
 # Product scope and user journeys
 
-The [v2 screenshot-driven update](v2/README.md) is the current product direction, planned on October 8, 2026. V2-01–V2-06 setup, borrower dashboard, demo importer, document review, lender overview and Loan Footprint are implemented and verified locally; V2-07 integrated local acceptance is complete; V2-08 hosted parity remains planned. The detailed [experience specification](v2/02-experience-spec.md) and [screenshot findings](v2/01-screenshot-findings.md) distinguish observed reference behavior from decisions for Keycade. Existing task validation records describe the implemented baseline; they do not establish v2 acceptance.
+The [v2 screenshot-driven update](v2/README.md) is the current product direction, planned on October 8, 2026. V2-01–V2-06 setup, borrower dashboard, demo importer, document review, lender overview and Loan Footprint are implemented and verified locally; V2-07 integrated local acceptance is complete; V2-08 hosted parity is complete. The detailed [experience specification](v2/02-experience-spec.md) and [screenshot findings](v2/01-screenshot-findings.md) distinguish observed reference behavior from decisions for Keycade. Existing task validation records describe the implemented baseline; they do not establish v2 acceptance.
 
 ## Product intent
 
