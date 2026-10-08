@@ -10,7 +10,7 @@ One Keycade design system, built on the CLI-generated shadcn/ui primitives, styl
 
 ## Scope
 
-- Theme tokens: cool-neutral canvas, deep sapphire brand, paired strong/soft status tones that meet WCAG AA, demo-tool tokens, soft elevation, and the existing 16px/14px readable type scale with Geist.
+- Theme tokens: neutral gray canvas, KeyBank-inspired red brand and charcoal text, paired strong/soft status tones that meet WCAG AA, demo-tool tokens, soft elevation, and the existing 16px/14px readable type scale with Geist.
 - Primitive sizing: 40px default controls (36px small), bordered cards with 24px padding, semantic Badge and Alert variants, and merged `buttonVariants` classes for link-buttons.
 - Composed primitives in `packages/ui`: app shell with a header account slot, brand mark/lockup, page and section headings, status pill/text with shared application-status tones, description lists, empty and loading states. Separator, Progress, Skeleton, Avatar, Table and Label were added with the shadcn CLI.
 - Bank site: rebuilt landing page with navigation, hero and decorative application preview, financing uses, how-it-works steps, call to action and footer.
@@ -18,11 +18,12 @@ One Keycade design system, built on the CLI-generated shadcn/ui primitives, styl
 - Lender console: header account controls, staff welcome panel, table-style application queue with aligned columns and a two-column mobile layout, application header card with underline tabs, overview with business/loan fact grids, redesigned financial metric cards and history chart, stage groups that distinguish action, review, record and check items, evidence group, and a side column for assignment, borrower setup and recent activity.
 - Shared workflow panels (tasks, documents and the document viewer, checks/readiness, review and decisions, closing, participants, signatures, operations, activity, demo inbox, funded accounts, staff forms and the Scenario kit) adopt the same tokens and patterns.
 
-Out of scope: copy rewrites that change meaning, new product capabilities, schema/API changes, dark-mode enablement and real branding of a financial institution.
+Out of scope: copy rewrites that change meaning, new product capabilities, schema/API changes, dark-mode enablement and replacing the fictional bank identity with a real institution. The user subsequently requested KeyBank’s color scheme; this palette is included.
 
 ## Acceptance criteria
 
 - All visible copy, accessible names, roles, landmark/region names and keyboard behavior that the existing browser suite exercises remain intact; any deliberate copy change updates its tests in the same change.
+- Shared primary/brand/sidebar/chart tokens use the requested red palette across all four interfaces, with coordinated dark tokens; fictional names and simulation labels remain.
 - Status is never conveyed by color alone; text/background pairs meet WCAG AA; focus rings are visible on every interactive control.
 - Borrower list and dashboard keep zero `progressbar` roles; the setup wizard keeps one native setup progress bar; uploads keep native progress.
 - Desktop and 390px mobile layouts have no horizontal overflow; the Scenario kit stays fixed and separately colored on wide screens and opens as a dialog on narrow screens.
@@ -31,3 +32,19 @@ Out of scope: copy rewrites that change meaning, new product capabilities, schem
 ## Implementation record
 
 In progress — October 8, 2026.
+
+## KeyBank palette follow-up — October 8, 2026
+
+The user requested “Use key bank color scheme.” Shared tokens now use #b30000 primary actions, #cc0000 brand accents, #900000 hover, pale red selections, charcoal text and neutral gray/white surfaces. Dark tokens use readable lighter reds on charcoal. Existing semantic status and demo-tool tones remain separate. Dependencies are unchanged.
+
+Reference: computed styles on the [KeyBank homepage](https://www.key.com/personal/index.html), inspected October 8, 2026: “Get Details” has #b30000 fill and white text; the “Get Started with Personal Banking Products & Services” heading uses #cc0000. Hover, soft fills, neutrals and dark tones are Keycade adaptations.
+
+Done locally — October 8, 2026. Validation:
+
+- Biome check of `packages/ui/src/styles/globals.css` and `git diff --check` pass.
+- All three web app production builds pass using the installed Vite binary (`../../node_modules/.bin/vite build` from each app); existing large-chunk warnings remain for borrower and bank console. The pnpm launcher stalled in this environment, so these equivalent build scripts ran directly.
+- `node_modules/.bin/playwright test tests/e2e/foundation.spec.ts --workers=2`: 10/10 desktop/mobile cases pass, covering all three app shells, navigation, no horizontal overflow and API availability/recovery.
+- Direct relative-luminance checks of 11 changed brand/neutral text pairings per theme pass WCAG AA: minimum 5.27:1 light and 6.37:1 dark. Status colors were not changed.
+- Browser inspection confirms the bank-site primary action computes to #b30000 with white text, with red accents and neutral surfaces visible in the rendered page.
+
+This CSS-only follow-up does not mark the broader D06 redesign complete. No hosted deployment was performed.

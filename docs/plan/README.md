@@ -30,6 +30,8 @@ The requested [shorter task cards](v2/04-delivery-and-validation.md#shorter-task
 
 The requested [readable default typography](v2/04-delivery-and-validation.md#readable-default-typography--october-8-2026) follow-up is complete locally: regular compact text is 16px and secondary text/small buttons are 14px at default browser settings. Six desktop/mobile layout cases, 373 unit tests and all 12 builds/typechecks passed.
 
+The requested [KeyBank palette follow-up](tasks/D06-design-system-redesign.md#keybank-palette-follow-up--october-8-2026) is complete locally: shared red accents, charcoal text and neutral white/gray surfaces replace sapphire across all four interfaces. All three web builds, 10 desktop/mobile smoke tests and light/dark brand/neutral contrast checks pass. The broader D06 redesign remains in progress.
+
 ## Agreed outcome
 
 Build a bank-operated business lending platform with a mock bank website, a borrower application/dashboard, and a bank staff console. Support multiple businesses, participants, applications, and eventual loan accounts. Ask for email first, progressively collect information, and use passwordless access. Simulate outside services with visible delays and reliable background processing.

@@ -39,7 +39,7 @@ T01–T22 and D01–D04 are implemented and verified in the linked task records.
 | Drizzle ORM and Studio | T03 | Migrations from empty DB and locally usable Studio. |
 | Turborepo and pnpm | T01–T02 | Workspace commands and dependency/task graph. |
 | Biome formatting/linting | T01, every task | Shared Biome checks across workspace code. |
-| shadcn via npx; Tailwind; Keycade design system (user request, October 8, 2026) | T01, UI tasks, D06 | CLI-generated shared components themed by shared tokens and composed primitives across the bank site, borrower portal and bank console; D06 records the redesign and its validation. |
+| shadcn via npx; Tailwind; Keycade design system (user request, October 8, 2026) | T01, UI tasks, D06 | CLI-generated shared components themed by shared tokens and composed primitives across the bank site, borrower portal and bank console; D06 records the redesign and its validation, including the requested KeyBank-inspired red/charcoal/white palette through shared light/dark tokens. |
 | Podman DB, simple initialization/env setup | T02–T03 | Initialize twice without loss; env creation and DB access. |
 | pnpm dev starts projects and checks DB | T02, T05, T22 | Bad credentials prevent launch; all processes start with healthy DB. |
 | Mock existing bank site with apply button | T08, D02 | T08 browser tests verify bank apply/resume links, public context, and separate borrower origin. D02's October 7 hosted intake recovery adds explicit synthetic bank/product configuration; live borrower catalog returns 200 and unknown-bank catalog remains 404. |
