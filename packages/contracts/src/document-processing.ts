@@ -109,6 +109,7 @@ export const documentInterpretationResultSchema = z.strictObject({
 });
 export const correctDocumentCategorySchema = z.strictObject({
   versionId: z.string().uuid(),
+  expectedRevision: z.number().int().nonnegative().default(0),
   category: documentCategorySchema,
   reason: z.string().trim().min(1).max(1000),
 });

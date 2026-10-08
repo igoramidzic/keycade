@@ -8,7 +8,9 @@ The implementation includes resumable one-question setup, scoped collaborators a
 
 [V2-02 borrower dashboard](docs/plan/v2/04-delivery-and-validation.md#v2-02--borrower-task-dashboard) is complete locally. It replaces the application tabs with tasks, saved-stage progress, sidebar uploads and contextual signing, review, closing, people and history links. Unsaved task answers survive these contextual visits; access loss clears the workspace. This change is local and has not been deployed.
 
-[V2-03 demo text importer](docs/plan/v2/04-delivery-and-validation.md#v2-03--demo-text-importer-and-registered-fixtures) is complete locally. Five registered text filenames generate synthetic tax/statement PDFs with period-labelled simulated fields, exact-byte validation and the normal protected scan/processing flow. The next task is V2-04 document review and confirmed financial facts. Hosted deployment remains separate.
+[V2-03 demo text importer](docs/plan/v2/04-delivery-and-validation.md#v2-03--demo-text-importer-and-registered-fixtures) is complete locally. Five registered text filenames generate synthetic tax/statement PDFs with period-labelled simulated fields, exact-byte validation and the normal protected scan/processing flow. Hosted deployment remains separate.
+
+[V2-04 document workspace and reviewed financial facts](docs/plan/v2/04-delivery-and-validation.md#v2-04--document-workspace-and-reviewed-financial-facts) is complete locally. Staff can preview private PDFs/images and review source-bound financial suggestions and versioned document metadata, with immutable history and lifecycle/access guards. Validation passed 367 unit tests, 442 PostgreSQL tests, all 12 builds/typechecks and 46 distinct desktop/mobile browser cases. V2-05 overview cards and grouped evidence are next. No v2 hosted deployment is claimed.
 
 ## Start locally
 
@@ -65,6 +67,14 @@ Ready-to-use text stubs are in [the importer fixtures](packages/testing/fixtures
 7. Use the borrower’s **View activity** link or the staff Activity tab for visible progress and the staff Operations view for processing state, attempts, current failures, worker health and backlog. Eligible retry/void controls recheck permissions and current inputs; they do not run arbitrary jobs.
 
 Feature walkthroughs and negative-case evidence are linked from the [plan index](docs/plan/README.md). The [identity guide](docs/plan/identity-validation.md) documents local confirmation scenarios.
+
+## Review document financial facts locally
+
+Sign into the bank console as `officer-a@example.test` and open an editable synthetic application. In Documents, use the Scenario kit's **Import demo text files** input with `business-tax-return-2023.txt`, `business-tax-return-2024.txt` and `business-tax-return-2025.txt` from [the fixture folder](packages/testing/fixtures/demo-imports). Upload their generated PDFs and wait for clean scan and delayed interpretation. Open the private preview with page controls, zoom and Fit width; source-page links navigate to the corresponding PDF page.
+
+Open a document workspace and inspect Analysis, Document Info and Versions for the selected file. In **Reviewed financial facts**, select a suggested field, choose Accept, Reject or Correct, inspect the current/proposed amount and provide a reason. Correct accepts an exact decimal such as `1250000.25`; metric, fiscal period, basis and USD unit stay tied to the source. Confirm replacement when changing an accepted amount. Reject preserves an earlier accepted value and adds review history. Missing values remain unavailable; ordinary income, explicitly adjusted income and bank deposits are separate fields.
+
+Changing display name/description retains interpretation. Changing expected period, category, source version or analysis run marks accepted source references stale and requires a deliberate new review; it never substitutes new amounts automatically. Expected and extracted periods must agree before financial adoption. Submitted/decided applications must follow the existing return-for-information workflow before material edits. This review does not accept task evidence, approve the application or add a new readiness gate. Original authorized downloads remain available; V2-05 will add reviewed financial cards and grouped Overview entry points.
 
 ## Fixtures and controls
 
@@ -160,6 +170,7 @@ This uses one desktop worker, paced API requests and new synthetic identities. I
 - If health succeeds but readiness fails, check worker startup/heartbeat and the private runtime logs. Background work persists while a worker is unavailable and resumes with current-input guards.
 - If a local link has no message, verify Mailpit is running or enable `DEMO_INBOX_ENABLED=true` and restart both API and worker. Use the same portal origin throughout. Request a new message for an expired or consumed link.
 - If hosted demo access fails, check readiness, matching API/jobs inbox configuration, the required shared key and synthetic staff bootstrap. Unknown staff denial is expected; installing a real auth/email service is not the remedy.
+- After shared-contract changes, a running Vite frontend may retain cached exports. Restart the affected frontend watcher and reload if it reports an export that the source already contains; the V2-04 local borrower-port recovery required only that restart.
 - Port conflicts and unrecognized database targets fail without stopping their owners. Change the configured unused ports before initialization; do not kill unrelated services.
 
 This is not production banking software. Live registry/tax/KYC providers, real malware scanning and OCR, legally effective signatures, real email/authentication, SSO and production banking controls are future work. The current release ends at one recorded simulated funding event: no repayment schedules, balances, payment collection, interest, further draws or servicing accounting. Extracted values are suggestions, staff make explicit decisions, and a funded-account summary is not an outstanding balance.

@@ -162,6 +162,13 @@
       "when": 1791474248975,
       "tag": "0022_demo_import_fixtures",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791475747292,
+      "tag": "0023_next_mephisto",
+      "breakpoints": true
     }
   ]
 }

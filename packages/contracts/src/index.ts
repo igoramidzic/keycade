@@ -116,6 +116,7 @@ export type AuthPortal = z.infer<typeof authPortalSchema>;
 export * from "./activity.js";
 export * from "./checks.js";
 export * from "./closing.js";
+export * from "./financial-facts.js";
 export * from "./notifications.js";
 export * from "./operations.js";
 export * from "./review.js";

@@ -4,6 +4,7 @@ import {
   correctDocumentCategorySchema,
   documentMimeTypes,
   documentsViewSchema,
+  updateDocumentMetadataSchema,
 } from "@keycade/contracts";
 import {
   createDemoImportPdf,
@@ -19,6 +20,7 @@ import {
   type Database,
   type DatabaseTransaction,
   documentCategoryOverrides,
+  documentMetadataRevisions,
   documentProcessingRuns,
   documents,
   documentVersions,
@@ -342,10 +344,41 @@ export function createDocumentsService(
           .orderBy(desc(documentVersions.version));
         const writable = await canWrite(tx, actor, access, document, app.status);
         const versionViews = [];
-        for (const version of versions)
+        const linkedTask = tasks.find((task) => task.id === document.taskId);
+        for (const version of versions) {
+          const metadataHistory =
+            access.kind === "staff"
+              ? await tx
+                  .select()
+                  .from(documentMetadataRevisions)
+                  .where(eq(documentMetadataRevisions.versionId, version.id))
+                  .orderBy(desc(documentMetadataRevisions.revision))
+              : [];
+          const metadata = metadataHistory[0];
+          const [uploader] =
+            access.kind === "staff"
+              ? await tx
+                  .select({ name: users.displayName })
+                  .from(users)
+                  .where(eq(users.id, version.uploadedByUserId))
+              : [];
           versionViews.push({
             ...version,
             createdAt: version.createdAt.toISOString(),
+            uploadedAt: version.uploadedAt?.toISOString() ?? null,
+            uploadedByUserId: access.kind === "staff" ? version.uploadedByUserId : null,
+            uploadedByName: uploader?.name ?? null,
+            metadata: {
+              revision: metadata?.revision ?? 0,
+              analysisRevision: metadata?.analysisRevision ?? 0,
+              displayName: metadata?.displayName ?? null,
+              description: metadata?.description ?? null,
+              expectedPeriod: metadata?.expectedPeriod ?? null,
+              history: metadataHistory.map((row) => ({
+                ...row,
+                createdAt: row.createdAt.toISOString(),
+              })),
+            },
             canDownload: version.uploadState === "uploaded" && version.scanState === "clean",
             canRetryScan:
               writable &&
@@ -356,13 +389,33 @@ export function createDocumentsService(
               writable: writable || access.kind === "staff",
               closed: closed.has(app.status),
               businessName: app.businessName,
+              metadataEditable: editable(app.status),
             }),
           });
+        }
+        const [subject] =
+          access.kind === "staff" && document.subjectUserId
+            ? await tx
+                .select({ name: users.displayName })
+                .from(users)
+                .where(eq(users.id, document.subjectUserId))
+            : [];
         const currentProcessing = versionViews.find(
           (version) => version.version === document.currentVersion,
         )?.processing;
         result.push({
           ...document,
+          applicationBusinessName: access.kind === "staff" ? app.businessName : null,
+          businessId: access.kind === "staff" ? app.businessId : null,
+          subjectDisplayName: subject?.name ?? null,
+          writtenResponsePolicy:
+            access.kind === "staff" && linkedTask
+              ? linkedTask.visibility === "private" ||
+                linkedTask.stableKey.startsWith("tax-document-readiness:")
+                ? "Only confirmed or needs_help responses are supported. Do not enter identifiers."
+                : "The linked requirement accepts a written response, subject to lender evidence review."
+              : null,
+          canEditMetadata: access.kind === "staff" && editable(app.status),
           currentVersionId:
             versions.find((version) => version.version === document.currentVersion)?.id ?? null,
           canReplace: writable,
@@ -920,8 +973,10 @@ export function createDocumentsService(
       );
     const data = parsed.data;
     await db.transaction(async (tx) => {
-      const { access, userId } = await context(tx, actor, bankId, applicationId, true);
+      const { app, access, userId } = await context(tx, actor, bankId, applicationId, true);
       if (access.kind !== "staff") return deny();
+      if (!editable(app.status))
+        invalid("Return the application for information before correcting its document category.");
       const { version, document } = await loadVersion(
         tx,
         actor,
@@ -946,6 +1001,12 @@ export function createDocumentsService(
         .orderBy(desc(documentCategoryOverrides.revision))
         .limit(1);
       if (previous?.category === data.category && previous.reason === data.reason) return;
+      if ((previous?.revision ?? 0) !== data.expectedRevision)
+        throw new DomainError(
+          "REVISION_CONFLICT",
+          409,
+          "The document category changed. Refresh before correcting it.",
+        );
       const now = clock();
       await enqueueDocumentProcessing(tx, version.id, { now, requestId });
       await tx.insert(documentCategoryOverrides).values({
@@ -978,6 +1039,101 @@ export function createDocumentsService(
     });
     return list(actor, bankId, applicationId);
   }
+  async function updateMetadata(
+    actor: Actor,
+    bankId: string,
+    applicationId: string,
+    documentId: string,
+    input: unknown,
+    requestId: string,
+  ) {
+    const parsed = updateDocumentMetadataSchema.safeParse(input);
+    if (!parsed.success)
+      throw new DomainError(
+        "INVALID_INPUT",
+        400,
+        "Provide valid document metadata and a review reason.",
+      );
+    const data = parsed.data;
+    await db.transaction(async (tx) => {
+      const { app, access, userId } = await context(tx, actor, bankId, applicationId, true);
+      if (access.kind !== "staff") return deny();
+      if (!editable(app.status))
+        invalid("Return the application for information before changing document metadata.");
+      const { version, document } = await loadVersion(
+        tx,
+        actor,
+        access,
+        bankId,
+        applicationId,
+        data.versionId,
+      );
+      if (document.id !== documentId) return deny();
+      if (document.currentVersion !== version.version)
+        throw new DomainError(
+          "REVISION_CONFLICT",
+          409,
+          "A newer document version arrived. Open it before editing metadata.",
+        );
+      const [previous] = await tx
+        .select()
+        .from(documentMetadataRevisions)
+        .where(eq(documentMetadataRevisions.versionId, version.id))
+        .orderBy(desc(documentMetadataRevisions.revision))
+        .limit(1);
+      if ((previous?.revision ?? 0) !== data.expectedRevision)
+        throw new DomainError(
+          "REVISION_CONFLICT",
+          409,
+          "Document metadata changed. Refresh and review your edits.",
+        );
+      const previousPeriod = previous?.expectedPeriod;
+      const analysisChanged =
+        previousPeriod?.start !== data.expectedPeriod?.start ||
+        previousPeriod?.end !== data.expectedPeriod?.end ||
+        previousPeriod?.basis !== data.expectedPeriod?.basis;
+      const now = clock();
+      await tx.insert(documentMetadataRevisions).values({
+        bankId,
+        applicationId,
+        documentId,
+        versionId: version.id,
+        revision: data.expectedRevision + 1,
+        analysisRevision: (previous?.analysisRevision ?? 0) + (analysisChanged ? 1 : 0),
+        displayName: data.displayName,
+        description: data.description,
+        expectedPeriod: data.expectedPeriod,
+        reason: data.reason,
+        actorUserId: userId,
+        createdAt: now,
+      });
+      if (analysisChanged) {
+        await tx
+          .update(documentProcessingRuns)
+          .set({ stale: true, claimToken: null, leaseUntil: null, updatedAt: now })
+          .where(eq(documentProcessingRuns.versionId, version.id));
+        await enqueueDocumentProcessing(tx, version.id, {
+          now,
+          requestId,
+          requestedByUserId: userId,
+          reprocess: true,
+        });
+      }
+      await tx.insert(auditEvents).values({
+        bankId,
+        applicationId,
+        actorType: "user",
+        actorUserId: userId,
+        action: "document.metadata_updated",
+        targetType: "document_version",
+        targetId: version.id,
+        requestId,
+        changedFields: ["metadataRevision", ...(analysisChanged ? ["expectedPeriod"] : [])],
+        metadata: { revision: data.expectedRevision + 1, analysisChanged, simulation: true },
+        createdAt: now,
+      });
+    });
+  }
   return {
     limits,
     list,
@@ -992,5 +1148,6 @@ export function createDocumentsService(
     cleanupAbandoned,
     retryProcessing,
     correctCategory,
+    updateMetadata,
   };
 }

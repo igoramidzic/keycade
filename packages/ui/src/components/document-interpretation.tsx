@@ -129,7 +129,11 @@ export function DocumentInterpretation({
   processing: DocumentProcessingData;
   versionId: string;
   retry: () => Promise<unknown>;
-  correct: (category: DocumentCategory, reason: string) => Promise<unknown>;
+  correct: (
+    category: DocumentCategory,
+    reason: string,
+    expectedRevision: number,
+  ) => Promise<unknown>;
   reload: () => Promise<unknown>;
   errorMessage: (error: unknown) => string;
 }) {
@@ -137,13 +141,17 @@ export function DocumentInterpretation({
     processing.manualCategory ?? processing.category ?? "other",
   );
   const [reason, setReason] = useState("");
+  const [categoryRevision, setCategoryRevision] = useState(processing.overrides[0]?.revision ?? 0);
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    if (!dirty) setCategory(processing.manualCategory ?? processing.category ?? "other");
-  }, [dirty, processing.manualCategory, processing.category]);
+    if (!dirty) {
+      setCategory(processing.manualCategory ?? processing.category ?? "other");
+      setCategoryRevision(processing.overrides[0]?.revision ?? 0);
+    }
+  }, [dirty, processing.manualCategory, processing.category, processing.overrides]);
   async function act(operation: () => Promise<unknown>, notice: string) {
     setBusy(true);
     setError(null);
@@ -164,7 +172,7 @@ export function DocumentInterpretation({
     event.preventDefault();
     if (
       await act(
-        () => correct(category, reason.trim()),
+        () => correct(category, reason.trim(), categoryRevision),
         "Staff category saved. The original simulated result is preserved.",
       )
     ) {
@@ -249,7 +257,26 @@ export function DocumentInterpretation({
       {error && (
         <Alert variant="destructive" role="alert">
           <AlertTitle>Interpretation action incomplete</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription className="space-y-2">
+            <p>{error}</p>
+            {processing.canCorrectCategory && (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy}
+                onClick={() => {
+                  setDirty(false);
+                  setReason("");
+                  void act(
+                    reload,
+                    "Latest document details loaded. Review the current category before saving.",
+                  );
+                }}
+              >
+                Reload latest category
+              </Button>
+            )}
+          </AlertDescription>
         </Alert>
       )}
       {notice && (

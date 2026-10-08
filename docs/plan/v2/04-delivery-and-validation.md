@@ -1,6 +1,6 @@
 # V2 delivery and validation
 
-Planning date: October 8, 2026. V2-01–V2-03 are complete locally. V2-04–V2-08 are **Not started**. Only the task-specific evidence below proves v2 behavior.
+Planning date: October 8, 2026. V2-01–V2-04 are complete locally. V2-05–V2-08 are **Not started**. Only the task-specific evidence below proves v2 behavior.
 
 Read [the experience specification](02-experience-spec.md) and [the data and simulation specification](03-data-and-simulation.md) before implementing a task. The [main plan](../README.md), [architecture](../02-architecture.md), [access rules](../03-domain-and-access.md), and [verification discipline](../05-development-and-testing.md) still apply. Implement one bounded task or reviewable slice at a time.
 
@@ -11,13 +11,13 @@ Read [the experience specification](02-experience-spec.md) and [the data and sim
 | V2-01 | Expanded resumable intake | — | T07, T08, T15 | Done — local acceptance below |
 | V2-02 | Borrower task dashboard without top tabs | V2-01 | T09, T11–T13, T17–T21, D05 | Done — local acceptance below |
 | V2-03 | Protected text-to-fixture demo importer | — | T13, T14, D05 | Done — local acceptance below |
-| V2-04 | Document review and confirmed financial facts | V2-01, V2-03 | T14, T15, T19 | Not started |
+| V2-04 | Document review and confirmed financial facts | V2-01, V2-03 | T14, T15, T19 | Done — local acceptance |
 | V2-05 | Lender application overview and evidence drill-down | V2-01, V2-04 | T10, T12, T16, T19, T21 | Not started |
 | V2-06 | Simulated Loan Footprint | V2-01 | T16 | Not started |
 | V2-07 | Integrated local acceptance | V2-02, V2-03, V2-04, V2-05, V2-06 | T22 | Not started |
 | V2-08 | Hosted parity and deployment acceptance | V2-07 | D02, D03 | Not started |
 
-Existing prerequisites are recorded as complete in the main plan. D05 and some later follow-ups have only local evidence; V2-08 must carry the combined implementation through hosted validation. V2-01 and V2-03 are complete, so V2-04 is next. V2-06 can be implemented and demonstrated from the existing lender Checks view before V2-05 adds its overview entry point.
+Existing prerequisites are recorded as complete in the main plan. D05 and some later follow-ups have only local evidence; V2-08 must carry the combined implementation through hosted validation. V2-01–V2-04 are complete, so V2-05 is next. V2-06 can be implemented and demonstrated from the existing lender Checks view before V2-05 adds its overview entry point.
 
 ## Shared completion rules
 
@@ -152,7 +152,7 @@ Validation record — October 8, 2026:
 - All **12 workspace typechecks and builds**, root TypeScript, Biome and browser-boundary checks passed. All **268 local Markdown paths/anchors** and `git diff --check` passed. The host pnpm launcher could not verify its registry signature; installed Node 24.21.0 and repository binaries ran the corresponding package scripts directly, with no dependency or lockfile changes. Final check/build/unit/integration logs are under `.local/v2-03-validation`.
 - All five generated PDFs were parsed with pypdf and their printed periods/values checked; standard tax, adjustment, statement and review pages were rendered with Poppler and visually verified. QA PDFs/renders are in `.local/v2-03-validation/pdfs`. The additive migration applied to a populated pre-0022 test database without changing historical documents, and repeat migration/seed passed. Local development migration apply/repeat no-op and schema readiness passed; restarting the existing worker watcher restored API readiness with database and worker both ready. No data reset or hosted deployment occurred.
 
-Try locally: open the borrower or staff application and its demo kit, choose one of the `.txt` files in `packages/testing/fixtures/demo-imports`, review the generated facts, then Upload or drag the preview to the authorized upload area. Open Documents to inspect the clean PDF and delayed simulated findings. V2-04 is the next default task.
+Try locally: open the borrower or staff application and its demo kit, choose one of the `.txt` files in `packages/testing/fixtures/demo-imports`, review the generated facts, then Upload or drag the preview to the authorized upload area. Open Documents to inspect the clean PDF and delayed simulated findings. At that checkpoint, V2-04 was the next default task.
 
 ## V2-04 — Document workspace and reviewed financial facts
 
@@ -174,9 +174,28 @@ Dependencies: V2-01, V2-03; T14, T15, T19. Primary areas: shared document viewer
 4. Bank/application/document permissions apply independently to bytes, metadata, analysis, versions and confirmed facts. Test guessed IDs, restricted roles and revocation while a modal is open; preview resources are released when closed or denied.
 5. Browser checks cover desktop split view, mobile layout, keyboard open/close and focus return, loading/failed preview, analysis selection and explicit financial confirmation. No real OCR provider is called.
 
-Implementation record: **Not started.**
+Implementation record: **Done — local acceptance, October 8, 2026.**
 
-Validation record: **Not run.** Existing extraction suggestions are not confirmed financial facts.
+- Lender Documents opens a modal for an exact document version with Analysis, Document Info and Versions/history views. Metadata exposes the original filename, source recipe/period, uploader and permitted business/subject context. Display name, description, expected period and manual category corrections are staff-only and revision-checked. The bundled PDF.js renderer now displays the authorized PDF with selectable text, page navigation and zoom; its actual in-app browser appearance has been visually inspected. Desktop/mobile acceptance passed for the split/stacked layout, keyboard/focus restoration, page/source navigation, loading/failure, version switching, financial review and denied-access cleanup.
+- Additive migration `0023_next_mephisto` adds immutable `document_metadata_revisions`, `financial_fact_reviews` and `financial_fact_commands`. Expected-period changes increment the analysis revision and transactionally fence prior runs before queuing a new interpretation. Display-only changes preserve the analysis revision. Current source reads and commands check independent bank/application/document access.
+- Both Fastify and native Workers transports expose financial reads/reviews and metadata updates through shared domain services. Financial review revalidates the current clean version, successful current run, printed business identity, category, actual/expected period and optimistic revisions before committing all selected dispositions, fact history, application revision, audit and replay response. Failed validation writes nothing; repeated identical commands return their original result, and conflicting payloads or revisions require deliberate review.
+- Facts remain scoped to the application's business snapshot. Accept/Correct append a fact revision; Reject appends a disposition without replacing the prior accepted fact. The current selection is the highest accepted/corrected revision for a metric and exact period/basis/currency/unit. Correct changes only the exact two-decimal value; it retains the original candidate and explicit adjustment provenance. Deposits, ordinary income and adjusted net income remain distinct. Source replacement/reprocessing, category/analysis metadata changes and business-identity changes mark accepted sources stale without substituting new suggestions.
+- Existing lifecycle locks apply. Submission and decision snapshots retain accepted fact-version references and source state; historical fingerprints with no accepted facts remain compatible. No existing rule consumes these financial facts, so no new readiness gate or unrelated task/check invalidation is added. Overview cards/grouping and geography remain V2-05/V2-06; no hosted deployment is included.
+
+Validation record — working tree based on `893873c`, October 8, 2026:
+
+- `pnpm check` passed: Biome, browser/server boundary checks, all **12 workspace typechecks**, root TypeScript and **367 unit tests across 36 files**.
+- `pnpm build` passed all **12 workspace builds**. PDF.js is loaded only by the bank-console preview; the lazy renderer chunk is approximately 432 KB and its bundled worker is approximately 1.26 MB. No remote PDF/OCR service is used.
+- The full real-PostgreSQL suite passed **442 cases across 47 files**, including both HTTP transports and the populated pre-0023 upgrade/repeat migration. Applying the migration to the existing local development database, repeating it as a no-op and checking schema readiness also passed without resetting application data. The final financial-domain rerun passed **19 cases** after independently validating the printed business subject. Coverage includes exact decimals, separate fiscal years and statement metrics, correction/rejection provenance, duplicate/concurrent commands, stale sources, scoped/revoked access, seven locked statuses, atomic rollback, database immutability and frozen submission/decision references.
+- **46 distinct desktop/mobile browser cases passed, with zero failed, skipped or flaky cases**: 14 document-workspace cases and 32 existing upload/processing/demo-text-import regressions. The initial 12 workspace cases passed in `.local/e2e-Quo8i8`; the final preview follow-up passed four cases in `.local/e2e-hHjxXr`, adding two renderer-module failure/recovery cases and rechecking two affected earlier cases. The regression report is `.local/e2e-MqgatX`.
+- The actual PDF.js preview was visually inspected in the in-app browser with rendered, selectable text. An initial browser-native PDF iframe left the custom page/zoom controls unverified; replacing it with the bundled renderer closed that gap. Form-refresh and denial cleanup issues were repaired before passing acceptance. Renderer-module startup failure now keeps an authorized Download action and a reload recovery action with an unsaved-edits notice; actual reload recovery and rendered PDF pixels passed the final follow-up. `pnpm check` and `pnpm build` passed again after that final UI repair. Backend/check/build logs are under `.local/v2-04-validation`.
+- Local Markdown verification checked **286 paths/anchors across 45 files**, with zero errors; `git diff --check` passed. No hosted deployment or v2 hosted parity is claimed.
+
+Commands used were `pnpm check`, `pnpm build`, the guarded `node_modules/node/bin/node --import tsx .local/v2-04-validation/integration.mjs .integration.test.ts` runner, and `node_modules/node/bin/node --import tsx scripts/e2e.ts` with `tests/e2e/document-workspace.spec.ts` or `tests/e2e/documents.spec.ts tests/e2e/document-processing.spec.ts tests/e2e/demo-text-import.spec.ts`, plus the final targeted workspace preview rerun. The host pnpm launcher could not verify its registry signature, so the pinned Node 24.21.0 and temporary cached pnpm 10.34.6 CLI were placed on `PATH` to run the existing scripts. The repository retains one pnpm lockfile; the bundled `pdfjs-dist` dependency is pinned to 6.4.299.
+
+During local verification, the borrower Vite process on port 3001 retained a cached shared-contract export graph. Restarting that watcher restored the existing exports; no package-export workaround was needed. The migration is additive, with ordinary startup/initialization still preserving application data.
+
+Try locally: sign into the lender console as `officer-a@example.test`, open an editable synthetic application and its Documents view, then use the Scenario kit's text importer to upload the three year-specific tax fixtures. Wait for clean scan and simulated interpretation, then open a file's document workspace. Compare its selected version, period and original suggestion; select a financial field, choose Accept/Reject/Correct, enter a review reason and apply. A changed prior accepted amount requires explicit replacement confirmation. Inspect review history and version/source labels. Metadata expected-period edits or a replacement PDF require fresh source review; they do not silently change the accepted value. Financial review is separate from accepting task evidence or deciding the application.
 
 ## V2-05 — Lender overview and evidence drilldowns
 

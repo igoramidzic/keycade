@@ -115,6 +115,7 @@ export function DocumentsManager({
   taskId,
   taskVisibility,
   onBusyChange,
+  onOpenDocument,
   active = true,
 }: {
   data: DocumentsData;
@@ -134,12 +135,14 @@ export function DocumentsManager({
     versionId: string,
     category: DocumentCategory,
     reason: string,
+    expectedRevision: number,
   ) => Promise<unknown>;
   reload: () => Promise<unknown>;
   errorMessage: (error: unknown) => string;
   taskId?: string;
   taskVisibility?: "shared" | "assigned" | "private";
   onBusyChange?: (busy: boolean) => void;
+  onOpenDocument?: (documentId: string, versionId: string) => void;
   active?: boolean;
 }) {
   const pickerId = useId();
@@ -684,6 +687,16 @@ export function DocumentsManager({
                         </span>
                       </div>
                       <div className="flex flex-wrap gap-2">
+                        {onOpenDocument && (
+                          <Button
+                            size="sm"
+                            aria-label={`Open ${version.fileName}, version ${version.version}`}
+                            aria-haspopup="dialog"
+                            onClick={() => onOpenDocument(document.id, version.id)}
+                          >
+                            Open document
+                          </Button>
+                        )}
                         {version.canDownload && (
                           <Button
                             size="sm"
@@ -718,8 +731,14 @@ export function DocumentsManager({
                           processing={version.processing}
                           versionId={version.id}
                           retry={() => retryProcessing(version.id)}
-                          correct={async (category, reason) => {
-                            await correctCategory(document.id, version.id, category, reason);
+                          correct={async (category, reason, expectedRevision) => {
+                            await correctCategory(
+                              document.id,
+                              version.id,
+                              category,
+                              reason,
+                              expectedRevision,
+                            );
                             setCategory("all");
                           }}
                           reload={reload}

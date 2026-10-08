@@ -6,6 +6,7 @@ import {
 } from "./demo-import.js";
 import {
   documentCategorySchema,
+  documentFieldPeriodSchema,
   documentProcessingStateSchema,
   documentProcessingViewSchema,
 } from "./document-processing.js";
@@ -49,6 +50,33 @@ export const documentUploadResultSchema = z.object({
     ]),
   ),
 });
+const metadataFields = {
+  displayName: z.string().trim().min(1).max(180).nullable(),
+  description: z.string().trim().max(2000).nullable(),
+  expectedPeriod: documentFieldPeriodSchema.nullable(),
+};
+export const updateDocumentMetadataSchema = z.strictObject({
+  versionId: z.string().uuid(),
+  expectedRevision: z.number().int().nonnegative(),
+  ...metadataFields,
+  reason: z.string().trim().min(1).max(1000),
+});
+export const documentMetadataSchema = z.object({
+  revision: z.number().int().nonnegative(),
+  analysisRevision: z.number().int().nonnegative(),
+  ...metadataFields,
+  history: z.array(
+    z.object({
+      id: z.string().uuid(),
+      revision: z.number().int().positive(),
+      analysisRevision: z.number().int().nonnegative(),
+      ...metadataFields,
+      actorUserId: z.string().uuid(),
+      reason: z.string(),
+      createdAt: z.string().datetime(),
+    }),
+  ),
+});
 export const documentVersionSchema = z.object({
   id: z.string().uuid(),
   version: z.number().int().positive(),
@@ -61,6 +89,17 @@ export const documentVersionSchema = z.object({
   scanState: documentScanStateSchema,
   scanErrorCode: z.string().nullable(),
   createdAt: z.string().datetime(),
+  uploadedAt: z.string().datetime().nullable().default(null),
+  uploadedByUserId: z.string().uuid().nullable().default(null),
+  uploadedByName: z.string().nullable().default(null),
+  metadata: documentMetadataSchema.default({
+    revision: 0,
+    analysisRevision: 0,
+    displayName: null,
+    description: null,
+    expectedPeriod: null,
+    history: [],
+  }),
   canDownload: z.boolean(),
   canRetryScan: z.boolean(),
   processing: documentProcessingViewSchema.nullable().default(null),
@@ -76,6 +115,12 @@ export const documentViewSchema = z.object({
   category: documentCategorySchema.default("other"),
   processingState: documentProcessingStateSchema.nullable().default(null),
   canCorrectCategory: z.boolean().default(false),
+  canEditMetadata: z.boolean().default(false),
+  applicationId: z.string().uuid().optional(),
+  applicationBusinessName: z.string().nullable().default(null),
+  businessId: z.string().uuid().nullable().default(null),
+  subjectDisplayName: z.string().nullable().default(null),
+  writtenResponsePolicy: z.string().nullable().default(null),
 });
 export const documentsViewSchema = z.object({
   applicationId: z.string().uuid(),
@@ -94,3 +139,4 @@ export type BeginDocumentUpload = z.infer<typeof beginDocumentUploadSchema>;
 export type DocumentView = z.infer<typeof documentViewSchema>;
 export type DocumentVersion = z.infer<typeof documentVersionSchema>;
 export type DocumentsView = z.infer<typeof documentsViewSchema>;
+export type UpdateDocumentMetadata = z.infer<typeof updateDocumentMetadataSchema>;

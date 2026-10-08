@@ -47,6 +47,7 @@ import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { type Actor, type ApplicationAccess, requireApplicationAccess } from "./authorization.js";
 import { lockCheckApplication } from "./checks.js";
 import { DomainError, deny } from "./errors.js";
+import { readApplicationFinancialFacts } from "./financial-facts.js";
 import { hashIdentityCredential } from "./identity.js";
 import {
   queueApplicationStatusNotifications,
@@ -88,6 +89,17 @@ async function accessFor(tx: Tx, actor: Actor, app: App) {
 }
 /** Snapshot only explicit facts and references. Live shared-business updates are never used to rewrite it. */
 async function capture(tx: Tx, app: App): Promise<SubmissionSnapshot> {
+  const financialFacts = (await readApplicationFinancialFacts(tx, app)).facts.map((fact) => ({
+    id: fact.id,
+    revision: fact.factRevision,
+    metric: fact.metric,
+    period: fact.period,
+    currency: fact.currency,
+    unit: fact.unit,
+    value: fact.value,
+    source: fact.source,
+    sourceStale: fact.sourceStale,
+  }));
   const [business] = await tx
     .select()
     .from(businesses)
@@ -236,6 +248,7 @@ async function capture(tx: Tx, app: App): Promise<SubmissionSnapshot> {
       requirements,
       identifiers,
       evidence,
+      ...(financialFacts.length ? { financialFacts } : {}),
     }),
   );
   return {
@@ -255,6 +268,7 @@ async function capture(tx: Tx, app: App): Promise<SubmissionSnapshot> {
       owners,
       identifiers,
       documents: evidence,
+      financialFacts,
       signaturePolicies,
       signers,
       tasks: tasks.map((t) => ({

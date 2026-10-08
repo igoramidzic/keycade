@@ -169,6 +169,17 @@ export function createDocumentTransport(db: Database, options: DocumentTransport
       );
       return { ok: true as const };
     },
+    async updateMetadata(
+      actor: Actor,
+      bank: string,
+      app: string,
+      documentId: string,
+      input: unknown,
+      requestId: string,
+    ) {
+      await service.updateMetadata(actor, bank, app, documentId, input, requestId);
+      return { ok: true as const };
+    },
     async retry(actor: Actor, bank: string, app: string, versionId: string, requestId: string) {
       await service.retryScan(actor, bank, app, versionId, requestId);
       return { ok: true as const };

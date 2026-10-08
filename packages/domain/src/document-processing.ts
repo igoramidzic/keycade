@@ -60,7 +60,10 @@ export async function enqueueDocumentProcessing(
     .where(eq(documentProcessingRuns.versionId, versionId))
     .orderBy(desc(documentProcessingRuns.generation))
     .limit(1);
-  if (previous && (!options.reprocess || ["queued", "processing"].includes(previous.state)))
+  if (
+    previous &&
+    (!options.reprocess || (!previous.stale && ["queued", "processing"].includes(previous.state)))
+  )
     return previous;
   const [run] = await tx
     .insert(documentProcessingRuns)
@@ -106,7 +109,12 @@ export async function readDocumentProcessing(
   access: ApplicationAccess,
   document: Document,
   version: Version,
-  options: { writable: boolean; closed: boolean; businessName: string | null },
+  options: {
+    writable: boolean;
+    closed: boolean;
+    businessName: string | null;
+    metadataEditable: boolean;
+  },
 ) {
   const runs = await db
     .select()
@@ -197,6 +205,6 @@ export async function readDocumentProcessing(
       (comparisonStale ||
         latest.state === "failed" ||
         (access.kind === "staff" && ["classified", "needs_review"].includes(latest.state))),
-    canCorrectCategory: currentClean && access.kind === "staff",
+    canCorrectCategory: currentClean && access.kind === "staff" && options.metadataEditable,
   });
 }

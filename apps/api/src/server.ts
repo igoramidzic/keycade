@@ -33,6 +33,7 @@ import {
   enrichmentSubjectSchema,
   enrichmentViewSchema,
   errorSchema,
+  financialFactsViewSchema,
   finishApplicationSetupSchema,
   invitationViewSchema,
   linkRelationshipSchema,
@@ -51,6 +52,7 @@ import {
   requestAccessLinkSchema,
   requestEnrichmentSchema,
   retryEnrichmentSchema,
+  reviewFinancialFactsSchema,
   reviewTaskSchema,
   saveApplicationSetupSchema,
   saveIdentifierSchema,
@@ -67,6 +69,7 @@ import {
   taskRevisionSchema,
   tasksViewSchema,
   taskViewSchema,
+  updateDocumentMetadataSchema,
   updatePurposeSchema,
   updateStaffNoteSchema,
   waiveTaskSchema,
@@ -77,6 +80,7 @@ import {
   assignApplicationStaff,
   createApplicationService,
   createEnrichmentService,
+  createFinancialFactsService,
   createIdentifierCipher,
   createIdentityService,
   createParticipantsService,
@@ -1145,6 +1149,65 @@ export async function buildServer(options: ServerOptions) {
         bankId,
         applicationId,
         documentId,
+        request.body,
+        request.id,
+      );
+    },
+  );
+  app.post(
+    `${documentsBase}/:documentId/metadata`,
+    {
+      schema: {
+        params: applicationParamsSchema.extend({ documentId: z.string().uuid() }),
+        body: updateDocumentMetadataSchema,
+        response: { 200: okSchema, ...responses },
+      },
+    },
+    async (request) => {
+      const { bankId, applicationId, documentId } = request.params;
+      assertSessionBank(request.authentication, bankId);
+      return documentTransport.updateMetadata(
+        request.authentication.actor,
+        bankId,
+        applicationId,
+        documentId,
+        request.body,
+        request.id,
+      );
+    },
+  );
+  const financialFactsBase = "/api/v1/banks/:bankId/applications/:applicationId/financial-facts";
+  const financialFacts = createFinancialFactsService(options.db);
+  app.get(
+    financialFactsBase,
+    {
+      schema: {
+        params: applicationParamsSchema,
+        response: { 200: financialFactsViewSchema, ...responses },
+      },
+    },
+    async (request) => {
+      const { bankId, applicationId } = request.params;
+      assertSessionBank(request.authentication, bankId);
+      return financialFacts.read(request.authentication.actor, bankId, applicationId);
+    },
+  );
+  app.post(
+    financialFactsBase,
+    {
+      schema: {
+        params: applicationParamsSchema,
+        body: reviewFinancialFactsSchema,
+        response: { 200: financialFactsViewSchema, ...responses },
+      },
+    },
+    async (request) => {
+      const { bankId, applicationId } = request.params;
+      assertSessionBank(request.authentication, bankId);
+      return financialFacts.review(
+        request.authentication.actor,
+        bankId,
+        applicationId,
         request.body,
         request.id,
       );

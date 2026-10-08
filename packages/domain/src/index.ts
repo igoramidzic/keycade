@@ -11,6 +11,7 @@ export * from "./document-processing.js";
 export * from "./documents.js";
 export * from "./enrichment.js";
 export * from "./errors.js";
+export * from "./financial-facts.js";
 export * from "./identifier-cipher.js";
 export * from "./identity.js";
 export * from "./intake.js";

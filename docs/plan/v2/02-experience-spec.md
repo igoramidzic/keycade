@@ -1,6 +1,6 @@
 # Version 2 experience requirements
 
-Status: V2-01 setup, V2-02 borrower dashboard and V2-03 demo text importer are implemented and verified locally; V2-04–V2-08 remain planned. [Screenshot findings](01-screenshot-findings.md) identify the evidence and exclusions; [data contracts](03-data-and-simulation.md) define persistence and authority. Task IDs refer to [delivery](04-delivery-and-validation.md).
+Status: V2-01 setup, V2-02 borrower dashboard and V2-03 demo text importer are implemented and verified locally; V2-04 document review and financial facts are also implemented and verified locally; V2-05–V2-08 remain planned. [Screenshot findings](01-screenshot-findings.md) identify the evidence and exclusions; [data contracts](03-data-and-simulation.md) define persistence and authority. Task IDs refer to [delivery](04-delivery-and-validation.md).
 
 ## Setup wizard — V2-01
 
@@ -83,6 +83,12 @@ Document groups show actual visible document counts and a separate review summar
 Clicking an individual item opens the document workspace. Close returns to the same expanded group and focus. Loan Footprint opens its map/modal. Existing personal evidence remains subject-restricted even when displayed among business-stage items.
 
 ## Document workspace — V2-04
+
+Implementation status: **Done — local acceptance, October 8, 2026**. Lender Documents opens the workspace with a selected immutable version, Analysis, Document Info and Versions views. The shared private preview uses bundled PDF.js with selectable text, page navigation and zoom; the actual preview has been visually inspected and desktop/mobile acceptance passed. Authorized original-file downloads and existing scan/processing recovery remain available. V2-05 still owns entry from grouped Overview evidence.
+
+The implemented review action supports supplied monetary candidates from the registered tax and statement fixtures. Staff select Accept, Reject or Correct, inspect the current and proposed values, provide a reason and explicitly confirm a changed accepted amount. Corrections replace the exact decimal value only; the field's metric, actual period, basis and USD/money unit remain tied to the source. An incorrect period requires corrected document information or matching evidence, not moving a suggestion into another year. Missing or mismatched business identity prevents adoption.
+
+Current facts use the latest accepted/corrected revision for that application's business metric and exact period/basis/unit. Rejection retains any previous accepted value and adds history. Replacement files, newer runs, category changes, analysis-relevant metadata changes or changed application business identity mark the previous source stale. The accepted amount remains visible until a lender deliberately reviews a current candidate. Display-name/description-only edits retain the analysis revision. Task-evidence acceptance and credit decisions remain separate actions; no new readiness gate is introduced because existing requirements/checks do not consume these financial facts.
 
 Open an accessible large dialog from lender evidence or Documents. Desktop pairs the file preview on the left with details on the right. Preserve title, document/version identity, status and close control. Mobile stacks the two regions or uses accessible region switching; all information/actions remain reachable without horizontal overflow.
 

@@ -76,6 +76,15 @@ export async function assertSchemaReady(connectionString: string): Promise<void>
     await pool.query("SELECT task_id, participant_id FROM task_assignments LIMIT 0");
     await pool.query("SELECT removed_at FROM business_relationships LIMIT 0");
     await pool.query("SELECT demo_import_fixture FROM document_versions LIMIT 0");
+    await pool.query(
+      "SELECT version_id, revision, analysis_revision, expected_period FROM document_metadata_revisions LIMIT 0",
+    );
+    await pool.query(
+      "SELECT application_id, version_id, run_id, fact_revision, metric, value, original_candidate FROM financial_fact_reviews LIMIT 0",
+    );
+    await pool.query(
+      "SELECT application_id, idempotency_key, payload_hash, response FROM financial_fact_commands LIMIT 0",
+    );
   } catch {
     throw new Error(
       "Database schema is missing, behind, or unusable. Run pnpm db:migrate against the project local database.",

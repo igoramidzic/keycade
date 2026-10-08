@@ -28,6 +28,7 @@ import {
   enrichmentSubjectSchema,
   enrichmentViewSchema,
   errorSchema,
+  financialFactsViewSchema,
   finishApplicationSetupSchema,
   invitationViewSchema,
   linkRelationshipSchema,
@@ -46,6 +47,7 @@ import {
   requestAccessLinkSchema,
   requestEnrichmentSchema,
   retryEnrichmentSchema,
+  reviewFinancialFactsSchema,
   reviewTaskSchema,
   saveApplicationSetupSchema,
   saveIdentifierSchema,
@@ -72,6 +74,7 @@ import {
   assignApplicationStaff,
   createApplicationService,
   createEnrichmentService,
+  createFinancialFactsService,
   createIdentifierCipher,
   createIdentityService,
   createParticipantsService,
@@ -859,8 +862,37 @@ export async function handleWorkerRequest(
       }
       return failure(404, "NOT_FOUND", "Resource not found.");
     }
+    const financialFactsMatch =
+      /^\/api\/v1\/banks\/([^/]+)\/applications\/([^/]+)\/financial-facts$/.exec(path);
+    if (financialFactsMatch) {
+      const { bankId, applicationId } = applicationParamsSchema.parse({
+        bankId: financialFactsMatch[1],
+        applicationId: financialFactsMatch[2],
+      });
+      assertSessionBank(authentication, bankId);
+      const service = createFinancialFactsService(deps.db);
+      if (get)
+        return json(
+          financialFactsViewSchema.parse(
+            await service.read(authentication.actor, bankId, applicationId),
+          ),
+        );
+      if (request.method === "POST")
+        return json(
+          financialFactsViewSchema.parse(
+            await service.review(
+              authentication.actor,
+              bankId,
+              applicationId,
+              reviewFinancialFactsSchema.parse(await readJsonBody(request)),
+              requestId,
+            ),
+          ),
+        );
+      return failure(404, "NOT_FOUND", "Resource not found.");
+    }
     const documentsMatch =
-      /^\/api\/v1\/banks\/([^/]+)\/applications\/([^/]+)\/documents(?:\/(uploads)(?:\/([^/]+)(\/content)?)?|\/(versions)\/([^/]+)\/(content|retry-scan|retry-processing)|\/([^/]+)\/(category))?$/.exec(
+      /^\/api\/v1\/banks\/([^/]+)\/applications\/([^/]+)\/documents(?:\/(uploads)(?:\/([^/]+)(\/content)?)?|\/(versions)\/([^/]+)\/(content|retry-scan|retry-processing)|\/([^/]+)\/(category|metadata))?$/.exec(
         path,
       );
     if (documentsMatch) {
@@ -908,6 +940,17 @@ export async function handleWorkerRequest(
       }
       if (documentsMatch[9] && request.method === "POST") {
         const documentId = z.string().uuid().parse(documentsMatch[9]);
+        if (documentsMatch[10] === "metadata")
+          return json(
+            await documentTransport.updateMetadata(
+              actor,
+              bankId,
+              applicationId,
+              documentId,
+              await readJsonBody(request),
+              requestId,
+            ),
+          );
         return json(
           await documentTransport.correctCategory(
             actor,

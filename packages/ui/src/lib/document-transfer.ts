@@ -1,6 +1,6 @@
 type Session = { csrfToken: string };
 
-/** Transfers stay behind authenticated routes; object URLs exist only for a completed download. */
+/** Private bytes are checked again after transfer; callers own preview object URL cleanup. */
 export function createDocumentTransfer({
   base,
   verify,
@@ -18,7 +18,21 @@ export function createDocumentTransfer({
       detail?.error?.message ?? "This document is unavailable. Refresh the list and try again.",
     );
   }
+  async function preview(versionId: string, signal: AbortSignal) {
+    await verify(signal);
+    const response = await fetch(`${base}/versions/${versionId}/content`, {
+      credentials: "same-origin",
+      cache: "no-store",
+      signal,
+    });
+    if (!response.ok) throw failure(response.status, await response.json().catch(() => undefined));
+    const blob = await response.blob();
+    await verify(signal);
+    signal.throwIfAborted();
+    return blob;
+  }
   return {
+    preview,
     async upload(
       uploadId: string,
       file: File,
@@ -65,16 +79,7 @@ export function createDocumentTransfer({
     },
     async download(versionId: string, fileName: string) {
       const signal = AbortSignal.timeout(120_000);
-      await verify(signal);
-      const response = await fetch(`${base}/versions/${versionId}/content`, {
-        credentials: "same-origin",
-        cache: "no-store",
-        signal,
-      });
-      if (!response.ok)
-        throw failure(response.status, await response.json().catch(() => undefined));
-      const blob = await response.blob();
-      await verify(signal);
+      const blob = await preview(versionId, signal);
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
