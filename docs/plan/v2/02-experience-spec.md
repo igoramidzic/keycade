@@ -37,12 +37,14 @@ Desktop structure:
 | --- | --- |
 | “Your tasks”: permitted personal/assigned tasks | Current application: business, permitted amount, all selected purposes, current stage |
 | “Tasks for [business]”: permitted business tasks | Expandable progress timeline |
-| Compact expandable rows; current actions first, completed evidence still inspectable | Actual “Upload other documents” drop area and accessible file picker |
+| Compact expandable rows in a fixed stage order; completed evidence still inspectable | Actual “Upload other documents” drop area and accessible file picker |
 | Contextual submit, signature, additional-information and closing actions | Synthetic loan officer contact when available; safe empty state when unassigned |
 
 Task rows carry understandable state labels: Needs your action, Submitted / Waiting for lender review, Changes requested, Completed, Waived. Show assignee/subject only where permitted. Completed rows remain expandable; cancelled/history items do not inflate outstanding counts. Do not send restricted collaborators hidden business/personal groups, names, terms or counts and merely hide them in CSS.
 
-Expanding a task uses the existing preloaded authorized details with no extra loading flash. Preserve unsaved edits, evidence uploads, signatures and validation. Personal evidence upload stays in the corresponding private task; the general sidebar uploader must not broaden access. General uploads select the current application and use current document grants; they do not automatically satisfy a requirement. Render progress, scanning, processing, failure and retry in that sidebar flow.
+Rows stay in submission → approval → closing order, then creation order; a state change never moves a row. An expanded answer task shows its question as the field label, then Save/Submit; the reason, requirement source, assignee, fictional-data reminder and answer/review history sit in one collapsed “Details and history” section at the bottom. A “Changes requested” note appears above the field only while the task is returned.
+
+Expanding a task uses the existing preloaded authorized details with no extra loading flash. Preserve unsaved edits, evidence uploads, signatures and validation. Shared business tasks have no in-task uploader; business files go through the sidebar, and the full Documents page can still attach a file to a specific task. Personal evidence upload stays in the corresponding private task, and assigned-only tasks or collaborators without general upload keep their task uploader; the general sidebar uploader must not broaden access. General uploads select the current application and use current document grants; they do not automatically satisfy a requirement. Render progress, scanning, processing, failure and retry in that sidebar flow.
 
 Existing routes used by reminders and signing remain valid contextual destinations, or redirect to the dashboard with the right task/action open after authorization. Put participant/owner details and activity in contextual drawers or links where useful, with no replacement tab bar. Keep borrower invitations absent. Submission and closing actions remain visible at the appropriate stage; removing their tabs must not make them unreachable.
 

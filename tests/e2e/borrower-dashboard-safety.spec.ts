@@ -45,9 +45,7 @@ test("a denied task mutation immediately clears the entire cached application da
   await page.clock.install();
   const tasks = page.getByRole("region", { name: "Application tasks", exact: true });
   await tasks.getByRole("button", { name: "Describe your business", exact: true }).click();
-  await tasks
-    .getByLabel("Your answer", { exact: true })
-    .fill("Unsaved synthetic answer before access loss.");
+  await tasks.locator('[id^="task-answer-"]').fill("Unsaved synthetic answer before access loss.");
   const pattern = /\/applications\/[^/]+\/tasks\/[^/]+\/answer$/;
   await page.route(pattern, (route) =>
     route.fulfill({
@@ -66,12 +64,12 @@ test("a denied task mutation immediately clears the entire cached application da
   await expect(
     page.getByRole("heading", { name: "Synthetic Cedar Workshop", exact: true }),
   ).toHaveCount(0);
-  await expect(page.getByLabel("Your answer", { exact: true })).toHaveCount(0);
+  await expect(page.locator('[id^="task-answer-"]')).toHaveCount(0);
   await expect(page.getByText("$10,000", { exact: true })).toHaveCount(0);
   await page.unroute(pattern);
   await page.getByRole("button", { name: "Try again", exact: true }).click();
   await expect(tasks.getByRole("heading", { name: "Tasks", exact: true })).toBeVisible();
-  await expect(page.getByLabel("Your answer", { exact: true })).toHaveCount(0);
+  await expect(page.locator('[id^="task-answer-"]')).toHaveCount(0);
 });
 
 test("demo uploads follow the visible private task or document page and restore the task destination on return", async ({

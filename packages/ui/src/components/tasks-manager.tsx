@@ -107,6 +107,7 @@ const stageLabels: Record<Stage, string> = {
   approval: "Approval",
   closing: "Closing",
 };
+const stageOrder: Record<Stage, number> = { submission: 0, approval: 1, closing: 2 };
 const textareaClass = textareaClassName;
 const displayDate = (date: string) => new Date(date).toLocaleDateString();
 const dateInput = (date: string | null) => date?.slice(0, 10) ?? "";
@@ -204,24 +205,12 @@ export function TasksManager({
     if (pendingSelection) confirmRef.current?.focus();
   }, [pendingSelection]);
   const selectedSummary = data.tasks.find((task) => task.id === selected);
-  const visible = data.tasks.filter(
-    (task) => filter === "all" || task.state !== "cancelled" || task.id === selected,
-  );
+  // Order only by stage, then the server's creation order. A task keeps its place
+  // as its state changes, so finishing one never moves the list under the user.
+  const visible = data.tasks
+    .filter((task) => filter === "all" || task.state !== "cancelled" || task.id === selected)
+    .sort((a, b) => stageOrder[a.stage] - stageOrder[b.stage]);
   const staffView = borrowerBusinessName === undefined;
-  if (!staffView) {
-    const priority: Record<State, number> = {
-      needs_changes: 0,
-      open: 1,
-      submitted: 2,
-      completed: 3,
-      waived: 3,
-      cancelled: 4,
-    };
-    const stages: Record<Stage, number> = { submission: 0, approval: 1, closing: 2 };
-    visible.sort(
-      (a, b) => priority[a.state] - priority[b.state] || stages[a.stage] - stages[b.stage],
-    );
-  }
   const groups = [
     {
       title: staffView ? "Private and assigned tasks" : "Your tasks",
@@ -390,6 +379,14 @@ export function TasksManager({
                               : actionable
                                 ? CircleDot
                                 : Circle;
+                    // A host may return null where its own uploader already covers the task.
+                    const taskDocuments =
+                      expanded &&
+                      detail?.id === task.id &&
+                      renderDocuments &&
+                      ["answer", "signature"].includes(task.inputKind ?? "answer")
+                        ? renderDocuments(task.id, setUploading, task.visibility)
+                        : null;
                     return (
                       <li
                         key={task.id}
@@ -579,12 +576,9 @@ export function TasksManager({
                                     return updated;
                                   }}
                                 />
-                                {renderDocuments &&
-                                  ["answer", "signature"].includes(task.inputKind ?? "answer") && (
-                                    <div className="px-4 pb-4 sm:px-5 sm:pb-5">
-                                      {renderDocuments(task.id, setUploading, task.visibility)}
-                                    </div>
-                                  )}
+                                {taskDocuments && (
+                                  <div className="px-4 pb-4 sm:px-5 sm:pb-5">{taskDocuments}</div>
+                                )}
                               </>
                             )}
                           </div>
@@ -680,21 +674,17 @@ function TaskDetail({
       onBusy(false);
     }
   }
+  const kind = task.inputKind ?? "answer";
+  // Readiness confirmations store a fixed choice; their stored instructions describe the
+  // underlying API value, so the form asks a plain question and keeps them in Details.
+  const choiceAnswer =
+    task.visibility === "private" || task.stableKey.startsWith("tax-document-readiness:");
+  const latestReview = task.reviews[0];
   return (
-    <div className="space-y-5 p-4 sm:p-5">
-      {task.inputKind !== "tax_authorization" && (
+    <div className="space-y-4 p-4 sm:p-5">
+      {kind !== "answer" && kind !== "tax_authorization" && (
         <p className="text-sm leading-6 text-foreground/90">{task.description}</p>
       )}
-      <p className="text-xs text-muted-foreground">
-        {task.source === "manual" ? "Staff requested" : "Product requirement"} ·{" "}
-        {task.required ? "Required" : "Optional"} · {assigneeName}
-        {task.visibility === "private" && " · Owner private"}
-      </p>
-      <div className="rounded-lg bg-muted/50 px-4 py-3 text-sm">
-        <p className="font-medium">Why this applies</p>
-        <p className="mt-1 leading-6 text-muted-foreground">{task.reason}</p>
-      </div>
-      {task.dueAt && <p className="text-sm font-medium">Due {displayDate(task.dueAt)}</p>}
       {(error || stale) && (
         <Alert variant="destructive" role="alert">
           <AlertTitle>
@@ -709,24 +699,12 @@ function TaskDetail({
           </AlertDescription>
         </Alert>
       )}
-      {notice && (
-        <p role="status" className="text-sm">
-          {notice}
-        </p>
-      )}
-      {task.reviews.length > 0 && (
-        <div className="space-y-2 rounded-lg border border-warning/25 bg-warning-soft/60 p-4">
-          <h4 className="text-sm font-semibold">Bank review</h4>
-          {task.reviews.slice(0, 1).map((review) => (
-            <div key={review.id} className="text-sm">
-              <p>
-                {stateLabels[review.decision]} · {displayDate(review.createdAt)}
-              </p>
-              <p className="mt-1 whitespace-pre-wrap break-words text-muted-foreground">
-                {review.reason}
-              </p>
-            </div>
-          ))}
+      {task.state === "needs_changes" && latestReview?.decision === "needs_changes" && (
+        <div className="rounded-lg border border-warning/25 bg-warning-soft/60 px-4 py-3 text-sm">
+          <p className="font-medium">Changes requested · {displayDate(latestReview.createdAt)}</p>
+          <p className="mt-1 whitespace-pre-wrap break-words text-muted-foreground">
+            {latestReview.reason}
+          </p>
         </div>
       )}
       {task.inputKind === "signature" ? (
@@ -744,7 +722,7 @@ function TaskDetail({
             </a>
           )}
         </div>
-      ) : (task.inputKind ?? "answer") !== "answer" ? (
+      ) : kind !== "answer" ? (
         <div className="space-y-3">
           <SecureTaskInput
             taskId={task.id}
@@ -767,23 +745,23 @@ function TaskDetail({
         </div>
       ) : (
         <form
-          className="space-y-3 rounded-lg border bg-card p-4"
+          className="space-y-3"
           onSubmit={(event) => {
             event.preventDefault();
             void save(
               "answer",
               { answer: answer.trim() },
               "PATCH",
-              "Answer saved. Submit it when you are ready for bank review.",
+              "Answer saved. Submit it when you’re ready.",
             );
           }}
         >
-          <label htmlFor={`answer-${task.id}`} className="block text-sm font-medium">
-            Your answer
+          <label htmlFor={`task-answer-${task.id}`} className="block text-sm leading-6">
+            {choiceAnswer ? "Are you ready to provide this information?" : task.description}
           </label>
-          {task.visibility === "private" || task.stableKey.startsWith("tax-document-readiness:") ? (
+          {choiceAnswer ? (
             <NativeSelect
-              id={`answer-${task.id}`}
+              id={`task-answer-${task.id}`}
               className="w-full"
               required
               value={answer}
@@ -798,7 +776,7 @@ function TaskDetail({
             </NativeSelect>
           ) : (
             <textarea
-              id={`answer-${task.id}`}
+              id={`task-answer-${task.id}`}
               className={textareaClass}
               required
               maxLength={4000}
@@ -807,14 +785,9 @@ function TaskDetail({
               onChange={(event) => setAnswer(event.target.value)}
             />
           )}
-          <p className="text-xs leading-5 text-muted-foreground">
-            Use fictional details only. Do not enter real EINs, SSNs, or other identifiers. Saving
-            an answer does not submit it or approve the task.
-          </p>
           {task.canEdit && ["completed", "waived", "submitted"].includes(task.state) && (
-            <p className="text-sm text-muted-foreground">
-              Changing a saved answer reopens this task and requires a new submission and bank
-              review.
+            <p className="text-xs leading-5 text-muted-foreground">
+              Changing your answer reopens this task for bank review.
             </p>
           )}
           <div className="flex flex-wrap gap-2">
@@ -838,7 +811,9 @@ function TaskDetail({
             )}
           </div>
           {dirty && task.canSubmit && (
-            <p className="text-sm text-muted-foreground">Save your answer before submitting it.</p>
+            <p className="text-xs leading-5 text-muted-foreground">
+              Save your answer before submitting it.
+            </p>
           )}
           {!task.canEdit && !task.canSubmit && (
             <p className="text-sm text-muted-foreground">
@@ -851,8 +826,13 @@ function TaskDetail({
           )}
         </form>
       )}
+      {notice && (
+        <p role="status" className="text-sm">
+          {notice}
+        </p>
+      )}
       {data.canManage &&
-        (task.inputKind ?? "answer") === "answer" &&
+        kind === "answer" &&
         !["completed", "waived", "cancelled"].includes(task.state) && (
           <form
             className="space-y-4 rounded-lg border bg-card p-4"
@@ -984,12 +964,22 @@ function TaskDetail({
             aria-hidden="true"
             className="size-4 -rotate-90 transition-transform group-open/history:rotate-0"
           />
-          Task history
+          Details and history
         </summary>
         <div className="mt-3 space-y-4 text-sm">
-          <p className="text-muted-foreground">
-            Occurrence {task.occurrence} · Record revision {task.revision} · Answer revision{" "}
-            {task.evidenceRevision}
+          <div className="space-y-1">
+            <h4 className="font-medium">Why this applies</h4>
+            <p className="leading-6 text-muted-foreground">{task.reason}</p>
+          </div>
+          {kind === "answer" && choiceAnswer && (
+            <p className="leading-6 text-muted-foreground">{task.description}</p>
+          )}
+          <p className="text-xs leading-5 text-muted-foreground">
+            {task.source === "manual" ? "Staff requested" : "Product requirement"} ·{" "}
+            {task.required ? "Required" : "Optional"} · {assigneeName}
+            {task.visibility === "private" && " · Owner private"}
+            <br />
+            Use fictional details only. Never enter real EINs, SSNs, or other identifiers.
           </p>
           {task.answers.length > 0 && (
             <div className="space-y-3">
@@ -1022,6 +1012,12 @@ function TaskDetail({
           )}
           {!task.answers.length && !task.reviews.length && (
             <p className="text-muted-foreground">No answers or reviews yet.</p>
+          )}
+          {data.canManage && (
+            <p className="text-xs text-muted-foreground">
+              Occurrence {task.occurrence} · Record revision {task.revision} · Answer revision{" "}
+              {task.evidenceRevision}
+            </p>
           )}
         </div>
       </details>

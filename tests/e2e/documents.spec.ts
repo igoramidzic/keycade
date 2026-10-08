@@ -240,16 +240,29 @@ test("blocked and failed simulated scans stay quarantined and a transient scan c
   await noOverflow(page);
 });
 
-test("documents load inside an assigned task and denied lists have a retry path", async ({
+test("shared tasks rely on the sidebar uploader, documents attach to a task from the documents page, and denied lists have a retry path", async ({
   page,
 }) => {
   await signIn(page, borrower, "borrower@example.test");
   await page.goto(`${borrower}/applications/${applicationId}/tasks?bank=bank-a`);
   await page.getByRole("button", { name: "Describe your business", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Task documents", exact: true })).toBeVisible();
+  await expect(page.locator('[id^="task-answer-"]')).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Task documents", exact: true })).toHaveCount(0);
+  await expect(
+    page
+      .getByRole("region", { name: "Application tasks", exact: true })
+      .getByLabel("Choose document files", { exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("region", { name: "Other document upload drop area", exact: true }),
+  ).toBeVisible();
   const name = `synthetic-task-${randomUUID().slice(0, 8)}.pdf`;
+  await page.goto(`${borrower}/applications/${applicationId}/documents?bank=bank-a`);
   await page
-    .getByRole("region", { name: "Application tasks", exact: true })
+    .getByLabel("Attach to", { exact: true })
+    .selectOption({ label: "Describe your business" });
+  await page
+    .getByRole("region", { name: "Document upload drop area", exact: true })
     .getByLabel("Choose document files", { exact: true })
     .setInputFiles(file(name));
   await expect(page.getByRole("listitem", { name: `Document ${name}`, exact: true })).toContainText(

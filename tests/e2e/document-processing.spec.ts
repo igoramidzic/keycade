@@ -113,7 +113,7 @@ test("borrower tax uploads appear in grouped tabs with unverified suggestions an
   if (!statusId) throw new Error("Expected the task status label.");
   await expect(page.locator(`[id="${statusId}"]`)).toContainText("Needs your action");
   await task.click();
-  const answer = page.getByLabel("Your answer", { exact: true });
+  const answer = page.locator('[id^="task-answer-"]');
   const currentAnswer = await answer.inputValue();
   await answer.selectOption(currentAnswer === "confirmed" ? "needs_help" : "confirmed");
   await page.getByRole("button", { name: "Save answer", exact: true }).click();

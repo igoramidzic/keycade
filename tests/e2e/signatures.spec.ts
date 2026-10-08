@@ -205,7 +205,7 @@ test("two intended signers complete a simulated request through emailed continua
     await expect(
       applicant.getByRole("link", { name: "View simulated signature request", exact: true }),
     ).toBeVisible();
-    await expect(applicant.getByLabel("Your answer", { exact: true })).toHaveCount(0);
+    await expect(applicant.locator('[id^="task-answer-"]')).toHaveCount(0);
     const statusId = await toggle.getAttribute("aria-describedby");
     await expect(applicant.locator(`[id="${statusId}"]`)).toContainText("Completed");
     await noOverflow(signer);

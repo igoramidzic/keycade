@@ -93,7 +93,7 @@ test("private synthetic inputs load upfront and drive scoped readiness, review, 
     const ein = page.getByLabel("Choose a synthetic EIN", { exact: true });
     await expect(ein).toBeVisible();
     expect(detailRequests).toEqual([]);
-    await expect(page.getByLabel("Your answer", { exact: true })).toHaveCount(0);
+    await expect(page.locator('[id^="task-answer-"]')).toHaveCount(0);
     await ein.selectOption("000000003");
     await page.getByRole("button", { name: "Save synthetic identifier", exact: true }).click();
     await expect(

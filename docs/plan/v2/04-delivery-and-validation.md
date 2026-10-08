@@ -118,6 +118,19 @@ pnpm test:e2e tests/e2e/borrower-sidebar-drop.spec.ts
 
 Local scope only. At the V2-02 checkpoint, V2-03–V2-08 remained unstarted; no deployment or hosted parity was claimed. The current task index supersedes that historical status.
 
+### Shorter task cards — October 8, 2026
+
+Follow-up status: **In progress — browser validation running.** The user found expanded borrower tasks long and wordy, questioned the per-task document section beside the sidebar uploader and asked that finished tasks keep their place.
+
+- Rows keep stage order (submission, approval, closing), then the server's creation order, for borrowers and staff. Saving, submitting, review or completion never moves a row.
+- An answer task shows its stored question as the field label, then Save/Submit. Readiness confirmations ask “Are you ready to provide this information?” and keep their stored instructions in Details. The reason, requirement source, required/optional, assignee, owner-private flag, fictional-data reminder and answer/review history share one collapsed **Details and history** section. A **Changes requested** note appears above the field only while the task is returned. The separate disclaimer, due line (still in the row summary) and bordered answer box are gone.
+- The borrower dashboard drops the in-task uploader from shared business tasks, since the sidebar already accepts business files and the Documents page can still attach a file to a specific task. Private owner tasks, assigned-only tasks and collaborators without general upload permission keep the in-task uploader so personal or restricted evidence never goes through the general target. Staff task documents are unchanged. No backend grant, schema or stored requirement text changed.
+
+Validation so far (working tree on `c40f71b`, Node 24.21.0, local PostgreSQL 16 and Mailpit because Podman is unavailable in this sandbox; a gitignored copy of `scripts/e2e.ts` skipped only the Podman ownership check):
+
+- `pnpm typecheck` passed all 12 workspaces and root TypeScript; `pnpm test` passed **419 unit tests**; `scripts/boundaries.ts` passed. Biome reports one pre-existing formatting error in `packages/ui/src/components/animated-collapse.tsx`, outside this change.
+- `tests/e2e/tasks.spec.ts`: 10 of 12 passed (`.local/e2e-PQ4ISE`). The two desktop failures were stale assertions (staff still show task documents; completed review notes now sit in Details); their corrected mobile runs passed. The combined affected-spec rerun is in progress.
+
 ## V2-03 — Demo text importer and registered fixtures
 
 Dependencies: T13, T14, D05. Primary areas: demo catalog/transfer UI, protected importer, synthetic PDF generator and document pipeline.
