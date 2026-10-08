@@ -1,7 +1,11 @@
 import type { FinancialFact, FinancialFactsView } from "@keycade/contracts";
 import { Badge } from "@keycade/ui/components/badge";
 import { Button } from "@keycade/ui/components/button";
-import { Card, CardContent, CardHeader } from "@keycade/ui/components/card";
+import { Card } from "@keycade/ui/components/card";
+import { NativeSelect } from "@keycade/ui/components/native-select";
+import { SectionHeading } from "@keycade/ui/components/page-header";
+import { cn } from "@keycade/ui/lib/utils";
+import { ChevronDown, FileSearch } from "lucide-react";
 import { useId, useState } from "react";
 import {
   financialChartBars,
@@ -18,6 +22,12 @@ const stateLabels = {
   unconfirmed: "Unconfirmed",
   missing: "Missing",
 };
+const stateVariants = {
+  current: "success",
+  stale: "warning",
+  unconfirmed: "info",
+  missing: "secondary",
+} as const;
 
 export function FinancialOverview({
   financialFacts,
@@ -28,14 +38,11 @@ export function FinancialOverview({
 }) {
   return (
     <section aria-label="Financial overview" className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <h2 className="text-lg font-semibold">Financial overview</h2>
-        <Badge variant="outline">Synthetic demo data</Badge>
-      </div>
-      <p className="text-sm text-muted-foreground">
-        Values reflect explicit lender review of supplied document facts. Select a card to inspect
-        available periods and their evidence.
-      </p>
+      <SectionHeading
+        title="Financial overview"
+        description="Values reflect explicit lender review of supplied document facts. Select a card to inspect available periods and their evidence."
+        actions={<Badge variant="outline">Synthetic demo data</Badge>}
+      />
       <div className="grid items-start gap-4 lg:grid-cols-2">
         {overviewFinancialMetrics.map(({ metric, label }) => (
           <MetricCard
@@ -65,48 +72,56 @@ function MetricCard({
   const { latest, state, series } = overview;
   const selected = series.find((item) => item.key === selectedKey) ?? series[0];
   return (
-    <Card className="min-w-0">
-      <CardHeader>
-        <button
-          type="button"
-          aria-label={`${label} period history`}
-          aria-expanded={expanded}
-          aria-controls={`${id}-history`}
-          className="w-full space-y-2 rounded-md text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-          onClick={() => setExpanded(!expanded)}
-        >
-          <span className="block font-medium">{label}</span>
-          <span className="block break-words text-2xl font-semibold tabular-nums">
-            {latest ? formatFinancialMoney(latest.value) : "Not available"}
-          </span>
-          <span className="block text-sm text-muted-foreground">
-            {latest ? `${financialPeriodLabel(latest.period)} · USD` : "No reviewed period"}
-          </span>
-          {latest && (
-            <span className="block text-xs text-muted-foreground">
-              {latest.businessSnapshot.businessName}
-            </span>
+    <Card className="min-w-0 gap-0 py-0">
+      <button
+        type="button"
+        aria-label={`${label} period history`}
+        aria-expanded={expanded}
+        aria-controls={`${id}-history`}
+        className="group/metric w-full rounded-xl p-5 text-left outline-none transition-colors hover:bg-muted/30 focus-visible:ring-3 focus-visible:ring-ring/40 sm:p-6"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <span className="flex flex-wrap items-start justify-between gap-2">
+          <span className="text-sm font-medium text-muted-foreground">{label}</span>
+          <Badge variant={stateVariants[state]}>{stateLabels[state]}</Badge>
+        </span>
+        <span
+          className={cn(
+            "mt-3 block text-[1.75rem] leading-tight font-semibold tracking-tight break-words tabular-nums",
+            !latest && "text-muted-foreground",
           )}
-          <Badge variant={state === "current" ? "secondary" : "outline"}>
-            {stateLabels[state]}
-          </Badge>
-          <span className="block text-xs text-muted-foreground">
-            {expanded ? "Hide period history" : "View period history"}
+        >
+          {latest ? formatFinancialMoney(latest.value) : "Not available"}
+        </span>
+        <span className="mt-1 block text-sm text-muted-foreground">
+          {latest ? `${financialPeriodLabel(latest.period)} · USD` : "No reviewed period"}
+        </span>
+        {latest && (
+          <span className="mt-0.5 block text-xs text-muted-foreground">
+            {latest.businessSnapshot.businessName}
           </span>
-        </button>
-      </CardHeader>
+        )}
+        <span className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-brand">
+          {expanded ? "Hide period history" : "View period history"}
+          <ChevronDown
+            aria-hidden="true"
+            className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
+          />
+        </span>
+      </button>
       {state !== "current" && (
-        <CardContent className="text-sm text-muted-foreground">
+        <p className="flex gap-2 border-t px-5 py-3 text-sm text-muted-foreground sm:px-6">
+          <FileSearch aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
           {state === "stale"
             ? "The last accepted value is retained. Its source changed and needs lender review."
             : state === "unconfirmed"
               ? "Document suggestions have not been accepted. No suggestion is used as a financial value."
               : `No reviewed ${label.toLowerCase()} or source suggestion is available.`}
-        </CardContent>
+        </p>
       )}
-      <CardContent id={`${id}-history`} hidden={!expanded} className="space-y-4">
+      <div id={`${id}-history`} hidden={!expanded} className="border-t px-5 py-5 sm:px-6">
         <section aria-label={`${label} period history details`} className="space-y-4">
-          <h3 className="font-medium">{label} period history</h3>
+          <h3 className="font-semibold">{label} period history</h3>
           {!selected ? (
             <p className="text-sm text-muted-foreground">
               No reviewed periods to chart. Not comparable until matching periods are reviewed.
@@ -118,9 +133,9 @@ function MetricCard({
                   <label htmlFor={`${id}-series`} className="block text-sm font-medium">
                     {label} period series
                   </label>
-                  <select
+                  <NativeSelect
                     id={`${id}-series`}
-                    className="w-full min-w-0 rounded-md border bg-background px-3 py-2 text-sm"
+                    className="w-full"
                     value={selected.key}
                     onChange={(event) => setSelectedKey(event.target.value)}
                   >
@@ -133,7 +148,7 @@ function MetricCard({
                         · {item.facts[0]?.period.start} – {item.facts[0]?.period.end}
                       </option>
                     ))}
-                  </select>
+                  </NativeSelect>
                   <p className="text-xs text-muted-foreground">
                     Different businesses, period lengths and bases are shown separately.
                   </p>
@@ -152,9 +167,9 @@ function MetricCard({
                 </p>
               )}
               <FinancialHistoryChart facts={selected.facts} label={label} />
-              <div className="max-w-full overflow-x-auto rounded-md border">
+              <div className="max-w-full overflow-x-auto rounded-lg border">
                 <table aria-label={`${label} period history`} className="w-full text-left text-sm">
-                  <thead className="bg-muted/50">
+                  <thead className="bg-muted/50 text-xs text-muted-foreground">
                     <tr>
                       <th scope="col" className="p-3 font-medium">
                         Fiscal period
@@ -221,22 +236,22 @@ function MetricCard({
             </>
           )}
         </section>
-      </CardContent>
+      </div>
     </Card>
   );
 }
 
 function FinancialHistoryChart({ facts, label }: { facts: FinancialFact[]; label: string }) {
   const { zero, bars } = financialChartBars(facts);
-  const left = 150;
-  const width = 380;
-  const height = bars.length * 50 + 35;
+  const left = 110;
+  const width = 330;
+  const height = bars.length * 46 + 34;
   return (
     <svg
       role="img"
       aria-label={`${label} period history chart`}
       viewBox={`0 0 550 ${height}`}
-      className="w-full rounded-md border bg-muted/20 text-foreground"
+      className="w-full rounded-lg border bg-muted/20 text-foreground"
     >
       <title>{label} period history chart</title>
       <desc>
@@ -255,19 +270,30 @@ function FinancialHistoryChart({ facts, label }: { facts: FinancialFact[]; label
             {financialPeriodLabel(fact.period)}: {formatFinancialMoney(fact.value)};{" "}
             {fact.sourceStale ? "Stale source" : "Current reviewed value"}
           </title>
-          <text x="12" y={index * 50 + 29} className="fill-current text-[12px]">
+          <text
+            x="14"
+            y={index * 46 + 30}
+            className="fill-muted-foreground text-[12px] font-medium"
+          >
             {fact.period.end}
           </text>
           <rect
             x={left + (width * from) / 100}
-            y={index * 50 + 12}
-            width={(width * barWidth) / 100}
-            height="25"
-            rx="3"
-            className={fact.sourceStale ? "fill-muted-foreground" : "fill-primary"}
+            y={index * 46 + 14}
+            width={Math.max(2, (width * barWidth) / 100)}
+            height="24"
+            rx="5"
+            className={fact.sourceStale ? "fill-muted-foreground/50" : "fill-chart-1"}
           />
+          <text
+            x={left + (width * (from + barWidth)) / 100 + 8}
+            y={index * 46 + 30}
+            className="fill-current text-[12px] font-semibold tabular-nums"
+          >
+            {formatFinancialMoney(fact.value)}
+          </text>
           {fact.sourceStale && (
-            <text x="12" y={index * 50 + 43} className="fill-current text-[10px]">
+            <text x="14" y={index * 46 + 44} className="fill-warning text-[10px]">
               Stale source
             </text>
           )}
@@ -277,7 +303,7 @@ function FinancialHistoryChart({ facts, label }: { facts: FinancialFact[]; label
         x={left + (width * zero) / 100}
         y={height - 5}
         textAnchor="middle"
-        className="fill-current text-[10px]"
+        className="fill-muted-foreground text-[10px]"
       >
         $0
       </text>

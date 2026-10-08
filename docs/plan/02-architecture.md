@@ -17,7 +17,7 @@ Use a TypeScript modular backend with three React/Vite frontends, one Fastify HT
 | Workspace | pnpm workspaces + Turborepo | Shared packages and consistent development/build tasks. |
 | Frontends | React + Vite + React Router | Independent mock bank, borrower, and staff applications. |
 | Server state/forms | TanStack Query; React Hook Form with shared validation | Caching, invalidation, autosave, and consistent form errors. |
-| UI | shadcn/ui + Tailwind CSS | Generated components with default styling. |
+| UI | shadcn/ui + Tailwind CSS | CLI-generated components themed by the Keycade design system ([D06](tasks/D06-design-system-redesign.md)). |
 | HTTP API | Node.js + Fastify | Explicit routes, runtime validation, authorization, and OpenAPI contract. |
 | Contracts | Zod request/response schemas with a supported Fastify integration | Shared browser-safe types; verify package compatibility during T01/T04. |
 | Database | PostgreSQL + Drizzle ORM/Kit | Relational records, transactions, versioned migrations, local Studio. |

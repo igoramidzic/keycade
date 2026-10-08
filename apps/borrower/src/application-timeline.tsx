@@ -1,50 +1,99 @@
 import type { ApplicationPortal } from "@keycade/contracts";
-import { applicationProgress, lifecycleLabels } from "./application-progress";
+import { cn } from "@keycade/ui/lib/utils";
+import { Check, ChevronDown, History, Minus } from "lucide-react";
+import { applicationProgress, lifecycleLabels, type ProgressStep } from "./application-progress";
+
+const stateText: Record<ProgressStep["state"], string> = {
+  complete: "Completed",
+  current: "Current",
+  stopped: "Stopped",
+  previous: "Previously reached",
+  upcoming: "Upcoming",
+};
+
+function StepMarker({ state }: { state: ProgressStep["state"] }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full border bg-card",
+        state === "complete" && "border-success bg-success text-white",
+        state === "current" && "border-brand bg-brand-soft ring-4 ring-brand-soft/60",
+        state === "previous" && "border-border bg-muted text-muted-foreground",
+        state === "stopped" && "border-border bg-muted text-muted-foreground",
+      )}
+    >
+      {state === "complete" ? (
+        <Check className="size-3.5" strokeWidth={3} />
+      ) : state === "current" ? (
+        <span className="size-2 rounded-full bg-brand" />
+      ) : state === "previous" ? (
+        <History className="size-3" />
+      ) : state === "stopped" ? (
+        <Minus className="size-3.5" />
+      ) : null}
+    </span>
+  );
+}
 
 export function ApplicationTimeline({ application }: { application: ApplicationPortal }) {
+  const steps = applicationProgress(application);
   return (
-    <details className="rounded-lg border bg-background p-4">
-      <summary className="cursor-pointer text-sm font-medium">Application progress</summary>
-      <div className="mt-4 space-y-5">
-        <ol aria-label="Application stages" className="space-y-4">
-          {applicationProgress(application).map((step) => (
-            <li key={step.key} aria-current={step.state === "current" ? "step" : undefined}>
-              <div className="flex gap-3">
-                <span aria-hidden="true" className="mt-0.5 text-sm text-muted-foreground">
-                  {step.state === "complete"
-                    ? "✓"
-                    : step.state === "current"
-                      ? "●"
-                      : step.state === "stopped"
-                        ? "−"
-                        : "○"}
-                </span>
-                <div className="min-w-0 space-y-1 text-sm">
-                  <p className="font-medium">{step.label}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {step.state === "complete"
-                      ? "Completed"
-                      : step.state === "current"
-                        ? "Current"
-                        : step.state === "stopped"
-                          ? "Stopped"
-                          : step.state === "previous"
-                            ? "Previously reached"
-                            : "Upcoming"}{" "}
-                    · {step.description}
-                  </p>
-                </div>
+    <details className="group/progress rounded-lg border bg-card">
+      <summary className="disclosure flex items-center justify-between gap-3 rounded-lg px-4 py-3 text-sm font-semibold hover:bg-muted/40">
+        Application progress
+        <ChevronDown
+          aria-hidden="true"
+          className="size-4 shrink-0 text-muted-foreground transition-transform group-open/progress:rotate-180"
+        />
+      </summary>
+      <div className="space-y-5 border-t px-4 py-4">
+        <ol aria-label="Application stages">
+          {steps.map((step, index) => (
+            <li
+              key={step.key}
+              aria-current={step.state === "current" ? "step" : undefined}
+              className="relative flex gap-3 pb-5 last:pb-0"
+            >
+              {index < steps.length - 1 && (
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "absolute top-6 bottom-0 left-[11.5px] w-px",
+                    step.state === "complete" ? "bg-success/45" : "bg-border",
+                  )}
+                />
+              )}
+              <StepMarker state={step.state} />
+              <div className="min-w-0 space-y-0.5 pt-0.5">
+                <p
+                  className={cn(
+                    "text-sm font-medium",
+                    step.state === "upcoming" && "text-muted-foreground",
+                  )}
+                >
+                  {step.label}
+                </p>
+                <p className="text-xs leading-5 text-muted-foreground">
+                  {stateText[step.state]} · {step.description}
+                </p>
               </div>
             </li>
           ))}
         </ol>
         {application.timelineEvents.length > 0 && (
-          <details>
-            <summary className="cursor-pointer text-sm font-medium">Stage history</summary>
-            <ol className="mt-3 space-y-3 text-xs text-muted-foreground">
+          <details className="group/history rounded-md bg-muted/50 px-3 py-2">
+            <summary className="disclosure flex items-center justify-between gap-2 text-sm font-medium">
+              Stage history
+              <ChevronDown
+                aria-hidden="true"
+                className="size-4 text-muted-foreground transition-transform group-open/history:rotate-180"
+              />
+            </summary>
+            <ol className="mt-3 space-y-3 pb-1 text-xs text-muted-foreground">
               {application.timelineEvents.map((event) => (
-                <li key={event.id}>
-                  <p>{lifecycleLabels[event.status]}</p>
+                <li key={event.id} className="flex flex-wrap justify-between gap-x-3 gap-y-0.5">
+                  <p className="font-medium text-foreground">{lifecycleLabels[event.status]}</p>
                   <time dateTime={event.createdAt}>
                     {new Intl.DateTimeFormat("en-US", {
                       dateStyle: "medium",
@@ -56,7 +105,7 @@ export function ApplicationTimeline({ application }: { application: ApplicationP
             </ol>
           </details>
         )}
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs leading-5 text-muted-foreground">
           Progress reflects the saved application stage. Task completion does not guarantee
           approval. Funding is simulated.
         </p>

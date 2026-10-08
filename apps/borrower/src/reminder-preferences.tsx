@@ -1,7 +1,9 @@
 import { notificationPreferenceSchema } from "@keycade/contracts";
-import { Button } from "@keycade/ui/components/button";
+import { Button, buttonVariants } from "@keycade/ui/components/button";
 import type { AuthenticatedSession } from "@keycade/ui/components/identity-portal";
+import { cn } from "@keycade/ui/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { BellRing } from "lucide-react";
 import { useState } from "react";
 import { request } from "./api";
 import { ErrorNotice } from "./workspace-ui";
@@ -22,9 +24,17 @@ export function ReminderPreferences({ session }: { session: AuthenticatedSession
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<unknown>(null);
   return (
-    <details className="max-w-sm text-sm">
-      <summary className="cursor-pointer text-muted-foreground">Reminder settings</summary>
-      <div className="mt-3 space-y-3">
+    <details className="group/reminders relative text-sm open:max-sm:order-last open:max-sm:basis-full">
+      <summary
+        className={cn(
+          buttonVariants({ variant: "ghost", size: "sm" }),
+          "disclosure text-muted-foreground group-open/reminders:bg-muted group-open/reminders:text-foreground",
+        )}
+      >
+        <BellRing aria-hidden="true" />
+        Reminder settings
+      </summary>
+      <div className="mt-2 space-y-3 rounded-xl border bg-popover p-4 text-popover-foreground shadow-lg sm:absolute sm:top-full sm:right-0 sm:z-40 sm:w-80">
         <p className="text-xs leading-5 text-muted-foreground">
           Optional demo reminders for unfinished applications. Sign-in links and requested
           invitations are separate.
@@ -57,9 +67,10 @@ export function ReminderPreferences({ session }: { session: AuthenticatedSession
               }
             }}
           >
-            <label className="flex items-start gap-2">
+            <label className="flex items-start gap-2.5 font-medium">
               <input
                 type="checkbox"
+                className="mt-1 size-4 accent-primary"
                 checked={draft ?? preferences.data.remindersEnabled}
                 disabled={busy}
                 onChange={(event) => {
