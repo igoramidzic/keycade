@@ -170,6 +170,30 @@ export function taskResourceScopePolicy(db: QueryDatabase): ResourceScopePolicy 
     },
   };
 }
+async function validAssignee(
+  tx: Tx,
+  bankId: string,
+  applicationId: string,
+  participantId: string | null,
+  task?: Task,
+) {
+  if (!participantId) return;
+  const [participant] = await tx
+    .select()
+    .from(applicationParticipants)
+    .where(
+      and(
+        eq(applicationParticipants.bankId, bankId),
+        eq(applicationParticipants.applicationId, applicationId),
+        eq(applicationParticipants.id, participantId),
+        isNull(applicationParticipants.revokedAt),
+      ),
+    );
+  if (!participant || (task?.visibility === "private" && participant.userId !== task.subjectUserId))
+    return deny();
+  return participant;
+}
+
 export async function validateTaskGrants(
   tx: Tx,
   actor: Actor,
@@ -219,6 +243,82 @@ export async function readTaskProgress(
       and(eq(applicationTasks.bankId, bankId), eq(applicationTasks.applicationId, applicationId)),
     );
   return calculateTaskProgress(rows.filter((task) => taskIsVisible(actor, access, task)));
+}
+
+/** Caller holds the application lock. Invitation intent must never overwrite newer task work. */
+export async function validateInvitationTaskAssignments(
+  tx: Tx,
+  bankId: string,
+  applicationId: string,
+  selections: readonly { taskId: string; expectedRevision: number }[],
+) {
+  if (!selections.length) return [];
+  const rows = await tx
+    .select()
+    .from(applicationTasks)
+    .where(
+      and(
+        eq(applicationTasks.bankId, bankId),
+        eq(applicationTasks.applicationId, applicationId),
+        inArray(
+          applicationTasks.id,
+          selections.map((selection) => selection.taskId),
+        ),
+      ),
+    );
+  if (rows.length !== selections.length) return deny();
+  for (const task of rows) {
+    if (
+      settledTaskStates.has(task.state) ||
+      task.revision !==
+        selections.find((selection) => selection.taskId === task.id)?.expectedRevision
+    )
+      invalid(
+        "Selected tasks have changed. Ask the lender to create a new invitation with current tasks.",
+      );
+    // Signing has its own intended-signer workflow; assignment cannot change its recipients.
+    await requireNonSignatureTask(tx, task.id);
+    await requireNonClosingSignatureTask(tx, task.id);
+  }
+  return rows;
+}
+
+export async function assignInvitationTasks(
+  tx: Tx,
+  bankId: string,
+  applicationId: string,
+  selections: readonly { taskId: string; expectedRevision: number }[],
+  participantId: string,
+  inviterUserId: string,
+  requestId: string,
+  now: Date,
+) {
+  const rows = await validateInvitationTaskAssignments(tx, bankId, applicationId, selections);
+  for (const task of rows) {
+    const participant = await validAssignee(tx, bankId, applicationId, participantId, task);
+    const [updated] = await tx
+      .update(applicationTasks)
+      .set({
+        assigneeParticipantId: participantId,
+        assigneeGenerationAt: participant?.unassignedAt ?? null,
+        revision: task.revision + 1,
+        updatedAt: now,
+      })
+      .where(eq(applicationTasks.id, task.id))
+      .returning();
+    if (!updated) throw new Error("Invitation task assignment failed.");
+    await tx.insert(taskAssignments).values({
+      bankId,
+      applicationId,
+      taskId: task.id,
+      participantId,
+      actorUserId: inviterUserId,
+      createdAt: now,
+    });
+    await audit(tx, updated, inviterUserId, "task.assign", requestId, now, [
+      "assigneeParticipantId",
+    ]);
+  }
 }
 
 /** Caller shares the application lock with setup, owner and participant mutations. */
@@ -664,32 +764,6 @@ export function createTasksService(
       const { app, access } = await context(tx, actor, bankId, applicationId);
       return taskDetail(tx, actor, bankId, applicationId, taskId, access, app.status);
     });
-  }
-  async function validAssignee(
-    tx: Tx,
-    bankId: string,
-    applicationId: string,
-    participantId: string | null,
-    task?: Task,
-  ) {
-    if (!participantId) return;
-    const [participant] = await tx
-      .select()
-      .from(applicationParticipants)
-      .where(
-        and(
-          eq(applicationParticipants.bankId, bankId),
-          eq(applicationParticipants.applicationId, applicationId),
-          eq(applicationParticipants.id, participantId),
-          isNull(applicationParticipants.revokedAt),
-        ),
-      );
-    if (
-      !participant ||
-      (task?.visibility === "private" && participant.userId !== task.subjectUserId)
-    )
-      return deny();
-    return participant;
   }
   async function createManual(
     actor: Actor,

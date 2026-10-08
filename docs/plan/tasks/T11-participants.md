@@ -4,14 +4,14 @@ Dependencies: T09, T10. Read [domain/access rules](../03-domain-and-access.md).
 
 ## Outcome
 
-Applicants and staff can safely bring owners and advisers into the relevant application.
+Bank staff can invite owners and advisers into the relevant application and select the tasks they must complete. Clients cannot manage invitations.
 
 ## Scope
 
 - Add business relationship records, scoped invitations, acceptance, expiry, resend, revoke, and participant management views on both dashboards.
 - Use T06 email delivery/session primitives; invitation acceptance verifies the invited email and applies only the specified grant.
 - Define participant roles and explicit application/task/document scopes, including private owner information. Implement policy primitives now; enforce them on task/document resources when those tables arrive.
-- Allow applicant administrators to invite application roles only. Staff membership management remains separate.
+- Only bank staff create, resend or revoke application invitations. Staff membership management remains separate.
 - Handle participant removal by denying future access and marking their unfinished work unassigned without deleting authorship/history.
 
 ## Acceptance criteria
@@ -19,13 +19,13 @@ Applicants and staff can safely bring owners and advisers into the relevant appl
 - An owner relationship can exist without a user account or portal grant.
 - A lawyer invite defaults to restricted scope and does not grant another application or general business-wide access.
 - Pending/expired/revoked invitations grant no access. Acceptance by a different email is rejected.
-- A borrower cannot grant officer/admin roles or widen scope beyond their own delegation authority. Acceptance rechecks current authority; an inactive/revoked inviter's obsolete grant cannot be accepted.
+- A borrower cannot create, resend or revoke invitations for any role or scope, including direct API calls. Acceptance rechecks current authority; an inactive/revoked inviter's obsolete grant cannot be accepted.
 - Removing a participant invalidates future reads/writes through their existing session immediately.
 - Invite/revoke/resend operations are audited and idempotent; concurrent acceptance creates one membership.
 
 ## Validation
 
-Test a complete role/scope matrix, duplicate/replayed acceptance, expiration, same-email existing identity, wrong recipient, privilege escalation, and active-session revocation. Run borrower-invites-lawyer and staff-adds-owner browser journeys through the local inbox.
+Test a complete role/scope matrix, duplicate/replayed acceptance, expiration, same-email existing identity, wrong recipient, privilege escalation, and active-session revocation. Run lender-invites-lawyer-with-selected-tasks and staff-adds-owner browser journeys through the simulated local inbox. Verify the client dashboard has no invitation controls.
 
 Do not expose another person's identifiers to an applicant administrator merely because they own the application.
 
@@ -54,9 +54,29 @@ Historical upgrade tests now seed explicit old-schema SQL fixtures rather than i
 ### Try it locally
 
 1. For an initialized checkout, run `pnpm db:migrate` and `pnpm db:seed`, then `pnpm dev`.
-2. Sign in at the borrower portal as `borrower@example.test`, open Synthetic Cedar Workshop, and choose **People**. Record an owner independently, or send an **Adviser (lawyer or accountant)** invitation to a fictional `example.test` address.
+2. Sign in at the bank console as `officer-a@example.test`, open Synthetic Cedar Workshop, and choose **Participants**. Send an **Adviser (lawyer or accountant)** invitation to a fictional `example.test` address, selecting their **Tasks to complete**.
 3. Open that recipient's message in the local Mailpit inbox, confirm sign-in, review the assigned scope, and choose **Accept invitation**. The collaborator sees only this application's limited summary and permitted People information.
-4. Back in the administrator's browser, remove the collaborator's access. Requests from their already-open session are now denied. Test **Resend invitation** and **Revoke invitation** on a pending invitation.
+4. Back in the lender's browser, remove the collaborator's access. Requests from their already-open session are now denied. Test **Resend invitation** and **Revoke invitation** on a pending invitation.
 5. Sign in to the bank console as `officer-a@example.test`, open **Participants**, and record an owner. This creates no user account. Send a separate owner invitation only when portal access is intended.
 
 Task assignments/evidence adapters remain T12/T13. Hosted simulated email remains unavailable and invitation create/resend returns an explicit 503 without partial writes. No hosted migration or deployment was performed.
+
+### Lender-only invitations and task assignments — October 8, 2026
+
+Done — implemented and verified locally October 8, 2026. This supersedes the original borrower invitation policy above.
+
+- Client People retains permitted participant and owner information, without invite/resend/revoke controls or invitation records. The shared service enforces staff-only invitation authority in both HTTP transports; legacy borrower-created invitations fail acceptance until renewed by staff.
+- Lender Application → Participants exposes **Tasks to complete** for every invited application role. Selected unfinished, non-private, non-signature tasks transfer to the invitee on acceptance. Lenders can also assign tasks later using the existing Tasks controls.
+- Assignment intent carries expected task revisions. Acceptance validates all selections before committing; changed/completed/private/cross-application tasks cannot create partial grants or overwrite newer work. Duplicate acceptance creates one assignment history/audit entry per selected task.
+- Existing visibility-only invitation grants remain compatible. Migration `0020_reflective_nekra.sql` adds empty assignment intent by default; no data reset. Real authentication and email remain out of scope.
+
+Validation used the repository’s Node 24.21.0 and cached pnpm 10.34.6:
+
+- `pnpm db:migrate` — applied additive migration 0020 to the existing project-local database without reset. Upgrade tests preserve existing invitation/participant records, default old assignment intent to empty and verify repeated migration is a no-op.
+- `pnpm check` — Biome, browser/server boundaries, all workspace/root typechecks and **298 unit tests** passed. Final Biome verification also passed after fixture/copy cleanup.
+- `pnpm build` — **12/12 workspace builds** passed; existing non-fatal Vite bundle-size advisories remain.
+- `pnpm test:integration` — the final full run passed **367/368 cases**; the sole failure was a newly added completed-task fixture missing positive reviewed evidence. Corrected the fixture and reran all **9/9 participant-task cases** successfully against fresh PostgreSQL, completing coverage of all **368 cases in 39 files**. The earlier run also identified two delivery-disabled tests still inviting as a client; both now use staff and pass, preserving `AUTH_DELIVERY_UNAVAILABLE` behavior.
+- Both Fastify and the native Worker verify client create/resend/revoke denial, staff permissions, selected assignment on acceptance, CSRF, duplicate acceptance, tenant boundaries and existing-session revocation. Domain tests cover multiple selections, actual recipient answer/submission, no access to unselected tasks, no partial grants on stale selection, invalid task state/privacy/tenant and legacy borrower invitations.
+- `pnpm test:e2e participants.spec.ts` — **6/6 desktop/mobile journeys** passed, no skips/failures/flakes (`.local/e2e-ZHPPAU/summary.json`). The lender selects a task, the invited adviser accepts and submits it, and removal denies their existing session. The client has no create/resend/revoke controls. Owner recording/separate access and Bank B invitation recovery/wrong-recipient checks also pass. Desktop/mobile lender screenshots were visually inspected.
+
+Hosted deployment is not included. Migration 0020 must precede deployment of the updated API/jobs code. Existing borrower-issued pending invitations need lender renewal; previously accepted memberships remain unchanged.

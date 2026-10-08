@@ -365,6 +365,10 @@ export const invitations = pgTable(
     inviterUserId: uuid("inviter_user_id")
       .notNull()
       .references(() => users.id),
+    taskAssignments: jsonb("task_assignments")
+      .$type<{ taskId: string; expectedRevision: number }[]>()
+      .notNull()
+      .default([]),
     inviterKind: text("inviter_kind").$type<"staff" | "participant">().notNull(),
     // A removed/reinstated grant is a new authority generation; it cannot revive old invitations.
     inviterGrantId: uuid("inviter_grant_id").notNull(),

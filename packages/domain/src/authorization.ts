@@ -151,13 +151,7 @@ export function canDelegateParticipantGrant(
   grant: { role: "applicant_admin" | "owner" | "adviser"; scope: "full" | "assigned" },
 ): boolean {
   if (grant.role === "applicant_admin" && grant.scope !== "full") return false;
-  if (access.kind === "staff") return true;
-  return (
-    access.kind === "participant" &&
-    access.role === "applicant_admin" &&
-    access.scope === "full" &&
-    (grant.role === "applicant_admin" || grant.scope === "assigned")
-  );
+  return access.kind === "staff";
 }
 
 /** Applicant workflow prerequisite; collaborator resource scopes remain separately enforced. */

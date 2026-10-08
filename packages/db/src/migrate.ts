@@ -58,7 +58,7 @@ export async function assertSchemaReady(connectionString: string): Promise<void>
     );
     await pool.query("SELECT invitation_id FROM access_delivery_requests LIMIT 0");
     await pool.query(
-      "SELECT id, inviter_grant_id, inviter_grant_updated_at, status FROM invitations LIMIT 0",
+      "SELECT id, inviter_grant_id, inviter_grant_updated_at, status, task_assignments FROM invitations LIMIT 0",
     );
     await pool.query(
       "SELECT id, bank_id, application_id, business_id FROM business_relationships LIMIT 0",

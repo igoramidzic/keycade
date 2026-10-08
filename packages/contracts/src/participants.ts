@@ -3,6 +3,12 @@ import { z } from "zod";
 export const participantRoleSchema = z.enum(["applicant_admin", "owner", "adviser"]);
 export const participantScopeSchema = z.enum(["full", "assigned"]);
 const resourceIds = z.array(z.string().uuid()).max(100);
+const invitationTaskAssignments = z
+  .array(
+    z.strictObject({ taskId: z.string().uuid(), expectedRevision: z.number().int().positive() }),
+  )
+  .max(100)
+  .refine((tasks) => new Set(tasks.map((task) => task.taskId)).size === tasks.length);
 export const participantCommandSchema = z.strictObject({
   idempotencyKey: z.string().trim().min(8).max(200),
 });
@@ -12,6 +18,7 @@ export const createInvitationSchema = participantCommandSchema.extend({
   scope: participantScopeSchema.default("assigned"),
   taskIds: resourceIds.default([]),
   documentIds: resourceIds.default([]),
+  taskAssignments: invitationTaskAssignments.default([]),
 });
 export const addBusinessRelationshipSchema = participantCommandSchema
   .extend({
@@ -40,6 +47,7 @@ export const participantsWorkspaceSchema = z.object({
   applicationId: z.string().uuid(),
   businessId: z.string().uuid().nullable(),
   canManage: z.boolean(),
+  canInvite: z.boolean(),
   participants: z.array(
     z.object({
       id: z.string().uuid(),
@@ -67,6 +75,7 @@ export const participantsWorkspaceSchema = z.object({
       email: z.string().email(),
       ...grantFields,
       status: invitationStatusSchema,
+      taskAssignments: invitationTaskAssignments,
       expiresAt: z.string().datetime(),
       deliveryStatus: z.enum(["queued", "sending", "delivered", "failed", "disabled"]),
     }),

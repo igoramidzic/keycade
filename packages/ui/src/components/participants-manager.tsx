@@ -18,6 +18,7 @@ export type ParticipantsData = {
   applicationId: string;
   businessId: string | null;
   canManage: boolean;
+  canInvite: boolean;
   participants: {
     id: string;
     userId: string;
@@ -46,6 +47,7 @@ export type ParticipantsData = {
     taskIds: string[];
     documentIds: string[];
     status: "pending" | "accepted" | "revoked" | "expired";
+    taskAssignments: { taskId: string; expectedRevision: number }[];
     expiresAt: string;
     deliveryStatus: "queued" | "sending" | "delivered" | "failed" | "disabled";
   }[];
@@ -78,14 +80,16 @@ export function ParticipantsManager({
   availableTasks = [],
 }: {
   data: ParticipantsData;
-  availableTasks?: { id: string; title: string }[];
+  availableTasks?: { id: string; title: string; revision: number; assigneeName: string | null }[];
   mutate: (path: string, body: object) => Promise<void>;
   errorMessage: (error: unknown) => string;
 }) {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<Role>("adviser");
   const [scope, setScope] = useState<Scope>("assigned");
-  const [taskIds, setTaskIds] = useState<string[]>([]);
+  const [taskAssignments, setTaskAssignments] = useState<
+    { taskId: string; expectedRevision: number }[]
+  >([]);
   const [ownerName, setOwnerName] = useState("");
   const [ownershipPercent, setOwnershipPercent] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
@@ -121,13 +125,13 @@ export function ParticipantsManager({
         email: email.trim(),
         role,
         scope,
-        taskIds: scope === "assigned" ? taskIds : [],
+        taskAssignments,
         documentIds: [],
       },
-      "Invitation saved. The recipient must verify their email and accept before gaining access.",
+      "Invitation saved. The recipient must verify their email and accept before gaining access and receiving the selected tasks.",
       () => {
         setEmail("");
-        setTaskIds([]);
+        setTaskAssignments([]);
       },
     );
   }
@@ -145,12 +149,12 @@ export function ParticipantsManager({
           <AlertDescription>{notice}</AlertDescription>
         </Alert>
       )}
-      {!data.canManage && (
+      {!data.canInvite && (
         <Alert>
           <AlertTitle>Your application access</AlertTitle>
           <AlertDescription>
-            You can see the information permitted by your role. Ask the applicant administrator or
-            bank to manage invitations and access.
+            Your lender invites collaborators and assigns their tasks. Contact your lender to invite
+            someone to this application.
           </AlertDescription>
         </Alert>
       )}
@@ -212,7 +216,7 @@ export function ParticipantsManager({
           )}
         </CardContent>
       </Card>
-      {data.canManage && (
+      {data.canInvite && (
         <Card>
           <CardHeader>
             <CardTitle>
@@ -279,43 +283,49 @@ export function ParticipantsManager({
                 <p className="text-sm leading-6 text-muted-foreground">
                   {scope === "assigned"
                     ? "The recipient can see a limited application summary. They can only use tasks and documents explicitly assigned or permitted to them."
-                    : "The recipient can manage this application and invite collaborators. Other people’s private identity information remains restricted."}
+                    : "The recipient can manage this application. Only the lender can invite collaborators. Other people’s private identity information remains restricted."}
                 </p>
               </div>
-              {scope === "assigned" && (
-                <fieldset className="space-y-3 rounded-lg border p-4">
-                  <legend className="px-1 text-sm font-medium">Permitted tasks</legend>
-                  <p className="text-xs leading-5 text-muted-foreground">
-                    Choose tasks this collaborator may access after accepting. Bank staff can assign
-                    them to submit answers. Owner-private tasks cannot be delegated.
+              <fieldset className="space-y-3 rounded-lg border p-4">
+                <legend className="px-1 text-sm font-medium">Tasks to complete</legend>
+                <p className="text-xs leading-5 text-muted-foreground">
+                  Selected tasks will be assigned to this person when they accept, replacing any
+                  current assignee. Private owner tasks and signing requests are managed separately.
+                  You can also assign tasks later from Tasks.
+                </p>
+                {availableTasks.length ? (
+                  availableTasks.map((task) => (
+                    <label key={task.id} className="flex items-start gap-2 text-sm">
+                      <input
+                        className="mt-1"
+                        type="checkbox"
+                        checked={taskAssignments.some((selection) => selection.taskId === task.id)}
+                        disabled={Boolean(busy)}
+                        onChange={(event) =>
+                          setTaskAssignments((current) =>
+                            event.target.checked
+                              ? [...current, { taskId: task.id, expectedRevision: task.revision }]
+                              : current.filter((selection) => selection.taskId !== task.id),
+                          )
+                        }
+                      />
+                      <span>
+                        {task.title}
+                        {task.assigneeName && (
+                          <span className="block text-xs text-muted-foreground">
+                            Currently assigned to {task.assigneeName}
+                          </span>
+                        )}
+                      </span>
+                    </label>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No unfinished tasks are available to assign. You can invite this person now and
+                    assign tasks later.
                   </p>
-                  {availableTasks.length ? (
-                    availableTasks.map((task) => (
-                      <label key={task.id} className="flex items-start gap-2 text-sm">
-                        <input
-                          className="mt-1"
-                          type="checkbox"
-                          checked={taskIds.includes(task.id)}
-                          disabled={Boolean(busy)}
-                          onChange={(event) =>
-                            setTaskIds((current) =>
-                              event.target.checked
-                                ? [...current, task.id]
-                                : current.filter((id) => id !== task.id),
-                            )
-                          }
-                        />
-                        <span>{task.title}</span>
-                      </label>
-                    ))
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      No tasks are available to delegate yet. You can invite a collaborator with
-                      limited summary access.
-                    </p>
-                  )}
-                </fieldset>
-              )}
+                )}
+              </fieldset>
               <Button type="submit" disabled={Boolean(busy)}>
                 {busy === "/invitations" ? "Sending…" : "Send invitation"}
               </Button>
@@ -323,7 +333,7 @@ export function ParticipantsManager({
           </CardContent>
         </Card>
       )}
-      {data.canManage && (
+      {data.canInvite && (
         <Card>
           <CardHeader>
             <CardTitle>
@@ -344,6 +354,10 @@ export function ParticipantsManager({
                       <Badge variant="outline">{participantRoleLabels[invitation.role]}</Badge>
                       <Badge variant="outline">{participantScopeLabel(invitation.scope)}</Badge>
                     </div>
+                    <p className="text-sm text-muted-foreground">
+                      {invitation.taskAssignments.length}{" "}
+                      {invitation.taskAssignments.length === 1 ? "task" : "tasks"} selected
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       Expires {new Date(invitation.expiresAt).toLocaleString()}
                     </p>

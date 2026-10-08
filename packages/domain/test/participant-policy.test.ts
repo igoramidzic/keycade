@@ -98,13 +98,7 @@ describe("participant delegation matrix", () => {
       for (const role of ["applicant_admin", "owner", "adviser"] as const) {
         for (const scope of ["full", "assigned"] as const) {
           const validRoleScope = role !== "applicant_admin" || scope === "full";
-          const expected =
-            validRoleScope &&
-            (access.kind === "staff" ||
-              (access.kind === "participant" &&
-                access.role === "applicant_admin" &&
-                access.scope === "full" &&
-                (role === "applicant_admin" || scope === "assigned")));
+          const expected = validRoleScope && access.kind === "staff";
           expect(canDelegateParticipantGrant(access, { role, scope })).toBe(expected);
         }
       }

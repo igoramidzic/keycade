@@ -29,6 +29,8 @@ Every participant sees their next actions, and staff can review evidence against
 - Task details, answers, history and permitted task documents load with the workspace. Opening or switching a task uses the loaded snapshot without a per-task request or loading flash; explicit reload and mutation refresh still preserve revision checks and unsaved edits.
 - Dashboard hierarchy uses a muted page surface, white primary panels, spacing and restrained selected states instead of repeated nested card outlines and horizontal rules.
 
+- Lenders can select unfinished tasks while inviting a participant; acceptance assigns all selected tasks transactionally. Revision changes reject stale intent without partial participation or assignment. Existing visibility-only grants do not silently become assignments.
+
 ## Validation
 
 Unit-test rule reconciliation, stage gates, task transitions, waiver and evidence-revision rules. Use PostgreSQL for assignment/scope and concurrent review tests. Demonstrate a staff-added task, borrower submission, return for changes, and completion.
@@ -111,3 +113,7 @@ Validation:
 - Additive document/enrichment migrations applied to the existing local database. The development API reports database and worker ready after restarting its file watcher. Existing data was preserved.
 
 Final combined checkpoint: `pnpm check` passed Biome, browser boundaries, all workspace/root typechecks, and **256 unit tests in 18 files**. `pnpm build` passed all **12 workspace builds** with the existing non-fatal bundle-size advisories. `git diff --check` passed.
+
+### Task selection on lender invitations — October 8, 2026
+
+Done — verified locally; see [T11 follow-up](T11-participants.md#lender-only-invitations-and-task-assignments--october-8-2026). Lender-selected tasks become editable assignments on verified acceptance, with safe replay, stale-selection checks and current bank/application/privacy boundaries. Existing Tasks reassignment remains available for accepted participants. Validation is recorded with T11; no dependency changes or hosted deployment.

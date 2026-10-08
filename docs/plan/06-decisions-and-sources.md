@@ -1,5 +1,13 @@
 # Decisions, assumptions, and reference sources
 
+## Lender-controlled invitations and task selection — October 8, 2026
+
+The user clarified that clients must not invite people. Only lenders create, resend or revoke invitations, from the application’s Participants view. The backend enforces current staff authority, including acceptance of existing pending invitations. This supersedes T11’s original applicant-admin delegation policy; owner relationship management remains independent.
+
+The lender’s selected tasks are work assignments, not just read grants. The invitation stores optional task IDs and expected revisions; acceptance validates current scope/privacy and unfinished state, then commits participation, task assignments, assignment history, audit and notification intent together. A changed task prevents acceptance so stale invitations cannot replace newer work or assignees. Staff can revoke and recreate with current selections. Migration 0020 adds empty assignment intent for existing invitations, preserving their existing visibility-only grants and history. Signing recipients use the signature workflow; owner-private requests retain their subject checks and separate linking workflow. No dependency changes are needed: this follow-up uses completed T11/T12 and delivery support.
+
+The application remains a simulation. This change does not enable real email, identity providers or financial actions, and does not include a hosted deployment.
+
 ## Interactive demo scenarios — October 7, 2026
 
 The user requested a fixed, distinctly colored right-hand demo panel with fictional business, client, guarantor, and document material that can be dragged into the application's upload areas. They explicitly withdrew the OpenAI/API-key request in the same instruction. D05 therefore uses deterministic simulated document findings and requires no OpenAI credential or external model call.

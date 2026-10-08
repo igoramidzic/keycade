@@ -21,7 +21,7 @@ export function ApplicationParticipants({ applicationId }: { applicationId: stri
     queryKey: ["staff-tasks", applicationId],
     queryFn: ({ signal }) =>
       api.participantRequest(`/applications/${applicationId}/tasks`, tasksViewSchema, { signal }),
-    enabled: Boolean(people.data?.canManage),
+    enabled: Boolean(people.data?.canInvite),
     retry: false,
     refetchOnMount: "always",
   });
@@ -30,13 +30,27 @@ export function ApplicationParticipants({ applicationId }: { applicationId: stri
   if (people.error)
     return <ErrorNotice error={people.error} onRetry={() => void people.refetch()} />;
   if (!people.data) return null;
+  if (people.data.canInvite && tasks.isPending)
+    return <Loading>Loading tasks for invitations…</Loading>;
+  if (people.data.canInvite && tasks.error)
+    return <ErrorNotice error={tasks.error} onRetry={() => void tasks.refetch()} />;
   return (
     <ParticipantsManager
       data={people.data}
       availableTasks={
-        tasks.data?.tasks.filter(
-          (task) => task.visibility !== "private" && task.state !== "cancelled",
-        ) ?? []
+        tasks.data?.tasks
+          .filter(
+            (task) =>
+              task.visibility !== "private" &&
+              !["completed", "waived", "cancelled"].includes(task.state) &&
+              task.inputKind !== "signature",
+          )
+          .map((task) => ({
+            ...task,
+            assigneeName:
+              tasks.data?.assignees.find((person) => person.id === task.assigneeParticipantId)
+                ?.displayName ?? null,
+          })) ?? []
       }
       errorMessage={(error) =>
         error instanceof ApiError

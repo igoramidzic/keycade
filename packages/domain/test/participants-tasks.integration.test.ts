@@ -103,7 +103,7 @@ describe("participant task grants and owner facts on PostgreSQL", () => {
     await expect(invite(service, target, [privateOther.id], borrower)).rejects.toMatchObject(
       denied,
     );
-    const invitation = await invite(service, target, [shared.id], borrower);
+    const invitation = await invite(service, target, [shared.id]);
     await service.acceptInvitation(target.actor, ids.bankA, invitation.id, randomUUID());
     const portal = await createApplicationService(database.db).portal(
       target.actor,
@@ -116,6 +116,215 @@ describe("participant task grants and owner facts on PostgreSQL", () => {
     expect(list.items.find((row) => row.id === ids.applicationSmall)?.taskProgress).toEqual(
       portal.taskProgress,
     );
+  });
+
+  it("assigns selected tasks atomically on acceptance and allows only the recipient to submit", async () => {
+    const { service } = harness();
+    const target = await person();
+    const selected = await task();
+    const second = await task();
+    const excluded = await task();
+    const input = {
+      email: target.email,
+      taskAssignments: [selected, second].map((row) => ({
+        taskId: row.id,
+        expectedRevision: row.revision,
+      })),
+      idempotencyKey: randomUUID(),
+    };
+    const created = await service.createInvitation(
+      officer,
+      ids.bankA,
+      ids.applicationSmall,
+      input,
+      randomUUID(),
+    );
+    const invitation = created.invitations.find((row) => row.email === target.email);
+    if (!invitation) throw new Error("Expected invitation.");
+    expect(invitation.taskIds.sort()).toEqual([selected.id, second.id].sort());
+    expect(
+      (
+        await database.pool.query(
+          "SELECT assignee_participant_id FROM application_tasks WHERE id=$1",
+          [selected.id],
+        )
+      ).rows[0].assignee_participant_id,
+    ).toBeNull();
+    await Promise.all(
+      [1, 2, 3].map(() =>
+        service.acceptInvitation(target.actor, ids.bankA, invitation.id, randomUUID()),
+      ),
+    );
+    const tasks = createTasksService(database.db);
+    const view = await tasks.read(target.actor, ids.bankA, ids.applicationSmall);
+    expect(view.tasks.map((row) => row.id).sort()).toEqual([selected.id, second.id].sort());
+    expect(view.tasks.every((row) => row.canEdit)).toBe(true);
+    const current = view.tasks.find((row) => row.id === selected.id);
+    if (!current) throw new Error("Expected assigned task.");
+    expect(current.revision).toBe(selected.revision + 1);
+    const saved = await tasks.saveAnswer(
+      target.actor,
+      ids.bankA,
+      ids.applicationSmall,
+      selected.id,
+      { expectedRevision: current.revision, answer: "Synthetic selected-task answer" },
+      randomUUID(),
+    );
+    const submitted = await tasks.submit(
+      target.actor,
+      ids.bankA,
+      ids.applicationSmall,
+      selected.id,
+      { expectedRevision: saved.revision },
+      randomUUID(),
+    );
+    expect(submitted.state).toBe("submitted");
+    await expect(
+      tasks.detail(target.actor, ids.bankA, ids.applicationSmall, excluded.id),
+    ).rejects.toMatchObject(denied);
+    await expect(
+      tasks.saveAnswer(
+        borrower,
+        ids.bankA,
+        ids.applicationSmall,
+        selected.id,
+        { expectedRevision: submitted.revision, answer: "Cannot submit for the invitee" },
+        randomUUID(),
+      ),
+    ).rejects.toMatchObject(denied);
+    expect(
+      (await database.pool.query("SELECT id FROM task_assignments WHERE task_id=$1", [selected.id]))
+        .rows,
+    ).toHaveLength(1);
+    expect(
+      (
+        await database.pool.query(
+          "SELECT actor_user_id FROM audit_events WHERE target_id=$1 AND action='task.assign'",
+          [selected.id],
+        )
+      ).rows,
+    ).toEqual([{ actor_user_id: ids.officerA }]);
+    // A delivery retry cannot assign the tasks again or create another invitation.
+    expect(
+      (
+        await service.createInvitation(
+          officer,
+          ids.bankA,
+          ids.applicationSmall,
+          input,
+          randomUUID(),
+        )
+      ).invitations.filter((row) => row.id === invitation.id),
+    ).toHaveLength(1);
+  });
+
+  it("rejects stale selections and rolls back all grants when a selected task changes before acceptance", async () => {
+    const { service } = harness();
+    const target = await person();
+    const first = await task();
+    const changed = await task();
+    const input = {
+      email: target.email,
+      taskAssignments: [first, changed].map((row) => ({
+        taskId: row.id,
+        expectedRevision: row.revision,
+      })),
+      idempotencyKey: randomUUID(),
+    };
+    const created = await service.createInvitation(
+      officer,
+      ids.bankA,
+      ids.applicationSmall,
+      input,
+      randomUUID(),
+    );
+    const invitation = created.invitations.find((row) => row.email === target.email);
+    if (!invitation) throw new Error("Expected invitation.");
+    await database.db
+      .update(applicationTasks)
+      .set({ revision: changed.revision + 1 })
+      .where(eq(applicationTasks.id, changed.id));
+    expect(await service.readInvitation(target.actor, ids.bankA, invitation.id)).toMatchObject({
+      canAccept: false,
+    });
+    await expect(
+      service.acceptInvitation(target.actor, ids.bankA, invitation.id, randomUUID()),
+    ).rejects.toMatchObject({ code: "INVALID_STATE" });
+    await expect(
+      service.createInvitation(
+        officer,
+        ids.bankA,
+        ids.applicationSmall,
+        { ...input, idempotencyKey: randomUUID() },
+        randomUUID(),
+      ),
+    ).rejects.toMatchObject({ code: "INVALID_STATE" });
+    await expect(
+      service.resendInvitation(
+        officer,
+        ids.bankA,
+        ids.applicationSmall,
+        invitation.id,
+        { idempotencyKey: randomUUID() },
+        randomUUID(),
+      ),
+    ).rejects.toMatchObject({ code: "INVALID_STATE" });
+    expect(
+      await database.db
+        .select()
+        .from(applicationParticipants)
+        .where(eq(applicationParticipants.userId, target.id)),
+    ).toEqual([]);
+    expect(
+      (
+        await database.pool.query(
+          "SELECT id FROM task_assignments WHERE task_id = ANY($1::uuid[])",
+          [[first.id, changed.id]],
+        )
+      ).rows,
+    ).toEqual([]);
+    expect(
+      (await service.read(officer, ids.bankA, ids.applicationSmall)).invitations.find(
+        (row) => row.id === invitation.id,
+      )?.status,
+    ).toBe("pending");
+  });
+
+  it("rejects completed, private and cross-application assignment selections without partial invitations", async () => {
+    const { service } = harness();
+    const target = await person();
+    const selections = [
+      await task({ state: "completed", evidenceRevision: 1, reviewedEvidenceRevision: 1 }),
+      await task({ state: "waived", reviewedEvidenceRevision: 0 }),
+      await task({ state: "cancelled" }),
+      await task({ visibility: "private", subjectUserId: ids.borrower }),
+      await task({ applicationId: ids.applicationLarge }),
+      await task({ bankId: ids.bankB, applicationId: ids.applicationOtherBank }),
+    ];
+    for (const selected of selections) {
+      await expect(
+        service.createInvitation(
+          officer,
+          ids.bankA,
+          ids.applicationSmall,
+          {
+            email: target.email,
+            taskAssignments: [{ taskId: selected.id, expectedRevision: selected.revision }],
+            idempotencyKey: randomUUID(),
+          },
+          randomUUID(),
+        ),
+      ).rejects.toMatchObject(
+        ["completed", "waived"].includes(selected.state)
+          ? { code: "INVALID_STATE", statusCode: 409 }
+          : denied,
+      );
+    }
+    expect(
+      (await service.read(officer, ids.bankA, ids.applicationSmall)).invitations.filter(
+        (row) => row.email === target.email,
+      ),
+    ).toEqual([]);
   });
 
   it("rechecks changed privacy at invitation acceptance and resend", async () => {

@@ -1,0 +1,1 @@
+ALTER TABLE "invitations" ADD COLUMN "task_assignments" jsonb DEFAULT '[]'::jsonb NOT NULL;

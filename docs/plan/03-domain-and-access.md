@@ -91,7 +91,7 @@ All rows assume the same bank and an authorized application scope. “Assigned s
 | --- | --- | --- | --- | --- |
 | Application summary | Granted applications | Granted application summary | Limited granted summary | Bank applications |
 | Business form edits | Editable lifecycle stages | Explicitly assigned fields | Explicitly assigned fields | Bank-authorized workflow |
-| Invite/revoke collaborators | Application roles only | No by default | No | Yes within bank |
+| Create/resend/revoke invitations | No | No | No | Yes within bank |
 | Owner relationship summary | Own application | Own relationship; others only if granted | No by default | Yes within bank |
 | Personal identifier entry | Own personal data; authorized business EIN | Own personal data | No by default | Designated staff workflow |
 | Read raw personal identifiers | No general raw-read endpoint | No general raw-read endpoint | No | Restricted server-side provider workflow; UI masked |
@@ -116,8 +116,9 @@ Local demo exception (user instruction, October 6, 2026): an explicitly enabled 
 - If delivery crashes or becomes ambiguous, a retry may issue a new token for the same request. Tokens for that request share one consumption record: any one successful consumption invalidates its siblings atomically. A retry skips an already consumed/revoked request. Previously sent siblings remain valid only until their normal expiry or that shared consumption/revocation, avoiding a broken link after an SMTP-accepted crash.
 - Use server-side, revocable sessions in HttpOnly cookies. Apply Secure cookies outside local HTTP development, SameSite settings, origin/CSRF protection, login/send rate limits, and approved return destinations.
 - Normalize email consistently without provider-specific assumptions such as removing dots or plus suffixes. Verify the exact invited address according to that normalization.
-- An invitation contains bank, application, role, scope, inviter, recipient, expiry, and status. Acceptance grants only that scope and cannot grant staff permissions.
-- Check delegation authority both at invitation creation and acceptance. If the inviter lost authority or the grant is no longer valid, invalidate/reissue the invitation through a current authorized actor. Scope can never expand to another person's private evidence merely because an applicant administrator sent the invite.
+- An invitation contains bank, application, role, scope, inviter, recipient, expiry, status, and optional task-assignment intent with expected revisions. Acceptance grants only that scope and cannot grant staff permissions.
+- Check delegation authority both at invitation creation and acceptance. If the inviter lost authority or the grant is no longer valid, invalidate/reissue the invitation through a current authorized actor. Only current bank staff may initiate or renew invitations; pre-existing borrower-created pending invitations cannot be accepted unless reissued by staff. Scope can never expand to another person's private evidence.
+- Lender-selected unfinished tasks are assigned in the acceptance transaction with assignment history, audit and notification intent. Validate bank/application, current privacy, task state and revision again; changed tasks prevent the entire acceptance. Concurrent/replayed acceptance cannot assign twice. Existing visibility-only task grants retain their meaning. Private owner linking and intended-signer workflows remain separate.
 - Removing a participant immediately denies future access through existing sessions. Remove their assignments or mark them unassigned for staff attention. Preserve audit and evidence authorship.
 - Repeated creation requests with the same idempotency key and payload return the same logical result. A changed payload for that key is a conflict. Use a new key for an intentional second application.
 

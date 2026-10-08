@@ -58,7 +58,7 @@ async function people(page: Page, targetApplicationId = applicationId) {
   }, targetApplicationId);
 }
 
-test("borrower invites a lawyer through the inbox with restricted access, then removes the active participant", async ({
+test("only the lender invites a lawyer, selects their tasks, and removes the active participant", async ({
   page,
   browser,
 }, testInfo) => {
@@ -67,10 +67,29 @@ test("borrower invites a lawyer through the inbox with restricted access, then r
   await signIn(page, borrower, "borrower@example.test");
   await page.goto(`${borrower}/applications/${applicationId}/people?bank=bank-a`);
   await expect(
+    page.getByRole("heading", { name: "People with portal access", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Send invitation", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Resend invitation", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Revoke invitation", exact: true })).toHaveCount(0);
+  await expect(page.getByText("Your lender invites collaborators", { exact: false })).toBeVisible();
+  await noOverflow(page);
+  await signIn(page, staff, "officer-a@example.test");
+  const taskTitle = `Synthetic lawyer request ${randomUUID().slice(0, 8)}`;
+  await page.goto(`${staff}/applications/${applicationId}/tasks?bank=bank-a`);
+  await page.getByRole("button", { name: "Add task", exact: true }).click();
+  await page.getByLabel("Task title", { exact: true }).fill(taskTitle);
+  await page.getByLabel("Instructions", { exact: true }).fill("Provide a fictional legal summary.");
+  await page.getByRole("button", { name: "Create task", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Task added" })).toBeVisible();
+  await page.goto(`${staff}/applications/${applicationId}/participants?bank=bank-a`);
+  await expect(
     page.getByRole("heading", { name: "Invite a collaborator", exact: true }),
   ).toBeVisible();
   await expect(page.getByLabel("Role", { exact: true })).toHaveValue("adviser");
   await expect(page.getByLabel("Access scope", { exact: true })).toHaveValue("assigned");
+  await page.getByRole("checkbox", { name: taskTitle, exact: true }).check();
+  await expect(page.getByRole("checkbox", { name: /Describe your business/ })).not.toBeChecked();
   await page.getByLabel("Email address", { exact: true }).fill(email);
   await page.getByRole("button", { name: "Send invitation", exact: true }).click();
   await expect(page.getByRole("status").filter({ hasText: "Invitation saved." })).toBeVisible();
@@ -95,6 +114,18 @@ test("borrower invites a lawyer through the inbox with restricted access, then r
     await expect(recipient).toHaveURL((url) => url.pathname === `/applications/${applicationId}`);
     expect(await status(recipient)).toBe(200);
     await expect(recipient.getByLabel("Business name", { exact: true })).toHaveCount(0);
+    await expect(recipient.getByRole("button", { name: taskTitle, exact: true })).toBeVisible();
+    await expect(
+      recipient.getByRole("button", { name: "Describe your business", exact: true }),
+    ).toHaveCount(0);
+    await recipient.getByRole("button", { name: taskTitle, exact: true }).click();
+    await recipient
+      .getByLabel("Your answer", { exact: true })
+      .fill("Synthetic legal summary for lender review.");
+    await recipient.getByRole("button", { name: "Save answer", exact: true }).click();
+    await expect(recipient.getByRole("status").filter({ hasText: "Answer saved" })).toBeVisible();
+    await recipient.getByRole("button", { name: "Submit for review", exact: true }).click();
+    await expect(recipient.getByRole("status").filter({ hasText: "Submitted" })).toBeVisible();
     await recipient.goto(`${borrower}/applications/${applicationId}/people?bank=bank-a`);
     await expect(
       recipient.getByRole("heading", { name: "Invite a collaborator", exact: true }),

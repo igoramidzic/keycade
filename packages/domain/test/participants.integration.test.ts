@@ -63,7 +63,7 @@ function invitationInput(email: string) {
 async function invite(
   service: ReturnType<typeof harness>["service"],
   email: string,
-  actor = borrower,
+  actor = officer,
 ) {
   const input = invitationInput(email);
   const workspace = await service.createInvitation(
@@ -146,7 +146,7 @@ describe("participant collaboration on PostgreSQL", () => {
       readApplication(database.db, person.actor, ids.bankA, ids.applicationSmall),
     ).rejects.toMatchObject(denied);
     const repeated = await service.createInvitation(
-      borrower,
+      officer,
       ids.bankA,
       ids.applicationSmall,
       input,
@@ -155,7 +155,7 @@ describe("participant collaboration on PostgreSQL", () => {
     expect(repeated.invitations.filter((item) => item.id === invitation.id)).toHaveLength(1);
     await expect(
       service.createInvitation(
-        borrower,
+        officer,
         ids.bankA,
         ids.applicationSmall,
         { ...input, email: `${randomUUID()}@example.test` },
@@ -248,7 +248,7 @@ describe("participant collaboration on PostgreSQL", () => {
     const { invitation } = await invite(service, person.email);
     advance(60_001);
     expect(
-      (await service.read(borrower, ids.bankA, ids.applicationSmall)).invitations.find(
+      (await service.read(officer, ids.bankA, ids.applicationSmall)).invitations.find(
         (row) => row.id === invitation.id,
       )?.status,
     ).toBe("expired");
@@ -257,7 +257,7 @@ describe("participant collaboration on PostgreSQL", () => {
     ).rejects.toMatchObject(denied);
     const resend = { idempotencyKey: randomUUID() };
     await service.resendInvitation(
-      borrower,
+      officer,
       ids.bankA,
       ids.applicationSmall,
       invitation.id,
@@ -265,7 +265,7 @@ describe("participant collaboration on PostgreSQL", () => {
       randomUUID(),
     );
     await service.resendInvitation(
-      borrower,
+      officer,
       ids.bankA,
       ids.applicationSmall,
       invitation.id,
@@ -279,7 +279,7 @@ describe("participant collaboration on PostgreSQL", () => {
     expect(deliveries.rows).toHaveLength(2);
     const revoke = { idempotencyKey: randomUUID() };
     await service.revokeInvitation(
-      borrower,
+      officer,
       ids.bankA,
       ids.applicationSmall,
       invitation.id,
@@ -287,7 +287,7 @@ describe("participant collaboration on PostgreSQL", () => {
       randomUUID(),
     );
     await service.revokeInvitation(
-      borrower,
+      officer,
       ids.bankA,
       ids.applicationSmall,
       invitation.id,
@@ -309,9 +309,41 @@ describe("participant collaboration on PostgreSQL", () => {
     expect(JSON.stringify(audit.rows)).not.toContain(person.email);
   });
 
-  it("blocks borrower privilege escalation and restricts management to current full administrators or staff", async () => {
+  it("blocks borrower invitations and restricts owner management to current full administrators or staff", async () => {
     const { service } = harness();
     const input = invitationInput(`${randomUUID()}@example.test`);
+    const { invitation } = await invite(service, input.email);
+    const before = await database.pool.query("SELECT count(*) FROM access_delivery_requests");
+    expect(await service.read(borrower, ids.bankA, ids.applicationSmall)).toMatchObject({
+      canInvite: false,
+      invitations: [],
+    });
+    for (const role of ["applicant_admin", "owner", "adviser"]) {
+      await expect(
+        service.createInvitation(
+          borrower,
+          ids.bankA,
+          ids.applicationSmall,
+          { ...input, role, scope: role === "applicant_admin" ? "full" : "assigned" },
+          randomUUID(),
+        ),
+      ).rejects.toMatchObject(denied);
+    }
+    for (const action of [service.resendInvitation, service.revokeInvitation]) {
+      await expect(
+        action(
+          borrower,
+          ids.bankA,
+          ids.applicationSmall,
+          invitation.id,
+          { idempotencyKey: randomUUID() },
+          randomUUID(),
+        ),
+      ).rejects.toMatchObject(denied);
+    }
+    expect(
+      (await database.pool.query("SELECT count(*) FROM access_delivery_requests")).rows,
+    ).toEqual(before.rows);
     for (const role of ["officer", "admin"])
       await expect(
         service.createInvitation(
@@ -355,37 +387,29 @@ describe("participant collaboration on PostgreSQL", () => {
     ).rejects.toMatchObject({ code: "SETUP_REQUIRED" });
   });
 
-  it("rechecks inviter authority at acceptance after participant removal and staff revocation", async () => {
-    for (const inviterKind of ["participant", "staff"] as const) {
+  it("rejects legacy borrower-created invitations and revoked staff authority", async () => {
+    for (const legacyBorrower of [true, false]) {
       const { service } = harness();
       const inviter = await recipient();
       const target = await recipient();
-      if (inviterKind === "participant") {
-        await database.db.insert(applicationParticipants).values({
-          bankId: ids.bankA,
-          applicationId: ids.applicationSmall,
-          userId: inviter.id,
-          role: "applicant_admin",
-          scope: "full",
-          synthetic: true,
-        });
-      } else {
-        await database.pool.query(
-          "INSERT INTO bank_memberships (bank_id, user_id, role, synthetic) VALUES ($1,$2,'officer',true)",
-          [ids.bankA, inviter.id],
-        );
-      }
+      await database.pool.query(
+        "INSERT INTO bank_memberships (bank_id, user_id, role, synthetic) VALUES ($1,$2,'officer',true)",
+        [ids.bankA, inviter.id],
+      );
       const { invitation } = await invite(service, target.email, inviter.actor);
-      if (inviterKind === "participant") {
-        await database.db
-          .update(applicationParticipants)
-          .set({ revokedAt: new Date() })
-          .where(eq(applicationParticipants.userId, inviter.id));
+      if (legacyBorrower) {
+        await database.pool.query(
+          "UPDATE invitations SET inviter_kind='participant', inviter_user_id=$1, inviter_grant_id=(SELECT id FROM application_participants WHERE user_id=$1 AND application_id=$2), inviter_grant_updated_at=(SELECT updated_at FROM application_participants WHERE user_id=$1 AND application_id=$2) WHERE id=$3",
+          [ids.borrower, ids.applicationSmall, invitation.id],
+        );
       } else {
         await database.pool.query("UPDATE bank_memberships SET revoked_at=now() WHERE user_id=$1", [
           inviter.id,
         ]);
       }
+      expect(await service.readInvitation(target.actor, ids.bankA, invitation.id)).toMatchObject({
+        canAccept: false,
+      });
       await expect(
         service.acceptInvitation(target.actor, ids.bankA, invitation.id, randomUUID()),
       ).rejects.toMatchObject(denied);
@@ -583,7 +607,7 @@ describe("participant collaboration on PostgreSQL", () => {
       randomUUID(),
     );
     await service.revokeInvitation(
-      borrower,
+      officer,
       ids.bankA,
       ids.applicationSmall,
       revoked.id,

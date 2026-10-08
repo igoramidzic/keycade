@@ -113,10 +113,27 @@ for (const transport of ["fastify", "worker"] as const) {
         const email = `http-participant-${randomUUID()}@example.test`;
         const unverified = await c.demo(email);
         const identity = await database.pool.query("SELECT id FROM users WHERE email=$1", [email]);
+        const taskTitle = `Synthetic invitation task ${randomUUID()}`;
+        const taskResponse = await c.call(`${applicationPath}/tasks`, {
+          ...staff,
+          method: "POST",
+          body: {
+            title: taskTitle,
+            description: "Fictional collaborator answer",
+            visibility: "assigned",
+            idempotencyKey: randomUUID(),
+          },
+        });
+        expect(taskResponse.status).toBe(200);
+        const task = taskResponse.body.tasks.find(
+          (row: { title: string }) => row.title === taskTitle,
+        );
+        expect(task).toBeDefined();
         const input = {
           email,
           role: "applicant_admin",
           scope: "full",
+          taskAssignments: [{ taskId: task.id, expectedRevision: task.revision }],
           idempotencyKey: randomUUID(),
         };
         expect(
@@ -208,6 +225,10 @@ for (const transport of ["fastify", "worker"] as const) {
         }
         const summary = await c.call(applicationPath, recipient);
         expect(summary.status).toBe(200);
+        const assigned = await c.call(`${applicationPath}/tasks/${task.id}`, recipient);
+        expect(assigned.status).toBe(200);
+        expect(assigned.body).toMatchObject({ canEdit: true, revision: task.revision + 1 });
+        expect(assigned.body.assignments).toHaveLength(1);
         const write = await c.call(`${applicationPath}/purpose`, {
           ...recipient,
           method: "PATCH",
@@ -260,7 +281,7 @@ for (const transport of ["fastify", "worker"] as const) {
       }
     });
 
-    it("validates restricted borrower invitations, tenant boundaries, idempotent commands and owner records", async () => {
+    it("allows only lenders to manage invitations and preserves tenant boundaries and owner records", async () => {
       const c = await client();
       try {
         const borrower = await c.demo("borrower@example.test");
@@ -268,7 +289,7 @@ for (const transport of ["fastify", "worker"] as const) {
         const email = `http-lawyer-${randomUUID()}@example.test`;
         const input = { email, idempotencyKey: randomUUID() };
         const response = await c.call(`${base}/invitations`, {
-          ...borrower,
+          ...staff,
           method: "POST",
           body: input,
         });
@@ -285,13 +306,12 @@ for (const transport of ["fastify", "worker"] as const) {
           status: "pending",
         });
         expect(
-          (await c.call(`${base}/invitations`, { ...borrower, method: "POST", body: input }))
-            .status,
+          (await c.call(`${base}/invitations`, { ...staff, method: "POST", body: input })).status,
         ).toBe(200);
         expect(
           (
             await c.call(`${base}/invitations`, {
-              ...borrower,
+              ...staff,
               method: "POST",
               body: { ...input, email: `different-${email}` },
             })
@@ -346,13 +366,34 @@ for (const transport of ["fastify", "worker"] as const) {
           base.replace(seedIds.applicationSmall, seedIds.applicationOtherBank),
         ])
           expect((await c.call(path, borrower)).status).toBe(404);
+        expect(
+          participantsWorkspaceSchema.parse((await c.call(base, borrower)).body),
+        ).toMatchObject({ canInvite: false, invitations: [] });
+        expect(participantsWorkspaceSchema.parse((await c.call(base, staff)).body).canInvite).toBe(
+          true,
+        );
+        for (const path of [
+          `${base}/invitations`,
+          `${base}/invitations/${invitation.id}/resend`,
+          `${base}/invitations/${invitation.id}/revoke`,
+        ]) {
+          expect(
+            (
+              await c.call(path, {
+                ...borrower,
+                method: "POST",
+                body: path.endsWith("/invitations") ? input : { idempotencyKey: randomUUID() },
+              })
+            ).status,
+          ).toBe(404);
+        }
         for (const action of ["resend", "revoke"] as const) {
           const command = { idempotencyKey: randomUUID() };
           for (let count = 0; count < 2; count++)
             expect(
               (
                 await c.call(`${base}/invitations/${invitation.id}/${action}`, {
-                  ...borrower,
+                  ...staff,
                   method: "POST",
                   body: command,
                 })
@@ -389,10 +430,10 @@ for (const transport of ["fastify", "worker"] as const) {
     it("does not queue invitations while email delivery is unavailable", async () => {
       const c = await client(false);
       try {
-        const borrower = await c.demo("borrower@example.test");
+        const staff = await c.demo("officer-a@example.test", "staff");
         const email = `unavailable-invitation-${randomUUID()}@example.test`;
         const response = await c.call(`${base}/invitations`, {
-          ...borrower,
+          ...staff,
           method: "POST",
           body: { email, idempotencyKey: randomUUID() },
         });

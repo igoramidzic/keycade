@@ -2,7 +2,6 @@ import {
   acceptInvitationResponseSchema,
   invitationViewSchema,
   participantsWorkspaceSchema,
-  tasksViewSchema,
 } from "@keycade/contracts";
 import { Alert, AlertDescription, AlertTitle } from "@keycade/ui/components/alert";
 import { Badge } from "@keycade/ui/components/badge";
@@ -45,30 +44,13 @@ export function ApplicationPeople({
     refetchOnWindowFocus: true,
     refetchInterval: 15_000,
   });
-  const tasks = useQuery({
-    queryKey: ["tasks", session.bank.id, session.user.email, applicationId],
-    queryFn: ({ signal }) =>
-      request(
-        `/api/v1/banks/${session.bank.id}/applications/${applicationId}/tasks`,
-        tasksViewSchema,
-        { ...options, signal },
-      ),
-    enabled: Boolean(people.data?.canManage),
-    retry: false,
-    refetchOnMount: "always",
-  });
   if (people.isPending || !people.isFetchedAfterMount) return <Loading />;
   if (people.error)
     return <ErrorNotice error={people.error} onRetry={() => void people.refetch()} />;
   if (!people.data) return null;
   return (
     <ParticipantsManager
-      data={people.data}
-      availableTasks={
-        tasks.data?.tasks.filter(
-          (task) => task.visibility !== "private" && task.state !== "cancelled",
-        ) ?? []
-      }
+      data={{ ...people.data, canInvite: false }}
       errorMessage={errorMessage}
       mutate={async (path, body) => {
         await client.cancelQueries({ queryKey });
@@ -201,16 +183,14 @@ export function InvitationAcceptance({ session }: { session: AuthenticatedSessio
         ) : data.status === "expired" || data.status === "revoked" ? (
           <Alert variant="destructive">
             <AlertTitle>Invitation {data.status}</AlertTitle>
-            <AlertDescription>
-              Ask the applicant administrator or bank for a new invitation.
-            </AlertDescription>
+            <AlertDescription>Ask the lender for a new invitation.</AlertDescription>
           </Alert>
         ) : !data.canAccept && session.authenticationMethod !== "demo" ? (
           <Alert variant="destructive">
             <AlertTitle>This invitation cannot be accepted</AlertTitle>
             <AlertDescription>
-              The invitation’s permissions are no longer available. Ask the applicant administrator
-              or bank for a new invitation.
+              The invitation’s permissions are no longer available. Ask the lender for a new
+              invitation.
             </AlertDescription>
           </Alert>
         ) : (

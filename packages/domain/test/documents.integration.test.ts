@@ -679,7 +679,7 @@ describe("private document lifecycle on PostgreSQL", () => {
       documentIds: [upload.documentId],
     };
     const view = await participants.createInvitation(
-      borrower,
+      officer,
       ids.bankA,
       ids.applicationSmall,
       input,
@@ -688,7 +688,7 @@ describe("private document lifecycle on PostgreSQL", () => {
     expect(view.invitations.some((x) => x.documentIds.includes(upload.documentId))).toBe(true);
     await expect(
       participants.createInvitation(
-        borrower,
+        officer,
         ids.bankA,
         ids.applicationSmall,
         { ...input, idempotencyKey: randomUUID(), documentIds: [randomUUID()] },

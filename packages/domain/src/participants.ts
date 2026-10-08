@@ -34,7 +34,13 @@ import { materialInputsEditable } from "./checks.js";
 import { validateDocumentGrants } from "./documents.js";
 import { DomainError, deny } from "./errors.js";
 import { hashIdentityCredential } from "./identity.js";
-import { reconcileTasks, unassignParticipantTasks, validateTaskGrants } from "./tasks.js";
+import {
+  assignInvitationTasks,
+  reconcileTasks,
+  unassignParticipantTasks,
+  validateInvitationTaskAssignments,
+  validateTaskGrants,
+} from "./tasks.js";
 
 type Tx = DatabaseTransaction;
 type Invitation = typeof invitations.$inferSelect;
@@ -181,6 +187,13 @@ export function createParticipantsService(
       invitation.documentIds,
       invitation.email,
     );
+    if (invitation.status === "pending")
+      await validateInvitationTaskAssignments(
+        tx,
+        invitation.bankId,
+        invitation.applicationId,
+        invitation.taskAssignments,
+      );
   }
   async function audit(
     tx: Tx,
@@ -319,14 +332,15 @@ export function createParticipantsService(
               ),
             )
             .orderBy(asc(businessRelationships.createdAt), asc(businessRelationships.id));
-    const pending = canManage
+    const canInvite = access.kind === "staff";
+    const pending = canInvite
       ? await tx
           .select()
           .from(invitations)
           .where(and(eq(invitations.bankId, bankId), eq(invitations.applicationId, applicationId)))
           .orderBy(asc(invitations.createdAt), asc(invitations.id))
       : [];
-    const deliveryRows = canManage
+    const deliveryRows = canInvite
       ? await tx
           .select({
             invitationId: accessDeliveryRequests.invitationId,
@@ -347,6 +361,7 @@ export function createParticipantsService(
       applicationId,
       businessId: application.businessId,
       canManage: canManage && !terminal.has(application.status),
+      canInvite: canInvite && !terminal.has(application.status),
       participants: participants.map(({ row, ...person }) => ({
         id: row.id,
         userId: row.userId,
@@ -374,6 +389,7 @@ export function createParticipantsService(
         taskIds: row.taskIds,
         documentIds: row.documentIds,
         status: state(row, clock()),
+        taskAssignments: row.taskAssignments,
         expiresAt: row.expiresAt.toISOString(),
         deliveryStatus: deliveryStatuses.get(row.id) ?? "disabled",
       })),
@@ -606,7 +622,10 @@ export function createParticipantsService(
     requestId: string,
   ) {
     const parsed = parse(createInvitationSchema, input);
-    parsed.taskIds = [...new Set(parsed.taskIds)].sort();
+    parsed.taskAssignments.sort((a, b) => a.taskId.localeCompare(b.taskId));
+    parsed.taskIds = [
+      ...new Set([...parsed.taskIds, ...parsed.taskAssignments.map((task) => task.taskId)]),
+    ].sort();
     parsed.documentIds = [...new Set(parsed.documentIds)].sort();
     return db.transaction(async (tx) => {
       const { application, userId, access } = await manager(tx, actor, bankId, applicationId);
@@ -640,6 +659,7 @@ export function createParticipantsService(
         payload,
       );
       if (!command.existing) {
+        await validateInvitationTaskAssignments(tx, bankId, applicationId, parsed.taskAssignments);
         if (!options.deliveryEnabled)
           throw new DomainError(
             "AUTH_DELIVERY_UNAVAILABLE",
@@ -693,6 +713,7 @@ export function createParticipantsService(
     const parsed = parse(participantCommandSchema, input);
     return db.transaction(async (tx) => {
       const { userId, access } = await manager(tx, actor, bankId, applicationId);
+      if (access.kind !== "staff") return deny();
       const command = await existingCommand(
         tx,
         userId,
@@ -720,6 +741,12 @@ export function createParticipantsService(
           invalidState("This invitation has already been accepted.");
         const now = clock();
         if (operation === "resend") {
+          await validateInvitationTaskAssignments(
+            tx,
+            bankId,
+            applicationId,
+            invitation.taskAssignments,
+          );
           await validateTaskGrants(
             tx,
             actor,
@@ -1013,6 +1040,7 @@ export function createParticipantsService(
         return acceptInvitationResponseSchema.parse({ applicationId: application.id });
       }
       if (state(invitation, clock()) !== "pending") return deny();
+      await reconcileTasks(tx, bankId, application.id, requestId, clock());
       await validInviter(tx, invitation);
       if (
         existing &&
@@ -1063,6 +1091,27 @@ export function createParticipantsService(
         .where(eq(invitations.id, invitationId));
       await revokeDeliveries(tx, invitationId, now);
       await reconcileTasks(tx, bankId, application.id, requestId, now);
+      const [participant] = await tx
+        .select({ id: applicationParticipants.id })
+        .from(applicationParticipants)
+        .where(
+          and(
+            eq(applicationParticipants.bankId, bankId),
+            eq(applicationParticipants.applicationId, application.id),
+            eq(applicationParticipants.userId, user.id),
+          ),
+        );
+      if (!participant) throw new Error("Accepted invitation has no participant.");
+      await assignInvitationTasks(
+        tx,
+        bankId,
+        application.id,
+        invitation.taskAssignments,
+        participant.id,
+        invitation.inviterUserId,
+        requestId,
+        now,
+      );
       await audit(
         tx,
         user.id,

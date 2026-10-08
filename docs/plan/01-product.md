@@ -27,7 +27,7 @@ Deferred: repayment schedules, interest/accrual accounting, principal balances, 
 
 | Persona | Primary actions |
 | --- | --- |
-| Applicant administrator | Start/resume an application, manage permitted collaborators, supply business information, submit for review. |
+| Applicant administrator | Start/resume an application, record business owners, supply business information, submit for review. Ask the lender to invite collaborators. |
 | Beneficial owner | Supply their own requested information and perform assigned actions; ownership alone grants no portal access. |
 | External adviser | Perform explicitly assigned tasks and upload/view explicitly permitted evidence. Examples: lawyer or accountant. |
 | Loan officer | Create applications for clients, assign staff, invite participants, request information, review evidence, record decisions and funding. |
@@ -66,7 +66,7 @@ Application detail has Overview, Tasks, Documents, People, and Activity views. S
 
 ### Collaborate with an owner or adviser
 
-An applicant administrator or bank staff member invites a named role into one application. Show the scope before sending. The recipient verifies the invited email and accepts. A lawyer defaults to assigned tasks and their permitted documents. An owner can provide personal identifiers without exposing them to every collaborator. Pending, accepted, expired, and revoked invitations are distinct.
+Only bank staff invite a named role into an application, from its Participants view in the lender console. The client dashboard has no invitation controls, and client API requests to create, resend or revoke invitations are denied. Show the role, scope and selected tasks before sending. Selected unfinished tasks become the recipient’s assignments atomically when they accept; pending invitations grant no access. If a selected task changes while the invitation is pending, require the lender to review it and issue a new invitation. The recipient verifies the invited email and accepts. A lawyer defaults to assigned tasks and their permitted documents. An owner can provide personal identifiers without exposing them to every collaborator. Pending, accepted, expired, and revoked invitations are distinct.
 
 Staff can add participants to an existing application. Recording a business ownership relationship and granting portal access are separate actions.
 

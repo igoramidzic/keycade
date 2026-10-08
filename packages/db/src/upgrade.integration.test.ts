@@ -8,6 +8,50 @@ import { assertSchemaReady, migrateDatabase, migrationsFolder } from "./migrate.
 import { seedIds } from "./seed.js";
 import { createTestDatabase } from "./testing.js";
 
+it("adds invitation assignment intent without changing existing grants or assigning legacy invitations", async () => {
+  const folder = await mkdtemp(join(tmpdir(), "keycade-before-invite-assignments-"));
+  const database = await createTestDatabase(undefined, { migrate: false });
+  try {
+    const journal = JSON.parse(
+      await readFile(join(migrationsFolder, "meta/_journal.json"), "utf8"),
+    ) as { entries: { idx: number; tag: string }[] };
+    journal.entries = journal.entries.filter((entry) => entry.idx < 20);
+    await mkdir(join(folder, "meta"));
+    await writeFile(join(folder, "meta/_journal.json"), JSON.stringify(journal));
+    await Promise.all(
+      journal.entries.map((entry) =>
+        copyFile(join(migrationsFolder, `${entry.tag}.sql`), join(folder, `${entry.tag}.sql`)),
+      ),
+    );
+    await migrate(database.db, { migrationsFolder: folder });
+    await seedHistoricalDatabase(database);
+    await database.pool.query(
+      `INSERT INTO invitations (bank_id, application_id, email, role, scope, inviter_user_id, inviter_kind, inviter_grant_id, inviter_grant_updated_at, expires_at, synthetic)
+       SELECT $1, $2, 'legacy-invitation@example.test', 'adviser', 'assigned', user_id, 'staff', id, updated_at, now() + interval '7 days', true FROM bank_memberships WHERE bank_id=$1 LIMIT 1`,
+      [seedIds.bankA, seedIds.applicationSmall],
+    );
+    const before = (await database.pool.query("SELECT * FROM invitations")).rows;
+    expect(before).toHaveLength(1);
+    const grants = (await database.pool.query("SELECT * FROM application_participants ORDER BY id"))
+      .rows;
+    await migrateDatabase(database.connectionString);
+    await assertSchemaReady(database.connectionString);
+    expect((await database.pool.query("SELECT * FROM invitations")).rows).toEqual(
+      before.map((row) => ({ ...row, task_assignments: [] })),
+    );
+    expect(
+      (await database.pool.query("SELECT * FROM application_participants ORDER BY id")).rows,
+    ).toEqual(grants);
+    await migrateDatabase(database.connectionString);
+    expect((await database.pool.query("SELECT * FROM invitations")).rows).toEqual(
+      before.map((row) => ({ ...row, task_assignments: [] })),
+    );
+  } finally {
+    await database.cleanup();
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
 it("adds closing policies to every existing synthetic business-credit version without changing applications", async () => {
   const folder = await mkdtemp(join(tmpdir(), "keycade-before-closing-"));
   const database = await createTestDatabase(undefined, { migrate: false });
