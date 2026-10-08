@@ -1,6 +1,6 @@
 # V2 delivery and validation
 
-Planning date: October 8, 2026. V2-01–V2-07 are complete locally. V2-08 is **Not started**. Only the task-specific evidence below proves v2 behavior.
+Planning date: October 8, 2026. V2-01–V2-07 are complete locally. V2-08 is **In progress**. Only the task-specific evidence below proves v2 behavior.
 
 Read [the experience specification](02-experience-spec.md) and [the data and simulation specification](03-data-and-simulation.md) before implementing a task. The [main plan](../README.md), [architecture](../02-architecture.md), [access rules](../03-domain-and-access.md), and [verification discipline](../05-development-and-testing.md) still apply. Implement one bounded task or reviewable slice at a time.
 
@@ -15,7 +15,7 @@ Read [the experience specification](02-experience-spec.md) and [the data and sim
 | V2-05 | Lender application overview and evidence drill-down | V2-01, V2-04 | T10, T12, T16, T19, T21 | Done — local acceptance |
 | V2-06 | Simulated Loan Footprint | V2-01 | T16 | Done — local acceptance |
 | V2-07 | Integrated local acceptance | V2-02, V2-03, V2-04, V2-05, V2-06 | T22 | Done — local acceptance |
-| V2-08 | Hosted parity and deployment acceptance | V2-07 | D02, D03 | Not started |
+| V2-08 | Hosted parity and deployment acceptance | V2-07 | D02, D03 | In progress |
 
 Existing prerequisites are recorded as complete in the main plan. D05 and some later follow-ups have only local evidence; V2-08 must carry the combined implementation through hosted validation. V2-01–V2-07 are complete, so V2-08 hosted parity is next. Loan Footprint is available through the completed Overview and existing Checks view.
 
@@ -340,9 +340,13 @@ Dependencies: V2-07; D02 and D03, including deployed simulation/authentication c
 4. Exercise at least one scoped denial and a stale/retry case through hosted adapters. Record actual URLs, deployed revision, migration result, browser report and simulation labels without tokens, raw identifiers or private evidence.
 5. Distinguish full local negative coverage from the smaller hosted slice. Deployment/build success alone cannot close this task; remaining hosted failures or unverified criteria stay explicit in the task/index.
 
-Implementation record: **Not started.**
+Implementation record: **In progress — October 8, 2026.**
 
-Validation record: **Not run.** No v2 deployment or hosted acceptance is claimed.
+- Verified all five native builds already serve `ab7ed190775a6191279baae0fa616955539608d0`. The combined v2 migrations are applied: GitHub run [37827143074](https://github.com/igoramidzic/keycade/actions/runs/37827143074) applied migration 0024 (25 total), and repeat run [37830884543](https://github.com/igoramidzic/keycade/actions/runs/37830884543) applied zero. Read-only before/after counts and identity hashes match for the existing bank, 11 users, eight applications, ten documents and one funded account.
+- Runtime review fixes two parity gaps: native API delivery and API/jobs readiness now require configured simulated inbox delivery; both HTTP transports accept the importer’s full bounded ten-file/64 KiB-per-file reservation contract, including JSON escaping, while retaining the ordinary 64 KiB JSON limit elsewhere.
+- Added native configuration/streaming-limit regressions and two opt-in hosted v2 browser journeys for setup/resume/masking, protected fixture import/R2 bytes, explicit financial review and address-bound Loan Footprint with stale/replay and scoped-denial checks.
+
+Validation record: **In progress.** `pnpm check` passes 419 unit tests, Biome/boundaries and all 12 workspace typechecks; `KEYCADE_DEPLOYMENT=cloudflare pnpm build` passes all 12 builds. `pnpm test:integration` passes all **483 PostgreSQL cases across 50 files**, and all five Wrangler deployment dry runs pass. Four existing hosted inbox cases passed on `ab7ed19`. Corrected runtime deployment and the new v2 hosted slice remain pending; this task is not complete.
 
 ## Planning validation
 

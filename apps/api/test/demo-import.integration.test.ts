@@ -2,7 +2,12 @@ import { randomUUID } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { createDemoImportPdf, type DemoImportContext } from "@keycade/contracts/demo-import";
+import {
+  createDemoImportPdf,
+  type DemoImportContext,
+  demoImportMaxBytes,
+  demoImportMaxFiles,
+} from "@keycade/contracts/demo-import";
 import {
   applicationParticipants,
   applications,
@@ -80,7 +85,7 @@ for (const transport of ["fastify", "worker"] as const) {
       async function call(
         url: string,
         method: "GET" | "POST" | "PUT" = "GET",
-        body?: object | Buffer,
+        body?: object | Buffer | string,
         proof = csrf,
       ) {
         const headers = {
@@ -112,7 +117,9 @@ for (const transport of ["fastify", "worker"] as const) {
                   body:
                     body instanceof Uint8Array
                       ? Uint8Array.from(body).buffer
-                      : JSON.stringify(body),
+                      : typeof body === "string"
+                        ? body
+                        : JSON.stringify(body),
                 }
               : {}),
           }),
@@ -161,6 +168,70 @@ for (const transport of ["fastify", "worker"] as const) {
       }
       return { call, sample, reserve, close: () => app.close() };
     }
+
+    it("reserves ten maximum-size text triggers even when every text byte is JSON escaped", async () => {
+      const user = await client();
+      try {
+        const sample = await user.sample();
+        const text = "a".repeat(demoImportMaxBytes);
+        const files = Array.from({ length: demoImportMaxFiles }, () => ({
+          ...sample.input,
+          idempotencyKey: randomUUID(),
+          demoImport: { ...sample.input.demoImport, text },
+        }));
+        // A valid JSON sender may use \uXXXX even for ordinary ASCII characters.
+        const escaped = JSON.stringify({ files }).replaceAll(
+          JSON.stringify(text),
+          `"${"\\u0061".repeat(demoImportMaxBytes)}"`,
+        );
+        const result = await user.call(`${base}/uploads`, "POST", escaped);
+        expect(result.status, JSON.stringify(result.body)).toBe(200);
+        expect(result.body.uploads).toHaveLength(demoImportMaxFiles);
+        for (const upload of result.body.uploads) {
+          expect(upload.error).toBeUndefined();
+          expect(upload.uploadId).toBeDefined();
+        }
+        const repeat = await user.call(`${base}/uploads`, "POST", escaped);
+        expect(repeat.status).toBe(200);
+        expect(repeat.body).toEqual(result.body);
+      } finally {
+        await user.close();
+      }
+    });
+
+    it("preserves each trigger's 64 KiB limit after expanding the JSON envelope budget", async () => {
+      const user = await client();
+      try {
+        const sample = await user.sample();
+        const before = await database.db.select().from(documents);
+        const oversized = await user.call(`${base}/uploads`, "POST", {
+          files: [
+            {
+              ...sample.input,
+              demoImport: { ...sample.input.demoImport, text: "a".repeat(demoImportMaxBytes + 1) },
+            },
+          ],
+        });
+        expect(oversized.status).toBe(400);
+        const multibyte = await user.call(`${base}/uploads`, "POST", {
+          files: [
+            {
+              ...sample.input,
+              demoImport: {
+                ...sample.input.demoImport,
+                text: "é".repeat(demoImportMaxBytes / 2 + 1),
+              },
+            },
+          ],
+        });
+        expect(multibyte.status).toBe(200);
+        expect(multibyte.body.uploads[0].uploadId).toBeUndefined();
+        expect(multibyte.body.uploads[0].error).toContain("64 KiB");
+        expect(await database.db.select().from(documents)).toEqual(before);
+      } finally {
+        await user.close();
+      }
+    });
 
     it("uploads three tax years and statement/review recipes through quarantine and delayed typed interpretation without completing tasks", async () => {
       const user = await client();

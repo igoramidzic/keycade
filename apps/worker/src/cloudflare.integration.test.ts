@@ -119,6 +119,13 @@ test("private service wake and native queue deliver a single encrypted demo mess
     expect(
       (await worker.fetch(new Request("https://jobs.internal/internal/ready"), invalid)).status,
     ).toBe(503);
+    const disabled = { ...env, DEMO_INBOX_ENABLED: "false" } as unknown as JobsBindings;
+    expect(
+      (await worker.fetch(new Request("https://jobs.internal/internal/ready"), disabled)).status,
+    ).toBe(503);
+    expect(
+      (await worker.fetch(new Request("https://jobs.internal/internal/ready"), env)).status,
+    ).toBe(200);
   } finally {
     await database.cleanup();
   }

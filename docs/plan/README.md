@@ -1,6 +1,6 @@
 # Keycade implementation plan
 
-**V2-07 — [integrated local acceptance](v2/04-delivery-and-validation.md#v2-07--integrated-local-acceptance) is complete, October 8, 2026.** The combined v2 implementation passed **410 unit tests, 479 distinct PostgreSQL cases, all 12 builds/typechecks and 136 distinct desktop/mobile browser cases**. Acceptance added a connected borrower-to-lender journey, strengthened restricted/revoked API denials and fixed setup-session recovery while clearing unsaved EIN. Migration upgrades and repeat initialization preserve synthetic records. **V2-01–V2-07 are complete locally; V2-08 hosted parity is the next default task and remains Not started.** No v2 hosted deployment is claimed.
+**V2-07 — [integrated local acceptance](v2/04-delivery-and-validation.md#v2-07--integrated-local-acceptance) is complete, October 8, 2026.** The combined v2 implementation passed **410 unit tests, 479 distinct PostgreSQL cases, all 12 builds/typechecks and 136 distinct desktop/mobile browser cases**. Acceptance added a connected borrower-to-lender journey, strengthened restricted/revoked API denials and fixed setup-session recovery while clearing unsaved EIN. Migration upgrades and repeat initialization preserve synthetic records. **V2-01–V2-07 are complete locally; V2-08 hosted parity is in progress.** No v2 hosted deployment is claimed.
 
 V2-06 delivered the informational, address-bound Loan Footprint dialog; its [task record](v2/04-delivery-and-validation.md#v2-06--simulated-loan-footprint) retains that checkpoint's validation evidence.
 
@@ -69,7 +69,7 @@ Read the [v2 experience](v2/02-experience-spec.md) and [data/simulation contract
 | V2-05 | [Lender overview and evidence drilldowns](v2/04-delivery-and-validation.md#v2-05--lender-overview-and-evidence-drilldowns) | V2-01, V2-04; T10, T12, T16, T19, T21 | Done — [local acceptance](v2/04-delivery-and-validation.md#v2-05--lender-overview-and-evidence-drilldowns) |
 | V2-06 | [Simulated Loan Footprint map](v2/04-delivery-and-validation.md#v2-06--simulated-loan-footprint) | V2-01, T16 | Done — [local acceptance](v2/04-delivery-and-validation.md#v2-06--simulated-loan-footprint) |
 | V2-07 | [Integrated local acceptance](v2/04-delivery-and-validation.md#v2-07--integrated-local-acceptance) | V2-02–V2-06, T22 | Done — [local acceptance](v2/04-delivery-and-validation.md#v2-07--integrated-local-acceptance) |
-| V2-08 | [Hosted parity](v2/04-delivery-and-validation.md#v2-08--hosted-parity-and-deployment-slice) | V2-07, D02, D03 | Not started |
+| V2-08 | [Hosted parity](v2/04-delivery-and-validation.md#v2-08--hosted-parity-and-deployment-slice) | V2-07, D02, D03 | In progress |
 
 ### Completed baseline backlog
 

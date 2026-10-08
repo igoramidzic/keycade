@@ -117,7 +117,11 @@ import {
   publicSession,
   readStaffSession,
 } from "./auth.js";
-import { createDocumentTransport, type DocumentTransportOptions } from "./documents.js";
+import {
+  createDocumentTransport,
+  type DocumentTransportOptions,
+  documentReservationMaxBytes,
+} from "./documents.js";
 import {
   authConsumeRateLimit,
   authSendRateLimit,
@@ -1023,6 +1027,7 @@ export async function buildServer(options: ServerOptions) {
   app.post(
     `${documentsBase}/uploads`,
     {
+      bodyLimit: documentReservationMaxBytes,
       schema: {
         params: applicationParamsSchema,
         body: beginDocumentBatchSchema,

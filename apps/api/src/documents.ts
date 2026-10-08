@@ -4,10 +4,19 @@ import {
   type DocumentsView,
   documentUploadResultSchema,
 } from "@keycade/contracts";
-import { demoImportMaxFiles, readDemoImportPdfFixture } from "@keycade/contracts/demo-import";
+import {
+  demoImportMaxBytes,
+  demoImportMaxFiles,
+  readDemoImportPdfFixture,
+} from "@keycade/contracts/demo-import";
 import type { Database } from "@keycade/db";
 import { type Actor, createDocumentsService, DomainError } from "@keycade/domain";
 import type { ByteSource, PrivateDocumentStorage } from "@keycade/integrations/documents";
+
+// JSON may encode each text byte as a six-byte Unicode escape. Reserve additional
+// room for the bounded filenames, context and upload metadata in a full batch.
+// Only the reservation route needs this budget; file bytes retain streaming limits.
+export const documentReservationMaxBytes = demoImportMaxFiles * demoImportMaxBytes * 6 + 64 * 1024;
 
 export interface DocumentTransportOptions {
   documentStorage?: PrivateDocumentStorage;

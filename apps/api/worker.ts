@@ -6,6 +6,8 @@ import { handleWorkerRequest } from "./src/worker-handler";
 export default {
   async fetch(request, env, ctx) {
     const startedAt = performance.now();
+    const demoInboxEnabled =
+      env.DEMO_INBOX_ENABLED === "true" && /^[a-f0-9]{64}$/.test(env.ENCRYPTION_KEY ?? "");
     // Hyperdrive owns pooling at the edge; the app pool belongs only to this request.
     const { db, pool } = createDatabase(env.HYPERDRIVE.connectionString, { max: 1 });
     try {
@@ -19,14 +21,13 @@ export default {
         allowedOrigins: env.ALLOWED_ORIGINS.split(","),
         nodeEnv: "production",
         // Every deployed environment is a synthetic demo; no real email/identity provider exists.
-        authDeliveryEnabled: true,
+        authDeliveryEnabled: demoInboxEnabled,
         demoSignInEnabled: true,
-        demoInboxEnabled: env.DEMO_INBOX_ENABLED === "true",
+        demoInboxEnabled,
         portalOrigins: { borrower: [env.BORROWER_ORIGIN], staff: [env.STAFF_ORIGIN] },
         rateLimiter: env.API_RATE_LIMITER,
         readiness: async () => {
-          if (!/^[a-f0-9]{64}$/.test(env.ENCRYPTION_KEY ?? ""))
-            throw new Error("Demo encryption is unavailable.");
+          if (!demoInboxEnabled) throw new Error("Simulated delivery is unavailable.");
           await assertWorkerSchemaReady(pool);
           const response = await env.JOBS.fetch("https://jobs.internal/internal/ready");
           const result: unknown = await response.json();

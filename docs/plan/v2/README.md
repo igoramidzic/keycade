@@ -1,6 +1,6 @@
 # Version 2 — Borrower tasks and lender application records
 
-Planning date: October 8, 2026. **V2-01–V2-07 complete locally; V2-08 not started.** This backlog follows the user's twelve Cascading AI reference images and written instructions. V2-07 verifies the combined borrower/lender experience with **410 unit tests, 479 distinct PostgreSQL cases, all 12 builds/typechecks and 136 distinct desktop/mobile browser cases**. It also repairs setup-session recovery and verifies repeat initialization/legacy upgrades. Hosted acceptance remains separate.
+Planning date: October 8, 2026. **V2-01–V2-07 complete locally; V2-08 in progress.** This backlog follows the user's twelve Cascading AI reference images and written instructions. V2-07 verifies the combined borrower/lender experience with **410 unit tests, 479 distinct PostgreSQL cases, all 12 builds/typechecks and 136 distinct desktop/mobile browser cases**. It also repairs setup-session recovery and verifies repeat initialization/legacy upgrades. Hosted acceptance remains separate.
 
 Start with [screenshot findings](01-screenshot-findings.md), then [experience requirements](02-experience-spec.md), [data and simulation contracts](03-data-and-simulation.md), and [delivery tasks and validation](04-delivery-and-validation.md). Read the [existing plan](../README.md) and its architecture/access rules as well. When implementation is requested without a task number, start at V2-08, the first unfinished task with completed dependencies.
 
@@ -33,7 +33,7 @@ Removal means replacing navigation or a particular interaction, not deleting sto
 | V2-05 | [Lender overview and evidence drilldowns](04-delivery-and-validation.md#v2-05--lender-overview-and-evidence-drilldowns) | V2-01, V2-04 | Done — local acceptance |
 | V2-06 | [Simulated Loan Footprint](04-delivery-and-validation.md#v2-06--simulated-loan-footprint) | V2-01 | Done — local acceptance |
 | V2-07 | [Integrated local acceptance](04-delivery-and-validation.md#v2-07--integrated-local-acceptance) | V2-02 through V2-06 | Done — local acceptance |
-| V2-08 | [Hosted parity](04-delivery-and-validation.md#v2-08--hosted-parity-and-deployment-slice) | V2-07, completed D02/D03 | Not started |
+| V2-08 | [Hosted parity](04-delivery-and-validation.md#v2-08--hosted-parity-and-deployment-slice) | V2-07, completed D02/D03 | In progress |
 
 V2-08 is next: hosted parity and deployment acceptance of the combined locally verified implementation. The task file owns full dependencies and acceptance criteria. Update both indexes and each task's validation record as implementation progresses.
 

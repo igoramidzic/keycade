@@ -142,6 +142,7 @@ export default {
     const { pool } = createDatabase(env.HYPERDRIVE.connectionString, { max: 1 });
     try {
       options(env);
+      if (env.DEMO_INBOX_ENABLED !== "true") throw new Error("Simulated delivery is unavailable.");
       await assertWorkerSchemaReady(pool);
       if (!env.JOBS_QUEUE) throw new Error("Queue binding missing.");
       return Response.json(

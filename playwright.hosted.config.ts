@@ -20,6 +20,7 @@ export default defineConfig({
     "hosted-demo.spec.ts",
     "closing.spec.ts",
     "hosted-enrichment.spec.ts",
+    "hosted-v2.spec.ts",
   ],
   fullyParallel: false,
   workers: 1,

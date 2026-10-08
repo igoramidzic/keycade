@@ -104,7 +104,11 @@ import {
   publicSession,
   readStaffSession,
 } from "./auth.js";
-import { createDocumentTransport, type DocumentTransportOptions } from "./documents.js";
+import {
+  createDocumentTransport,
+  type DocumentTransportOptions,
+  documentReservationMaxBytes,
+} from "./documents.js";
 import {
   configuredRequestOrigin,
   isAllowedOrigin,
@@ -931,7 +935,7 @@ export async function handleWorkerRequest(
             actor,
             bankId,
             applicationId,
-            await readJsonBody(request),
+            await readJsonBody(request, documentReservationMaxBytes),
             requestId,
           ),
         );
@@ -1508,18 +1512,18 @@ export async function handleWorkerRequest(
   }
 }
 
-async function readJsonBody(request: Request): Promise<unknown> {
+async function readJsonBody(request: Request, maxBytes = 64 * 1024): Promise<unknown> {
   if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json"))
     throw new DomainError("INVALID_INPUT", 400, "Invalid request.");
   try {
-    return JSON.parse(await readRawBody(request));
+    return JSON.parse(await readRawBody(request, maxBytes));
   } catch (error) {
     if (error instanceof DomainError) throw error;
     throw new DomainError("INVALID_INPUT", 400, "Invalid request.");
   }
 }
 
-async function readRawBody(request: Request): Promise<string> {
+async function readRawBody(request: Request, maxBytes = 64 * 1024): Promise<string> {
   const reader = request.body?.getReader();
   if (!reader) throw new DomainError("INVALID_INPUT", 400, "Invalid request.");
   const chunks: Uint8Array[] = [];
@@ -1529,7 +1533,7 @@ async function readRawBody(request: Request): Promise<string> {
       const { done, value } = await reader.read();
       if (done) break;
       size += value.byteLength;
-      if (size > 64 * 1024) {
+      if (size > maxBytes) {
         await reader.cancel();
         throw new DomainError("INVALID_INPUT", 413, "Invalid request.");
       }
