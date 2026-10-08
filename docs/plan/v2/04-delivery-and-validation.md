@@ -1,6 +1,6 @@
 # V2 delivery and validation
 
-Planning date: October 8, 2026. This is a documentation-only backlog. Every task below is **Not started**; baseline completion and screenshot analysis are not evidence that v2 behavior exists.
+Planning date: October 8, 2026. V2-01 is complete locally; the remaining tasks are **Not started**. Only the task-specific evidence below proves v2 behavior.
 
 Read [the experience specification](02-experience-spec.md) and [the data and simulation specification](03-data-and-simulation.md) before implementing a task. The [main plan](../README.md), [architecture](../02-architecture.md), [access rules](../03-domain-and-access.md), and [verification discipline](../05-development-and-testing.md) still apply. Implement one bounded task or reviewable slice at a time.
 
@@ -8,7 +8,7 @@ Read [the experience specification](02-experience-spec.md) and [the data and sim
 
 | ID | Deliverable | V2 dependencies | Existing prerequisites | Status |
 | --- | --- | --- | --- | --- |
-| V2-01 | Expanded resumable intake | — | T07, T08, T15 | Not started |
+| V2-01 | Expanded resumable intake | — | T07, T08, T15 | Done — local acceptance below |
 | V2-02 | Borrower task dashboard without top tabs | V2-01 | T09, T11–T13, T17–T21, D05 | Not started |
 | V2-03 | Protected text-to-fixture demo importer | — | T13, T14, D05 | Not started |
 | V2-04 | Document review and confirmed financial facts | V2-01, V2-03 | T14, T15, T19 | Not started |
@@ -50,9 +50,23 @@ Dependencies: T07, T08, T15. Primary areas: setup contracts/domain, Drizzle migr
 4. Synthetic EIN is encrypted, masked and absent from general setup DTOs, audit payloads, queues, logs and browser persistence. Test cross-bank/other-application/restricted/revoked denial and concurrent revision conflicts; personal SSN and tax-authorization operations retain their existing prerequisites.
 5. Desktop/mobile browser journeys verify one-question screens, optional skip, purpose image labels, existing NAICS search, explicit finish, fixed product and failed-save recovery.
 
-Implementation record: **Not started.**
+Implementation record: **Done — local acceptance, October 8, 2026.**
 
-Validation record: **Not run.** No implementation, migration or browser acceptance is claimed.
+- Definition 2 adds structured address, optional normalized website, secure optional EIN, existing NAICS, ordered purpose IDs/catalog and optional Other detail. Screens retain Back, explicit Skip/Clear, Continue later, saved resume, recoverable failures and explicit idempotent completion. Purpose cards use meaningful icons and native checkbox semantics.
+- Migration `0021_volatile_wong.sql` upgrades unfinished v1 setups without erasing answers or legacy raw purposes, increments stale-write revisions, and leaves completed setup definitions/times unchanged. Both runtime readiness checks include the new columns. Staff can prefill expanded non-sensitive fields, with email-only creation and retry deduplication preserved; applicant acknowledgment is required.
+- Both HTTP transports implement a dedicated revision-checked encrypted setup-EIN command. Mask-only DTOs, staff/applicant distinction, explicit replacement/clear, version history, denial paths, concurrent conflicts and transaction rollback are covered. Personal identifiers and tax authorization remain gated; no provider work starts from setup EIN entry.
+- Existing portal and staff summaries display canonical selected purposes. New submission snapshots retain address/revision, website and ordered purposes with immutable history and legacy-read compatibility. The broader borrower dashboard and lender overview changes remain V2-02/V2-05.
+- Independent review closed the older generic business-identifier write route for unfinished setups, preventing staff from bypassing the revision/acknowledgment contract. Solely-staff changes clear applicant acknowledgment; exact current applicant grants remain authoritative. Removing Other during its saved conditional question routes back to purpose confirmation.
+
+Validation record — working tree based on `e11febd`, October 8, 2026:
+
+- Full unit suite: **305 passed across 29 files** using `node_modules/node/bin/node node_modules/vitest/vitest.mjs run --exclude '**/*.integration.test.ts'`. All **12 workspace typechecks and builds**, root TypeScript, Biome and browser package-boundary checks passed. The host pnpm launcher could not verify its package-manager registry signature in this environment; the installed Node 24.21.0 and repository binaries ran the corresponding scripts directly, without dependency/lockfile changes.
+- Final real-PostgreSQL suite: **393 passed across 40 files**, using the same owned-local-target checks and private in-memory `TEST_DATABASE_URL` configuration as `pnpm test:integration`, then the installed Vitest `run .integration.test.ts`. Covers fresh/upgrade migrations, every legacy setup step, seed repeat, completed legacy preservation, both HTTP transports, permissions/revocations, versions, stale writes, concurrent EIN commands, encryption failure rollback, safe audit, and immutable submission/decision facts. New snapshot fields preserve legacy fingerprints when all new facts are absent; old JSON and decisions are never rewritten.
+- Borrower core intake/NAICS: **16/16 desktop/mobile**, report `.local/e2e-rizwKE`; final purpose-clear and website/industry recovery regressions **6/6**, `.local/e2e-JM0rUT`. Separate-application draft isolation **2/2**, `.local/e2e-LiY03r`; opt-in simulated-inbox resume **2/2**, `.local/e2e-IkhnA4`. Runs used `node_modules/node/bin/node --import tsx scripts/e2e.ts` with the selected specs/grep; inbox run sets `DEMO_INBOX_ENABLED=true`. Keyboard selection, optional skip/clear, lost responses, session changes, explicit finish and desktop/mobile overflow/layout were checked. Safe purpose/review screenshots were visually inspected.
+- Staff creation/prefill/handoff: **16/16 desktop/mobile browser tests passed**, including email-only lost-response recovery, exact saved prefills and borrower confirmation. Report: `.local/e2e-2CEO9a`; fictional overview/queue screenshots were visually inspected.
+- `git diff --check` and all **255 local Markdown link targets** passed. Local migration apply and repeat no-op succeeded. Existing local API/frontend readiness reports database and worker ready after restarting the development worker watcher. No data reset or hosted deployment was performed.
+
+Try locally: open `http://127.0.0.1:3001/apply?bank=bank-a`, use a new fictional `example.test` email, enter a synthetic address with explicit country code, skip optional EIN/industry/website or use registered EIN `000000001`, then choose multiple purposes. Use Continue later and sign in again with the same email; Finish setup opens the existing portal. Staff creation remains available at `http://127.0.0.1:3002` with `officer-a@example.test`.
 
 ## V2-02 — Borrower task dashboard
 

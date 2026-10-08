@@ -1,6 +1,6 @@
 # T07 — Application creation and resumable setup state
 
-V2 amendment — October 8, 2026, **not implemented**: [V2-01](../v2/04-delivery-and-validation.md#v2-01--setup-contracts-migration-and-wizard) depends on this completed baseline and owns expanded versioned setup, required address, purpose selections, website and the narrow encrypted pre-setup business-EIN command. Its acceptance adds upgrade/resume, completed-legacy preservation, authorization and both-transport checks. General setup JSON still rejects raw identifiers. The original validation below does not cover v2.
+V2 amendment — October 8, 2026, **implemented locally in V2-01**: [V2-01](../v2/04-delivery-and-validation.md#v2-01--setup-contracts-migration-and-wizard) depends on this completed baseline and owns expanded versioned setup, required address, purpose selections, website and the narrow encrypted pre-setup business-EIN command. Its acceptance adds upgrade/resume, completed-legacy preservation, authorization and both-transport checks. General setup JSON still rejects raw identifiers. The original validation below does not cover v2.
 
 Dependencies: T06. Read [product journey](../01-product.md) and [lifecycle](../03-domain-and-access.md).
 

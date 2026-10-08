@@ -2,10 +2,20 @@ import { z } from "zod";
 import { applicationStatusSchema, usdAmountSchema } from "./common.js";
 import { isValidIndustry } from "./industry.js";
 import { intakeProductSchema } from "./intake.js";
+import {
+  businessAddressSchema,
+  businessWebsiteSchema,
+  fundingPurposeCatalogVersion,
+  fundingPurposesSchema,
+} from "./setup-catalog.js";
 import { taskProgressSchema } from "./tasks.js";
 
 export const applicationSetupStepSchema = z.enum([
   "business_name",
+  "business_address",
+  "business_ein",
+  "website",
+  "other_purpose",
   "product",
   "amount",
   "purpose",
@@ -34,6 +44,11 @@ export const createDraftSchema = z.strictObject({
   answers: z
     .strictObject({
       businessName: z.string().trim().min(1).max(200).optional(),
+      businessAddress: businessAddressSchema.optional(),
+      website: businessWebsiteSchema.nullable().optional(),
+      fundingPurposes: fundingPurposesSchema.optional(),
+      purposeCatalogVersion: z.literal(fundingPurposeCatalogVersion).optional(),
+      otherPurposeDetail: z.string().trim().min(1).max(500).nullable().optional(),
       requestedAmount: usdAmountSchema.optional(),
       purpose: z.string().trim().min(1).max(500).optional(),
     })
@@ -41,10 +56,16 @@ export const createDraftSchema = z.strictObject({
   idempotencyKey: z.string().uuid(),
 });
 export const saveApplicationSetupSchema = z.strictObject({
+  definitionVersion: z.number().int().positive().optional(),
   expectedRevision: z.number().int().positive(),
   answers: z
     .strictObject({
       businessName: z.string().trim().min(1).max(200).optional(),
+      businessAddress: businessAddressSchema.optional(),
+      website: businessWebsiteSchema.nullable().optional(),
+      fundingPurposes: fundingPurposesSchema.optional(),
+      purposeCatalogVersion: z.literal(fundingPurposeCatalogVersion).optional(),
+      otherPurposeDetail: z.string().trim().min(1).max(500).nullable().optional(),
       productId: z.string().uuid().optional(),
       requestedAmount: usdAmountSchema.optional(),
       purpose: z.string().trim().min(1).max(500).optional(),
@@ -76,6 +97,7 @@ export const saveApplicationSetupSchema = z.strictObject({
   currentStep: applicationSetupStepSchema,
 });
 export const finishApplicationSetupSchema = z.strictObject({
+  definitionVersion: z.number().int().positive().optional(),
   expectedRevision: z.number().int().positive(),
   idempotencyKey: z.string().uuid(),
 });
@@ -102,6 +124,13 @@ export const applicationSelectionSchema = z.object({
 });
 export const applicationSetupSchema = applicationSelectionSchema.extend({
   selectedProduct: intakeProductSchema.extend({ active: z.boolean() }).nullable(),
+  businessAddress: businessAddressSchema.nullable(),
+  businessAddressRevision: z.number().int().nonnegative(),
+  website: businessWebsiteSchema.nullable(),
+  fundingPurposes: fundingPurposesSchema,
+  purposeCatalogVersion: z.literal(fundingPurposeCatalogVersion).nullable(),
+  otherPurposeDetail: z.string().nullable(),
+  businessEin: z.object({ present: z.boolean(), mask: z.string().nullable() }),
   purpose: z.string().nullable(),
   industryCode: z.string().nullable(),
   industryTaxonomyVersion: z.string().nullable(),
@@ -112,6 +141,9 @@ export const applicationSetupSchema = applicationSelectionSchema.extend({
 });
 export const applicationPortalSchema = applicationSelectionSchema.extend({
   purpose: z.string().nullable(),
+  fundingPurposes: fundingPurposesSchema,
+  purposeCatalogVersion: z.literal(fundingPurposeCatalogVersion).nullable(),
+  otherPurposeDetail: z.string().nullable(),
   remainingTasks: z.number().int().nonnegative(),
   canReview: z.boolean().default(false),
 });

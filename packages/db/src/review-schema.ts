@@ -21,6 +21,13 @@ export type SubmissionSnapshot = {
     requestedAmount: string;
     currency: "USD";
     purpose: string | null;
+    // Optional only for reading immutable submissions captured before v2 intake.
+    businessAddress?: (typeof applications.$inferSelect)["businessAddress"];
+    businessAddressRevision?: number;
+    website?: string | null;
+    fundingPurposes?: string[];
+    purposeCatalogVersion?: string | null;
+    otherPurposeDetail?: string | null;
     industryCode: string | null;
     industryTaxonomyVersion: string | null;
   };

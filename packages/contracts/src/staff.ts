@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { applicationSetupStepSchema } from "./applications.js";
 import { applicationStatusSchema, usdAmountSchema } from "./common.js";
+import { businessAddressSchema, fundingPurposesSchema } from "./setup-catalog.js";
 import { taskProgressSchema } from "./tasks.js";
 
 export const staffPageQuerySchema = z.strictObject({
@@ -69,6 +70,11 @@ export const staffNoteSchema = z.object({
 });
 export const staffWorkspaceSchema = staffQueueItemSchema.extend({
   purpose: z.string().nullable(),
+  businessAddress: businessAddressSchema.nullable(),
+  website: z.string().nullable(),
+  fundingPurposes: fundingPurposesSchema,
+  purposeCatalogVersion: z.string().nullable(),
+  otherPurposeDetail: z.string().nullable(),
   industryCode: z.string().nullable(),
   industryTaxonomyVersion: z.string().nullable(),
   createdBy: staffPersonSchema.nullable(),

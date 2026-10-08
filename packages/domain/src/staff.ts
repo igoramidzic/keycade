@@ -267,6 +267,11 @@ async function workspace(tx: Tx, actor: Actor, bankId: string, applicationId: st
   return staffWorkspaceSchema.parse({
     ...queueItem(result, taskProgress),
     purpose: row.purpose,
+    businessAddress: row.businessAddress,
+    website: row.website,
+    fundingPurposes: row.fundingPurposes,
+    purposeCatalogVersion: row.purposeCatalogVersion,
+    otherPurposeDetail: row.otherPurposeDetail,
     industryCode: row.industryCode,
     industryTaxonomyVersion: row.industryTaxonomyVersion,
     createdBy: createdBy ?? null,

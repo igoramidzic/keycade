@@ -105,6 +105,7 @@ async function namedDraft(page: Page, name: string, email?: string) {
     ...(email ? { email } : {}),
   });
   return api<Setup>(page, "PATCH", `/${created.id}/setup`, {
+    definitionVersion: 2,
     expectedRevision: created.revision,
     answers: { businessName: name },
     currentStep: "business_name",
@@ -123,9 +124,14 @@ test("staff creates and updates a prefilled draft, then the emailed borrower con
   await signIn(page);
   await page.getByRole("link", { name: "Create application", exact: true }).click();
   await page.getByLabel("Borrower email", { exact: true }).fill(email);
-  await page.getByLabel("Business name", { exact: true }).fill(businessName);
+  await page.getByLabel("Legal business name", { exact: true }).fill(businessName);
   await page.getByLabel("Requested amount (USD)", { exact: true }).fill("7500000");
-  await page.getByLabel("Purpose", { exact: true }).fill("Synthetic commercial equipment");
+  await page.getByRole("checkbox", { name: "Equipment purchase", exact: true }).check();
+  await page.getByLabel("Street address", { exact: true }).fill("123 Synthetic Avenue");
+  await page.getByLabel("City", { exact: true }).fill("Portland");
+  await page.getByLabel("State / region", { exact: true }).fill("ME");
+  await page.getByLabel("Postal code", { exact: true }).fill("04101");
+  await page.getByLabel("Country code (US, CA, etc.)", { exact: true }).fill("US");
   let setupPatches = 0;
   page.on("request", (request) => {
     if (
@@ -144,7 +150,7 @@ test("staff creates and updates a prefilled draft, then the emailed borrower con
   expect(await response.json()).toMatchObject({
     businessName,
     requestedAmount: "7500000.00",
-    purpose: "Synthetic commercial equipment",
+    fundingPurposes: ["equipment_purchase"],
     setupStatus: "in_progress",
     currentStep: "business_name",
     completedSteps: [],
@@ -179,14 +185,14 @@ test("staff creates and updates a prefilled draft, then the emailed borrower con
   await page.reload();
   await expect(page.getByLabel("Assigned officer", { exact: true })).toHaveValue(ids.officer);
   await page.getByRole("button", { name: "Edit prefilled answers", exact: true }).click();
-  await expect(page.getByLabel("Business name", { exact: true })).toHaveValue(businessName);
-  await page.getByLabel("Purpose", { exact: true }).fill("Synthetic updated commercial equipment");
+  await expect(page.getByLabel("Legal business name", { exact: true })).toHaveValue(businessName);
+  await page.getByRole("checkbox", { name: "Working capital", exact: true }).check();
   await page.getByRole("button", { name: "Save prefilled answers", exact: true }).click();
   await expect(
     page.getByRole("status").filter({ hasText: "Prefilled answers saved." }),
   ).toBeVisible();
   await expect(
-    page.getByText("Synthetic updated commercial equipment", { exact: true }),
+    page.getByText("Equipment purchase, Working capital", { exact: true }),
   ).toBeVisible();
   await page.getByRole("link", { name: "Internal notes", exact: true }).click();
   await page.getByLabel("New internal note", { exact: true }).fill(note);
@@ -212,20 +218,33 @@ test("staff creates and updates a prefilled draft, then the emailed borrower con
     await expect(borrowerPage).toHaveURL(
       (url) => url.origin === borrower && url.pathname === `/applications/${applicationId}/setup`,
     );
-    await expect(borrowerPage.getByLabel("Business name", { exact: true })).toHaveValue(
+    await expect(borrowerPage.getByLabel("Legal business name", { exact: true })).toHaveValue(
       businessName,
     );
     await borrowerPage.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(borrowerPage.getByLabel("Street address", { exact: true })).toHaveValue(
+      "123 Synthetic Avenue",
+    );
+    await borrowerPage.getByRole("button", { name: "Continue", exact: true }).click();
+    for (const heading of [
+      "What is your business EIN?",
+      "What industry is your business in?",
+      "What is your business website?",
+    ]) {
+      await expect(borrowerPage.getByRole("heading", { name: heading, exact: true })).toBeVisible();
+      await borrowerPage.getByRole("button", { name: "Skip for now", exact: true }).click();
+    }
     await expect(borrowerPage.getByLabel("Requested amount", { exact: true })).toHaveValue(
       /7,?500,?000(?:\.00)?/,
     );
     await borrowerPage.getByRole("button", { name: "Continue", exact: true }).click();
-    await expect(borrowerPage.getByLabel("Loan purpose", { exact: true })).toHaveValue(
-      "Synthetic updated commercial equipment",
-    );
+    await expect(
+      borrowerPage.getByRole("checkbox", { name: "Equipment purchase", exact: true }),
+    ).toBeChecked();
+    await expect(
+      borrowerPage.getByRole("checkbox", { name: "Working capital", exact: true }),
+    ).toBeChecked();
     await borrowerPage.getByRole("button", { name: "Continue", exact: true }).click();
-    await expect(borrowerPage.getByLabel("Industry", { exact: true })).toBeVisible();
-    await borrowerPage.getByRole("button", { name: "Skip for now", exact: true }).click();
     await expect(
       borrowerPage.getByRole("heading", { name: "Review your application setup", exact: true }),
     ).toBeVisible();
@@ -235,11 +254,11 @@ test("staff creates and updates a prefilled draft, then the emailed borrower con
     await expect(
       borrowerPage
         .locator("#identity")
-        .getByText("Synthetic updated commercial equipment", { exact: true }),
+        .getByText("Equipment purchase, Working capital", { exact: true }),
     ).toBeVisible();
     expect(await api<Setup>(borrowerPage, "GET", `/${applicationId}/setup`)).toMatchObject({
       setupStatus: "in_progress",
-      purpose: "Synthetic updated commercial equipment",
+      fundingPurposes: ["equipment_purchase", "working_capital"],
     });
     await borrowerPage.getByRole("button", { name: "Finish setup", exact: true }).click();
     await expect(borrowerPage.getByText("Initial setup complete", { exact: true })).toBeVisible();
@@ -290,7 +309,7 @@ test("staff email-only creation recovers a lost response without duplicating the
   await page.getByRole("button", { name: "Create and invite borrower", exact: true }).click();
   expect((await losing).status()).toBe(503);
   await expect(page.getByRole("alert")).toContainText("acknowledgement unavailable");
-  for (const label of ["Borrower email", "Business name", "Requested amount (USD)", "Purpose"])
+  for (const label of ["Borrower email", "Legal business name", "Requested amount (USD)"])
     await expect(page.getByLabel(label, { exact: true })).toBeDisabled();
   const creating = page.waitForResponse(isStaffCreation);
   await page.getByRole("button", { name: "Retry creation and invitation", exact: true }).click();
@@ -329,7 +348,7 @@ test("staff email-only creation recovers a lost response without duplicating the
     await expect(borrowerPage).toHaveURL(
       (url) => url.origin === borrower && url.pathname === `/applications/${draft.id}/setup`,
     );
-    await expect(borrowerPage.getByLabel("Business name", { exact: true })).toHaveValue("");
+    await expect(borrowerPage.getByLabel("Legal business name", { exact: true })).toHaveValue("");
     expect(await api<Setup>(borrowerPage, "GET", `/${draft.id}/setup`)).toMatchObject({
       businessName: null,
       setupStatus: "in_progress",
@@ -353,7 +372,7 @@ test("invalid optional prefill creates no draft or invitation before the officer
   await signIn(page);
   await page.getByRole("link", { name: "Create application", exact: true }).click();
   await page.getByLabel("Borrower email", { exact: true }).fill(email);
-  await page.getByLabel("Business name", { exact: true }).fill(businessName);
+  await page.getByLabel("Legal business name", { exact: true }).fill(businessName);
   // Valid decimal syntax but above this bank's product maximum; validation is server-side.
   await page.getByLabel("Requested amount (USD)", { exact: true }).fill("7500001");
   const rejecting = page.waitForResponse(isStaffCreation);
@@ -364,7 +383,7 @@ test("invalid optional prefill creates no draft or invitation before the officer
     (url) => url.origin === staff && url.pathname === "/applications/new",
   );
   await expect(page.getByLabel("Borrower email", { exact: true })).toBeEnabled();
-  await expect(page.getByLabel("Business name", { exact: true })).toHaveValue(businessName);
+  await expect(page.getByLabel("Legal business name", { exact: true })).toHaveValue(businessName);
   await expect(page.getByLabel("Requested amount (USD)", { exact: true })).toHaveValue("7500001");
   expect(successfulCreations).toHaveLength(0);
   expect(await applicationsForEmail(page, email)).toBe(0);

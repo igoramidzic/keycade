@@ -4,6 +4,7 @@ import {
   applicationPortalSchema,
   applicationSelectionSchema,
   applicationSetupSchema,
+  fundingPurposeOptions,
 } from "@keycade/contracts";
 import { Alert, AlertDescription, AlertTitle } from "@keycade/ui/components/alert";
 import { Badge } from "@keycade/ui/components/badge";
@@ -65,10 +66,14 @@ const statusDescriptions: Record<ApplicationSelection["status"], string> = {
   withdrawn: "This application was withdrawn. You can return to your other applications.",
 };
 const setupSteps: Record<ApplicationSelection["currentStep"], string> = {
-  business_name: "Business name",
+  business_name: "Legal business name",
+  business_address: "Business address",
+  business_ein: "Business EIN",
+  website: "Website",
+  other_purpose: "Other funding purpose",
   product: "Requested amount",
   amount: "Requested amount",
-  purpose: "Loan purpose",
+  purpose: "Funding purposes",
   industry: "Industry",
   review: "Review and finish",
 };
@@ -549,10 +554,25 @@ function ApplicationPortal({
                     {data.productName ?? "Product not assigned"}
                   </p>
                 </div>
-                {!limited && data.purpose && (
+                {!limited && (data.fundingPurposes.length > 0 || data.purpose) && (
                   <div className="text-sm">
-                    <p className="text-muted-foreground">Loan purpose</p>
-                    <p className="mt-1 whitespace-pre-wrap break-words">{data.purpose}</p>
+                    <p className="text-muted-foreground">Funding purposes</p>
+                    <p className="mt-1 whitespace-pre-wrap break-words">
+                      {data.fundingPurposes.length > 0
+                        ? data.fundingPurposes
+                            .map(
+                              (id) =>
+                                fundingPurposeOptions.find((option) => option.id === id)?.label ??
+                                id,
+                            )
+                            .join(", ")
+                        : data.purpose}
+                    </p>
+                    {data.fundingPurposes.includes("other") && data.otherPurposeDetail && (
+                      <p className="mt-2 whitespace-pre-wrap break-words">
+                        {data.otherPurposeDetail}
+                      </p>
+                    )}
                   </div>
                 )}
                 <div className="space-y-3 rounded-lg bg-muted/60 p-4">

@@ -3,9 +3,12 @@ import {
   applicationPageSchema,
   applicationPortalSchema,
   applicationSelectionSchema,
+  applicationSetupDefinitionVersion,
   applicationSetupSchema,
+  type BusinessAddress,
   createDraftSchema,
   finishApplicationSetupSchema,
+  fundingPurposeCatalogVersion,
   pageQuerySchema,
   publicStartApplicationSchema,
   saveApplicationSetupSchema,
@@ -36,6 +39,7 @@ import {
   requireApplicantPortalAccess,
   requireApplicationAccess,
 } from "./authorization.js";
+import { readSetupBusinessEin } from "./enrichment.js";
 import { DomainError, deny } from "./errors.js";
 import { recordApplicantActivity } from "./notification-intents.js";
 import { readTaskProgress, reconcileTasks } from "./tasks.js";
@@ -132,6 +136,13 @@ async function view(tx: Tx, row: Row, setup: Setup, access: Access) {
     ...selection(row, setup, access, false, selectedProduct?.name ?? null),
     selectedProduct: selectedProduct ?? null,
     purpose: row.purpose,
+    businessAddress: row.businessAddress,
+    businessAddressRevision: row.businessAddressRevision,
+    website: row.website,
+    fundingPurposes: row.fundingPurposes,
+    purposeCatalogVersion: row.purposeCatalogVersion,
+    otherPurposeDetail: row.otherPurposeDetail,
+    businessEin: await readSetupBusinessEin(tx, row.bankId, row.id),
     industryCode: row.industryCode,
     industryTaxonomyVersion: row.industryTaxonomyVersion,
     definitionVersion: setup.definitionVersion,
@@ -318,6 +329,30 @@ async function validateAmount(
   )
     invalid("The amount is outside this product's limits.");
 }
+function requireSetupVersion(setup: Setup, version?: number) {
+  if (
+    setup.definitionVersion !== applicationSetupDefinitionVersion ||
+    version !== applicationSetupDefinitionVersion
+  )
+    throw new DomainError(
+      "SETUP_VERSION_UNSUPPORTED",
+      409,
+      "The setup questions changed. Reload to continue with your saved answers.",
+    );
+}
+function validatePurposes(
+  input: Pick<Row, "fundingPurposes" | "purposeCatalogVersion" | "otherPurposeDetail">,
+) {
+  if (input.fundingPurposes.length && input.purposeCatalogVersion !== fundingPurposeCatalogVersion)
+    invalid("Select funding purposes from the current catalog.");
+  if (
+    input.purposeCatalogVersion !== null &&
+    input.purposeCatalogVersion !== fundingPurposeCatalogVersion
+  )
+    invalid("This funding purpose catalog is not supported.");
+  if (input.otherPurposeDetail && !input.fundingPurposes.includes("other"))
+    invalid("Select Other before providing its optional details.");
+}
 async function contact(tx: Tx, bankId: string, email: string, synthetic: boolean, now: Date) {
   const [record] = await tx
     .insert(applicantContacts)
@@ -340,6 +375,11 @@ async function createApplication(
     businessName?: string;
     requestedAmount?: string;
     purpose?: string;
+    businessAddress?: BusinessAddress;
+    website?: string | null;
+    fundingPurposes?: string[];
+    purposeCatalogVersion?: string;
+    otherPurposeDetail?: string | null;
     prefilledFields?: string[];
     actor: Actor;
     source: "borrower" | "staff";
@@ -348,6 +388,11 @@ async function createApplication(
     now: Date;
   },
 ) {
+  validatePurposes({
+    fundingPurposes: input.fundingPurposes ?? [],
+    purposeCatalogVersion: input.purposeCatalogVersion ?? null,
+    otherPurposeDetail: input.otherPurposeDetail ?? null,
+  });
   await validateAmount(
     tx,
     {
@@ -368,6 +413,12 @@ async function createApplication(
       businessName: input.businessName,
       requestedAmount: input.requestedAmount,
       purpose: input.purpose,
+      businessAddress: input.businessAddress,
+      businessAddressRevision: input.businessAddress ? 1 : 0,
+      website: input.website,
+      fundingPurposes: input.fundingPurposes,
+      purposeCatalogVersion: input.purposeCatalogVersion,
+      otherPurposeDetail: input.otherPurposeDetail,
       source: input.source,
       synthetic: input.synthetic,
       demoCreated: input.actor.kind === "user" && Boolean(input.actor.demoBankId),
@@ -549,6 +600,11 @@ export function createApplicationService(
         businessName: parsed.answers?.businessName ?? businessName,
         requestedAmount: parsed.answers?.requestedAmount,
         purpose: parsed.answers?.purpose,
+        businessAddress: parsed.answers?.businessAddress,
+        website: parsed.answers?.website,
+        fundingPurposes: parsed.answers?.fundingPurposes,
+        purposeCatalogVersion: parsed.answers?.purposeCatalogVersion,
+        otherPurposeDetail: parsed.answers?.otherPurposeDetail,
         prefilledFields: Object.keys(parsed.answers ?? {}),
         actor,
         source: membership ? "staff" : "borrower",
@@ -630,6 +686,10 @@ export function createApplicationService(
               access.role === "applicant_admin" &&
               access.scope === "full")),
         purpose: selected.accessScope === "assigned" ? null : row.purpose,
+        fundingPurposes: selected.accessScope === "assigned" ? [] : row.fundingPurposes,
+        purposeCatalogVersion:
+          selected.accessScope === "assigned" ? null : row.purposeCatalogVersion,
+        otherPurposeDetail: selected.accessScope === "assigned" ? null : row.otherPurposeDetail,
         remainingTasks:
           (selected.taskProgress?.total ?? 0) - (selected.taskProgress?.completed ?? 0),
       });
@@ -752,12 +812,40 @@ export function createApplicationService(
       const { row, setup } = await records(tx, bankId, applicationId);
       const access = await requireApplicationAccess(tx, actor, bankId, applicationId);
       editor(access);
+      let canConfirm = access.kind !== "staff";
+      if (access.kind === "staff") {
+        const [applicant] =
+          actor.kind === "user"
+            ? await tx
+                .select({ id: applicationParticipants.id })
+                .from(applicationParticipants)
+                .where(
+                  and(
+                    eq(applicationParticipants.bankId, bankId),
+                    eq(applicationParticipants.applicationId, applicationId),
+                    eq(applicationParticipants.userId, actor.userId),
+                    eq(applicationParticipants.role, "applicant_admin"),
+                    eq(applicationParticipants.scope, "full"),
+                    isNull(applicationParticipants.revokedAt),
+                  ),
+                )
+                .for("share")
+            : [];
+        canConfirm = Boolean(applicant);
+        if (parsed.step && !canConfirm)
+          invalid("Only the applicant can confirm or skip setup answers.");
+      }
       if (row.revision !== parsed.expectedRevision) return conflict();
       if (setup.completedAt || row.status !== "draft")
         throw new DomainError("INVALID_STATE", 409, "Setup is no longer editable.");
-      if (setup.definitionVersion !== 1)
-        throw new DomainError("INVALID_STATE", 409, "This setup version is not supported.");
+      requireSetupVersion(setup, parsed.definitionVersion);
       const candidate = { ...row, ...parsed.answers };
+      if (
+        parsed.answers.fundingPurposes !== undefined &&
+        !candidate.fundingPurposes.includes("other")
+      )
+        candidate.otherPurposeDetail = null;
+      validatePurposes(candidate);
       if (candidate.requestedAmount && cents(candidate.requestedAmount) <= 0n)
         invalid("Enter a positive amount.");
       if ((candidate.industryCode === null) !== (candidate.industryTaxonomyVersion === null))
@@ -769,6 +857,11 @@ export function createApplicationService(
       const skipped = new Set(setup.skippedSteps);
       const fields: Record<string, string> = {
         businessName: "business_name",
+        businessAddress: "business_address",
+        website: "website",
+        fundingPurposes: "purpose",
+        purposeCatalogVersion: "purpose",
+        otherPurposeDetail: "other_purpose",
         productId: "product",
         requestedAmount: "amount",
         purpose: "purpose",
@@ -776,30 +869,45 @@ export function createApplicationService(
         industryTaxonomyVersion: "industry",
       };
       for (const key of Object.keys(parsed.answers) as (keyof typeof parsed.answers)[]) {
-        if (candidate[key] !== row[key]) {
+        if (canonical(candidate[key]) !== canonical(row[key])) {
           completed.delete(fields[key] as string);
           skipped.delete(fields[key] as string);
         }
       }
-      if (parsed.skip && parsed.step !== "industry") invalid("Only industry can be skipped.");
+      if (!candidate.fundingPurposes.includes("other")) {
+        completed.delete("other_purpose");
+        skipped.delete("other_purpose");
+      }
+      if (
+        parsed.skip &&
+        !["industry", "website", "business_ein", "other_purpose"].includes(parsed.step ?? "")
+      )
+        invalid("Only optional questions can be skipped.");
       if (parsed.step) {
         const step = parsed.step;
         if (parsed.skip) {
-          candidate.industryCode = null;
-          candidate.industryTaxonomyVersion = null;
           skipped.add(step);
           completed.delete(step);
         } else {
           const satisfied =
             step === "business_name"
               ? candidate.businessName
-              : step === "product"
-                ? candidate.productId
-                : step === "amount"
-                  ? candidate.requestedAmount
-                  : step === "purpose"
-                    ? candidate.purpose
-                    : candidate.industryCode && candidate.industryTaxonomyVersion;
+              : step === "business_address"
+                ? candidate.businessAddress
+                : step === "product"
+                  ? candidate.productId
+                  : step === "amount"
+                    ? candidate.requestedAmount
+                    : step === "purpose"
+                      ? candidate.fundingPurposes.length > 0
+                      : step === "website"
+                        ? candidate.website
+                        : step === "other_purpose"
+                          ? candidate.fundingPurposes.includes("other") &&
+                            candidate.otherPurposeDetail
+                          : step === "business_ein"
+                            ? (await readSetupBusinessEin(tx, bankId, applicationId)).present
+                            : candidate.industryCode && candidate.industryTaxonomyVersion;
           if (!satisfied) invalid("Answer this question before continuing.");
           if (step === "amount") await validateAmount(tx, candidate, true);
           completed.add(step);
@@ -814,6 +922,15 @@ export function createApplicationService(
           productId: candidate.productId,
           requestedAmount: candidate.requestedAmount,
           purpose: candidate.purpose,
+          businessAddress: candidate.businessAddress,
+          businessAddressRevision:
+            canonical(candidate.businessAddress) !== canonical(row.businessAddress)
+              ? row.businessAddressRevision + 1
+              : row.businessAddressRevision,
+          website: candidate.website,
+          fundingPurposes: candidate.fundingPurposes,
+          purposeCatalogVersion: candidate.purposeCatalogVersion,
+          otherPurposeDetail: candidate.otherPurposeDetail,
           industryCode: candidate.industryCode,
           industryTaxonomyVersion: candidate.industryTaxonomyVersion,
           revision: row.revision + 1,
@@ -826,7 +943,15 @@ export function createApplicationService(
         .set({
           revision: row.revision + 1,
           // Older clients may still send the removed product question; move to amount.
-          currentStep: parsed.currentStep === "product" ? "amount" : parsed.currentStep,
+          currentStep:
+            (canConfirm ? parsed.currentStep : setup.currentStep) === "other_purpose" &&
+            !candidate.fundingPurposes.includes("other")
+              ? "purpose"
+              : canConfirm
+                ? parsed.currentStep === "product"
+                  ? "amount"
+                  : parsed.currentStep
+                : setup.currentStep,
           completedSteps: [...completed],
           skippedSteps: [...skipped],
         })
@@ -889,10 +1014,36 @@ export function createApplicationService(
           .values({ ...request.values, applicationId, createdAt: clock() });
         return view(tx, row, setup, access);
       }
-      if (row.status !== "draft" || setup.definitionVersion !== 1)
+      if (row.status !== "draft")
         throw new DomainError("INVALID_STATE", 409, "Setup cannot be completed.");
-      if (!row.businessName || !row.productId || !row.requestedAmount || !row.purpose)
+      requireSetupVersion(setup, parsed.definitionVersion);
+      if (
+        !row.businessName ||
+        !row.productId ||
+        !row.requestedAmount ||
+        !row.businessAddress ||
+        !row.fundingPurposes.length
+      )
         invalid("Complete the required initial answers.");
+      validatePurposes(row);
+      if (
+        ["business_name", "business_address", "amount", "purpose"].some(
+          (step) => !setup.completedSteps.includes(step),
+        )
+      )
+        invalid("Confirm each required answer before finishing setup.");
+      const optional = [
+        "business_ein",
+        "industry",
+        "website",
+        ...(row.fundingPurposes.includes("other") ? ["other_purpose"] : []),
+      ];
+      if (
+        optional.some(
+          (step) => !setup.completedSteps.includes(step) && !setup.skippedSteps.includes(step),
+        )
+      )
+        invalid("Answer or skip each optional question before finishing setup.");
       await validateAmount(tx, row, true);
       const now = clock();
       let businessId = row.businessId;
@@ -926,13 +1077,7 @@ export function createApplicationService(
         .set({
           revision: row.revision + 1,
           currentStep: "review",
-          completedSteps: [
-            "business_name",
-            "product",
-            "amount",
-            "purpose",
-            ...(row.industryCode ? ["industry"] : []),
-          ],
+          completedSteps: [...new Set([...setup.completedSteps, "review"])],
           completedAt: now,
           completedByUserId: actor.userId,
         })

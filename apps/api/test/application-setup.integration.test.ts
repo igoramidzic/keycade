@@ -10,6 +10,7 @@ import { seedDatabase, seedIds } from "@keycade/db/seed";
 import { createTestDatabase } from "@keycade/db/testing";
 import { createIdentityService } from "@keycade/domain";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { setupFixtureSteps } from "../../../tests/setup-fixture";
 import { buildServer } from "../src/server.js";
 import { handleWorkerRequest } from "../src/worker-handler.js";
 
@@ -109,28 +110,18 @@ for (const transport of ["fastify", "worker"] as const) {
         expect(response.status).toBe(200);
         return credentials(response.cookie, origin);
       }
-      async function fill(setup: Setup, auth: Credentials) {
+      async function fill(setup: Setup, auth: Credentials, prefill = false) {
         let saved = setup;
-        const steps = [
-          {
-            step: "business_name",
-            currentStep: "amount",
-            answers: { businessName: "Synthetic HTTP Workshop" },
-          },
-          { step: "product", currentStep: "amount", answers: { productId: seedIds.productA } },
-          { step: "amount", currentStep: "purpose", answers: { requestedAmount: "7500000.00" } },
-          {
-            step: "purpose",
-            currentStep: "industry",
-            answers: { purpose: "Synthetic equipment expansion" },
-          },
-          { step: "industry", currentStep: "review", answers: {}, skip: true },
-        ];
+        const steps = setupFixtureSteps("Synthetic HTTP Workshop", "7500000.00");
         for (const step of steps) {
           const result = await call(`${bankPath}/${saved.id}/setup`, {
             ...auth,
             method: "PATCH",
-            body: { ...step, expectedRevision: saved.revision },
+            body: {
+              ...(prefill ? { answers: step.answers, currentStep: saved.currentStep } : step),
+              definitionVersion: 2,
+              expectedRevision: saved.revision,
+            },
           });
           expect(result.status, JSON.stringify(result.body)).toBe(200);
           saved = applicationSetupSchema.parse(result.body);
@@ -175,7 +166,7 @@ for (const transport of ["fastify", "worker"] as const) {
         expect(second.items[0]).toMatchObject({
           businessId: seedIds.businessA,
           nextDestination: "setup",
-          currentStep: "amount",
+          currentStep: "business_address",
         });
         expect(second.items[1]).toMatchObject({
           status: "withdrawn",
@@ -233,7 +224,7 @@ for (const transport of ["fastify", "worker"] as const) {
           method: "POST",
           body: { email: `limited-${randomUUID()}@example.test`, idempotencyKey: randomUUID() },
         });
-        const draft = await c.fill(applicationSetupSchema.parse(created.body), staff);
+        const draft = await c.fill(applicationSetupSchema.parse(created.body), staff, true);
         await database.pool.query(
           "INSERT INTO application_participants (bank_id,application_id,user_id,role,scope,synthetic) VALUES ($1,$2,$3,'adviser','assigned',true)",
           [seedIds.bankA, draft.id, seedIds.adviser],
@@ -275,7 +266,8 @@ for (const transport of ["fastify", "worker"] as const) {
         expect(staffPortal.body).toMatchObject({
           accessScope: "full",
           canReview: true,
-          purpose: "Synthetic equipment expansion",
+          purpose: null,
+          fundingPurposes: ["equipment_purchase"],
           requestedAmount: "7500000.00",
         });
         await database.pool.query(
@@ -336,11 +328,12 @@ for (const transport of ["fastify", "worker"] as const) {
             await c.call(`${bankPath}/${draft.id}/setup/finish`, {
               ...auth,
               method: "POST",
-              body: { expectedRevision: 1, idempotencyKey: randomUUID() },
+              body: { definitionVersion: 2, expectedRevision: 1, idempotencyKey: randomUUID() },
             })
           ).status,
         ).toBe(400);
         const save = {
+          definitionVersion: 2,
           expectedRevision: draft.revision,
           answers: { businessName: "Unsaved" },
           currentStep: "business_name",
@@ -359,6 +352,22 @@ for (const transport of ["fastify", "worker"] as const) {
           { ...save, completedAt: new Date().toISOString() },
           { ...save, answers: { ein: "synthetic-private" } },
           { ...save, answers: { ssn: "synthetic-private" } },
+          { ...save, answers: { businessAddress: { line1: "Synthetic road", countryCode: "US" } } },
+          { ...save, answers: { website: "not a website" } },
+          { ...save, answers: { website: "javascript:alert(1)" } },
+          { ...save, answers: { fundingPurposes: ["unknown"] } },
+          {
+            ...save,
+            answers: {
+              fundingPurposes: ["equipment_purchase", "equipment_purchase"],
+              purposeCatalogVersion: "2026-01",
+            },
+          },
+          {
+            ...save,
+            step: "purpose",
+            answers: { fundingPurposes: [], purposeCatalogVersion: "2026-01" },
+          },
         ])
           expect(
             (
@@ -369,6 +378,16 @@ for (const transport of ["fastify", "worker"] as const) {
               })
             ).status,
           ).toBe(400);
+        const staleDefinition = await c.call(`${bankPath}/${draft.id}/setup`, {
+          ...auth,
+          method: "PATCH",
+          body: { ...save, definitionVersion: 1 },
+        });
+        expect(staleDefinition.status).toBe(409);
+        expect(staleDefinition.body.error.code).toBe("SETUP_VERSION_UNSUPPORTED");
+        expect((await c.call(`${bankPath}/${draft.id}/setup`, auth)).body.revision).toBe(
+          draft.revision,
+        );
         const filled = await c.fill(draft, auth);
         expect(filled.requestedAmount).toBe("7500000.00");
         expect(filled.skippedSteps).toContain("industry");
@@ -381,7 +400,11 @@ for (const transport of ["fastify", "worker"] as const) {
         expect(restored.body).toEqual(filled);
         const destination = await c.call(`${bankPath}/${draft.id}/destination`, resumed);
         expect(destination.body).toMatchObject({ nextDestination: "setup", currentStep: "review" });
-        const finish = { expectedRevision: filled.revision, idempotencyKey: randomUUID() };
+        const finish = {
+          definitionVersion: 2,
+          expectedRevision: filled.revision,
+          idempotencyKey: randomUUID(),
+        };
         const complete = await c.call(`${bankPath}/${draft.id}/setup/finish`, {
           ...resumed,
           method: "POST",
@@ -441,14 +464,18 @@ for (const transport of ["fastify", "worker"] as const) {
         });
         expect(response.status).toBe(200);
         const draft = applicationSetupSchema.parse(response.body);
-        const filled = await c.fill(draft, staff);
+        const filled = await c.fill(draft, staff, true);
         expect((await c.call(`${bankPath}/${draft.id}`, staff)).status).toBe(200);
         expect(
           (
             await c.call(`${bankPath}/${draft.id}/setup/finish`, {
               ...staff,
               method: "POST",
-              body: { expectedRevision: filled.revision, idempotencyKey: randomUUID() },
+              body: {
+                definitionVersion: 2,
+                expectedRevision: filled.revision,
+                idempotencyKey: randomUUID(),
+              },
             })
           ).status,
         ).toBe(404);
@@ -475,7 +502,25 @@ for (const transport of ["fastify", "worker"] as const) {
             await c.call(`${bankPath}/${draft.id}/setup/finish`, {
               ...recipient,
               method: "POST",
-              body: { expectedRevision: claimed.body.revision, idempotencyKey: randomUUID() },
+              body: {
+                definitionVersion: 2,
+                expectedRevision: claimed.body.revision,
+                idempotencyKey: randomUUID(),
+              },
+            })
+          ).status,
+        ).toBe(400);
+        const confirmed = await c.fill(applicationSetupSchema.parse(claimed.body), recipient);
+        expect(
+          (
+            await c.call(`${bankPath}/${draft.id}/setup/finish`, {
+              ...recipient,
+              method: "POST",
+              body: {
+                definitionVersion: 2,
+                expectedRevision: confirmed.revision,
+                idempotencyKey: randomUUID(),
+              },
             })
           ).status,
         ).toBe(200);

@@ -1,4 +1,12 @@
-import { applicationSetupSchema, type StaffWorkspace } from "@keycade/contracts";
+import {
+  applicationSetupSchema,
+  businessAddressSchema,
+  businessWebsiteSchema,
+  type FundingPurposeId,
+  fundingPurposeCatalogVersion,
+  fundingPurposeOptions,
+  type StaffWorkspace,
+} from "@keycade/contracts";
 import { Button, buttonVariants } from "@keycade/ui/components/button";
 import {
   Card,
@@ -7,6 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@keycade/ui/components/card";
+import { FundingPurposeIcon } from "@keycade/ui/components/funding-purpose-icon";
 import { Input } from "@keycade/ui/components/input";
 import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useRef, useState } from "react";
@@ -14,14 +23,76 @@ import { Link, useLocation, useNavigate } from "react-router";
 import { ApiError, decimalAmount, useStaffApi } from "./api";
 import { ErrorNotice, Field } from "./ui";
 
-type Answers = { businessName: string; requestedAmount: string; purpose: string };
+type Answers = {
+  businessName: string;
+  requestedAmount: string;
+  website: string;
+  line1: string;
+  line2: string;
+  locality: string;
+  region: string;
+  postalCode: string;
+  countryCode: string;
+  fundingPurposes: FundingPurposeId[];
+  otherPurposeDetail: string;
+};
+function initialAnswers(workspace?: StaffWorkspace): Answers {
+  return {
+    businessName: workspace?.businessName ?? "",
+    requestedAmount: workspace?.requestedAmount ?? "",
+    website: workspace?.website ?? "",
+    line1: workspace?.businessAddress?.line1 ?? "",
+    line2: workspace?.businessAddress?.line2 ?? "",
+    locality: workspace?.businessAddress?.locality ?? "",
+    region: workspace?.businessAddress?.region ?? "",
+    postalCode: workspace?.businessAddress?.postalCode ?? "",
+    countryCode: workspace?.businessAddress?.countryCode ?? "",
+    fundingPurposes: workspace?.fundingPurposes ?? [],
+    otherPurposeDetail: workspace?.otherPurposeDetail ?? "",
+  };
+}
 function answersPayload(answers: Answers) {
+  const hasAddress = [
+    answers.line1,
+    answers.line2,
+    answers.locality,
+    answers.region,
+    answers.postalCode,
+    answers.countryCode,
+  ].some((value) => value.trim());
+  const address = businessAddressSchema.safeParse({
+    line1: answers.line1,
+    ...(answers.line2.trim() ? { line2: answers.line2 } : {}),
+    locality: answers.locality,
+    region: answers.region,
+    postalCode: answers.postalCode,
+    countryCode: answers.countryCode,
+  });
+  if (hasAddress && !address.success)
+    throw new ApiError(
+      "INVALID_INPUT",
+      400,
+      "Enter a complete business address, including a two-letter country code.",
+    );
+  const website = businessWebsiteSchema.safeParse(answers.website);
+  if (answers.website.trim() && !website.success)
+    throw new ApiError("INVALID_INPUT", 400, "Enter a valid HTTP or HTTPS website.");
   return {
     ...(answers.businessName.trim() ? { businessName: answers.businessName.trim() } : {}),
     ...(answers.requestedAmount.trim()
       ? { requestedAmount: decimalAmount(answers.requestedAmount) }
       : {}),
-    ...(answers.purpose.trim() ? { purpose: answers.purpose.trim() } : {}),
+    ...(hasAddress && address.success ? { businessAddress: address.data } : {}),
+    ...(website.success ? { website: website.data } : {}),
+    ...(answers.fundingPurposes.length
+      ? {
+          fundingPurposes: answers.fundingPurposes,
+          purposeCatalogVersion: fundingPurposeCatalogVersion,
+        }
+      : {}),
+    ...(answers.otherPurposeDetail.trim()
+      ? { otherPurposeDetail: answers.otherPurposeDetail.trim() }
+      : {}),
   };
 }
 function AnswerFields({
@@ -34,36 +105,101 @@ function AnswerFields({
   disabled: boolean;
 }) {
   return (
-    <div className="grid gap-5 sm:grid-cols-2">
-      <Field id="business-name" label="Business name">
-        <Input
-          id="business-name"
-          value={answers.businessName}
-          disabled={disabled}
-          maxLength={200}
-          onChange={(event) => setAnswers({ ...answers, businessName: event.target.value })}
-        />
-      </Field>
-      <Field id="requested-amount" label="Requested amount (USD)">
-        <Input
-          id="requested-amount"
-          inputMode="decimal"
-          value={answers.requestedAmount}
-          disabled={disabled}
-          onChange={(event) => setAnswers({ ...answers, requestedAmount: event.target.value })}
-        />
-      </Field>
-      <div className="sm:col-span-2">
-        <Field id="purpose" label="Purpose">
+    <div className="space-y-5">
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Field id="business-name" label="Legal business name">
           <Input
-            id="purpose"
-            value={answers.purpose}
-            maxLength={500}
+            id="business-name"
+            value={answers.businessName}
             disabled={disabled}
-            onChange={(event) => setAnswers({ ...answers, purpose: event.target.value })}
+            maxLength={200}
+            onChange={(event) => setAnswers({ ...answers, businessName: event.target.value })}
+          />
+        </Field>
+        <Field id="requested-amount" label="Requested amount (USD)">
+          <Input
+            id="requested-amount"
+            inputMode="decimal"
+            value={answers.requestedAmount}
+            disabled={disabled}
+            onChange={(event) => setAnswers({ ...answers, requestedAmount: event.target.value })}
           />
         </Field>
       </div>
+      <fieldset className="space-y-4">
+        <legend className="mb-3 text-sm font-medium">Business address (optional prefill)</legend>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {(
+            [
+              ["line1", "Street address"],
+              ["line2", "Address line 2 (optional)"],
+              ["locality", "City"],
+              ["region", "State / region"],
+              ["postalCode", "Postal code"],
+              ["countryCode", "Country code (US, CA, etc.)"],
+            ] as const
+          ).map(([key, label]) => (
+            <Field key={key} id={`prefill-${key}`} label={label}>
+              <Input
+                id={`prefill-${key}`}
+                value={answers[key]}
+                disabled={disabled}
+                maxLength={key === "countryCode" ? 2 : 200}
+                onChange={(event) => setAnswers({ ...answers, [key]: event.target.value })}
+              />
+            </Field>
+          ))}
+        </div>
+      </fieldset>
+      <Field id="website" label="Business website (optional)">
+        <Input
+          id="website"
+          value={answers.website}
+          disabled={disabled}
+          maxLength={2048}
+          placeholder="https://example.test"
+          onChange={(event) => setAnswers({ ...answers, website: event.target.value })}
+        />
+      </Field>
+      <fieldset>
+        <legend className="mb-3 text-sm font-medium">Funding purposes (optional prefill)</legend>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {fundingPurposeOptions.map((option) => (
+            <label
+              key={option.id}
+              className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 has-checked:border-primary has-checked:bg-muted"
+            >
+              <input
+                type="checkbox"
+                className="size-4 accent-primary"
+                disabled={disabled}
+                checked={answers.fundingPurposes.includes(option.id)}
+                onChange={(event) =>
+                  setAnswers({
+                    ...answers,
+                    fundingPurposes: event.target.checked
+                      ? [...answers.fundingPurposes, option.id]
+                      : answers.fundingPurposes.filter((id) => id !== option.id),
+                  })
+                }
+              />
+              <FundingPurposeIcon id={option.id} />
+              <span className="text-sm">{option.label}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      {answers.fundingPurposes.includes("other") && (
+        <Field id="other-purpose" label="Other purpose details (optional)">
+          <Input
+            id="other-purpose"
+            value={answers.otherPurposeDetail}
+            disabled={disabled}
+            maxLength={500}
+            onChange={(event) => setAnswers({ ...answers, otherPurposeDetail: event.target.value })}
+          />
+        </Field>
+      )}
     </div>
   );
 }
@@ -74,11 +210,7 @@ export function CreateApplication() {
   const bankQuery = bank ? `?bank=${encodeURIComponent(bank)}` : "";
   const client = useQueryClient();
   const [email, setEmail] = useState("");
-  const [answers, setAnswers] = useState<Answers>({
-    businessName: "",
-    requestedAmount: "",
-    purpose: "",
-  });
+  const [answers, setAnswers] = useState<Answers>(() => initialAnswers());
   const attempt = useRef<{ payload: string; key: string } | null>(null);
   const [pending, setPending] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -192,11 +324,7 @@ export function PrefillForm({
   onCancel: () => void;
 }) {
   const api = useStaffApi();
-  const [answers, setAnswers] = useState<Answers>({
-    businessName: workspace.businessName ?? "",
-    requestedAmount: workspace.requestedAmount ?? "",
-    purpose: workspace.purpose ?? "",
-  });
+  const [answers, setAnswers] = useState<Answers>(() => initialAnswers(workspace));
   const [baseRevision, setBaseRevision] = useState(workspace.revision);
   const [currentStep, setCurrentStep] = useState(workspace.setup.currentStep);
   const [busy, setBusy] = useState(false);
@@ -214,6 +342,7 @@ export function PrefillForm({
         {
           method: "PATCH",
           body: {
+            definitionVersion: 2,
             expectedRevision: baseRevision,
             currentStep,
             answers: answersPayload(answers),
@@ -247,11 +376,7 @@ export function PrefillForm({
           onClick={async () => {
             try {
               const latest = await onReload();
-              setAnswers({
-                businessName: latest.businessName ?? "",
-                requestedAmount: latest.requestedAmount ?? "",
-                purpose: latest.purpose ?? "",
-              });
+              setAnswers(initialAnswers(latest));
               setBaseRevision(latest.revision);
               setCurrentStep(latest.setup.currentStep);
               setError(null);

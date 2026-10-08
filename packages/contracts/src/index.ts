@@ -11,6 +11,8 @@ export * from "./enrichment.js";
 export * from "./industry.js";
 export * from "./intake.js";
 export * from "./participants.js";
+export * from "./setup-catalog.js";
+export * from "./setup-identifier.js";
 export * from "./signatures.js";
 export * from "./staff.js";
 export const errorSchema = z.object({

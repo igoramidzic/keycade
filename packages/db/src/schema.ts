@@ -172,6 +172,19 @@ export const applications = pgTable(
     requestedAmount: numeric("requested_amount", { precision: 20, scale: 2 }),
     currency: text("currency").notNull().default("USD"),
     purpose: text("purpose"),
+    businessAddress: jsonb("business_address").$type<{
+      line1: string;
+      line2?: string;
+      locality: string;
+      region: string;
+      postalCode: string;
+      countryCode: string;
+    }>(),
+    businessAddressRevision: integer("business_address_revision").notNull().default(0),
+    website: text("website"),
+    fundingPurposes: text("funding_purposes").array().notNull().default(sql`ARRAY[]::text[]`),
+    purposeCatalogVersion: text("purpose_catalog_version"),
+    otherPurposeDetail: text("other_purpose_detail"),
     industryCode: text("industry_code"),
     industryTaxonomyVersion: text("industry_taxonomy_version"),
     source: applicationSource("source").notNull(),
@@ -211,6 +224,22 @@ export const applications = pgTable(
       sql`${t.requestedAmount} IS NULL OR (${t.requestedAmount} > 0 AND ${t.requestedAmount} <> 'NaN'::numeric)`,
     ),
     check("applications_currency_usd", sql`${t.currency} = 'USD'`),
+    check(
+      "applications_address_revision_valid",
+      sql`(${t.businessAddress} IS NULL AND ${t.businessAddressRevision} = 0) OR (${t.businessAddress} IS NOT NULL AND ${t.businessAddressRevision} > 0)`,
+    ),
+    check(
+      "applications_purpose_ids_valid",
+      sql`${t.fundingPurposes} <@ ARRAY['working_capital','equipment_purchase','real_estate_purchase','business_acquisition','property_improvements','refinance_debt','refinance_real_estate','other','renewable_energy','construction','conventional']::text[]`,
+    ),
+    check(
+      "applications_purpose_catalog_valid",
+      sql`(cardinality(${t.fundingPurposes}) = 0 AND ${t.purposeCatalogVersion} IS NULL) OR (${t.purposeCatalogVersion} = '2026-01' AND cardinality(${t.fundingPurposes}) BETWEEN 0 AND 11)`,
+    ),
+    check(
+      "applications_other_purpose_selected",
+      sql`${t.otherPurposeDetail} IS NULL OR 'other' = ANY(${t.fundingPurposes})`,
+    ),
     check("applications_revision_positive", sql`${t.revision} > 0`),
     index("applications_bank_created_id").on(t.bankId, t.createdAt, t.id),
     index("applications_bank_updated_id").on(t.bankId, t.updatedAt, t.id),
@@ -222,7 +251,7 @@ export const applicationSetups = pgTable(
   {
     applicationId: uuid("application_id").primaryKey(),
     bankId: uuid("bank_id").notNull(),
-    definitionVersion: integer("definition_version").notNull().default(1),
+    definitionVersion: integer("definition_version").notNull().default(2),
     currentStep: text("current_step").notNull().default("business_name"),
     completedSteps: text("completed_steps").array().notNull().default(sql`ARRAY[]::text[]`),
     skippedSteps: text("skipped_steps").array().notNull().default(sql`ARRAY[]::text[]`),
@@ -240,13 +269,16 @@ export const applicationSetups = pgTable(
     check("setups_revision_positive", sql`${t.revision} > 0`),
     check(
       "setups_current_step_valid",
-      sql`${t.currentStep} IN ('business_name', 'product', 'amount', 'purpose', 'industry', 'review')`,
+      sql`${t.currentStep} IN ('business_name', 'business_address', 'business_ein', 'website', 'other_purpose', 'product', 'amount', 'purpose', 'industry', 'review')`,
     ),
     check(
       "setups_completed_steps_valid",
-      sql`${t.completedSteps} <@ ARRAY['business_name', 'product', 'amount', 'purpose', 'industry', 'review']::text[]`,
+      sql`${t.completedSteps} <@ ARRAY['business_name', 'business_address', 'business_ein', 'website', 'other_purpose', 'product', 'amount', 'purpose', 'industry', 'review']::text[]`,
     ),
-    check("setups_skipped_steps_optional", sql`${t.skippedSteps} <@ ARRAY['industry']::text[]`),
+    check(
+      "setups_skipped_steps_optional",
+      sql`${t.skippedSteps} <@ ARRAY['industry', 'website', 'business_ein', 'other_purpose']::text[]`,
+    ),
     check("setups_steps_disjoint", sql`NOT (${t.completedSteps} && ${t.skippedSteps})`),
   ],
 );

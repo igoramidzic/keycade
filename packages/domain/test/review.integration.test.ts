@@ -863,3 +863,103 @@ describe("submission and deliberate review on PostgreSQL", () => {
     expect(v.status).toBe("needs_information");
   });
 });
+
+describe("v2 immutable submission facts", () => {
+  const profile = {
+    businessAddress: {
+      line1: "42 Synthetic Avenue",
+      locality: "Teston",
+      region: "NY",
+      postalCode: "10001",
+      countryCode: "US",
+    },
+    businessAddressRevision: 1,
+    website: "https://example.test/",
+    fundingPurposes: ["working_capital", "other"],
+    purposeCatalogVersion: "2026-01",
+    otherPurposeDetail: "Synthetic workshop expansion",
+  };
+  it("freezes v2 intake facts and prevents decisions after any material profile drift", async () => {
+    const { id } = await fixture();
+    await database.db.update(applications).set(profile).where(eq(applications.id, id));
+    const v = await underReview(id);
+    const [submission] = await database.db
+      .select()
+      .from(applicationSubmissions)
+      .where(eq(applicationSubmissions.applicationId, id));
+    expect(submission?.snapshot.facts).toMatchObject(profile);
+    expect(v.submissions[0]?.facts).toMatchObject(profile);
+    const other = await fixture();
+    await database.db
+      .update(applications)
+      .set({ ...profile, website: "https://other.example.test/", fundingPurposes: ["other"] })
+      .where(eq(applications.id, other.id));
+    expect((await review().read(officer, ids.bankA, id)).submissions[0]?.facts).toMatchObject(
+      profile,
+    );
+    const before = await counts(id);
+    for (const change of [
+      { businessAddress: { ...profile.businessAddress, line1: "99 Synthetic Avenue" } },
+      { businessAddressRevision: 2 },
+      { website: "https://changed.example.test/" },
+      { fundingPurposes: ["other", "working_capital"] },
+      { otherPurposeDetail: "Changed synthetic expansion" },
+    ]) {
+      await database.db
+        .update(applications)
+        .set({ ...profile, ...change })
+        .where(eq(applications.id, id));
+      await expect(
+        review().approve(officer, ids.bankA, id, approval(v.revision), randomUUID()),
+      ).rejects.toMatchObject({ code: "INVALID_STATE" });
+      expect(await counts(id)).toEqual(before);
+      const [unchanged] = await database.db
+        .select()
+        .from(applicationSubmissions)
+        .where(eq(applicationSubmissions.id, submission!.id));
+      expect(unchanged?.snapshot).toEqual(submission?.snapshot);
+    }
+  });
+  it("keeps historical submission JSON and legacy fingerprints valid without rewriting empty intake facts", async () => {
+    const { id } = await fixture();
+    const v = await underReview(id);
+    const [submission] = await database.db
+      .select()
+      .from(applicationSubmissions)
+      .where(eq(applicationSubmissions.applicationId, id));
+    if (!submission) throw new Error("Missing historical submission fixture.");
+    const historical = structuredClone(submission.snapshot);
+    delete historical.facts.businessAddress;
+    delete historical.facts.businessAddressRevision;
+    delete historical.facts.website;
+    delete historical.facts.fundingPurposes;
+    delete historical.facts.purposeCatalogVersion;
+    delete historical.facts.otherPurposeDetail;
+    await database.db
+      .update(applicationSubmissions)
+      .set({ snapshot: historical })
+      .where(eq(applicationSubmissions.id, submission.id));
+    const read = await review().read(borrower, ids.bankA, id);
+    expect(read.submissions[0]?.facts).toMatchObject({
+      businessAddress: null,
+      businessAddressRevision: 0,
+      website: null,
+      fundingPurposes: [],
+      purposeCatalogVersion: null,
+      otherPurposeDetail: null,
+    });
+    const approved = await review().approve(
+      officer,
+      ids.bankA,
+      id,
+      approval(v.revision),
+      randomUUID(),
+    );
+    expect(approved.status).toBe("approved");
+    const [unchanged] = await database.db
+      .select()
+      .from(applicationSubmissions)
+      .where(eq(applicationSubmissions.id, submission.id));
+    expect(unchanged?.snapshot).toEqual(historical);
+  });
+});

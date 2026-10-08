@@ -8,11 +8,13 @@ import {
   requestEnrichmentSchema,
   retryEnrichmentSchema,
   saveIdentifierSchema,
+  saveSetupIdentifierSchema,
   taxAuthorizationNotice,
   taxAuthorizationNoticeVersion,
 } from "@keycade/contracts";
 import {
   applicationParticipants,
+  applicationSetups,
   applications,
   auditEvents,
   bankMemberships,
@@ -24,7 +26,11 @@ import {
   sensitiveIdentifierVersions,
 } from "@keycade/db";
 import { and, desc, eq, isNull } from "drizzle-orm";
-import { type Actor, requireApplicantPortalAccess } from "./authorization.js";
+import {
+  type Actor,
+  requireApplicantPortalAccess,
+  requireApplicationAccess,
+} from "./authorization.js";
 import { materialInputsEditable, reconcileChecks } from "./checks.js";
 import { DomainError, deny } from "./errors.js";
 import type { IdentifierCipher } from "./identifier-cipher.js";
@@ -193,6 +199,41 @@ async function inputFor(tx: Tx, app: App, subject: EnrichmentSubject, create: bo
       .returning();
   return input;
 }
+
+/** Call only after authorizing the exact application's setup editor. Never reads ciphertext. */
+export async function readSetupBusinessEin(tx: Tx, bankId: string, applicationId: string) {
+  const [identifier] = await tx
+    .select({ mask: sensitiveIdentifierVersions.maskedValue })
+    .from(enrichmentInputs)
+    .innerJoin(
+      sensitiveIdentifierVersions,
+      and(
+        eq(sensitiveIdentifierVersions.id, enrichmentInputs.identifierId),
+        eq(sensitiveIdentifierVersions.bankId, enrichmentInputs.bankId),
+        eq(sensitiveIdentifierVersions.applicationId, enrichmentInputs.applicationId),
+        eq(sensitiveIdentifierVersions.subjectKey, enrichmentInputs.subjectKey),
+      ),
+    )
+    .where(scopeWhere(bankId, applicationId, "business"));
+  return { present: !!identifier, mask: identifier?.mask ?? null };
+}
+
+// Clearing removes the active reference, while immutable versions retain their own sequence.
+async function nextIdentifierRevision(tx: Tx, app: App, key: string) {
+  const [last] = await tx
+    .select({ revision: sensitiveIdentifierVersions.revision })
+    .from(sensitiveIdentifierVersions)
+    .where(
+      and(
+        eq(sensitiveIdentifierVersions.bankId, app.bankId),
+        eq(sensitiveIdentifierVersions.applicationId, app.id),
+        eq(sensitiveIdentifierVersions.subjectKey, key),
+      ),
+    )
+    .orderBy(desc(sensitiveIdentifierVersions.revision))
+    .limit(1);
+  return (last?.revision ?? 0) + 1;
+}
 async function audit(
   tx: Tx,
   app: App,
@@ -207,6 +248,8 @@ async function audit(
   if (
     [
       "identifier.saved",
+      "identifier.setup_saved",
+      "identifier.setup_cleared",
       "tax.authorized",
       "tax.authorization_revoked",
       "enrichment.fact_confirmed",
@@ -378,6 +421,147 @@ export function createEnrichmentService(
     return { app, input, ...access };
   }
   return {
+    async saveSetupIdentifier(
+      actor: Actor,
+      bankId: string,
+      applicationId: string,
+      raw: unknown,
+      requestId: string,
+    ) {
+      const parsed = parse(saveSetupIdentifierSchema, raw);
+      if (actor.kind !== "user") return deny();
+      return db.transaction(async (tx) => {
+        const app = await getApplication(tx, bankId, applicationId);
+        const access = await requireApplicationAccess(tx, actor, bankId, applicationId);
+        if (
+          !app.synthetic ||
+          !(
+            access.kind === "staff" ||
+            (access.kind === "participant" &&
+              access.role === "applicant_admin" &&
+              access.scope === "full")
+          )
+        )
+          return deny();
+        let canAcknowledge = access.kind === "participant";
+        if (access.kind === "staff") {
+          const [applicant] = await tx
+            .select({ id: applicationParticipants.id })
+            .from(applicationParticipants)
+            .where(
+              and(
+                eq(applicationParticipants.bankId, bankId),
+                eq(applicationParticipants.applicationId, applicationId),
+                eq(applicationParticipants.userId, actor.userId),
+                eq(applicationParticipants.role, "applicant_admin"),
+                eq(applicationParticipants.scope, "full"),
+                isNull(applicationParticipants.revokedAt),
+              ),
+            )
+            .for("share");
+          canAcknowledge = !!applicant;
+        }
+        const [setup] = await tx
+          .select()
+          .from(applicationSetups)
+          .where(
+            and(
+              eq(applicationSetups.bankId, bankId),
+              eq(applicationSetups.applicationId, applicationId),
+            ),
+          )
+          .for("update");
+        if (!setup || setup.completedAt || app.status !== "draft")
+          invalid("Setup is no longer editable.");
+        if (setup.definitionVersion !== parsed.definitionVersion)
+          invalid("Reload to use the current setup version.");
+        if (app.revision !== parsed.expectedRevision) return conflict();
+        const input = await inputFor(tx, app, {}, true);
+        if (!input) throw new Error("Enrichment inputs were not stored.");
+        const now = clock();
+        let identifierId: string | null = null;
+        let identifierRevision = 0;
+        if (parsed.action === "save") {
+          identifierRevision = await nextIdentifierRevision(tx, app, "business");
+          const [identifier] = await tx
+            .insert(sensitiveIdentifierVersions)
+            .values({
+              bankId,
+              applicationId,
+              subjectKey: "business",
+              revision: identifierRevision,
+              kind: "ein",
+              encryptedValue: options.cipher.encrypt(parsed.value, {
+                bankId,
+                applicationId,
+                subjectKey: "business",
+                revision: identifierRevision,
+              }),
+              maskedValue: `**-***${parsed.value.slice(-4)}`,
+              createdByUserId: actor.userId,
+              createdAt: now,
+            })
+            .returning({ id: sensitiveIdentifierVersions.id });
+          if (!identifier) throw new Error("Identifier was not stored.");
+          identifierId = identifier.id;
+        }
+        await tx
+          .update(enrichmentInputs)
+          .set({
+            revision: input.revision + 1,
+            identifierId,
+            identifierRevision,
+            taxAuthorizedAt: null,
+            taxAuthorizedByUserId: null,
+            taxNoticeVersion: null,
+            updatedAt: now,
+          })
+          .where(eq(enrichmentInputs.id, input.id));
+        // A setup answer never requests a check or supplies tax consent. Existing results
+        // are invalidated without queuing new provider work while setup is unfinished.
+        await tx
+          .update(enrichmentRuns)
+          .set({ stale: true, updatedAt: now })
+          .where(eq(enrichmentRuns.inputId, input.id));
+        await tx
+          .update(applications)
+          .set({ revision: app.revision + 1, updatedAt: now })
+          .where(eq(applications.id, app.id));
+        const completed = new Set(setup.completedSteps);
+        const skipped = new Set(setup.skippedSteps);
+        if (!canAcknowledge) {
+          // Staff can prefill or clear this answer, but only the applicant can
+          // acknowledge it or choose to skip the question.
+          completed.delete("business_ein");
+          skipped.delete("business_ein");
+        } else if (parsed.action === "save") {
+          completed.add("business_ein");
+          skipped.delete("business_ein");
+        } else {
+          completed.delete("business_ein");
+          skipped.add("business_ein");
+        }
+        await tx
+          .update(applicationSetups)
+          .set({
+            revision: app.revision + 1,
+            currentStep: canAcknowledge ? parsed.currentStep : setup.currentStep,
+            completedSteps: [...completed],
+            skippedSteps: [...skipped],
+          })
+          .where(eq(applicationSetups.applicationId, app.id));
+        await audit(
+          tx,
+          app,
+          actor.userId,
+          parsed.action === "save" ? "identifier.setup_saved" : "identifier.setup_cleared",
+          identifierId ?? input.id,
+          requestId,
+          now,
+          ["businessEin", "setup", "taxAuthorization"],
+        );
+      });
+    },
     async read(actor: Actor, bankId: string, applicationId: string, raw: unknown = {}) {
       const subject = parse(enrichmentSubjectSchema, raw);
       return db.transaction(async (tx) => {
@@ -396,10 +580,27 @@ export function createEnrichmentService(
       const parsed = parse(saveIdentifierSchema, raw);
       return db.transaction(async (tx) => {
         const { app, input, actorUserId } = await locked(tx, actor, bankId, applicationId, parsed);
+        if (!parsed.subjectUserId) {
+          const [setup] = await tx
+            .select({ completedAt: applicationSetups.completedAt })
+            .from(applicationSetups)
+            .where(
+              and(
+                eq(applicationSetups.bankId, bankId),
+                eq(applicationSetups.applicationId, applicationId),
+              ),
+            );
+          if (!setup?.completedAt)
+            throw new DomainError(
+              "SETUP_REQUIRED",
+              409,
+              "Use the setup business EIN command until initial setup is complete.",
+            );
+        }
         if (!materialInputsEditable(app.status))
           invalid("This application is not accepting identifier changes.");
         if (input.revision !== parsed.expectedRevision) return conflict();
-        const revision = input.identifierRevision + 1;
+        const revision = await nextIdentifierRevision(tx, app, input.subjectKey);
         const now = clock();
         const [identifier] = await tx
           .insert(sensitiveIdentifierVersions)

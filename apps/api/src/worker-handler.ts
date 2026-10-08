@@ -49,6 +49,7 @@ import {
   reviewTaskSchema,
   saveApplicationSetupSchema,
   saveIdentifierSchema,
+  saveSetupIdentifierSchema,
   saveTaskAnswerSchema,
   setRelationshipActiveSchema,
   staffApplicationPageSchema,
@@ -429,6 +430,13 @@ export async function handleWorkerRequest(
             patch: {
               parameters,
               requestBody: requestBody(saveApplicationSetupSchema),
+              responses: applicationResponses(applicationSetupSchema),
+            },
+          },
+          "/api/v1/banks/{bankId}/applications/{applicationId}/setup/identifier": {
+            patch: {
+              parameters,
+              requestBody: requestBody(saveSetupIdentifierSchema),
               responses: applicationResponses(applicationSetupSchema),
             },
           },
@@ -1329,7 +1337,7 @@ export async function handleWorkerRequest(
       );
     }
     const setup =
-      /^\/api\/v1\/banks\/([^/]+)\/applications\/([^/]+)\/(setup(?:\/finish)?|claim|destination|portal)$/.exec(
+      /^\/api\/v1\/banks\/([^/]+)\/applications\/([^/]+)\/(setup(?:\/(?:finish|identifier))?|claim|destination|portal)$/.exec(
         path,
       );
     if (setup) {
@@ -1359,6 +1367,21 @@ export async function handleWorkerRequest(
           applicationSetupSchema.parse(
             await applications.saveSetup(actor, bankId, applicationId, body, requestId),
           ),
+        );
+      }
+      if (setup[3] === "setup/identifier" && request.method === "PATCH") {
+        const body = saveSetupIdentifierSchema.parse(await readJsonBody(request));
+        if (!deps.encryptionKey)
+          throw new DomainError(
+            "ENRICHMENT_UNAVAILABLE",
+            503,
+            "Private enrichment is unavailable in this environment.",
+          );
+        await createEnrichmentService(deps.db, {
+          cipher: createIdentifierCipher(deps.encryptionKey),
+        }).saveSetupIdentifier(actor, bankId, applicationId, body, requestId);
+        return json(
+          applicationSetupSchema.parse(await applications.readSetup(actor, bankId, applicationId)),
         );
       }
       if (setup[3] === "setup/finish" && request.method === "POST") {

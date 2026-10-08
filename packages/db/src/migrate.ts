@@ -45,7 +45,7 @@ export async function assertSchemaReady(connectionString: string): Promise<void>
     await pool.query(
       "SELECT id, bank_id, application_id, body, author_user_id, updated_by_user_id, created_at, updated_at FROM staff_notes LIMIT 0",
     );
-    await pool.query(`SELECT a.id, a.bank_id, a.revision, a.requested_amount, a.business_name, a.industry_code, a.industry_taxonomy_version, a.demo_created, p.user_id, p.revoked_at
+    await pool.query(`SELECT a.id, a.bank_id, a.revision, a.requested_amount, a.business_name, a.business_address, a.business_address_revision, a.website, a.funding_purposes, a.purpose_catalog_version, a.other_purpose_detail, a.industry_code, a.industry_taxonomy_version, a.demo_created, p.user_id, p.revoked_at
       FROM applications a LEFT JOIN application_participants p ON p.application_id = a.id AND p.bank_id = a.bank_id LIMIT 0`);
     await pool.query(
       "SELECT application_id, bank_id, definition_version, current_step, completed_steps, skipped_steps, revision, completed_at, completed_by_user_id FROM application_setups LIMIT 0",

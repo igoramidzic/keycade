@@ -48,6 +48,7 @@ async function createDraft(name?: string) {
       ids.bankA,
       result.id,
       {
+        definitionVersion: 2,
         expectedRevision: result.revision,
         answers: { businessName: name },
         currentStep: "business_name",
@@ -225,7 +226,7 @@ describe("staff queue and workspace on PostgreSQL", () => {
         officer,
         ids.bankA,
         created.id,
-        { expectedRevision: created.revision, idempotencyKey: randomUUID() },
+        { definitionVersion: 2, expectedRevision: created.revision, idempotencyKey: randomUUID() },
         randomUUID(),
       ),
     ).rejects.toMatchObject(notFound);

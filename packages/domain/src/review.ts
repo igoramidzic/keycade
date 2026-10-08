@@ -170,7 +170,7 @@ async function capture(tx: Tx, app: App): Promise<SubmissionSnapshot> {
     .from(signatureEnvelopes)
     .where(scope(signatureEnvelopes, app))
     .orderBy(asc(signatureEnvelopes.id));
-  const facts = {
+  const legacyFacts = {
     businessName: app.businessName,
     productName: product.name,
     requestedAmount: app.requestedAmount,
@@ -179,6 +179,26 @@ async function capture(tx: Tx, app: App): Promise<SubmissionSnapshot> {
     industryCode: app.industryCode,
     industryTaxonomyVersion: app.industryTaxonomyVersion,
   };
+  const facts = {
+    ...legacyFacts,
+    businessAddress: app.businessAddress,
+    businessAddressRevision: app.businessAddressRevision,
+    website: app.website,
+    fundingPurposes: app.fundingPurposes,
+    purposeCatalogVersion: app.purposeCatalogVersion,
+    otherPurposeDetail: app.otherPurposeDetail,
+  };
+  // Retain the original material hash for historical submissions whose added fields
+  // are all absent. Populating any v2 fact becomes material drift, requiring resubmission.
+  const fingerprintFacts =
+    app.businessAddress ||
+    app.businessAddressRevision ||
+    app.website ||
+    app.fundingPurposes.length ||
+    app.purposeCatalogVersion ||
+    app.otherPurposeDetail
+      ? facts
+      : legacyFacts;
   const signaturePolicies = await tx
     .select({ taskId: taskSignaturePolicies.taskId, envelopeId: taskSignaturePolicies.envelopeId })
     .from(taskSignaturePolicies)
@@ -209,7 +229,7 @@ async function capture(tx: Tx, app: App): Promise<SubmissionSnapshot> {
   }));
   const materialFingerprint = await hashIdentityCredential(
     JSON.stringify({
-      application: { businessId: app.businessId, productId: app.productId, ...facts },
+      application: { businessId: app.businessId, productId: app.productId, ...fingerprintFacts },
       owners,
       signaturePolicies,
       signers,

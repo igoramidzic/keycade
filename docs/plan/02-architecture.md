@@ -1,6 +1,6 @@
 # Architecture and repository layout
 
-The [v2 plan](v2/README.md) adds planned experience and data contracts to the existing architecture. V2 is not implemented or validated by the historical task records. Follow [the experience specification](v2/02-experience-spec.md), [data and simulation contracts](v2/03-data-and-simulation.md), and [delivery/validation plan](v2/04-delivery-and-validation.md) for its bounded changes.
+The [v2 plan](v2/README.md) adds planned experience and data contracts to the existing architecture. V2-01 setup is implemented locally with its own validation record; the remaining tasks are planned. Historical task records do not prove v2 behavior. Follow [the experience specification](v2/02-experience-spec.md), [data and simulation contracts](v2/03-data-and-simulation.md), and [delivery/validation plan](v2/04-delivery-and-validation.md) for its bounded changes.
 
 ## Deployment target
 

@@ -4,6 +4,7 @@ import { readEnvironment } from "@keycade/config/server";
 import { syntheticDocumentPdf } from "@keycade/integrations/document-fixtures";
 import { expect, type Page, test } from "@playwright/test";
 import { paceHostedRequests } from "./hosted-helpers";
+import { completeAddressAndSkipOptional } from "./setup-helpers";
 
 const env = readEnvironment();
 const borrower = env.KEYCADE_E2E_BORROWER_ORIGIN ?? "";
@@ -106,16 +107,17 @@ test("hosted synthetic borrower resumes setup, invites a scoped collaborator, an
   const fileName = `synthetic-hosted-agreement-${nonce}.pdf`;
   await requestLink(page, applicantEmail, true);
   await confirmInboxMessage(page, "Your application is started");
-  await expect(page.getByLabel("Business name", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Legal business name", { exact: true })).toBeVisible();
   const applicationId = new URL(page.url()).pathname.split("/")[2];
   if (!applicationId) throw new Error("Hosted synthetic application was not created.");
   testInfo.annotations.push({ type: "synthetic_application", description: applicationId });
   const section = (origin: string, name: string) =>
     `${origin}/applications/${applicationId}/${name}?bank=bank-a`;
   await page
-    .getByLabel("Business name", { exact: true })
+    .getByLabel("Legal business name", { exact: true })
     .fill(`Synthetic Hosted Workshop ${nonce}`);
   await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await completeAddressAndSkipOptional(page);
   await page.getByLabel("Requested amount", { exact: true }).fill("32000");
   await page.getByRole("button", { name: "Continue later", exact: true }).click();
   await expect(
@@ -131,11 +133,8 @@ test("hosted synthetic borrower resumes setup, invites a scoped collaborator, an
   );
   expect(new URL(page.url()).pathname).toBe(`/applications/${applicationId}/setup`);
   await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await page
-    .getByLabel("Loan purpose", { exact: true })
-    .fill("Synthetic workshop equipment for hosted acceptance.");
+  await page.getByRole("checkbox", { name: "Equipment purchase", exact: true }).check();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await page.getByRole("button", { name: "Skip for now", exact: true }).click();
   await page.getByRole("button", { name: "Finish setup", exact: true }).click();
   await expect(page.getByText("Initial setup complete", { exact: true })).toBeVisible();
   await page.goto(section(borrower, "tasks"));

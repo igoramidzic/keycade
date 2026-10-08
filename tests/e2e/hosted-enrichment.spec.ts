@@ -6,6 +6,7 @@ import {
   type EnrichmentView,
   enrichmentViewSchema,
 } from "../../packages/contracts/src/index";
+import { setupFixtureSteps } from "../setup-fixture";
 import { workflowApi } from "./closing-helpers";
 import { paceHostedRequests } from "./hosted-helpers";
 
@@ -33,25 +34,13 @@ test("hosted synthetic identifiers drive authorized business and tax simulations
     idempotencyKey: randomUUID(),
   });
   testInfo.annotations.push({ type: "synthetic_application", description: app.id });
-  for (const step of [
-    {
-      step: "business_name",
-      currentStep: "amount",
-      answers: { businessName: `Synthetic Enrichment Workshop ${nonce}` },
-    },
-    { step: "amount", currentStep: "purpose", answers: { requestedAmount: "10000.00" } },
-    {
-      step: "purpose",
-      currentStep: "industry",
-      answers: { purpose: "Synthetic hosted business and tax demonstration" },
-    },
-    { step: "industry", currentStep: "review", answers: {}, skip: true },
-  ])
+  for (const step of setupFixtureSteps(`Synthetic Enrichment Workshop ${nonce}`, "10000.00"))
     app = await workflowApi<ApplicationSetup>(page, "PATCH", `/applications/${app.id}/setup`, {
       expectedRevision: app.revision,
       ...step,
     });
   app = await workflowApi<ApplicationSetup>(page, "POST", `/applications/${app.id}/setup/finish`, {
+    definitionVersion: 2,
     expectedRevision: app.revision,
     idempotencyKey: randomUUID(),
   });

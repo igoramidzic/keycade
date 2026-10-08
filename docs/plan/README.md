@@ -1,6 +1,6 @@
 # Keycade implementation plan
 
-**Next work: [Version 2 — borrower tasks and lender application records](v2/README.md), planned October 8, 2026.** The twelve reference images have been analyzed and the existing specifications adjusted. V2-01–V2-08 are **Not started**; this documentation update implements no application behavior. When asked to implement without a task number, start with V2-01. Preserve the completed baseline and its evidence below.
+**V2-01 — [expanded setup](v2/04-delivery-and-validation.md#v2-01--setup-contracts-migration-and-wizard) is complete locally, October 8, 2026.** Address, optional encrypted EIN/website, illustrated multi-select purposes, legacy upgrade and lender prefill are verified: 305 unit tests, 393 PostgreSQL tests, all 12 builds/typechecks and 36 desktop/mobile browser cases. The local database is migrated and the demo is ready to test. V2-02–V2-08 remain **Not started**; V2-02 is the next default task. No v2 hosted deployment is claimed.
 
 Planning baseline: October 6, 2026. The first local-foundation milestone (T01–T05) is complete and verified. Cloudflare is the intended deployment target; five Keycade Workers are deployed and their Neon/Hyperdrive connections are verified. Neon PostgreSQL is linked and migrated through GitHub Actions; the initial apply and repeat no-op run passed. Separate CI validation is paused for faster demo deployment at the user's request.
 
@@ -52,7 +52,7 @@ Read the [v2 experience](v2/02-experience-spec.md) and [data/simulation contract
 
 | ID | Task | Depends on | Status |
 | --- | --- | --- | --- |
-| V2-01 | [Expanded setup and migration](v2/04-delivery-and-validation.md#v2-01--setup-contracts-migration-and-wizard) | T07, T08, T15 | Not started |
+| V2-01 | [Expanded setup and migration](v2/04-delivery-and-validation.md#v2-01--setup-contracts-migration-and-wizard) | T07, T08, T15 | Done — [local acceptance](v2/04-delivery-and-validation.md#v2-01--setup-contracts-migration-and-wizard) |
 | V2-02 | [Borrower task dashboard without top tabs](v2/04-delivery-and-validation.md#v2-02--borrower-task-dashboard) | V2-01; existing borrower/task/signing/review/closing work and D05 | Not started |
 | V2-03 | [Filename-driven demo text importer](v2/04-delivery-and-validation.md#v2-03--demo-text-importer-and-registered-fixtures) | T13, T14, D05 | Not started |
 | V2-04 | [Document workspace and reviewed financial facts](v2/04-delivery-and-validation.md#v2-04--document-workspace-and-reviewed-financial-facts) | V2-01, V2-03; T14, T15, T19 | Not started |

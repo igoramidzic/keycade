@@ -54,6 +54,7 @@ import {
   reviewTaskSchema,
   saveApplicationSetupSchema,
   saveIdentifierSchema,
+  saveSetupIdentifierSchema,
   saveTaskAnswerSchema,
   setRelationshipActiveSchema,
   staffApplicationPageSchema,
@@ -662,6 +663,31 @@ export async function buildServer(options: ServerOptions) {
         request.params.applicationId,
         request.body,
         request.id,
+      );
+    },
+  );
+  app.patch(
+    "/api/v1/banks/:bankId/applications/:applicationId/setup/identifier",
+    {
+      schema: {
+        params: applicationParamsSchema,
+        body: saveSetupIdentifierSchema,
+        response: { 200: applicationSetupSchema, ...responses },
+      },
+    },
+    async (request) => {
+      assertSessionBank(request.authentication, request.params.bankId);
+      await enrichment().saveSetupIdentifier(
+        request.authentication.actor,
+        request.params.bankId,
+        request.params.applicationId,
+        request.body,
+        request.id,
+      );
+      return applications.readSetup(
+        request.authentication.actor,
+        request.params.bankId,
+        request.params.applicationId,
       );
     },
   );

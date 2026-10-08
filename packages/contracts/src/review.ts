@@ -1,6 +1,12 @@
 import { z } from "zod";
 import { readinessViewSchema } from "./checks.js";
 import { applicationStatusSchema, usdAmountSchema } from "./common.js";
+import {
+  businessAddressSchema,
+  businessWebsiteSchema,
+  fundingPurposeCatalogVersion,
+  fundingPurposesSchema,
+} from "./setup-catalog.js";
 
 export const reviewReasonLabels = {
   additional_information: "Additional information is required before a decision.",
@@ -59,6 +65,13 @@ export const submissionFactsSchema = z.object({
   requestedAmount: usdAmountSchema,
   currency: z.literal("USD"),
   purpose: z.string().nullable(),
+  // Historical immutable submissions lack these keys; projection supplies empty values only.
+  businessAddress: businessAddressSchema.nullable().default(null),
+  businessAddressRevision: z.number().int().nonnegative().default(0),
+  website: businessWebsiteSchema.nullable().default(null),
+  fundingPurposes: fundingPurposesSchema.default([]),
+  purposeCatalogVersion: z.literal(fundingPurposeCatalogVersion).nullable().default(null),
+  otherPurposeDetail: z.string().nullable().default(null),
   industryCode: z.string().nullable(),
   industryTaxonomyVersion: z.string().nullable(),
 });

@@ -20,6 +20,10 @@ type Setup = {
   businessName: string | null;
   requestedAmount: string | null;
   purpose: string | null;
+  fundingPurposes: string[];
+  businessAddress: object | null;
+  website: string | null;
+  businessEin: { present: boolean; mask: string | null };
   productId: string | null;
   revision: number;
   currentStep: string;
@@ -69,6 +73,30 @@ async function answer(page: Page, label: string, value: string, nextLabel: strin
   await expect(page.getByLabel(nextLabel, { exact: true })).toBeVisible();
 }
 
+const syntheticAddress = {
+  line1: "100 Demo Street",
+  locality: "Portland",
+  region: "ME",
+  postalCode: "04101",
+  countryCode: "US",
+};
+async function addressAndOptionalSteps(page: Page) {
+  for (const [label, value] of [
+    ["Street address", syntheticAddress.line1],
+    ["City", syntheticAddress.locality],
+    ["State or region", syntheticAddress.region],
+    ["Postal code", syntheticAddress.postalCode],
+    ["Country code", syntheticAddress.countryCode],
+  ])
+    await page.getByLabel(label, { exact: true }).fill(value);
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  for (const label of ["Business EIN", "Industry", "Website"]) {
+    await expect(page.getByLabel(label, { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Skip for now", exact: true }).click();
+  }
+  await expect(page.getByLabel("Requested amount", { exact: true })).toBeVisible();
+}
+
 async function assertNoOverflow(page: Page) {
   expect(
     await page.evaluate(
@@ -80,7 +108,7 @@ async function assertNoOverflow(page: Page) {
 test("bank apply, saved edits, browser loss, and explicit completion use the same application", async ({
   page,
   context,
-}) => {
+}, testInfo) => {
   const email = `intake-demo-${randomUUID()}@example.test`;
   let creations = 0;
   page.on("request", (request) => {
@@ -96,7 +124,7 @@ test("bank apply, saved edits, browser loss, and explicit completion use the sam
   await expect(page.getByText("Synthetic Bank A", { exact: true }).first()).toBeVisible();
   await page.getByLabel("Email address", { exact: true }).fill(email);
   await page.getByRole("button", { name: "Start application", exact: true }).click();
-  await expect(page.getByLabel("Business name", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Legal business name", { exact: true })).toBeVisible();
   const original = await setup(page);
   expect(original).toMatchObject({ currentStep: "business_name", setupStatus: "in_progress" });
   expect(creations).toBe(1);
@@ -107,26 +135,35 @@ test("bank apply, saved edits, browser loss, and explicit completion use the sam
 
   // One question is shown, and keyboard navigation reaches the next action.
   await expect(page.getByLabel("Requested amount", { exact: true })).toHaveCount(0);
-  await page.getByLabel("Business name", { exact: true }).fill("Synthetic Pine Workshop");
-  await page.getByLabel("Business name", { exact: true }).focus();
+  await page.getByLabel("Legal business name", { exact: true }).fill("Synthetic Pine Workshop");
+  await page.getByLabel("Legal business name", { exact: true }).focus();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Continue", exact: true })).toBeFocused();
   await page.keyboard.press("Enter");
-  await expect(page.getByLabel("Requested amount", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Street address", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(page.getByRole("alert")).toBeVisible();
+  expect((await setup(page)).businessAddress).toBeNull();
+  await addressAndOptionalSteps(page);
   await page.getByLabel("Requested amount", { exact: true }).fill("0");
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(page.getByRole("alert")).toBeVisible();
   expect((await setup(page)).requestedAmount).toBeNull();
   await expect(
     page.getByRole("progressbar", { name: "Setup progress", exact: true }),
-  ).toHaveAttribute("value", "2");
-  await answer(page, "Requested amount", "25000", "Loan purpose");
+  ).toHaveAttribute("value", "6");
+  await answer(page, "Requested amount", "25000", "Working capital");
   await page.getByRole("button", { name: "Back", exact: true }).click();
   await expect(page.getByLabel("Requested amount", { exact: true })).toHaveValue(
     /25,?000(?:\.00)?/,
   );
-  await answer(page, "Requested amount", "50000", "Loan purpose");
-  await page.getByLabel("Loan purpose", { exact: true }).fill("Synthetic workshop equipment");
+  await answer(page, "Requested amount", "50000", "Working capital");
+  await page.getByRole("checkbox", { name: "Equipment purchase", exact: true }).check();
+  await page.getByRole("checkbox", { name: "Working capital", exact: true }).focus();
+  await page.keyboard.press("Space");
+  await expect(page.getByRole("checkbox", { name: "Working capital", exact: true })).toBeChecked();
+  // Only this synthetic, non-sensitive screen is captured for layout verification.
+  await page.screenshot({ path: testInfo.outputPath("v2-funding-purposes.png"), fullPage: true });
   await page.getByRole("button", { name: "Continue later", exact: true }).click();
   await expect(
     page.getByRole("status").filter({ hasText: "Your progress is saved." }),
@@ -140,9 +177,10 @@ test("bank apply, saved edits, browser loss, and explicit completion use the sam
   await demoSignIn(page, email);
   await expect(page.getByRole("button", { name: "Continue setup", exact: true })).toHaveCount(1);
   await page.getByRole("button", { name: "Continue setup", exact: true }).click();
-  await expect(page.getByLabel("Loan purpose", { exact: true })).toHaveValue(
-    "Synthetic workshop equipment",
-  );
+  await expect(
+    page.getByRole("checkbox", { name: "Equipment purchase", exact: true }),
+  ).toBeChecked();
+  await expect(page.getByRole("checkbox", { name: "Working capital", exact: true })).toBeChecked();
   expect(await setup(page)).toMatchObject({
     id: original.id,
     businessName: "Synthetic Pine Workshop",
@@ -152,22 +190,42 @@ test("bank apply, saved edits, browser loss, and explicit completion use the sam
   });
   expect(creations).toBe(1);
 
+  // Clearing the collection is itself a saved edit, even before confirmation.
+  await page.getByRole("checkbox", { name: "Equipment purchase", exact: true }).uncheck();
+  await page.getByRole("checkbox", { name: "Working capital", exact: true }).uncheck();
+  await page.getByRole("button", { name: "Continue later", exact: true }).click();
+  await page.getByRole("button", { name: "Continue setup", exact: true }).click();
+  await expect(
+    page.getByRole("checkbox", { name: "Equipment purchase", exact: true }),
+  ).not.toBeChecked();
+  await expect(
+    page.getByRole("checkbox", { name: "Working capital", exact: true }),
+  ).not.toBeChecked();
+  expect((await setup(page)).fundingPurposes).toEqual([]);
+  await page.getByRole("checkbox", { name: "Equipment purchase", exact: true }).check();
+  await page.getByRole("checkbox", { name: "Working capital", exact: true }).check();
+  await page.getByRole("button", { name: "Continue later", exact: true }).click();
+  await page.getByRole("button", { name: "Continue setup", exact: true }).click();
+
   await page.goto(`${borrower}/applications/${original.id}`);
   await expect(page).toHaveURL(`${borrower}/applications/${original.id}/setup?bank=bank-a`);
-  await expect(page.getByLabel("Loan purpose", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("checkbox", { name: "Equipment purchase", exact: true }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(page.getByLabel("Industry", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Skip for now", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Review your application setup", exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("Synthetic Pine Workshop", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("main").getByText("Synthetic Pine Workshop", { exact: true }),
+  ).toBeVisible();
   await expect(page.getByRole("button", { name: /Edit .*product/i })).toHaveCount(0);
   const reviewed = await setup(page);
   expect(reviewed).toMatchObject({ setupStatus: "in_progress", status: "draft" });
   expect(reviewed.skippedSteps).toContain("industry");
   await assertNoOverflow(page);
 
+  await page.screenshot({ path: testInfo.outputPath("v2-setup-review.png"), fullPage: true });
   // A failed completion must neither move the route nor unlock backend state.
   await page.route("**/setup/finish", (route) => route.abort());
   await page.getByRole("button", { name: "Finish setup", exact: true }).click();
@@ -210,19 +268,19 @@ test("failed saves retain edits and stale revisions require an explicit recovera
   await expect(page.getByRole("alert")).toBeVisible();
   await expect(page.getByLabel("Email address", { exact: true })).toHaveValue(email);
   await page.getByRole("button", { name: "Start application", exact: true }).click();
-  await expect(page.getByLabel("Business name", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Legal business name", { exact: true })).toBeVisible();
   expect(creationKeys).toHaveLength(2);
   expect(new Set(creationKeys).size).toBe(1);
   expect((await api<{ items: Setup[] }>(page, "GET", "")).items).toHaveLength(1);
   await page.unroute("**/api/v1/banks/*/applications");
   const original = await setup(page);
-  await page.getByLabel("Business name", { exact: true }).fill("Synthetic unsaved name");
+  await page.getByLabel("Legal business name", { exact: true }).fill("Synthetic unsaved name");
   await page.route("**/applications/*/setup", (route) =>
     route.request().method() === "PATCH" ? route.abort() : route.continue(),
   );
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(page.getByRole("alert")).toBeVisible();
-  await expect(page.getByLabel("Business name", { exact: true })).toHaveValue(
+  await expect(page.getByLabel("Legal business name", { exact: true })).toHaveValue(
     "Synthetic unsaved name",
   );
   expect(await setup(page)).toMatchObject({
@@ -232,13 +290,14 @@ test("failed saves retain edits and stale revisions require an explicit recovera
   });
   await page.getByRole("button", { name: "Continue later", exact: true }).click();
   await expect(page.getByRole("alert")).toBeVisible();
-  await expect(page.getByLabel("Business name", { exact: true })).toHaveValue(
+  await expect(page.getByLabel("Legal business name", { exact: true })).toHaveValue(
     "Synthetic unsaved name",
   );
   await page.unroute("**/applications/*/setup");
 
   // Another device saves while the current browser still holds the original revision.
   await api(page, "PATCH", `/${original.id}/setup`, {
+    definitionVersion: 2,
     expectedRevision: original.revision,
     answers: { businessName: "Synthetic other-device name" },
     step: "business_name",
@@ -248,26 +307,29 @@ test("failed saves retain edits and stale revisions require an explicit recovera
   await expect(
     page.getByRole("button", { name: "Review latest saved version", exact: true }),
   ).toBeVisible();
-  await expect(page.getByLabel("Business name", { exact: true })).toHaveValue(
+  await expect(page.getByLabel("Legal business name", { exact: true })).toHaveValue(
     "Synthetic unsaved name",
   );
   await page.getByRole("button", { name: "Review latest saved version", exact: true }).click();
-  await expect(page.getByText("Synthetic other-device name", { exact: false })).toBeVisible();
-  await expect(page.getByLabel("Business name", { exact: true })).toHaveValue(
+  await expect(
+    page.getByText("Latest saved answer: Synthetic other-device name", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Legal business name", { exact: true })).toHaveValue(
     "Synthetic unsaved name",
   );
   await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(page.getByLabel("Requested amount", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Street address", { exact: true })).toBeVisible();
   expect(await setup(page)).toMatchObject({
     businessName: "Synthetic unsaved name",
-    currentStep: "amount",
+    currentStep: "business_address",
   });
   await expect(page.getByRole("button", { name: /Change .*product/i })).toHaveCount(0);
   await expect(page.getByLabel("Financial Product", { exact: true })).toHaveCount(0);
+  await addressAndOptionalSteps(page);
   await page.getByLabel("Requested amount", { exact: true }).fill("42000");
   await page.getByRole("button", { name: "Back", exact: true }).click();
-  await expect(page.getByLabel("Business name", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(page.getByLabel("Website", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Skip for now", exact: true }).click();
   await expect(page.getByLabel("Requested amount", { exact: true })).toHaveValue("42000.00");
 });
 
@@ -304,9 +366,10 @@ test("email start, expired-link recovery, and fresh links resume the same draft 
   await page.getByRole("button", { name: "Confirm and sign in", exact: true }).click();
   await expect(page.getByRole("button", { name: "Continue setup", exact: true })).toHaveCount(1);
   await page.getByRole("button", { name: "Continue setup", exact: true }).click();
-  await expect(page.getByLabel("Business name", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Legal business name", { exact: true })).toBeVisible();
   const original = await setup(page);
-  await answer(page, "Business name", "Synthetic Email Workshop", "Requested amount");
+  await answer(page, "Legal business name", "Synthetic Email Workshop", "Street address");
+  await addressAndOptionalSteps(page);
   await page.getByLabel("Requested amount", { exact: true }).fill("10000");
   await page.getByRole("button", { name: "Continue later", exact: true }).click();
   await expect(
@@ -356,18 +419,29 @@ test("a staff-prefilled draft requires the applicant to review and explicitly fi
   const productId = catalog.products[0]?.id;
   if (!productId) throw new Error("Expected an available synthetic financing product.");
   await api(page, "PATCH", `/${draft.id}/setup`, {
+    definitionVersion: 2,
     expectedRevision: draft.revision,
     answers: {
       businessName: "Synthetic Staff Prefill",
       productId,
       requestedAmount: "10000.00",
       purpose: "Synthetic equipment",
+      businessAddress: syntheticAddress,
+      fundingPurposes: ["equipment_purchase"],
+      purposeCatalogVersion: "2026-01",
     },
-    currentStep: "review",
+    currentStep: "business_name",
   });
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await demoSignIn(page, email);
   await page.getByRole("button", { name: "Continue setup", exact: true }).click();
+  await expect(page.getByLabel("Legal business name", { exact: true })).toHaveValue(
+    "Synthetic Staff Prefill",
+  );
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await addressAndOptionalSteps(page);
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Review your application setup", exact: true }),
   ).toBeVisible();
@@ -387,8 +461,9 @@ test("session recovery keeps unsaved answers and another signed-in account canno
   await page.goto(apply);
   await page.getByLabel("Email address", { exact: true }).fill(email);
   await page.getByRole("button", { name: "Start application", exact: true }).click();
-  await expect(page.getByLabel("Business name", { exact: true })).toBeVisible();
-  await answer(page, "Business name", "Synthetic Session Workshop", "Requested amount");
+  await expect(page.getByLabel("Legal business name", { exact: true })).toBeVisible();
+  await answer(page, "Legal business name", "Synthetic Session Workshop", "Street address");
+  await addressAndOptionalSteps(page);
   const saved = await setup(page);
   await page.getByLabel("Requested amount", { exact: true }).fill("37500");
 
@@ -418,8 +493,8 @@ test("session recovery keeps unsaved answers and another signed-in account canno
   await expect(page.getByLabel("Requested amount", { exact: true })).toHaveValue("37500");
   expect((await setup(page)).requestedAmount).toBeNull();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(page.getByLabel("Loan purpose", { exact: true })).toBeVisible();
-  await page.getByLabel("Loan purpose", { exact: true }).fill("Synthetic unsaved purpose");
+  await expect(page.getByRole("checkbox", { name: "Working capital", exact: true })).toBeVisible();
+  await page.getByRole("checkbox", { name: "Working capital", exact: true }).check();
 
   // A fresh device has no access to this tab's recovery memory and resumes server data.
   const otherDevice = await browser.newContext({ viewport: page.viewportSize() });
@@ -430,7 +505,9 @@ test("session recovery keeps unsaved answers and another signed-in account canno
       otherDevicePage.getByRole("button", { name: "Continue setup", exact: true }),
     ).toHaveCount(1);
     await otherDevicePage.getByRole("button", { name: "Continue setup", exact: true }).click();
-    await expect(otherDevicePage.getByLabel("Loan purpose", { exact: true })).toHaveValue("");
+    await expect(
+      otherDevicePage.getByRole("checkbox", { name: "Working capital", exact: true }),
+    ).not.toBeChecked();
     expect(await setup(otherDevicePage)).toMatchObject({
       id: saved.id,
       businessName: "Synthetic Session Workshop",
@@ -445,14 +522,16 @@ test("session recovery keeps unsaved answers and another signed-in account canno
   const startPage = await context.newPage();
   await startPage.goto(apply);
   await expect(startPage.getByText("Start a new application", { exact: true })).toBeVisible();
-  let staleMutations = 0;
+  let acceptedStaleMutations = 0;
   for (const stalePage of [page, startPage]) {
-    stalePage.on("request", (request) => {
+    stalePage.on("response", (response) => {
+      const request = response.request();
       if (
+        response.ok() &&
         ["POST", "PATCH"].includes(request.method()) &&
         /\/api\/v1\/banks\/[^/]+\/applications(?:\/|$)/.test(new URL(request.url()).pathname)
       )
-        staleMutations += 1;
+        acceptedStaleMutations += 1;
     });
   }
   expect(
@@ -474,11 +553,95 @@ test("session recovery keeps unsaved answers and another signed-in account canno
   ).toBe(true);
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(page.getByRole("alert").filter({ hasText: "Your sign-in changed" })).toBeVisible();
-  await expect(page.getByLabel("Loan purpose", { exact: true })).toHaveValue(
-    "Synthetic unsaved purpose",
-  );
+  await expect(page.getByRole("checkbox", { name: "Working capital", exact: true })).toBeChecked();
   await startPage.getByRole("button", { name: "Start application", exact: true }).click();
   await expect(startPage.getByRole("alert")).toContainText("Your sign-in changed");
-  expect(staleMutations).toBe(0);
+  expect(acceptedStaleMutations).toBe(0);
   await startPage.close();
+});
+
+test("optional EIN, website and Other detail persist safely and require deliberate replacement or clearing", async ({
+  page,
+}) => {
+  await page.goto(apply);
+  await page
+    .getByLabel("Email address", { exact: true })
+    .fill(`intake-optional-${randomUUID()}@example.test`);
+  await page.getByRole("button", { name: "Start application", exact: true }).click();
+  await answer(page, "Legal business name", "Synthetic Optional Workshop", "Street address");
+  for (const [label, value] of [
+    ["Street address", "100 Demo Street"],
+    ["City", "Portland"],
+    ["State or region", "ME"],
+    ["Postal code", "04101"],
+    ["Country code", "US"],
+  ])
+    await page.getByLabel(label, { exact: true }).fill(value);
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page.getByLabel("Business EIN", { exact: true }).fill("000000003");
+  await page.route("**/setup/identifier", (route) => route.abort());
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(page.getByLabel("Business EIN", { exact: true })).toHaveValue("000000003");
+  expect((await setup(page)).businessEin.present).toBe(false);
+  await page.unroute("**/setup/identifier");
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(page.getByLabel("Industry", { exact: true })).toBeVisible();
+  expect((await setup(page)).businessEin).toMatchObject({ present: true });
+  expect(JSON.stringify(await setup(page))).not.toContain("000000003");
+  expect(
+    await page.evaluate(() =>
+      JSON.stringify({ local: { ...localStorage }, session: { ...sessionStorage } }),
+    ),
+  ).not.toContain("000000003");
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await expect(page.getByLabel("Business EIN", { exact: true })).toHaveValue("");
+  await expect(page.getByRole("button", { name: "Replace saved EIN", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Skip for now", exact: true }).click();
+  expect((await setup(page)).businessEin.present).toBe(true);
+  await page.getByRole("button", { name: "Skip for now", exact: true }).click();
+  await expect(page.getByText("Industry not provided", { exact: true })).toBeVisible();
+  await page.getByLabel("Website", { exact: true }).fill("javascript:alert(1)");
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(page.getByRole("alert")).toBeVisible();
+  expect((await setup(page)).website).toBeNull();
+  await answer(page, "Website", "https://demo.example.test", "Requested amount");
+  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await expect(page.getByLabel("Website", { exact: true })).toHaveValue(
+    "https://demo.example.test/",
+  );
+  await page.getByRole("button", { name: "Skip for now", exact: true }).click();
+  expect((await setup(page)).website).toBe("https://demo.example.test/");
+  await answer(page, "Requested amount", "25000", "Working capital");
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(page.getByRole("alert")).toBeVisible();
+  await page.getByRole("checkbox", { name: "Other", exact: true }).check();
+  await page.getByRole("checkbox", { name: "Conventional", exact: true }).check();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(page.getByLabel("Other funding purpose", { exact: true })).toBeVisible();
+  await expect(page.getByRole("checkbox")).toHaveCount(0);
+  await page.getByLabel("Other funding purpose", { exact: true }).fill("Synthetic expansion plan");
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Review your application setup", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("Synthetic expansion plan", { exact: true })).toBeVisible();
+  await expect(page.getByText("Other, Conventional", { exact: true })).toBeVisible();
+  await assertNoOverflow(page);
+  await page.getByRole("button", { name: "Edit business ein", exact: true }).click();
+  await page.getByRole("button", { name: "Clear saved EIN", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Clear saved EIN", exact: true })).toHaveCount(0);
+  expect((await setup(page)).businessEin.present).toBe(false);
+  await page.getByRole("button", { name: "Skip for now", exact: true }).click();
+  await page.getByRole("button", { name: "Skip for now", exact: true }).click();
+  await page.getByRole("button", { name: "Clear saved website", exact: true }).click();
+  await expect(page.getByLabel("Website", { exact: true })).toHaveValue("");
+  expect((await setup(page)).website).toBeNull();
+  await page.getByRole("button", { name: "Skip for now", exact: true }).click();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page.getByRole("button", { name: "Skip for now", exact: true }).click();
+  await expect(page.getByText("Synthetic expansion plan", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Finish setup", exact: true }).click();
+  await expect(page.getByText("Initial setup complete", { exact: true })).toBeVisible();
 });

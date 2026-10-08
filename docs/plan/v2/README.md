@@ -1,8 +1,8 @@
 # Version 2 — Borrower tasks and lender application records
 
-Planning date: October 8, 2026. **Documentation complete; implementation not started.** This is the next implementation backlog, based on the user's twelve Cascading AI reference images and accompanying instructions. It extends the completed first-release plan; it does not authorize building every task or claim that these features are already available.
+Planning date: October 8, 2026. **V2-01 complete locally; V2-02–V2-08 not started.** This is the next implementation backlog, based on the user's twelve Cascading AI reference images and accompanying instructions. It extends the completed first-release plan. Only V2-01 has been implemented and verified; the remaining backlog is not a claim of available behavior.
 
-Start with [screenshot findings](01-screenshot-findings.md), then [experience requirements](02-experience-spec.md), [data and simulation contracts](03-data-and-simulation.md), and [delivery tasks and validation](04-delivery-and-validation.md). Read the [existing plan](../README.md) and its architecture/access rules as well. When implementation is requested without a task number, start at V2-01, the first unfinished task with completed dependencies.
+Start with [screenshot findings](01-screenshot-findings.md), then [experience requirements](02-experience-spec.md), [data and simulation contracts](03-data-and-simulation.md), and [delivery tasks and validation](04-delivery-and-validation.md). Read the [existing plan](../README.md) and its architecture/access rules as well. When implementation is requested without a task number, start at V2-02, the first unfinished task with completed dependencies.
 
 ## Outcome
 
@@ -26,7 +26,7 @@ Removal means replacing navigation or a particular interaction, not deleting sto
 
 | ID | Deliverable | New prerequisites | Status |
 | --- | --- | --- | --- |
-| V2-01 | [Setup fields, purposes and migration](04-delivery-and-validation.md#v2-01--setup-contracts-migration-and-wizard) | Completed baseline T07, T08, T15 | Not started |
+| V2-01 | [Setup fields, purposes and migration](04-delivery-and-validation.md#v2-01--setup-contracts-migration-and-wizard) | Completed baseline T07, T08, T15 | Done — local acceptance |
 | V2-02 | [Borrower dashboard without tabs](04-delivery-and-validation.md#v2-02--borrower-task-dashboard) | V2-01 | Not started |
 | V2-03 | [Demo text importer and document fixtures](04-delivery-and-validation.md#v2-03--demo-text-importer-and-registered-fixtures) | Completed baseline D05, T13, T14 | Not started |
 | V2-04 | [Document review and financial records](04-delivery-and-validation.md#v2-04--document-workspace-and-reviewed-financial-facts) | V2-01, V2-03 | Not started |

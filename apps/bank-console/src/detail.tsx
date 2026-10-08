@@ -1,4 +1,6 @@
 import {
+  fundingPurposeOptions,
+  industryByCode,
   type StaffNote,
   type StaffOptions,
   type StaffWorkspace,
@@ -161,11 +163,43 @@ export function ApplicationDetail() {
                     </CardHeader>
                     <CardContent>
                       <dl className="space-y-4 text-sm">
-                        <Item label="Business name">{data.businessName ?? "Not provided"}</Item>
-                        <Item label="Purpose">{data.purpose ?? "Not provided"}</Item>
+                        <Item label="Legal business name">
+                          {data.businessName ?? "Not provided"}
+                        </Item>
+                        <Item label="Funding purposes">
+                          {data.fundingPurposes.length
+                            ? data.fundingPurposes
+                                .map(
+                                  (id) =>
+                                    fundingPurposeOptions.find((option) => option.id === id)?.label,
+                                )
+                                .join(", ")
+                            : "Not provided"}
+                        </Item>
+                        {data.otherPurposeDetail && (
+                          <Item label="Other purpose details">{data.otherPurposeDetail}</Item>
+                        )}
+                        {data.purpose && (
+                          <Item label="Previous purpose response">{data.purpose}</Item>
+                        )}
+                        <Item label="Business address">
+                          {data.businessAddress
+                            ? [
+                                data.businessAddress.line1,
+                                data.businessAddress.line2,
+                                data.businessAddress.locality,
+                                data.businessAddress.region,
+                                data.businessAddress.postalCode,
+                                data.businessAddress.countryCode,
+                              ]
+                                .filter(Boolean)
+                                .join(", ")
+                            : "Not provided"}
+                        </Item>
+                        <Item label="Website">{data.website ?? "Not provided"}</Item>
                         <Item label="Industry">
                           {data.industryCode
-                            ? `${data.industryCode} · ${data.industryTaxonomyVersion}`
+                            ? `${data.industryCode} · ${industryByCode(data.industryCode)?.title ?? data.industryTaxonomyVersion}`
                             : "Not provided"}
                         </Item>
                         <Item label="Created by">

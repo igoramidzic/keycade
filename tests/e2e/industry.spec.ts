@@ -13,14 +13,18 @@ async function industryStep(page: Page) {
     .getByLabel("Email address", { exact: true })
     .fill(`industry-${randomUUID()}@example.test`);
   await page.getByRole("button", { name: "Start application", exact: true }).click();
+  await page.getByLabel("Legal business name", { exact: true }).fill("Synthetic Dental Office");
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
   for (const [label, value] of [
-    ["Business name", "Synthetic Dental Office"],
-    ["Requested amount", "25000"],
-    ["Loan purpose", "Synthetic equipment"],
-  ]) {
+    ["Street address", "100 Demo Street"],
+    ["City", "Portland"],
+    ["State or region", "ME"],
+    ["Postal code", "04101"],
+    ["Country code", "US"],
+  ])
     await page.getByLabel(label, { exact: true }).fill(value);
-    await page.getByRole("button", { name: "Continue", exact: true }).click();
-  }
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page.getByRole("button", { name: "Skip for now", exact: true }).click();
   await expect(page.getByLabel("Industry", { exact: true })).toBeVisible();
 }
 
@@ -55,10 +59,12 @@ test("industry search supports keyboard selection, exact persistence, no match a
   await page.keyboard.press("Enter");
   await expect(trigger).toContainText("Offices of Dentists (621210)");
   await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Review your application setup" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "What is your business website?" })).toBeVisible();
   expect(await savedIndustry(page)).toMatchObject({ code: "621210", version: "2022" });
   await page.reload();
+  await page.getByLabel("Website", { exact: true }).fill("https://unsaved.example.test");
   await page.getByRole("button", { name: "Edit industry", exact: true }).click();
+  await page.getByRole("button", { name: "Replace saved industry", exact: true }).click();
   await trigger.click();
   await search.fill("zzzxxyykkqq");
   await expect(
@@ -77,12 +83,15 @@ test("industry search supports keyboard selection, exact persistence, no match a
   await expect(search).not.toBeVisible();
   await expect(trigger).toBeFocused();
   await page.getByRole("button", { name: "Skip for now", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Review your application setup" })).toBeVisible();
-  expect(await savedIndustry(page)).toMatchObject({
-    code: null,
-    version: null,
-    skipped: ["industry"],
-  });
+  await expect(page.getByRole("heading", { name: "What is your business website?" })).toBeVisible();
+  expect(await savedIndustry(page)).toMatchObject({ code: "621210", version: "2022" });
+  await expect(page.getByLabel("Website", { exact: true })).toHaveValue(
+    "https://unsaved.example.test",
+  );
+  await page.getByRole("button", { name: "Edit industry", exact: true }).click();
+  await page.getByRole("button", { name: "Clear saved industry", exact: true }).click();
+  expect(await savedIndustry(page)).toMatchObject({ code: null, version: null });
+  expect((await savedIndustry(page)).skipped).toContain("industry");
 });
 
 test("industry search retains the query on retry and ignores out-of-order results", async ({

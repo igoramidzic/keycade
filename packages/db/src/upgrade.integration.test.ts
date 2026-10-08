@@ -111,8 +111,24 @@ it("adds closing policies to every existing synthetic business-credit version wi
         expect.objectContaining({ key: "closing-agreement", kind: "signature", required: true }),
       ]);
     }
-    expect((await readApplications()).rows).toEqual(beforeApplications);
-    expect((await readSetups()).rows).toEqual(beforeSetups);
+    expect((await readApplications()).rows).toMatchObject(
+      beforeApplications.map((row) =>
+        row.id === seedIds.applicationSmall ? row : { ...row, revision: row.revision + 1 },
+      ),
+    );
+    expect((await readSetups()).rows).toEqual(
+      beforeSetups.map((row) =>
+        row.completed_at
+          ? row
+          : {
+              ...row,
+              definition_version: 2,
+              revision:
+                beforeApplications.find((application) => application.id === row.application_id)
+                  .revision + 1,
+            },
+      ),
+    );
     expect((await database.pool.query("SELECT * FROM loan_products ORDER BY id")).rows).toEqual(
       beforeProducts,
     );
@@ -133,8 +149,24 @@ it("adds closing policies to every existing synthetic business-credit version wi
       (await database.pool.query("SELECT * FROM product_closing_policies ORDER BY product_id"))
         .rows,
     ).toEqual(policies);
-    expect((await readApplications()).rows).toEqual(beforeApplications);
-    expect((await readSetups()).rows).toEqual(beforeSetups);
+    expect((await readApplications()).rows).toMatchObject(
+      beforeApplications.map((row) =>
+        row.id === seedIds.applicationSmall ? row : { ...row, revision: row.revision + 1 },
+      ),
+    );
+    expect((await readSetups()).rows).toEqual(
+      beforeSetups.map((row) =>
+        row.completed_at
+          ? row
+          : {
+              ...row,
+              definition_version: 2,
+              revision:
+                beforeApplications.find((application) => application.id === row.application_id)
+                  .revision + 1,
+            },
+      ),
+    );
   } finally {
     await database.cleanup();
     await rm(folder, { recursive: true, force: true });
@@ -267,8 +299,8 @@ it("upgrades historical drafts and later lifecycle applications without inventin
       status: "draft",
       business_name: "Synthetic historical business",
       demo_created: false,
-      revision: 7,
-      definition_version: 1,
+      revision: 8,
+      definition_version: 2,
       current_step: "business_name",
       completed_steps: [],
       skipped_steps: [],
@@ -331,15 +363,21 @@ it("assigns the fixed bank product to legacy drafts and resumes past product sel
       product_id: seedIds.productA,
       business_name: "Synthetic saved draft",
       requested_amount: null,
-      revision: 8,
-      setup_revision: 8,
-      current_step: "amount",
+      revision: 9,
+      setup_revision: 9,
+      current_step: "business_address",
       completed_steps: ["business_name"],
       completed_at: null,
       completed_by_user_id: null,
     });
     expect(after.filter((row) => row.id !== seedIds.applicationEmpty)).toEqual(
-      before.filter((row) => row.id !== seedIds.applicationEmpty),
+      before
+        .filter((row) => row.id !== seedIds.applicationEmpty)
+        .map((row) =>
+          row.id === seedIds.applicationSmall
+            ? row
+            : { ...row, revision: row.revision + 1, setup_revision: row.setup_revision + 1 },
+        ),
     );
     await migrateDatabase(database.connectionString);
     expect((await read()).rows).toEqual(after);
@@ -369,8 +407,12 @@ it("adds internal staff notes without altering pre-T10 applications and enforces
     const before = (await database.pool.query("SELECT * FROM applications ORDER BY id")).rows;
     await migrateDatabase(database.connectionString);
     await assertSchemaReady(database.connectionString);
-    expect((await database.pool.query("SELECT * FROM applications ORDER BY id")).rows).toEqual(
-      before,
+    expect(
+      (await database.pool.query("SELECT * FROM applications ORDER BY id")).rows,
+    ).toMatchObject(
+      before.map((row) =>
+        row.id === seedIds.applicationSmall ? row : { ...row, revision: row.revision + 1 },
+      ),
     );
     expect((await database.pool.query("SELECT * FROM staff_notes")).rows).toEqual([]);
     await database.pool.query(
@@ -432,8 +474,12 @@ it("upgrades pre-T11 grants and auth deliveries without granting additional acce
     const beforeTokens = (await database.pool.query("SELECT * FROM login_tokens ORDER BY id")).rows;
     await migrateDatabase(database.connectionString);
     await assertSchemaReady(database.connectionString);
-    expect((await database.pool.query("SELECT * FROM applications ORDER BY id")).rows).toEqual(
-      beforeApplications,
+    expect(
+      (await database.pool.query("SELECT * FROM applications ORDER BY id")).rows,
+    ).toMatchObject(
+      beforeApplications.map((row) =>
+        row.id === seedIds.applicationSmall ? row : { ...row, revision: row.revision + 1 },
+      ),
     );
     const afterParticipants = (
       await database.pool.query("SELECT * FROM application_participants ORDER BY id")
@@ -467,6 +513,129 @@ it("upgrades pre-T11 grants and auth deliveries without granting additional acce
     expect(
       (await database.pool.query("SELECT * FROM access_delivery_requests ORDER BY id")).rows,
     ).toEqual(afterDeliveries);
+  } finally {
+    await database.cleanup();
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
+it("upgrades every unfinished v1 step while preserving answers, optional skips, staff prefills and completed legacy setups", async () => {
+  const folder = await mkdtemp(join(tmpdir(), "keycade-before-v2-setup-"));
+  const database = await createTestDatabase(undefined, { migrate: false });
+  try {
+    const journal = JSON.parse(
+      await readFile(join(migrationsFolder, "meta/_journal.json"), "utf8"),
+    ) as { entries: { idx: number; tag: string }[] };
+    journal.entries = journal.entries.filter((entry) => entry.idx < 21);
+    await mkdir(join(folder, "meta"));
+    await writeFile(join(folder, "meta/_journal.json"), JSON.stringify(journal));
+    await Promise.all(
+      journal.entries.map((entry) =>
+        copyFile(join(migrationsFolder, `${entry.tag}.sql`), join(folder, `${entry.tag}.sql`)),
+      ),
+    );
+    await migrate(database.db, { migrationsFolder: folder });
+    await seedHistoricalDatabase(database);
+    const completed = (
+      await database.pool.query("SELECT * FROM application_setups WHERE completed_at IS NOT NULL")
+    ).rows;
+    const ids: string[] = [];
+    for (const step of [
+      "business_name",
+      "product",
+      "amount",
+      "purpose",
+      "industry",
+      "review",
+      "staff_prefill",
+    ]) {
+      const id = randomUUID();
+      ids.push(id);
+      await database.pool.query(
+        `INSERT INTO applications (id,bank_id,product_id,source,business_name,purpose,requested_amount,industry_code,industry_taxonomy_version,revision,synthetic)
+        VALUES ($1,$2,$3,$4,'Synthetic retained legal name','Ambiguous historical purpose, kept verbatim',25000.00,'541511','2022',7,true)`,
+        [id, seedIds.bankA, seedIds.productA, step === "staff_prefill" ? "staff" : "borrower"],
+      );
+      await database.pool.query(
+        `INSERT INTO application_setups (application_id,bank_id,current_step,completed_steps,skipped_steps,revision)
+        VALUES ($1,$2,$3,$4,ARRAY['industry']::text[],7)`,
+        [
+          id,
+          seedIds.bankA,
+          step === "staff_prefill" ? "business_name" : step,
+          step === "business_name" || step === "staff_prefill"
+            ? []
+            : ["business_name", "amount", "purpose"],
+        ],
+      );
+    }
+    const before = (
+      await database.pool.query(
+        "SELECT * FROM applications WHERE id = ANY($1::uuid[]) ORDER BY id",
+        [ids],
+      )
+    ).rows;
+    await migrateDatabase(database.connectionString);
+    await assertSchemaReady(database.connectionString);
+    const after = (
+      await database.pool.query(
+        "SELECT * FROM applications WHERE id = ANY($1::uuid[]) ORDER BY id",
+        [ids],
+      )
+    ).rows;
+    expect(after).toMatchObject(before.map((row) => ({ ...row, revision: row.revision + 1 })));
+    for (const row of after)
+      expect(row).toMatchObject({
+        business_address: null,
+        business_address_revision: 0,
+        website: null,
+        funding_purposes: [],
+        purpose_catalog_version: null,
+        other_purpose_detail: null,
+      });
+    const setups = (
+      await database.pool.query(
+        "SELECT * FROM application_setups WHERE application_id = ANY($1::uuid[]) ORDER BY application_id",
+        [ids],
+      )
+    ).rows;
+    for (const setup of setups) {
+      expect(setup).toMatchObject({
+        definition_version: 2,
+        revision: 8,
+        skipped_steps: ["industry"],
+        completed_at: null,
+      });
+      expect(setup.current_step).toBe(
+        setup.completed_steps.includes("business_name") ? "business_address" : "business_name",
+      );
+      expect(setup.completed_steps).toEqual(
+        [ids[0], ids[6]].includes(setup.application_id)
+          ? []
+          : ["business_name", "amount", "purpose"],
+      );
+    }
+    expect(
+      (await database.pool.query("SELECT * FROM application_setups WHERE completed_at IS NOT NULL"))
+        .rows,
+    ).toEqual(completed);
+    await migrateDatabase(database.connectionString);
+    expect(
+      (
+        await database.pool.query(
+          "SELECT * FROM applications WHERE id = ANY($1::uuid[]) ORDER BY id",
+          [ids],
+        )
+      ).rows,
+    ).toEqual(after);
+    expect(
+      (
+        await database.pool.query(
+          "SELECT * FROM application_setups WHERE application_id = ANY($1::uuid[]) ORDER BY application_id",
+          [ids],
+        )
+      ).rows,
+    ).toEqual(setups);
   } finally {
     await database.cleanup();
     await rm(folder, { recursive: true, force: true });

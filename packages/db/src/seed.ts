@@ -306,7 +306,8 @@ export async function seedDatabase(connectionString: string): Promise<void> {
               applicationId: application.id,
               bankId: application.bankId,
               revision: application.revision,
-              currentStep: completed ? "review" : namedDraft ? "amount" : "business_name",
+              definitionVersion: completed ? 1 : 2,
+              currentStep: completed ? "review" : namedDraft ? "business_address" : "business_name",
               completedSteps: completed
                 ? ["business_name", "product", "amount", "purpose"]
                 : namedDraft

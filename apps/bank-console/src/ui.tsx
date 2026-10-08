@@ -59,7 +59,11 @@ export const statusLabels: Record<string, string> = {
   withdrawn: "Withdrawn",
 };
 export const stepLabels: Record<string, string> = {
-  business_name: "Business name",
+  business_name: "Legal business name",
+  business_address: "Business address",
+  business_ein: "Business EIN (optional)",
+  website: "Website (optional)",
+  other_purpose: "Other purpose details (optional)",
   product: "Requested amount",
   amount: "Requested amount",
   purpose: "Purpose",

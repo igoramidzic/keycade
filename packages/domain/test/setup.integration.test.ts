@@ -122,11 +122,28 @@ async function ready(actor: Actor, applicationId: string, revision: number) {
       answers: { businessName: "Synthetic Workshop" },
       currentStep: "amount",
     },
-    { step: "product", answers: { productId: ids.productA }, currentStep: "amount" },
+    {
+      step: "business_address",
+      answers: {
+        businessAddress: {
+          line1: "42 Synthetic Avenue",
+          locality: "Teston",
+          region: "NY",
+          postalCode: "10001",
+          countryCode: "US",
+        },
+      },
+      currentStep: "business_ein",
+    },
+    { step: "business_ein", answers: {}, skip: true, currentStep: "industry" },
+    { step: "website", answers: {}, skip: true, currentStep: "amount" },
     { step: "amount", answers: { requestedAmount: "5000000.00" }, currentStep: "purpose" },
     {
       step: "purpose",
-      answers: { purpose: "Synthetic equipment acquisition" },
+      answers: {
+        fundingPurposes: ["equipment_purchase", "working_capital"],
+        purposeCatalogVersion: "2026-01",
+      },
       currentStep: "industry",
     },
     { step: "industry", answers: {}, skip: true, currentStep: "review" },
@@ -137,7 +154,7 @@ async function ready(actor: Actor, applicationId: string, revision: number) {
       actor,
       ids.bankA,
       applicationId,
-      { ...command, expectedRevision: revision },
+      { ...command, definitionVersion: 2, expectedRevision: revision },
       randomUUID(),
     );
     revision = view.revision;
@@ -177,7 +194,7 @@ describe("real PostgreSQL email-first application creation and resume", () => {
       productId: ids.productA,
     });
     expect(setup).toMatchObject({
-      definitionVersion: 1,
+      definitionVersion: 2,
       currentStep: "business_name",
       completedSteps: [],
       skippedSteps: [],
@@ -399,6 +416,7 @@ describe("real PostgreSQL email-first application creation and resume", () => {
       ids.bankA,
       second.applicationId,
       {
+        definitionVersion: 2,
         expectedRevision: claimed.revision,
         answers: { businessName: "Synthetic saved from an earlier device" },
         step: "business_name",
@@ -489,7 +507,24 @@ describe("real PostgreSQL authenticated creation and setup", () => {
       },
       randomUUID(),
     );
-    const filled = await ready(officer, staffDraft.id, staffDraft.revision);
+    const filled = await service().saveSetup(
+      officer,
+      ids.bankA,
+      staffDraft.id,
+      {
+        definitionVersion: 2,
+        expectedRevision: staffDraft.revision,
+        answers: {
+          businessName: "Synthetic staff-prefilled workshop",
+          requestedAmount: "25000.00",
+          fundingPurposes: ["equipment_purchase"],
+          purposeCatalogVersion: "2026-01",
+        },
+        currentStep: "business_name",
+      },
+      randomUUID(),
+    );
+    expect(filled.completedSteps).toEqual([]);
     expect(filled).toMatchObject({
       status: "draft",
       setupStatus: "in_progress",
@@ -501,6 +536,7 @@ describe("real PostgreSQL authenticated creation and setup", () => {
         ids.bankA,
         staffDraft.id,
         {
+          definitionVersion: 2,
           expectedRevision: filled.revision,
           idempotencyKey: randomUUID(),
         },
@@ -603,6 +639,7 @@ describe("real PostgreSQL authenticated creation and setup", () => {
           ids.bankA,
           draft.id,
           {
+            definitionVersion: 2,
             expectedRevision: draft.revision,
             answers: { productId: replacement.id },
             currentStep: "amount",
@@ -631,6 +668,7 @@ describe("real PostgreSQL authenticated creation and setup", () => {
         ids.bankA,
         draft.id,
         {
+          definitionVersion: 2,
           expectedRevision: draft.revision,
           answers: { requestedAmount: amount },
           step: "amount",
@@ -648,6 +686,7 @@ describe("real PostgreSQL authenticated creation and setup", () => {
           ids.bankA,
           draft.id,
           {
+            definitionVersion: 2,
             expectedRevision: draft.revision,
             answers: { requestedAmount: amount },
             step: "amount",
@@ -692,6 +731,7 @@ describe("real PostgreSQL authenticated creation and setup", () => {
           ids.bankA,
           draft.id,
           {
+            definitionVersion: 2,
             expectedRevision: draft.revision,
             answers: { productId: other.id },
             currentStep: "amount",
@@ -707,6 +747,7 @@ describe("real PostgreSQL authenticated creation and setup", () => {
       ids.bankA,
       draft.id,
       {
+        definitionVersion: 2,
         expectedRevision: draft.revision,
         answers: { productId: ids.productA },
         currentStep: "product",
@@ -728,6 +769,7 @@ describe("real PostgreSQL authenticated creation and setup", () => {
       { completedSteps: ["business_name"] },
     ]) {
       const invalid = {
+        definitionVersion: 2,
         expectedRevision: draft.revision,
         answers: {},
         currentStep: "review" as const,
@@ -744,6 +786,7 @@ describe("real PostgreSQL authenticated creation and setup", () => {
           ids.bankA,
           draft.id,
           {
+            definitionVersion: 2,
             expectedRevision: draft.revision,
             answers,
             currentStep: "business_name",
@@ -758,6 +801,7 @@ describe("real PostgreSQL authenticated creation and setup", () => {
         ids.bankA,
         draft.id,
         {
+          definitionVersion: 2,
           expectedRevision: draft.revision,
           answers: {},
           step: "business_name",
@@ -773,6 +817,7 @@ describe("real PostgreSQL authenticated creation and setup", () => {
       ids.bankA,
       draft.id,
       {
+        definitionVersion: 2,
         expectedRevision: draft.revision,
         answers: {},
         step: "industry",
@@ -795,6 +840,7 @@ describe("real PostgreSQL authenticated creation and setup", () => {
           ids.bankA,
           draft.id,
           {
+            definitionVersion: 2,
             expectedRevision: skipped.revision,
             answers,
             step: "industry",
@@ -810,6 +856,7 @@ describe("real PostgreSQL authenticated creation and setup", () => {
       ids.bankA,
       draft.id,
       {
+        definitionVersion: 2,
         expectedRevision: skipped.revision,
         answers: { industryCode: "541511", industryTaxonomyVersion: "2022" },
         step: "industry",
@@ -848,6 +895,7 @@ describe("real PostgreSQL authenticated creation and setup", () => {
           bankId,
           draft.id,
           {
+            definitionVersion: 2,
             expectedRevision: draft.revision,
             answers: { purpose: "Unauthorized" },
             currentStep: "purpose",
@@ -870,6 +918,7 @@ describe("real PostgreSQL authenticated creation and setup", () => {
           ids.bankA,
           draft.id,
           {
+            definitionVersion: 2,
             expectedRevision: draft.revision,
             answers: { businessName },
             step: "business_name",
@@ -937,6 +986,7 @@ describe("real PostgreSQL authenticated creation and setup", () => {
         ids.bankA,
         draft.id,
         {
+          definitionVersion: 2,
           expectedRevision: filled.revision,
           answers: { purpose: "Stale autosave" },
           currentStep: "purpose",
@@ -963,6 +1013,7 @@ describe("real PostgreSQL authenticated creation and setup", () => {
           ids.bankA,
           draft.id,
           {
+            definitionVersion: 2,
             expectedRevision: draft.revision,
             answers: { businessName: "Must roll back" },
             step: "business_name",
@@ -988,7 +1039,7 @@ describe("real PostgreSQL authenticated creation and setup", () => {
         actor,
         ids.bankA,
         first.id,
-        { expectedRevision: first.revision, idempotencyKey: randomUUID() },
+        { definitionVersion: 2, expectedRevision: first.revision, idempotencyKey: randomUUID() },
         randomUUID(),
       ),
     ).rejects.toMatchObject({ code: "INVALID_INPUT" });
@@ -1006,11 +1057,15 @@ describe("real PostgreSQL authenticated creation and setup", () => {
         actor,
         ids.bankA,
         first.id,
-        { expectedRevision: first.revision, idempotencyKey: randomUUID() },
+        { definitionVersion: 2, expectedRevision: first.revision, idempotencyKey: randomUUID() },
         randomUUID(),
       ),
     ).rejects.toMatchObject({ code: "REVISION_CONFLICT" });
-    const command = { expectedRevision: filled.revision, idempotencyKey: randomUUID() };
+    const command = {
+      definitionVersion: 2,
+      expectedRevision: filled.revision,
+      idempotencyKey: randomUUID(),
+    };
     const completed = await service().finishSetup(
       actor,
       ids.bankA,
@@ -1050,7 +1105,11 @@ describe("real PostgreSQL authenticated creation and setup", () => {
     const { actor } = await verifiedApplicant();
     const draft = await create(actor);
     const filled = await ready(actor, draft.id, draft.revision);
-    const command = { expectedRevision: filled.revision, idempotencyKey: randomUUID() };
+    const command = {
+      definitionVersion: 2,
+      expectedRevision: filled.revision,
+      idempotencyKey: randomUUID(),
+    };
     const beforeAudit = await audits(draft.id);
     await database.db.execute(
       sql`CREATE FUNCTION setup_finish_reject_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'synthetic audit failure'; END; $$`,
@@ -1097,13 +1156,18 @@ describe("real PostgreSQL authenticated creation and setup", () => {
       ids.bankA,
       draft.id,
       {
+        definitionVersion: 2,
         expectedRevision: filled.revision,
         idempotencyKey: randomUUID(),
       },
       randomUUID(),
     );
     const eventCount = (await audits(draft.id)).length;
-    const newCommand = { expectedRevision: completed.revision, idempotencyKey: randomUUID() };
+    const newCommand = {
+      definitionVersion: 2,
+      expectedRevision: completed.revision,
+      idempotencyKey: randomUUID(),
+    };
     expect(
       await service().finishSetup(actor, ids.bankA, draft.id, newCommand, randomUUID()),
     ).toEqual(completed);
@@ -1117,6 +1181,7 @@ describe("real PostgreSQL authenticated creation and setup", () => {
         draft.id,
         {
           ...newCommand,
+          definitionVersion: 2,
           expectedRevision: completed.revision + 1,
         },
         randomUUID(),
@@ -1166,6 +1231,7 @@ describe("real PostgreSQL authenticated creation and setup", () => {
         ids.bankA,
         draft.id,
         {
+          definitionVersion: 2,
           expectedRevision: draft.revision,
           answers: { purpose: "Cannot revive" },
           currentStep: "purpose",
@@ -1199,7 +1265,7 @@ describe("synthetic demo application setup boundaries", () => {
       resumed.session.actor,
       ids.bankA,
       draft.id,
-      { expectedRevision: filled.revision, idempotencyKey: randomUUID() },
+      { definitionVersion: 2, expectedRevision: filled.revision, idempotencyKey: randomUUID() },
       randomUUID(),
     );
     expect(completed.setupStatus).toBe("completed");
@@ -1279,5 +1345,422 @@ describe("synthetic demo application setup boundaries", () => {
     await expect(
       readStaffApplication(database.db, signedIn.session.actor, ids.bankA, draft.id),
     ).rejects.toMatchObject(notFound);
+  });
+});
+
+describe("v2 setup answers, acknowledgments and compatibility", () => {
+  const businessAddress = {
+    line1: "42 Synthetic Avenue",
+    line2: "Suite Demo",
+    locality: "Teston",
+    region: "NY",
+    postalCode: "10001",
+    countryCode: "US",
+  };
+  it("rejects old client save/completion without losing current answers and denies unacknowledged prefills", async () => {
+    const { actor, email } = await verifiedApplicant();
+    const draft = await service().create(
+      officer,
+      ids.bankA,
+      {
+        email,
+        idempotencyKey: randomUUID(),
+        answers: {
+          businessName: "Synthetic Prefill",
+          businessAddress,
+          requestedAmount: "25000.00",
+          purpose: "Ambiguous historical text",
+          fundingPurposes: ["equipment_purchase"],
+          purposeCatalogVersion: "2026-01",
+        },
+      },
+      randomUUID(),
+    );
+    await service().claim(actor, ids.bankA, draft.id, randomUUID());
+    for (const command of [
+      () =>
+        service().saveSetup(
+          actor,
+          ids.bankA,
+          draft.id,
+          {
+            expectedRevision: draft.revision,
+            answers: { purpose: "Old browser overwrite" },
+            currentStep: "review",
+          },
+          randomUUID(),
+        ),
+      () =>
+        service().finishSetup(
+          actor,
+          ids.bankA,
+          draft.id,
+          { expectedRevision: draft.revision, idempotencyKey: randomUUID() },
+          randomUUID(),
+        ),
+    ])
+      await expect(command()).rejects.toMatchObject({
+        code: "SETUP_VERSION_UNSUPPORTED",
+        statusCode: 409,
+      });
+    await expect(
+      service().finishSetup(
+        actor,
+        ids.bankA,
+        draft.id,
+        { definitionVersion: 2, expectedRevision: draft.revision, idempotencyKey: randomUUID() },
+        randomUUID(),
+      ),
+    ).rejects.toMatchObject({ code: "INVALID_INPUT" });
+    expect(await service().readSetup(actor, ids.bankA, draft.id)).toMatchObject({
+      revision: draft.revision,
+      businessAddress,
+      purpose: "Ambiguous historical text",
+      completedSteps: [],
+      fundingPurposes: ["equipment_purchase"],
+    });
+  });
+  it("keeps address revisions, normalized websites, ordered purposes and explicit clears across resumed saves", async () => {
+    const { actor } = await verifiedApplicant();
+    const draft = await create(actor);
+    let saved = await service().saveSetup(
+      actor,
+      ids.bankA,
+      draft.id,
+      {
+        definitionVersion: 2,
+        expectedRevision: draft.revision,
+        answers: {
+          businessAddress: { ...businessAddress, countryCode: "ca" },
+          website: "https://EXAMPLE.TEST",
+          fundingPurposes: ["other", "equipment_purchase"],
+          purposeCatalogVersion: "2026-01",
+          otherPurposeDetail: "Synthetic lab expansion",
+        },
+        step: "business_address",
+        currentStep: "business_ein",
+      },
+      randomUUID(),
+    );
+    expect(saved).toMatchObject({
+      businessAddress: { ...businessAddress, countryCode: "CA" },
+      businessAddressRevision: 1,
+      website: "https://example.test/",
+      fundingPurposes: ["other", "equipment_purchase"],
+      otherPurposeDetail: "Synthetic lab expansion",
+      completedSteps: ["business_address"],
+    });
+    saved = await service().saveSetup(
+      actor,
+      ids.bankA,
+      draft.id,
+      {
+        definitionVersion: 2,
+        expectedRevision: saved.revision,
+        answers: {
+          website: null,
+          fundingPurposes: ["equipment_purchase", "working_capital"],
+          purposeCatalogVersion: "2026-01",
+        },
+        step: "purpose",
+        currentStep: "review",
+      },
+      randomUUID(),
+    );
+    expect(await service().readSetup(actor, ids.bankA, draft.id)).toEqual(saved);
+    expect(saved).toMatchObject({
+      businessAddressRevision: 1,
+      website: null,
+      otherPurposeDetail: null,
+      fundingPurposes: ["equipment_purchase", "working_capital"],
+    });
+    const stale = saved;
+    saved = await service().saveSetup(
+      actor,
+      ids.bankA,
+      draft.id,
+      {
+        definitionVersion: 2,
+        expectedRevision: saved.revision,
+        answers: { businessAddress },
+        step: "business_address",
+        currentStep: "review",
+      },
+      randomUUID(),
+    );
+    expect(saved.businessAddressRevision).toBe(2);
+    await expect(
+      service().saveSetup(
+        actor,
+        ids.bankA,
+        draft.id,
+        {
+          definitionVersion: 2,
+          expectedRevision: stale.revision,
+          answers: { website: "https://stale.example.test" },
+          currentStep: "review",
+        },
+        randomUUID(),
+      ),
+    ).rejects.toMatchObject({ code: "REVISION_CONFLICT" });
+    expect(await service().readSetup(actor, ids.bankA, draft.id)).toEqual(saved);
+  });
+  it("rejects invalid address/purpose input atomically and cannot finish without new required answers", async () => {
+    const { actor } = await verifiedApplicant();
+    const draft = await create(actor);
+    for (const answers of [
+      { businessAddress: { ...businessAddress, countryCode: "" } },
+      { businessAddress: { ...businessAddress, locality: " " } },
+      { website: "javascript:alert(1)" },
+      {
+        fundingPurposes: ["equipment_purchase", "equipment_purchase"],
+        purposeCatalogVersion: "2026-01",
+      },
+      { fundingPurposes: ["unknown"], purposeCatalogVersion: "2026-01" },
+      { fundingPurposes: ["equipment_purchase"] },
+      { otherPurposeDetail: "Other was not selected" },
+    ]) {
+      await expect(
+        service().saveSetup(
+          actor,
+          ids.bankA,
+          draft.id,
+          {
+            definitionVersion: 2,
+            expectedRevision: draft.revision,
+            answers,
+            currentStep: "review",
+          },
+          randomUUID(),
+        ),
+      ).rejects.toMatchObject({ code: "INVALID_INPUT" });
+      expect(await service().readSetup(actor, ids.bankA, draft.id)).toEqual(draft);
+    }
+    await database.db
+      .update(applications)
+      .set({
+        businessName: "Synthetic legacy incomplete",
+        requestedAmount: "25000.00",
+        purpose: "Legacy purpose only",
+      })
+      .where(eq(applications.id, draft.id));
+    await database.db
+      .update(applicationSetups)
+      .set({
+        completedSteps: ["business_name", "amount", "purpose"],
+        skippedSteps: ["industry", "website", "business_ein"],
+        currentStep: "review",
+      })
+      .where(eq(applicationSetups.applicationId, draft.id));
+    await expect(
+      service().finishSetup(
+        actor,
+        ids.bankA,
+        draft.id,
+        { definitionVersion: 2, expectedRevision: draft.revision, idempotencyKey: randomUUID() },
+        randomUUID(),
+      ),
+    ).rejects.toMatchObject({ code: "INVALID_INPUT" });
+    await expect(service().portal(actor, ids.bankA, draft.id)).rejects.toMatchObject({
+      code: "SETUP_REQUIRED",
+    });
+  });
+  it("canonicalizes staff prefills for safe create retries while preserving ordered choices", async () => {
+    const { email } = await verifiedApplicant();
+    const command = {
+      email,
+      idempotencyKey: randomUUID(),
+      answers: {
+        businessAddress: { ...businessAddress, countryCode: " us " },
+        website: "https://EXAMPLE.TEST",
+        fundingPurposes: ["working_capital", "conventional"],
+        purposeCatalogVersion: "2026-01",
+      },
+    };
+    const created = await service().create(officer, ids.bankA, command, randomUUID());
+    expect(
+      await service().create(
+        officer,
+        ids.bankA,
+        {
+          ...command,
+          answers: { ...command.answers, website: "https://example.test/", businessAddress },
+        },
+        randomUUID(),
+      ),
+    ).toEqual(created);
+    await expect(
+      service().create(
+        officer,
+        ids.bankA,
+        {
+          ...command,
+          answers: { ...command.answers, fundingPurposes: ["conventional", "working_capital"] },
+        },
+        randomUUID(),
+      ),
+    ).rejects.toMatchObject({ code: "IDEMPOTENCY_CONFLICT" });
+    expect(created.productId).toBe(ids.productA);
+  });
+});
+
+describe("v2 optional progress and applicant confirmation", () => {
+  it("returns to purposes when a staff prefill removes the borrower's current Other question", async () => {
+    const { actor } = await verifiedApplicant();
+    const draft = await create(actor);
+    const saved = await service().saveSetup(
+      actor,
+      ids.bankA,
+      draft.id,
+      {
+        definitionVersion: 2,
+        expectedRevision: draft.revision,
+        answers: { fundingPurposes: ["other"], purposeCatalogVersion: "2026-01" },
+        step: "purpose",
+        currentStep: "other_purpose",
+      },
+      randomUUID(),
+    );
+    const prefilled = await service().saveSetup(
+      officer,
+      ids.bankA,
+      draft.id,
+      {
+        definitionVersion: 2,
+        expectedRevision: saved.revision,
+        answers: { fundingPurposes: ["equipment_purchase"], purposeCatalogVersion: "2026-01" },
+        currentStep: "review",
+      },
+      randomUUID(),
+    );
+    expect(prefilled.currentStep).toBe("purpose");
+    expect(prefilled.completedSteps).not.toContain("purpose");
+    expect(prefilled.completedSteps).not.toContain("other_purpose");
+    expect(prefilled.skippedSteps).not.toContain("other_purpose");
+    expect(prefilled.otherPurposeDetail).toBeNull();
+    expect(await service().readSetup(actor, ids.bankA, draft.id)).toEqual(prefilled);
+  });
+
+  it("preserves saved optional answers on skip and clears them only through explicit null answers", async () => {
+    const { actor } = await verifiedApplicant();
+    const draft = await create(actor);
+    const saved = await service().saveSetup(
+      actor,
+      ids.bankA,
+      draft.id,
+      {
+        definitionVersion: 2,
+        expectedRevision: draft.revision,
+        answers: {
+          website: "https://example.test",
+          industryCode: "541511",
+          industryTaxonomyVersion: "2022",
+          fundingPurposes: ["other"],
+          purposeCatalogVersion: "2026-01",
+          otherPurposeDetail: "Synthetic expansion",
+        },
+        currentStep: "website",
+      },
+      randomUUID(),
+    );
+    let skipped = saved;
+    for (const step of ["website", "industry", "other_purpose"] as const) {
+      skipped = await service().saveSetup(
+        actor,
+        ids.bankA,
+        draft.id,
+        {
+          definitionVersion: 2,
+          expectedRevision: skipped.revision,
+          answers: {},
+          step,
+          skip: true,
+          currentStep: "review",
+        },
+        randomUUID(),
+      );
+      expect(skipped.skippedSteps).toContain(step);
+    }
+    expect(skipped).toMatchObject({
+      website: "https://example.test/",
+      industryCode: "541511",
+      industryTaxonomyVersion: "2022",
+      otherPurposeDetail: "Synthetic expansion",
+    });
+    const cleared = await service().saveSetup(
+      actor,
+      ids.bankA,
+      draft.id,
+      {
+        definitionVersion: 2,
+        expectedRevision: skipped.revision,
+        answers: {
+          website: null,
+          industryCode: null,
+          industryTaxonomyVersion: null,
+          otherPurposeDetail: null,
+        },
+        currentStep: "website",
+      },
+      randomUUID(),
+    );
+    expect(cleared).toMatchObject({
+      website: null,
+      industryCode: null,
+      industryTaxonomyVersion: null,
+      otherPurposeDetail: null,
+      skippedSteps: [],
+    });
+  });
+  it("allows staff prefills without letting staff alone acknowledge applicant answers", async () => {
+    const { actor } = await verifiedApplicant();
+    const draft = await create(actor);
+    const prefilled = await service().saveSetup(
+      officer,
+      ids.bankA,
+      draft.id,
+      {
+        definitionVersion: 2,
+        expectedRevision: draft.revision,
+        answers: { businessName: "Synthetic staff prefill" },
+        currentStep: "review",
+      },
+      randomUUID(),
+    );
+    expect(prefilled.completedSteps).toEqual([]);
+    expect(prefilled.currentStep).toBe("business_name");
+    for (const step of ["business_name", "website"] as const) {
+      await expect(
+        service().saveSetup(
+          officer,
+          ids.bankA,
+          draft.id,
+          {
+            definitionVersion: 2,
+            expectedRevision: prefilled.revision,
+            answers: {},
+            step,
+            skip: step === "website",
+            currentStep: "review",
+          },
+          randomUUID(),
+        ),
+      ).rejects.toMatchObject({ code: "INVALID_INPUT" });
+    }
+    expect(await service().readSetup(actor, ids.bankA, draft.id)).toEqual(prefilled);
+    const confirmed = await service().saveSetup(
+      actor,
+      ids.bankA,
+      draft.id,
+      {
+        definitionVersion: 2,
+        expectedRevision: prefilled.revision,
+        answers: {},
+        step: "business_name",
+        currentStep: "business_address",
+      },
+      randomUUID(),
+    );
+    expect(confirmed.completedSteps).toEqual(["business_name"]);
   });
 });

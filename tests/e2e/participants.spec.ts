@@ -113,7 +113,7 @@ test("only the lender invites a lawyer, selects their tasks, and removes the act
     await recipient.getByRole("button", { name: "Accept invitation", exact: true }).click();
     await expect(recipient).toHaveURL((url) => url.pathname === `/applications/${applicationId}`);
     expect(await status(recipient)).toBe(200);
-    await expect(recipient.getByLabel("Business name", { exact: true })).toHaveCount(0);
+    await expect(recipient.getByLabel("Legal business name", { exact: true })).toHaveCount(0);
     await expect(recipient.getByRole("button", { name: taskTitle, exact: true })).toBeVisible();
     await expect(
       recipient.getByRole("button", { name: "Describe your business", exact: true }),

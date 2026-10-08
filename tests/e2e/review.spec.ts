@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { readEnvironment } from "@keycade/config/server";
 import type { ApplicationSetup, ReviewView, TasksView, TaskView } from "@keycade/contracts";
 import { expect as baseExpect, type Page, test } from "@playwright/test";
+import { setupFixtureSteps } from "../setup-fixture";
 
 const env = readEnvironment();
 const borrower = `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
@@ -68,30 +69,15 @@ async function api<T>(page: Page, method: string, suffix: string, body?: object)
 }
 async function createApplication(page: Page, complete = true) {
   let application = await api<ApplicationSetup>(page, "POST", "", { idempotencyKey: randomUUID() });
-  for (const step of [
-    {
-      step: "business_name",
-      currentStep: "amount",
-      answers: { businessName: `Synthetic Review Workshop ${randomUUID().slice(0, 8)}` },
-    },
-    ...(complete
-      ? [
-          { step: "amount", currentStep: "purpose", answers: { requestedAmount: "20000.00" } },
-          {
-            step: "purpose",
-            currentStep: "industry",
-            answers: { purpose: "Synthetic workshop equipment" },
-          },
-          { step: "industry", currentStep: "review", answers: {}, skip: true },
-        ]
-      : []),
-  ])
+  const steps = setupFixtureSteps(`Synthetic Review Workshop ${randomUUID().slice(0, 8)}`);
+  for (const step of complete ? steps : steps.slice(0, 1))
     application = await api<ApplicationSetup>(page, "PATCH", `/${application.id}/setup`, {
       expectedRevision: application.revision,
       ...step,
     });
   if (complete)
     application = await api<ApplicationSetup>(page, "POST", `/${application.id}/setup/finish`, {
+      definitionVersion: 2,
       expectedRevision: application.revision,
       idempotencyKey: randomUUID(),
     });

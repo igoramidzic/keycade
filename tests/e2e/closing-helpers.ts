@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { ApplicationSetup, ReviewView, TasksView, TaskView } from "@keycade/contracts";
 import { expect, type Page } from "@playwright/test";
+import { setupFixtureSteps } from "../setup-fixture";
 
 // All credentials remain inside the browser and all fixture records are synthetic.
 export async function workflowApi<T>(
@@ -37,20 +38,10 @@ export async function prepareReview(
   let app = await workflowApi<ApplicationSetup>(applicant, "POST", "/applications", {
     idempotencyKey: randomUUID(),
   });
-  for (const step of [
-    {
-      step: "business_name",
-      currentStep: "amount",
-      answers: { businessName: `Synthetic Closing Workshop ${randomUUID().slice(0, 8)}` },
-    },
-    { step: "amount", currentStep: "purpose", answers: { requestedAmount: "20000.00" } },
-    {
-      step: "purpose",
-      currentStep: "industry",
-      answers: { purpose: "Synthetic closing demonstration" },
-    },
-    { step: "industry", currentStep: "review", answers: {}, skip: true },
-  ])
+  for (const step of setupFixtureSteps(
+    `Synthetic Closing Workshop ${randomUUID().slice(0, 8)}`,
+    "20000.00",
+  ))
     app = await workflowApi<ApplicationSetup>(applicant, "PATCH", `/applications/${app.id}/setup`, {
       expectedRevision: app.revision,
       ...step,
@@ -59,7 +50,7 @@ export async function prepareReview(
     applicant,
     "POST",
     `/applications/${app.id}/setup/finish`,
-    { expectedRevision: app.revision, idempotencyKey: randomUUID() },
+    { definitionVersion: 2, expectedRevision: app.revision, idempotencyKey: randomUUID() },
   );
   const base = `/applications/${app.id}`;
   const tasks = await workflowApi<TasksView>(applicant, "GET", `${base}/tasks`);

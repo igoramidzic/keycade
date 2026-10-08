@@ -10,6 +10,7 @@ import { seedDatabase, seedIds } from "@keycade/db/seed";
 import { createTestDatabase } from "@keycade/db/testing";
 import { createIdentityService } from "@keycade/domain";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { setupFixtureSteps } from "../../../tests/setup-fixture";
 import { buildServer } from "../src/server.js";
 import { handleWorkerRequest } from "../src/worker-handler.js";
 
@@ -294,6 +295,7 @@ for (const transport of ["fastify", "worker"] as const) {
           method: "PATCH",
           body: {
             expectedRevision: workspace.revision,
+            definitionVersion: 2,
             currentStep: "review",
             answers: {
               businessName: "Synthetic Staff HTTP",
@@ -384,7 +386,7 @@ for (const transport of ["fastify", "worker"] as const) {
         expect(resumed.body).toMatchObject({
           businessName: "Synthetic Staff HTTP",
           requestedAmount: "10000.00",
-          currentStep: "review",
+          currentStep: "business_name",
           setupStatus: "in_progress",
         });
         expect(
@@ -392,14 +394,32 @@ for (const transport of ["fastify", "worker"] as const) {
             await c.call(`${bankPath}/${draft.id}/setup/finish`, {
               ...staff,
               method: "POST",
-              body: { expectedRevision: workspace.revision, idempotencyKey: randomUUID() },
+              body: {
+                definitionVersion: 2,
+                expectedRevision: workspace.revision,
+                idempotencyKey: randomUUID(),
+              },
             })
           ).status,
         ).toBe(404);
+        let acknowledged = applicationSetupSchema.parse(resumed.body);
+        for (const step of setupFixtureSteps("Synthetic Staff HTTP", "10000.00")) {
+          const saved = await c.call(`${bankPath}/${draft.id}/setup`, {
+            ...borrower,
+            method: "PATCH",
+            body: { ...step, expectedRevision: acknowledged.revision },
+          });
+          expect(saved.status, JSON.stringify(saved.body)).toBe(200);
+          acknowledged = applicationSetupSchema.parse(saved.body);
+        }
         const completed = await c.call(`${bankPath}/${draft.id}/setup/finish`, {
           ...borrower,
           method: "POST",
-          body: { expectedRevision: workspace.revision, idempotencyKey: randomUUID() },
+          body: {
+            definitionVersion: 2,
+            expectedRevision: acknowledged.revision,
+            idempotencyKey: randomUUID(),
+          },
         });
         expect(completed.status).toBe(200);
         for (const path of [

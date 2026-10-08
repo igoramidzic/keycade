@@ -1,6 +1,6 @@
 # Version 2 experience requirements
 
-Status: planned, not implemented. [Screenshot findings](01-screenshot-findings.md) identify the evidence and exclusions; [data contracts](03-data-and-simulation.md) define persistence and authority. Task IDs refer to [delivery](04-delivery-and-validation.md).
+Status: V2-01 setup implemented locally; V2-02–V2-08 remain planned. [Screenshot findings](01-screenshot-findings.md) identify the evidence and exclusions; [data contracts](03-data-and-simulation.md) define persistence and authority. Task IDs refer to [delivery](04-delivery-and-validation.md).
 
 ## Setup wizard — V2-01
 

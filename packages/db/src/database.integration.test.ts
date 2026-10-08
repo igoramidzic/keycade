@@ -150,7 +150,7 @@ describe("committed migrations and synthetic data on PostgreSQL", () => {
     });
     expect(setups.find((row) => row.applicationId === seedIds.applicationSetupDraft)).toMatchObject(
       {
-        currentStep: "amount",
+        currentStep: "business_address",
         completedSteps: ["business_name"],
         completedAt: null,
       },

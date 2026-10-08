@@ -3,6 +3,7 @@ import { readEnvironment } from "@keycade/config/server";
 import { expect, type Page, test } from "@playwright/test";
 import { paceHostedRequests } from "./hosted-helpers";
 import { messages } from "./identity-helpers";
+import { completeAddressAndSkipOptional } from "./setup-helpers";
 
 const env = readEnvironment();
 const borrower = env.KEYCADE_E2E_BORROWER_ORIGIN ?? `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
@@ -141,12 +142,12 @@ test("email-started application resumes its saved setup through a fresh simulate
   await selectReadyMessage(page, "Your application is started");
   await openConfirmation(page);
   await page.getByRole("button", { name: "Confirm and sign in", exact: true }).click();
-  await expect(page.getByLabel("Business name", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Legal business name", { exact: true })).toBeVisible();
   const applicationId = new URL(page.url()).pathname.split("/")[2];
   expect(Boolean(applicationId)).toBe(true);
-  await page.getByLabel("Business name", { exact: true }).fill("Synthetic Inbox Workshop");
+  await page.getByLabel("Legal business name", { exact: true }).fill("Synthetic Inbox Workshop");
   await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(page.getByLabel("Requested amount", { exact: true })).toBeVisible();
+  await completeAddressAndSkipOptional(page);
   await page.getByLabel("Requested amount", { exact: true }).fill("23000");
   await page.getByRole("button", { name: "Continue later", exact: true }).click();
   await expect(

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { readEnvironment } from "@keycade/config/server";
 import { expect, type Page, test } from "@playwright/test";
+import { completeAddressAndSkipOptional } from "./setup-helpers";
 
 const env = readEnvironment();
 const borrower = `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
@@ -70,10 +71,11 @@ async function noOverflow(page: Page) {
 async function draft(page: Page, name: string) {
   const created = await api<Setup>(page, "POST", "", { idempotencyKey: randomUUID() });
   return api<Setup>(page, "PATCH", `/${created.id}/setup`, {
+    definitionVersion: 2,
     expectedRevision: created.revision,
     answers: { businessName: name },
     step: "business_name",
-    currentStep: "amount",
+    currentStep: "business_address",
   });
 }
 
@@ -172,13 +174,17 @@ test("editing separate drafts preserves each saved step and completion opens onl
   const second = await draft(page, "Synthetic Valley Supply");
   await page.reload();
   await card(page, first.id).getByRole("button", { name: "Continue setup", exact: true }).click();
+  await completeAddressAndSkipOptional(page);
   await expect(page.getByLabel("Requested amount", { exact: true })).toHaveValue("");
   await page.getByLabel("Requested amount", { exact: true }).fill("12345.67");
   await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(page.getByLabel("Loan purpose", { exact: true })).toBeVisible();
-  await page.getByLabel("Loan purpose", { exact: true }).fill("Synthetic harbor equipment");
+  await expect(
+    page.getByRole("checkbox", { name: "Equipment purchase", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("checkbox", { name: "Equipment purchase", exact: true }).check();
   await page.getByRole("button", { name: "Continue later", exact: true }).click();
   await card(page, second.id).getByRole("button", { name: "Continue setup", exact: true }).click();
+  await completeAddressAndSkipOptional(page);
   await expect(page.getByLabel("Requested amount", { exact: true })).toHaveValue("");
   await page.getByLabel("Requested amount", { exact: true }).fill("76543.21");
   await page.getByRole("button", { name: "Continue later", exact: true }).click();
@@ -186,22 +192,21 @@ test("editing separate drafts preserves each saved step and completion opens onl
     page.getByRole("status").filter({ hasText: "Your progress is saved." }),
   ).toBeVisible();
   await card(page, first.id).getByRole("button", { name: "Continue setup", exact: true }).click();
-  await expect(page.getByLabel("Loan purpose", { exact: true })).toHaveValue(
-    "Synthetic harbor equipment",
-  );
+  await expect(
+    page.getByRole("checkbox", { name: "Equipment purchase", exact: true }),
+  ).toBeChecked();
   await page.getByRole("button", { name: "Back", exact: true }).click();
   await expect(page.getByLabel("Requested amount", { exact: true })).toHaveValue(/12,?345\.67/);
   await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await page.getByLabel("Loan purpose", { exact: true }).fill("Synthetic harbor equipment");
+  await page.getByRole("checkbox", { name: "Equipment purchase", exact: true }).check();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
-  await expect(page.getByLabel("Industry", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Skip for now", exact: true }).click();
+
   await page.getByRole("button", { name: "Finish setup", exact: true }).click();
   await expect(page).toHaveURL(applicationUrl(first.id));
   await expect(page.getByText("Initial setup complete", { exact: true })).toBeVisible();
   expect(await api<Setup>(page, "GET", `/${first.id}/setup`)).toMatchObject({
     requestedAmount: "12345.67",
-    purpose: "Synthetic harbor equipment",
+    fundingPurposes: ["equipment_purchase"],
     setupStatus: "completed",
   });
   expect(await api<Setup>(page, "GET", `/${second.id}/setup`)).toMatchObject({
@@ -241,7 +246,7 @@ test("limited invited participants see scoped summaries without applicant setup 
   await expect(content.getByRole("button", { name: /invite|upload|finish setup/i })).toHaveCount(0);
   await page.goto(applicationUrl(ids.small, "setup"));
   await expect(page).toHaveURL(applicationUrl(ids.small));
-  await expect(page.getByLabel("Business name", { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("Legal business name", { exact: true })).toHaveCount(0);
   await page.getByRole("link", { name: "Tasks", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Tasks", exact: true })).toBeVisible();
   await page.reload();
@@ -283,7 +288,7 @@ test("closed drafts and guessed application links do not loop or expose an appli
   await expect(
     page.getByRole("heading", { name: "This application is closed", exact: true }),
   ).toBeVisible();
-  await expect(page.getByLabel("Business name", { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("Legal business name", { exact: true })).toHaveCount(0);
   for (const applicationId of [ids.unshared, ids.otherBank]) {
     await page.goto(applicationUrl(applicationId, "tasks"));
     await expect(page.getByRole("alert")).toContainText("unavailable for your account");
@@ -356,7 +361,7 @@ test("portal detail failure retries the selected application without replaying s
     .click();
   await expect(page.getByRole("alert")).toContainText("temporarily unavailable");
   await expect(page).toHaveURL(applicationUrl(ids.large));
-  await expect(page.getByLabel("Business name", { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("Legal business name", { exact: true })).toHaveCount(0);
   await noOverflow(page);
   await page.unroute(detailPattern);
   await page.getByRole("button", { name: "Try again", exact: true }).click();
@@ -434,7 +439,7 @@ test("an invited participant with full scope is not told unfinished applicant se
     page.getByRole("heading", { name: "Application details", exact: true }),
   ).toBeVisible();
   await expect(page.getByText("Initial setup complete", { exact: true })).toHaveCount(0);
-  await expect(page.getByLabel("Business name", { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("Legal business name", { exact: true })).toHaveCount(0);
   await page.getByRole("link", { name: "Tasks", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Tasks", exact: true })).toBeVisible();
   await noOverflow(page);

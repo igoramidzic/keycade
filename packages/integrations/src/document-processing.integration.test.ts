@@ -165,8 +165,8 @@ describe("durable document interpretation on PostgreSQL", () => {
       ids.bankA,
       draft.id,
       {
+        definitionVersion: 2,
         expectedRevision: draft.revision,
-        step: "business_name",
         answers: { businessName: "Synthetic Renamed Studio" },
         currentStep: "amount",
       },
@@ -217,8 +217,8 @@ describe("durable document interpretation on PostgreSQL", () => {
       ids.bankA,
       draft.id,
       {
+        definitionVersion: 2,
         expectedRevision: draft.revision,
-        step: "business_name",
         answers: { businessName: "Synthetic Renamed Studio" },
         currentStep: "amount",
       },
