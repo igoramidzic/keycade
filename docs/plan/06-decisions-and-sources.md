@@ -1,5 +1,11 @@
 # Decisions, assumptions, and reference sources
 
+## V2-07 integrated local acceptance — October 8, 2026
+
+The user's “Continue with v2” selects V2-07, the next ready task. Verify the combined implementation at `bf845a1` with fresh local tests, a connected new-applicant journey, explicit restricted/revoked API denials, additive migration upgrades and repeat initialization. The existing human review/signature/funding tests remain separate regressions; the connected financial-review journey does not bypass their gates. The [acceptance record](v2/04-delivery-and-validation.md#v2-07--integrated-local-acceptance) owns results and any repairs. Hosted deployment and paused CI remain outside this task.
+
+Integrated acceptance exposed a setup-session recovery regression: the shared access-loss notification removed the wizard before its existing sign-in recovery could retain an ordinary unsaved answer. Only actor/bank-bound setup requests may retain the mounted form after a recognized `SESSION_EXPIRED`/`SESSION_CHANGED` 401. Setup reads are also actor-bound; stale-actor writes still fail before saving. Unsaved EIN input is cleared on session failure. Other 401s, permission denials and portal access-loss handling keep their existing cache-clearing behavior. This repairs the already-required resumable setup contract without weakening backend guards.
+
 ## V2-06 informational Loan Footprint — October 8, 2026
 
 “Continue with v2” selects the next ready task, V2-06. Reuse the existing check/run worker model for a staff-only `loan_footprint` check under `US-only-demo-v1`. It is informational (`required=false`) and cannot be resolved into eligibility by a staff override. It adds no submission, approval or funding gate. Its address snapshot/revision is separate from unrelated application edits; saving an address invalidates previous runs and persists replacement intent in the same transaction.

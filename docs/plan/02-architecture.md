@@ -1,6 +1,6 @@
 # Architecture and repository layout
 
-The [v2 plan](v2/README.md) adds planned experience and data contracts to the existing architecture. V2-01–V2-06 are implemented locally with task-specific validation records; V2-07–V2-08 remain planned. Historical task records do not prove v2 behavior. Follow [the experience specification](v2/02-experience-spec.md), [data and simulation contracts](v2/03-data-and-simulation.md), and [delivery/validation plan](v2/04-delivery-and-validation.md) for its bounded changes.
+The [v2 plan](v2/README.md) adds planned experience and data contracts to the existing architecture. V2-01–V2-06 are implemented locally with task-specific validation records; V2-07 integrated local acceptance is complete; V2-08 hosted parity remains planned. Historical task records do not prove v2 behavior. Follow [the experience specification](v2/02-experience-spec.md), [data and simulation contracts](v2/03-data-and-simulation.md), and [delivery/validation plan](v2/04-delivery-and-validation.md) for its bounded changes.
 
 ## Deployment target
 
@@ -74,7 +74,7 @@ All creation entry points call `createApplication`: borrower lead, bank staff, a
 
 Keep the initial setup wizard and application portal as distinct routes within the borrower app. T07 owns persisted per-application setup state, revision-aware answer/step saves, and an explicit idempotent completion command; T08 owns the one-question screens; T09 owns the portal and return routing. Resolve the next destination from authorized server state after authentication or application selection. Browser storage and route parameters cannot mark setup complete. Shared domain guards enforce the setup prerequisite for applicant portal operations in both HTTP transports, while retaining staff draft access and scoped collaborator permissions.
 
-### V2 additions — planned, not implemented
+### V2 additions — implemented and verified locally
 
 - Keep separate borrower and lender presentation shells. The borrower dashboard has tasks and a progress/upload sidebar with contextual actions, without top-level application tabs; the lender keeps tabs and adds overview/evidence projections. Share authorized task, document and upload components without assuming both personas have the same navigation or fields.
 - Extend browser-safe setup schemas and versioned persistence for legal name, structured address, optional website, and structured purpose selections. Reuse optional NAICS search and the fixed product. A narrow business-identifier setup command delegates to existing server-only encryption and masking; it does not open general enrichment or portal operations before setup.

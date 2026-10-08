@@ -1,6 +1,8 @@
 # Keycade implementation plan
 
-**V2-06 — [simulated Loan Footprint](v2/04-delivery-and-validation.md#v2-06--simulated-loan-footprint) is complete locally, October 8, 2026.** Lender Overview and Checks open an accessible geographic dialog with saved address, revision-bound simulated US eligibility, registered synthetic map coordinates and safe refresh/history. The check adds no submission, approval or funding gate. Validation passed **399 unit tests, 477 PostgreSQL tests, all 12 builds/typechecks and 16 distinct desktop/mobile browser cases**; affected browser regressions are recorded in the task. V2-01–V2-06 are complete locally; **V2-07 is the next default task**. V2-07–V2-08 remain **Not started**. No v2 hosted deployment is claimed.
+**V2-07 — [integrated local acceptance](v2/04-delivery-and-validation.md#v2-07--integrated-local-acceptance) is complete, October 8, 2026.** The combined v2 implementation passed **410 unit tests, 479 distinct PostgreSQL cases, all 12 builds/typechecks and 136 distinct desktop/mobile browser cases**. Acceptance added a connected borrower-to-lender journey, strengthened restricted/revoked API denials and fixed setup-session recovery while clearing unsaved EIN. Migration upgrades and repeat initialization preserve synthetic records. **V2-01–V2-07 are complete locally; V2-08 hosted parity is the next default task and remains Not started.** No v2 hosted deployment is claimed.
+
+V2-06 delivered the informational, address-bound Loan Footprint dialog; its [task record](v2/04-delivery-and-validation.md#v2-06--simulated-loan-footprint) retains that checkpoint's validation evidence.
 
 V2-04 delivered private document preview, explicit financial acceptance/rejection/correction, immutable provenance and frozen decision references. Its [local acceptance](v2/04-delivery-and-validation.md#v2-04--document-workspace-and-reviewed-financial-facts) records **367 unit tests, 442 PostgreSQL tests, all 12 builds/typechecks and 46 distinct desktop/mobile browser cases** at that checkpoint. The [modal preview stability follow-up](v2/04-delivery-and-validation.md#modal-preview-stability--october-8-2026) is complete locally: the scrollbar-driven redraw loop is fixed, with all 16 document-workspace browser cases, 373 unit tests and all 12 builds/typechecks passing.
 
@@ -66,7 +68,7 @@ Read the [v2 experience](v2/02-experience-spec.md) and [data/simulation contract
 | V2-04 | [Document workspace and reviewed financial facts](v2/04-delivery-and-validation.md#v2-04--document-workspace-and-reviewed-financial-facts) | V2-01, V2-03; T14, T15, T19 | Done — [local acceptance](v2/04-delivery-and-validation.md#v2-04--document-workspace-and-reviewed-financial-facts) |
 | V2-05 | [Lender overview and evidence drilldowns](v2/04-delivery-and-validation.md#v2-05--lender-overview-and-evidence-drilldowns) | V2-01, V2-04; T10, T12, T16, T19, T21 | Done — [local acceptance](v2/04-delivery-and-validation.md#v2-05--lender-overview-and-evidence-drilldowns) |
 | V2-06 | [Simulated Loan Footprint map](v2/04-delivery-and-validation.md#v2-06--simulated-loan-footprint) | V2-01, T16 | Done — [local acceptance](v2/04-delivery-and-validation.md#v2-06--simulated-loan-footprint) |
-| V2-07 | [Integrated local acceptance](v2/04-delivery-and-validation.md#v2-07--integrated-local-acceptance) | V2-02–V2-06, T22 | Not started |
+| V2-07 | [Integrated local acceptance](v2/04-delivery-and-validation.md#v2-07--integrated-local-acceptance) | V2-02–V2-06, T22 | Done — [local acceptance](v2/04-delivery-and-validation.md#v2-07--integrated-local-acceptance) |
 | V2-08 | [Hosted parity](v2/04-delivery-and-validation.md#v2-08--hosted-parity-and-deployment-slice) | V2-07, D02, D03 | Not started |
 
 ### Completed baseline backlog

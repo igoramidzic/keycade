@@ -2,7 +2,7 @@
 
 The command inventory is implemented for T01–T11. Passwordless identity is locally testable through [the identity guide](identity-validation.md); application creation and setup APIs are verified in [T07](tasks/T07-application-service.md#validation). The bank → setup → completion handoff is verified on desktop and mobile in [T08](tasks/T08-intake.md#implementation-record); T09 adds [business selection and guarded portal navigation](tasks/T09-borrower-workspace.md#implementation-record). T10 adds the [staff queue and local continuation journey](tasks/T10-bank-workspace.md#try-it-locally). T11 adds [owner records, invitation acceptance, and participant revocation](tasks/T11-participants.md#try-it-locally), using Mailpit for verified acceptance even when demo sign-in is enabled. See the root README for the current startup path.
 
-The [v2 delivery and validation plan](v2/04-delivery-and-validation.md) records V2-01–V2-06 local validation and defines the remaining planned acceptance work. Existing passing task records remain historical evidence only. The following v2 cases must pass as the corresponding features are built.
+The [v2 delivery and validation plan](v2/04-delivery-and-validation.md) records V2-01–V2-07 local validation; V2-08 hosted acceptance remains planned. Existing passing task records remain historical evidence only. The following v2 cases must pass as the corresponding features are built.
 
 ## Developer entry path
 
@@ -87,7 +87,7 @@ Do not add snapshot tests of generated shadcn markup or tests that merely restat
 
 Use neutral fictional businesses and obviously synthetic identities. Fixtures should describe their intended result explicitly and never masquerade as real financial evidence.
 
-### Additional v2 synthetic scenarios — planned
+### Additional v2 synthetic scenarios — verified locally
 
 - A new setup with legal name, complete structured U.S. address and multiple illustrated funding purposes; optional business identifier, website and industry skipped. A second setup supplies those optional values and shows the selected NAICS code/title with the website summary.
 - Legacy unfinished drafts at every old step, including free-text purpose, and completed applications with missing new fields. Migration preserves saved progress/text and never sends completed applicants back to setup.
@@ -96,7 +96,7 @@ Use neutral fictional businesses and obviously synthetic identities. Fixtures sh
 - Known text filenames selecting generated tax/statement PDFs through the protected importer, unknown/ambiguous names, malformed/oversized text, renamed ordinary PDF, duplicate delivery and a scan failure. Include a restricted user attempting an unauthorized upload target.
 - Valid U.S. address, incomplete/invalid address and non-U.S. address, plus a changed address while a delayed footprint result is running. The non-U.S. case is a required negative test even though it is absent from the presentation walkthrough.
 
-### V2 acceptance journeys — planned
+### V2 acceptance journeys — verified locally in V2-07
 
 1. Complete and resume the expanded wizard on desktop/mobile with one logical question per screen. Verify multi-select keyboard behavior, illustration alternatives, optional skips, selected NAICS visibility, unsaved-input recovery, stable server step/version migration, idempotent finish, and the fixed product. Staff prefills still require applicant confirmation.
 2. Open the borrower dashboard and verify no top-level application tabs, tasks on the left and actual progress/upload controls on the right; mobile stacks without overflow. Upload from both drop zone and keyboard file picker. Reach signing, submission, closing and permitted history/people/documents contextually; legacy links remain safe and unsaved task edits survive navigation. Restricted users see no hidden-count or financial-detail leaks.

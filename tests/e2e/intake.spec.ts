@@ -80,7 +80,7 @@ const syntheticAddress = {
   postalCode: "04101",
   countryCode: "US",
 };
-async function addressAndOptionalSteps(page: Page) {
+async function addressAndOptionalSteps(page: Page, beforeEinSkip?: () => Promise<void>) {
   for (const [label, value] of [
     ["Street address", syntheticAddress.line1],
     ["City", syntheticAddress.locality],
@@ -90,11 +90,27 @@ async function addressAndOptionalSteps(page: Page) {
   ])
     await page.getByLabel(label, { exact: true }).fill(value);
   await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await beforeEinSkip?.();
   for (const label of ["Business EIN", "Industry", "Website"]) {
     await expect(page.getByLabel(label, { exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Skip for now", exact: true }).click();
   }
   await expect(page.getByLabel("Requested amount", { exact: true })).toBeVisible();
+}
+
+async function signOutThroughApi(page: Page) {
+  expect(
+    await page.evaluate(async () => {
+      const session = await (await fetch("/api/v1/auth/session")).json();
+      return (
+        await fetch("/api/v1/auth/logout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-csrf-token": session.csrfToken },
+          body: "{}",
+        })
+      ).ok;
+    }),
+  ).toBe(true);
 }
 
 async function assertNoOverflow(page: Page) {
@@ -463,7 +479,18 @@ test("session recovery keeps unsaved answers and another signed-in account canno
   await page.getByRole("button", { name: "Start application", exact: true }).click();
   await expect(page.getByLabel("Legal business name", { exact: true })).toBeVisible();
   await answer(page, "Legal business name", "Synthetic Session Workshop", "Street address");
-  await addressAndOptionalSteps(page);
+  await addressAndOptionalSteps(page, async () => {
+    await page.getByLabel("Business EIN", { exact: true }).fill("000000001");
+    await signOutThroughApi(page);
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Sign in again", exact: true })).toBeVisible();
+    await expect(page.getByLabel("Business EIN", { exact: true })).toHaveValue("");
+    await page.getByRole("button", { name: "Sign in again", exact: true }).click();
+    await page.getByLabel("Email address", { exact: true }).fill(email);
+    await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+    await expect(page.getByLabel("Business EIN", { exact: true })).toHaveValue("");
+    expect((await setup(page)).businessEin).toEqual({ present: false, mask: null });
+  });
   const saved = await setup(page);
   await page.getByLabel("Requested amount", { exact: true }).fill("37500");
 
@@ -472,18 +499,7 @@ test("session recovery keeps unsaved answers and another signed-in account canno
   await expect(page.getByRole("alert")).toContainText("sign you out");
   await expect(page.getByLabel("Requested amount", { exact: true })).toHaveValue("37500");
   await page.unroute("**/api/v1/auth/logout");
-  expect(
-    await page.evaluate(async () => {
-      const session = await (await fetch("/api/v1/auth/session")).json();
-      return (
-        await fetch("/api/v1/auth/logout", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "x-csrf-token": session.csrfToken },
-          body: "{}",
-        })
-      ).ok;
-    }),
-  ).toBe(true);
+  await signOutThroughApi(page);
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(page.getByRole("button", { name: "Sign in again", exact: true })).toBeVisible();
   await expect(page.getByLabel("Requested amount", { exact: true })).toHaveValue("37500");

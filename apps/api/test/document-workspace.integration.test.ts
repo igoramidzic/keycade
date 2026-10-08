@@ -3,14 +3,15 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createDemoImportPdf, type DemoImportContext } from "@keycade/contracts/demo-import";
-import { applications } from "@keycade/db";
+import { applicationParticipants, applications, documents } from "@keycade/db";
 import { seedIds as ids, seedDatabase } from "@keycade/db/seed";
 import { createTestDatabase } from "@keycade/db/testing";
 import { createTasksService } from "@keycade/domain";
+import { syntheticDocumentPdf } from "@keycade/integrations/document-fixtures";
 import { processDocumentInterpretations } from "@keycade/integrations/document-processing";
 import { processDocumentScans } from "@keycade/integrations/document-scan";
 import { createLocalDocumentStorage } from "@keycade/integrations/document-storage-local";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildServer } from "../src/server.js";
 import { handleWorkerRequest } from "../src/worker-handler.js";
@@ -299,6 +300,150 @@ for (const transport of ["fastify", "worker"] as const) {
         await user.close();
         await staff.close();
         await outsider.close();
+      }
+    });
+
+    it("denies restricted financial aggregates and private evidence, then rechecks the same participant after revocation", async () => {
+      const user = await client(),
+        staff = await client(ids.officerA),
+        adviser = await client(ids.adviser);
+      const factsPath = base.replace(/documents$/, "financial-facts");
+      const overviewPath = base.replace(/documents$/, "overview");
+      const [participant] = await database.db
+        .select()
+        .from(applicationParticipants)
+        .where(
+          and(
+            eq(applicationParticipants.applicationId, ids.applicationSmall),
+            eq(applicationParticipants.userId, ids.adviser),
+          ),
+        );
+      if (!participant) throw new Error("Expected the synthetic assigned adviser.");
+      try {
+        const sample = await user.sample("business-tax-return-2023");
+        const shared = await user.reserve(sample.input);
+        expect(
+          (await user.call(`${base}/uploads/${shared.uploadId}/content`, "PUT", sample.bytes))
+            .status,
+        ).toBe(200);
+        const privateBytes = Buffer.from(syntheticDocumentPdf("clean-tax"));
+        const privateFileName = `Synthetic private evidence ${randomUUID()}.pdf`;
+        const privateUpload = await user.reserve({
+          fileName: privateFileName,
+          mimeType: "application/pdf",
+          expectedSize: privateBytes.length,
+          idempotencyKey: randomUUID(),
+        });
+        expect(
+          (
+            await user.call(
+              `${base}/uploads/${privateUpload.uploadId}/content`,
+              "PUT",
+              privateBytes,
+            )
+          ).status,
+        ).toBe(200);
+        await processPending();
+        await database.db
+          .update(documents)
+          .set({ visibility: "private", subjectUserId: ids.borrower })
+          .where(eq(documents.id, privateUpload.documentId));
+        // Even an explicit document grant cannot override another person's private subject.
+        await database.db
+          .update(applicationParticipants)
+          .set({ documentIds: [shared.documentId, privateUpload.documentId] })
+          .where(eq(applicationParticipants.id, participant.id));
+        const initial = await staff.call(factsPath);
+        expect(initial.status).toBe(200);
+        const candidate = initial.body.candidates.find(
+          (entry: { fieldKey: string; source: { versionId: string } }) =>
+            entry.fieldKey === "revenue" && entry.source.versionId === shared.versionId,
+        );
+        expect(candidate).toBeTruthy();
+        const command = {
+          idempotencyKey: randomUUID(),
+          expectedApplicationRevision: initial.body.applicationRevision,
+          documentId: shared.documentId,
+          versionId: shared.versionId,
+          runId: candidate.source.runId,
+          expectedRunGeneration: candidate.source.runGeneration,
+          expectedCategoryRevision: candidate.source.categoryRevision,
+          expectedAnalysisRevision: candidate.source.analysisRevision,
+          decisions: [
+            {
+              fieldKey: "revenue",
+              disposition: "correct",
+              value: "8765432.10",
+              expectedFactRevision: candidate.currentFactRevision,
+              reason: "Deliberately replace the synthetic value for the scoped access fixture.",
+            },
+          ],
+        };
+        const accepted = await staff.call(factsPath, "POST", command);
+        expect(accepted.status, JSON.stringify(accepted.body)).toBe(200);
+        const overview = await staff.call(overviewPath);
+        expect(overview.status).toBe(200);
+        expect(overview.body.financialFacts.facts).toContainEqual(
+          expect.objectContaining({ value: "8765432.10" }),
+        );
+        expect(
+          overview.body.taxDocuments.documents.map(
+            (entry: { documentId: string }) => entry.documentId,
+          ),
+        ).toContain(shared.documentId);
+        expect(JSON.stringify(overview.body.taxDocuments)).not.toContain(privateUpload.documentId);
+        const scoped = await adviser.call(base);
+        expect(scoped.status).toBe(200);
+        expect(scoped.body.documents.map((entry: { id: string }) => entry.id)).toEqual([
+          shared.documentId,
+        ]);
+        expect(scoped.body.canUpload).toBe(false);
+        expect(JSON.stringify(scoped.body)).not.toContain(privateFileName);
+        expect((await adviser.call(`${base}/versions/${shared.versionId}/content`)).bytes).toEqual(
+          sample.bytes,
+        );
+        expect(
+          (await staff.call(`${base}/versions/${privateUpload.versionId}/content`)).bytes,
+        ).toEqual(privateBytes);
+
+        async function denied(url: string, method: "GET" | "POST" = "GET", body?: object) {
+          const result = await adviser.call(url, method, body);
+          expect(result.status, JSON.stringify(result.body)).toBe(404);
+          expect(result.body.error.code).toBe("NOT_FOUND");
+          for (const secret of [
+            privateFileName,
+            privateUpload.documentId,
+            privateUpload.versionId,
+            shared.documentId,
+            "8765432.10",
+          ])
+            expect(JSON.stringify(result.body)).not.toContain(secret);
+        }
+        for (const revoked of [false, true]) {
+          if (revoked) {
+            await database.db
+              .update(applicationParticipants)
+              .set({ revokedAt: new Date() })
+              .where(eq(applicationParticipants.id, participant.id));
+            await denied(base);
+            await denied(`${base}/versions/${shared.versionId}/content`);
+          }
+          await denied(factsPath);
+          await denied(overviewPath);
+          // A valid previously accepted command must not bypass authorization on replay.
+          await denied(factsPath, "POST", command);
+          await denied(`${base}/versions/${privateUpload.versionId}/content`);
+          await denied(`${base}/versions/${privateUpload.versionId}/retry-processing`, "POST", {});
+        }
+        expect((await staff.call(factsPath)).body).toEqual(accepted.body);
+      } finally {
+        await database.db
+          .update(applicationParticipants)
+          .set({ documentIds: participant.documentIds, revokedAt: participant.revokedAt })
+          .where(eq(applicationParticipants.id, participant.id));
+        await user.close();
+        await staff.close();
+        await adviser.close();
       }
     });
 

@@ -61,6 +61,111 @@ test("temporary application failures preserve retained editing state", async () 
     stop();
   }
 });
+
+test.each([
+  { suffix: "setup", method: "PATCH" },
+  { suffix: "setup/identifier", method: "PATCH" },
+  { suffix: "setup/finish", method: "POST" },
+  { suffix: "setup", method: "GET" },
+] as const)(
+  "explicit setup recovery receives $method $suffix session errors without discarding its form",
+  async ({ suffix, method }) => {
+    rememberSession(session);
+    const listener = vi.fn();
+    const stop = onApplicationAccessLoss(listener);
+    const fetch = vi.fn(async () =>
+      Response.json(
+        { error: { code: "SESSION_CHANGED", message: "Sign in again." } },
+        { status: 401 },
+      ),
+    );
+    vi.stubGlobal("fetch", fetch);
+    try {
+      await expect(
+        request(`/api/v1/banks/${session.bank.id}/applications/application-a/${suffix}`, schema, {
+          bankId: session.bank.id,
+          actorEmail: session.user.email,
+          recoverSetupSession: true,
+          method,
+        }),
+      ).rejects.toMatchObject({ code: "SESSION_CHANGED", status: 401 });
+      expect(fetch).toHaveBeenCalledTimes(1);
+      expect(listener).not.toHaveBeenCalled();
+    } finally {
+      stop();
+    }
+  },
+);
+
+test.each(["expired", "changed"] as const)(
+  "setup recovery never sends a save from a locally %s identity",
+  async (state) => {
+    rememberSession(
+      state === "expired"
+        ? { authenticated: false }
+        : { ...session, user: { email: "another@example.test" } },
+    );
+    const listener = vi.fn();
+    const stop = onApplicationAccessLoss(listener);
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    try {
+      await expect(
+        request(`/api/v1/banks/${session.bank.id}/applications/application-a/setup`, schema, {
+          bankId: session.bank.id,
+          actorEmail: session.user.email,
+          recoverSetupSession: true,
+          method: "PATCH",
+          body: { requestedAmount: "37500.00" },
+        }),
+      ).rejects.toMatchObject({
+        code: state === "expired" ? "SESSION_EXPIRED" : "SESSION_CHANGED",
+        status: 401,
+      });
+      expect(fetch).not.toHaveBeenCalled();
+      expect(listener).not.toHaveBeenCalled();
+    } finally {
+      stop();
+    }
+  },
+);
+
+test.each([
+  { suffix: "setup", status: 403, code: "FORBIDDEN", recoverSetupSession: true },
+  { suffix: "setup", status: 404, code: "NOT_FOUND", recoverSetupSession: true },
+  { suffix: "setup", status: 401, code: "OTHER_DENIAL", recoverSetupSession: true },
+  { suffix: "tasks", status: 401, code: "SESSION_CHANGED", recoverSetupSession: true },
+  { suffix: "setup", status: 401, code: "SESSION_CHANGED", recoverSetupSession: false },
+])(
+  "$suffix $status $code still clears application caches when recovery is $recoverSetupSession",
+  async ({ suffix, status, code, recoverSetupSession }) => {
+    rememberSession(session);
+    const listener = vi.fn();
+    const stop = onApplicationAccessLoss(listener);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ error: { code } }, { status })),
+    );
+    try {
+      await expect(
+        request(`/api/v1/banks/${session.bank.id}/applications/application-a/${suffix}`, schema, {
+          bankId: session.bank.id,
+          actorEmail: session.user.email,
+          recoverSetupSession,
+          method: "PATCH",
+        }),
+      ).rejects.toMatchObject({ code, status });
+      expect(listener).toHaveBeenCalledExactlyOnceWith({
+        bankId: session.bank.id,
+        applicationId: "application-a",
+        actorEmail: session.user.email,
+        error: expect.any(ApiError),
+      });
+    } finally {
+      stop();
+    }
+  },
+);
 afterEach(() => {
   vi.unstubAllGlobals();
   rememberSession({ authenticated: false });

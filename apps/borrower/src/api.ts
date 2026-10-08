@@ -16,6 +16,8 @@ type RequestOptions = {
   signal?: AbortSignal;
   bankId?: string;
   actorEmail?: string;
+  /** The setup form owns explicit sign-in recovery; all grant denials still clear it. */
+  recoverSetupSession?: boolean;
 };
 type AccessLoss = { bankId: string; applicationId: string; actorEmail?: string; error: ApiError };
 const accessListeners = new Set<(event: AccessLoss) => void>();
@@ -29,6 +31,15 @@ export function reportApplicationAccessLoss(path: string, options: RequestOption
   if (!(error instanceof ApiError) || ![401, 403, 404].includes(error.status)) return;
   const match = /^\/api\/v1\/banks\/([^/]+)\/applications\/([^/?]+)(?:[/?]|$)/.exec(path);
   if (!match?.[1] || !match[2]) return;
+  if (
+    options.recoverSetupSession &&
+    options.bankId === match[1] &&
+    options.actorEmail &&
+    error.status === 401 &&
+    ["SESSION_EXPIRED", "SESSION_CHANGED"].includes(error.code) &&
+    /^\/api\/v1\/banks\/[^/]+\/applications\/[^/]+\/setup(?:\/(?:identifier|finish))?$/.test(path)
+  )
+    return;
   for (const listener of accessListeners)
     listener({ bankId: match[1], applicationId: match[2], actorEmail: options.actorEmail, error });
 }

@@ -121,7 +121,7 @@ export function SetupWizard(props: {
       request(
         `/api/v1/banks/${props.session.bank.id}/applications/${props.applicationId}/setup`,
         applicationSetupSchema,
-        { signal },
+        { signal, bankId: props.session.bank.id, actorEmail: props.session.user.email },
       ),
     retry: false,
     refetchOnWindowFocus: false,
@@ -258,6 +258,14 @@ function WizardForm({
     setLatestValue(null);
     queryClient.setQueryData(["setup", session.bank.id, session.user.email, applicationId], next);
   }
+  function showError(error: unknown) {
+    if (step === "business_ein" && error instanceof ApiError && error.status === 401) {
+      // Session recovery retains ordinary answers only, never an unsubmitted identifier.
+      form.reset({ value: "" });
+      setReplacing(false);
+    }
+    setError(error);
+  }
   async function save(
     target: ApplicationSetupStep,
     mode: "continue" | "back" | "later" | "skip" | "edit" | "clear",
@@ -333,6 +341,7 @@ function WizardForm({
             : body,
           bankId: session.bank.id,
           actorEmail: session.user.email,
+          recoverSetupSession: true,
         },
       );
       if (mode !== "edit") rememberAnswer(recoveryKey, step);
@@ -342,7 +351,7 @@ function WizardForm({
         navigate(`/?bank=${encodeURIComponent(session.bank.slug)}`, { state: { saved: true } });
       }
     } catch (error) {
-      setError(error);
+      showError(error);
     } finally {
       setBusy(false);
     }
@@ -350,7 +359,11 @@ function WizardForm({
   async function reloadLatest() {
     setBusy(true);
     try {
-      const latest = await request(`${base}/setup`, applicationSetupSchema);
+      const latest = await request(`${base}/setup`, applicationSetupSchema, {
+        bankId: session.bank.id,
+        actorEmail: session.user.email,
+        recoverSetupSession: true,
+      });
       if (latest.setupStatus === "completed") {
         navigate(applicationPath(applicationId, session.bank.slug), { replace: true });
         return;
@@ -370,7 +383,7 @@ function WizardForm({
       }
       setError(null);
     } catch (error) {
-      setError(error);
+      showError(error);
     } finally {
       setBusy(false);
     }
@@ -385,6 +398,7 @@ function WizardForm({
         method: "POST",
         bankId: session.bank.id,
         actorEmail: session.user.email,
+        recoverSetupSession: true,
         body: {
           definitionVersion: 2,
           expectedRevision: saved.revision,
@@ -396,7 +410,7 @@ function WizardForm({
       await queryClient.invalidateQueries({ queryKey: ["applications"] });
       navigate(applicationPath(applicationId, session.bank.slug), { replace: true });
     } catch (error) {
-      setError(error);
+      showError(error);
     } finally {
       setBusy(false);
     }

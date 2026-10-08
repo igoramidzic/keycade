@@ -1,6 +1,6 @@
 # V2 delivery and validation
 
-Planning date: October 8, 2026. V2-01–V2-06 are complete locally. V2-07–V2-08 are **Not started**. Only the task-specific evidence below proves v2 behavior.
+Planning date: October 8, 2026. V2-01–V2-07 are complete locally. V2-08 is **Not started**. Only the task-specific evidence below proves v2 behavior.
 
 Read [the experience specification](02-experience-spec.md) and [the data and simulation specification](03-data-and-simulation.md) before implementing a task. The [main plan](../README.md), [architecture](../02-architecture.md), [access rules](../03-domain-and-access.md), and [verification discipline](../05-development-and-testing.md) still apply. Implement one bounded task or reviewable slice at a time.
 
@@ -14,10 +14,10 @@ Read [the experience specification](02-experience-spec.md) and [the data and sim
 | V2-04 | Document review and confirmed financial facts | V2-01, V2-03 | T14, T15, T19 | Done — local acceptance |
 | V2-05 | Lender application overview and evidence drill-down | V2-01, V2-04 | T10, T12, T16, T19, T21 | Done — local acceptance |
 | V2-06 | Simulated Loan Footprint | V2-01 | T16 | Done — local acceptance |
-| V2-07 | Integrated local acceptance | V2-02, V2-03, V2-04, V2-05, V2-06 | T22 | Not started |
+| V2-07 | Integrated local acceptance | V2-02, V2-03, V2-04, V2-05, V2-06 | T22 | Done — local acceptance |
 | V2-08 | Hosted parity and deployment acceptance | V2-07 | D02, D03 | Not started |
 
-Existing prerequisites are recorded as complete in the main plan. D05 and some later follow-ups have only local evidence; V2-08 must carry the combined implementation through hosted validation. V2-01–V2-06 are complete, so V2-07 integrated local acceptance is next. Loan Footprint is available through the completed Overview and existing Checks view.
+Existing prerequisites are recorded as complete in the main plan. D05 and some later follow-ups have only local evidence; V2-08 must carry the combined implementation through hosted validation. V2-01–V2-07 are complete, so V2-08 hosted parity is next. Loan Footprint is available through the completed Overview and existing Checks view.
 
 ## Shared completion rules
 
@@ -298,9 +298,35 @@ Dependencies: V2-02–V2-06; T22. Primary areas: focused integration/browser jou
 4. Run affected unit/HTTP/real-PostgreSQL suites, both local transport adapters, `pnpm check`, `pnpm build`, and desktop/mobile browser journeys. Visually inspect the dashboard, scenario kit and modals; check keyboard focus and no overlap/overflow.
 5. Record the tested revision, commands, actual results and any limits. Update the demo guide and requirement map; do not claim hosted completion or re-enable paused CI without separate direction.
 
-Implementation record: **Not started.**
+Implementation record: **Done — local acceptance, October 8, 2026.**
 
-Validation record: **Not run.** Local acceptance must name the combined tested revision.
+- Added one connected desktop/mobile journey in `tests/e2e/v2-integrated.spec.ts`: a new email-first applicant completes expanded setup, resumes saved purposes after browser storage/cookie loss, enters the tabless dashboard, imports three tax returns and a statement, waits for protected scan/processing, then reaches lender grouped evidence, private PDF previews, six deliberately reviewed facts/history and Loan Footprint. General uploads and financial reviews leave task states and application lifecycle unchanged.
+- Strengthened both HTTP transports with actual accepted metrics and shared/private files before testing an assigned adviser and the same client after persisted revocation. Before revocation, the adviser list includes only granted shared documents; private bytes, financial aggregates, retry actions and accepted-command replays remain denied without leaking private values or identifiers. After revocation, the list and formerly shared bytes are denied too.
+- Repaired the setup-session recovery regression exposed by the integrated run. Actor-bound setup requests can recover known session 401s without the parent clearing the ordinary unsaved answer; unsaved EIN is erased. Initial/latest setup reads are actor-bound. Stale-account writes, permission denials and portal cache clearing retain their guards. Eleven new unit cases and the strengthened real-session browser journey cover this boundary.
+- Updated [the combined demo walkthrough](../../../README.md#combined-v2-walkthrough-locally), requirement map and task indexes. No schema or dependency change was needed.
+
+Validation record — **`bf845a168d456143e51f01034eb57f51c5839e21` plus the V2-07 working-tree changes**, October 8, 2026. `.local/v2-07-validation/tested-source.json` records SHA-256 hashes of all six changed/new code and test files so the tested delta is explicit.
+
+| Check | Actual result and evidence |
+| --- | --- |
+| Unit, Biome, boundaries and TypeScript | `pnpm check` passed: **410 unit tests**, all **12 workspace typechecks**, root TypeScript, Biome and browser/server boundaries. `check-final.log` records the final repair. |
+| Workspace builds | `pnpm build` passed all **12 workspace builds/checks**, including the repaired borrower app; `build-final.log`. |
+| Real PostgreSQL and both HTTP transports | `pnpm test:integration` passed **477 cases across 50 files**. After the two added transport cases, the updated document-workspace file passed **6/6**, giving **479 distinct cases**. `postgresql.log` and `document-workspace-postgresql.log`. |
+| Migration and startup preservation | All **25 committed migrations** run cleanly in disposable PostgreSQL databases. Populated upgrades cover every legacy setup step, completed/frozen applications, immutable document/decision evidence and footprint revisions. Two ordinary `pnpm initialize` runs preserved exact environment bytes and full synthetic bank/application/setup rows, including v2 answers/revisions/skips; invalid credentials stopped `pnpm dev` before app launch. `repeated-initialize.log` and its `preserve-initialize.ts` probe. |
+| Recovery and concurrency | The full database run includes a real separate-worker SIGKILL/restart, duplicate dispatch/effect deduplication, transaction rollback, concurrent financial reviews, replaced documents, expired leases and in-flight address changes. These use real PostgreSQL and injected time where applicable. |
+| Combined desktop/mobile browsers | **136 distinct cases have final passing results**, with no unresolved failures, skips or flakes. `.local/v2-07-validation/browser-acceptance.json` records each final case/report. Run breakdown and the repaired initial failure are below. |
+| Documentation | All **305 local Markdown paths/anchors across 45 files**, final Biome and `git diff --check` passed. `links.log`. |
+| Visual and keyboard inspection | Inspected desktop/mobile borrower dashboard, scenario kit, PDF workspace, financial history and geographic modal/map screenshots. The connected journey checks keyboard purposes/import picker, modal Escape/focus return and no page overflow; related suites verify preview/page/zoom/resize stability and reachable controls. Twelve connected-journey images are in `.local/e2e-jKpAqB/shard-1/` and `shard-2/`. |
+
+Browser commands use `node_modules/node/bin/node --import tsx scripts/e2e.ts` followed by these arguments:
+
+- `tests/e2e/borrower-workspace.spec.ts tests/e2e/borrower-dashboard-v2.spec.ts tests/e2e/borrower-dashboard-safety.spec.ts tests/e2e/participants.spec.ts tests/e2e/staff-workspace.spec.ts tests/e2e/closing.spec.ts`: **52/52**, `.local/e2e-JIHiYP`. Covers legacy-shaped incomplete/completed fixtures, separate applications/businesses, staff prefill/handoff, scoped invitations/revocation, contextual navigation, two-party signatures and replay-safe simulated funding.
+- `tests/e2e/intake.spec.ts tests/e2e/industry.spec.ts tests/e2e/demo-text-import.spec.ts tests/e2e/document-workspace.spec.ts tests/e2e/lender-overview-v2.spec.ts tests/e2e/loan-footprint-v2.spec.ts`: **65/66 initially**, `.local/e2e-q4ohI5`. The desktop session-recovery failure exposed the repaired product bug; its desktop/mobile rerun below passes. Unknown/blocked/renamed imports, exact private sources, conflicting/stale reviews, denied cleanup, US/non-US/missing/stale geography and map failures are covered.
+- `tests/e2e/demo-inbox.spec.ts tests/e2e/review.spec.ts` with `DEMO_INBOX_ENABLED=true`: **14/14**, `.local/e2e-M9Ks9c`. Deliberate simulated inbox confirmation/resume, submission, returned information, resubmission, human approval/decline and withdrawal pass.
+- `tests/e2e/v2-integrated.spec.ts`: **2/2**, `.local/e2e-jKpAqB`. Initial test-authoring runs corrected the canonical website trailing slash, paced requests under unchanged real rate limits and allowed asynchronous view readiness before this final pass.
+- `tests/e2e/intake.spec.ts tests/e2e/borrower-dashboard-safety.spec.ts tests/e2e/collaborator-upload.spec.ts --grep 'session recovery|a denied task mutation|invited adviser'`: **6/6**, `.local/e2e-HTaX4J`. Strengthened EIN/ordinary-answer recovery, zero stale-account mutations, immediate denied-task clearing and real adviser private-evidence/revocation checks. Four cases overlap the sets above; two adviser cases bring the distinct total to 136.
+
+Limits: all acceptance is local. Browser legacy fixtures demonstrate legacy-shaped behavior; actual populated migration preservation is proved separately by the PostgreSQL upgrade suites. Initialization first added missing defaults to the existing older `.env`; the two subsequent preservation probes passed byte-for-byte. The shared Podman database was not stopped; worker-process restart was tested in an isolated database. Pinned Node 24.21.0 and cached pnpm 10.34.6 ran the repository scripts; sandbox access was extended for the owned database, loopback services, Chromium and test IPC. Final logs are under `.local/v2-07-validation`. All owned browser processes/databases were cleaned up. V2-08 remains unstarted; no hosted build/deployment, hosted parity or CI re-enablement is claimed.
 
 ## V2-08 — Hosted parity and deployment slice
 
