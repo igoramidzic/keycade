@@ -15,6 +15,7 @@ import {
   applicationParticipants,
   applicationSetups,
   applications,
+  applicationTasks,
   auditEvents,
   bankMemberships,
   type Database,
@@ -23,10 +24,11 @@ import {
   staffNotes,
   users,
 } from "@keycade/db";
-import { and, asc, count, desc, eq, ilike, isNull, or, type SQL, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, ilike, inArray, isNull, or, type SQL, sql } from "drizzle-orm";
 import { type AnyPgColumn, alias } from "drizzle-orm/pg-core";
 import { type Actor, requireApplicationAccess, requireBankStaff } from "./authorization.js";
 import { DomainError, deny } from "./errors.js";
+import { calculateTaskProgress, type ProgressTask } from "./task-rules.js";
 import { readTaskProgress, reconcileTasks } from "./tasks.js";
 
 type Tx = DatabaseTransaction;
@@ -104,7 +106,7 @@ export async function listStaffApplications(
   const query = parse(staffPageQuerySchema, input);
   return db.transaction(
     async (tx) => {
-      const access = await requireBankStaff(tx, actor, bankId);
+      await requireBankStaff(tx, actor, bankId);
       const pattern = query.search ? `%${query.search.replace(/[\\%_]/g, "\\$&")}%` : undefined;
       const where = and(
         eq(applications.bankId, bankId),
@@ -153,17 +155,43 @@ export async function listStaffApplications(
         .orderBy(sorts[query.sort], asc(applications.id))
         .limit(query.limit)
         .offset((query.page - 1) * query.limit);
-      const progress = new Map<string, TaskProgress>();
-      // Queue sorts differ across callers; acquire application locks in UUID order.
-      for (const result of [...rows].sort((a, b) => a.row.id.localeCompare(b.row.id))) {
-        await reconcileTasks(tx, bankId, result.row.id, randomUUID(), new Date());
-        progress.set(
-          result.row.id,
-          await readTaskProgress(tx, actor, access, bankId, result.row.id),
-        );
+      // The queue projects saved state; workflow mutations and individual workspaces
+      // reconcile requirements. Never lock/reconcile every application just to list it.
+      // Staff can see all tasks, but only for this bank and this authorized page.
+      const tasks = rows.length
+        ? await tx
+            .select({
+              applicationId: applicationTasks.applicationId,
+              state: applicationTasks.state,
+              stage: applicationTasks.stage,
+              required: applicationTasks.required,
+              evidenceRevision: applicationTasks.evidenceRevision,
+              reviewedEvidenceRevision: applicationTasks.reviewedEvidenceRevision,
+            })
+            .from(applicationTasks)
+            .where(
+              and(
+                eq(applicationTasks.bankId, bankId),
+                inArray(
+                  applicationTasks.applicationId,
+                  rows.map(({ row }) => row.id),
+                ),
+              ),
+            )
+        : [];
+      const progress = new Map<string, ProgressTask[]>();
+      for (const task of tasks) {
+        const group = progress.get(task.applicationId) ?? [];
+        group.push(task);
+        progress.set(task.applicationId, group);
       }
       return staffApplicationPageSchema.parse({
-        items: rows.map((row) => queueItem(row, progress.get(row.row.id) ?? null)),
+        items: rows.map((row) =>
+          queueItem(
+            row,
+            progress.has(row.row.id) ? calculateTaskProgress(progress.get(row.row.id) ?? []) : null,
+          ),
+        ),
         page: query.page,
         limit: query.limit,
         total,

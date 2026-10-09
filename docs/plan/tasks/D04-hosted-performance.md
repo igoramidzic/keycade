@@ -88,3 +88,56 @@ The original audit did not retain its fixture ID. This run therefore pinned the 
 All serial ranges were lower in this run. Concurrent review remained over two seconds and was slightly higher than its baseline sample, so the evidence does not claim that every request became faster. Shared application locking and sequential authorization/reconciliation queries remain; the measured concurrent readiness/review durations are consistent with that serialization. Server-Timing reports the API handler's elapsed duration, not CPU time. These few samples from one host establish neither latency percentiles nor a general service-level guarantee.
 
 The direct Neon diagnostic remained `BEGIN READ ONLY`: three warm `SELECT 1` round trips took **48–49 ms**, versus 52–53 ms previously. The point-in-time activity snapshot again showed one active diagnostic connection and five idle connections, with no observed lock wait. Safe aggregate timings and workload counts are in `.local/d04-latency-recheck.json`; the pinned private wrapper is `.local/d04-latency-recheck.mjs`. Neither file contains database credentials, session values, response bodies or applicant identities. No hosted browser run overlapped this benchmark.
+
+## Lender queue and focus refresh — October 9, 2026
+
+Status: Done locally — live diagnosis, implementation and local acceptance verified. Publication and post-deployment HTTP remeasurement remain pending.
+
+The user reported a roughly seven-second lender applications list and recurring full-page spinners around `/options` and `/accounts`. This follow-up keeps D04's dependencies and all backend session, bank, application and resource guards.
+
+### Live evidence
+
+Cloudflare telemetry for the deployed API version `aed3c796-d41d-4a5c-9e97-a6d8f65b9cf1` showed three application-list requests at **7,568, 7,907 and 7,567 ms**. Recent options requests were usually **123–174 ms**, with observed slower samples up to **1,107 ms**. Accounts were usually **117–161 ms**, with an overlapping-work sample at **3,534 ms**. These are observed handler durations, not CPU times or population percentiles.
+
+A separate authenticated probe using the existing synthetic officer account reproduced the issue on the same **17 applications**:
+
+| Endpoint | Three serial HTTP samples (ms) | Concurrent HTTP sample (ms) |
+| --- | --- | --- |
+| Staff applications | 7,035 / 7,515 / 8,330 | 8,571 |
+| Staff options | 272 / 274 / 1,113 | 646 |
+| Funded accounts | 240 / 255 / 239 | 277 |
+
+Application API handler durations were 6,864 / 7,155 / 8,128 ms serially and 8,394 ms in the concurrent batch. Most of the delay was inside the API. Cloudflare read-back confirmed targeted API placement, Neon in AWS Ohio, Hyperdrive query caching disabled and an origin connection limit of five. No infrastructure setting was changed. Pool contention can amplify concurrent workloads; the primary reproducible issue is the application's sequential database work.
+
+No artificial sleep, minimum spinner duration or simulated delay exists in these list endpoints. `SIMULATION_DELAY_MS=2000` belongs to background providers, scans and extraction. Those domain simulations remain independently configured; they are not a reason to delay reading a queue.
+
+### Cause and changes
+
+- `listStaffApplications` previously reconciled tasks and checks for every returned application, serially, while holding application update locks. Even an unchanged queue performed hundreds of database round trips and could contend with individual workspace requests. It now authorizes staff, pages within the bank/synthetic scope, and reads the page's saved task-progress fields in one additional query. It performs no reconciliation, writes or application update locks. Existing mutation and individual-workspace reconciliation remains authoritative. A draft without materialized tasks returns unknown (`null`) progress rather than asserting zero requirements.
+- The lender workspace treated focus and visibility changes as blocking `/options` checks, hiding all content behind “Checking staff access…”. It now checks the lightweight session endpoint in the background, coalesces concurrent focus/visibility events, and validates active staff status and the exact session token. Denial or failed verification still hides protected content; revoked/replaced sessions clear the private query cache. Each authenticated session gets a separate workspace/cache, including reauthentication as the same account.
+- `/accounts` retains the 30-second collaboration refresh, without an extra focus-triggered read. Its existing data stays visible during refresh, and timer retries stop after a failure. Funding mutation invalidation and explicit retry remain intact.
+- Safe API timing logs now distinguish `staff-applications`, `options` and `accounts`, instead of placing all three in `other`. No raw identifier, URL, query, session or document content is added to application logs.
+
+### Controlled query comparison
+
+The old and new list functions were run against the same hosted synthetic bank/page from this machine. Both used an outer transaction that was deliberately rolled back; no benchmark reconciliation or intent was committed. With the same 17 rows and identical task-progress totals, the old implementation used **350 SQL statements / 19,168 ms** and the new implementation **8 statements / 438 ms**. Both counts include the benchmark's `BEGIN` and `ROLLBACK`; the ordinary service transaction additionally sets its isolation level. This demonstrates the eliminated round trips on identical data. It is not a measurement of the fixed public Worker: direct database latency differs from Worker-to-Hyperdrive latency.
+
+Private scripts `.local/lender-latency-audit.mjs` and `.local/lender-query-audit.mjs` keep database credentials and cookies private and print only durations, counts and aggregate progress. The former signs into the synthetic account and invokes ordinary authorized reads; the latter rolls back all work.
+
+### Local acceptance
+
+- `pnpm test`: **429 tests passed** in 40 files.
+- Real PostgreSQL staff domain and both HTTP transport suites: **27 tests passed**. New coverage asserts a constant query count across page sizes, identical saved progress, no task mutations/application update locks, and unknown progress for untouched drafts. Existing cases verify scoped counts, stable pagination, filters, staff membership, synthetic-only visibility, revision conflicts and replay behavior.
+- Isolated `request-efficiency.spec.ts`: **6 desktop/mobile cases passed**, zero skipped/failed, in `.local/e2e-41ftkc`. Coverage includes pending session/account reads without page hiding or lost input, deduplicated focus events without options reads, actual cross-tab logout removing protected content, and the prior borrower idle-request regression.
+- `pnpm typecheck`: all **12 workspaces** and root types passed. `pnpm lint`: **423 files** and browser boundaries passed.
+- Cloudflare-mode lender build and native API/lender Worker dry runs passed. The existing frontend chunk-size advisory remains; it does not account for the measured API execution delay.
+- No schema migration, dependency, connection-limit or deployment-setting changes. No production code was published during this investigation. Re-run the saved HTTP probe after publication before claiming a hosted improvement.
+
+
+### Neutral reload state — October 9 follow-up
+
+The user additionally reported the login-page flash during authenticated reloads. The shared identity component already had an explicit loading state, but rendered that state inside the sign-in card and welcome layout. It now returns only the shared neutral “Checking access…” loading state until the session and, for staff, membership verification finish. Neither login UI nor private workspace is rendered while access is unknown. An HttpOnly cookie remains server-verified; no browser-storage authentication hint or bypass is introduced. The same state applies during explicit retry and sign-out transitions.
+
+Acceptance: delayed session and staff-membership responses must never expose the sign-in card or protected content; valid sessions resume their workspace; confirmed anonymous sessions show login; failed checks offer retry without assuming anonymous access. Both borrower and staff portals are covered.
+
+Final follow-up validation: **14/14 desktop/mobile cases** passed across `session-loading.spec.ts` and `request-efficiency.spec.ts`, zero skipped/failed, in `.local/e2e-QXmUZ9`. All 12 workspace/root typechecks, lint (**424 files** plus boundaries), and Cloudflare-mode lender/borrower builds pass. The 429-unit/27-PostgreSQL performance checkpoint above remains applicable to the unchanged request/domain behavior. API, lender and borrower native dry runs pass on the final code. Deployment remains pending.

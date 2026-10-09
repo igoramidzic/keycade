@@ -48,6 +48,8 @@ The requested [client task completion without a review step](tasks/T12-tasks-and
 
 The requested [account picker and product wording](tasks/D07-account-picker-and-product-copy.md) follow-up is **complete locally; production publication pending**: lender accounts are selected from existing bank memberships, and all product screens use neutral wording. The underlying services remain simulated. The email-link switch, example email and obsolete hosted-delivery notice are removed from both sign-in surfaces. Validation passes 426 unit tests, 487 PostgreSQL cases, 48 distinct relevant browser cases, all 12 builds/typechecks, lint and five Cloudflare dry runs.
 
+The requested [lender queue performance follow-up](tasks/D04-hosted-performance.md#lender-queue-and-focus-refresh--october-9-2026) is **complete locally; publication pending**. Live logs confirm 7.57–7.91-second application reads. The same-data SQL replay falls from 350 to 8 statements with identical task progress. Quiet session checks remove focus-driven page spinners, and both portals show a neutral state during reload verification. Validation covers 429 unit tests, 27 affected PostgreSQL tests, 14 desktop/mobile cases, all typechecks, lint, portal builds and native API/portal dry runs.
+
 ## Agreed outcome
 
 Build a bank-operated business lending platform with a mock bank website, a borrower application/dashboard, and a bank staff console. Support multiple businesses, participants, applications, and eventual loan accounts. Ask for email first, progressively collect information, and use passwordless access. Simulate outside services with visible delays and reliable background processing.

@@ -1,4 +1,3 @@
-import { staffOptionsSchema } from "@keycade/contracts";
 import {
   AppFooter,
   AppHeader,
@@ -82,7 +81,7 @@ export function BankApp({ confirmation }: { confirmation: Confirmation }) {
               }
               renderAuthenticated={(session, controls) => (
                 <Workspace
-                  key={`${session.bank.id}:${session.user.email}:${session.authenticationMethod}`}
+                  key={`${session.bank.id}:${session.csrfToken}`}
                   session={session}
                   controls={controls}
                   showKit={setShowKit}
@@ -170,11 +169,13 @@ function Workspace({
   );
   const controlsRef = useRef(controls);
   controlsRef.current = controls;
-  const [checking, setChecking] = useState(false);
   const [denied, setDenied] = useState(false);
-  useDemoUploadAvailability(!checking && !denied);
+  useDemoUploadAvailability(!denied);
   const [checkError, setCheckError] = useState<unknown>(null);
+  const verification = useRef<Promise<void> | null>(null);
+  const denialGeneration = useRef(0);
   const onDenied = useCallback(() => {
+    denialGeneration.current++;
     setDenied(true);
     setCheckError(
       new ApiError(
@@ -187,33 +188,37 @@ function Workspace({
     void controlsRef.current.refreshSession().catch(setCheckError);
   }, [client]);
   const api = useMemo(() => createStaffApi(session, onDenied), [session, onDenied]);
-  const verify = useCallback(async () => {
-    setChecking(true);
-    setCheckError(null);
-    try {
-      await api.request("/options", staffOptionsSchema);
-      setDenied(false);
-      setChecking(false);
-    } catch (error) {
-      setCheckError(error);
-    }
+  const verify = useCallback(() => {
+    // Focus and visibilitychange often arrive together. Keep the existing screen
+    // mounted while one lightweight session/membership check runs in the background.
+    if (verification.current) return verification.current;
+    const generation = denialGeneration.current;
+    verification.current = (async () => {
+      setCheckError(null);
+      try {
+        await api.verify(AbortSignal.timeout(15_000));
+        if (denialGeneration.current === generation) setDenied(false);
+      } catch (error) {
+        setDenied(true);
+        setCheckError(error);
+      } finally {
+        verification.current = null;
+      }
+    })();
+    return verification.current;
   }, [api]);
   useEffect(() => {
     const focus = () => {
       if (document.visibilityState === "visible") void verify();
     };
-    const visibility = () => {
-      if (document.visibilityState === "hidden") setChecking(true);
-      else void verify();
-    };
     window.addEventListener("focus", focus);
-    document.addEventListener("visibilitychange", visibility);
+    document.addEventListener("visibilitychange", focus);
     return () => {
       window.removeEventListener("focus", focus);
-      document.removeEventListener("visibilitychange", visibility);
-      client.clear();
+      document.removeEventListener("visibilitychange", focus);
     };
-  }, [client, verify]);
+  }, [verify]);
+  useEffect(() => () => client.clear(), [client]);
   const navigate = useNavigate();
   return (
     <QueryClientProvider client={client}>
@@ -260,13 +265,13 @@ function Workspace({
             {controls.error}
           </p>
         )}
-        {(checking || denied) &&
+        {denied &&
           (checkError ? (
             <ErrorNotice error={checkError} onRetry={() => void verify()} />
           ) : (
             <Loading>Checking staff access…</Loading>
           ))}
-        <div hidden={checking || denied}>
+        <div hidden={denied}>
           <Routes>
             <Route path="/demo-inbox" element={<StaffDemoInbox />} />
             <Route path="/" element={<ApplicationQueue />} />

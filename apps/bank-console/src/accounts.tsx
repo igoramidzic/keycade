@@ -15,8 +15,8 @@ export function AccountList() {
       api.participantRequest("/accounts", fundedAccountsViewSchema, { signal }),
     retry: false,
     refetchOnMount: "always",
-    refetchOnWindowFocus: true,
-    refetchInterval: 30000,
+    refetchOnWindowFocus: false,
+    refetchInterval: (query) => (query.state.error ? false : 30_000),
   });
   if (accounts.isPending || !accounts.isFetchedAfterMount)
     return <Loading>Loading funded accounts…</Loading>;

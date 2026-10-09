@@ -51,3 +51,80 @@ test("idle borrower overview avoids session fan-out and three-second background 
   await page.clock.runFor(12_001);
   expect([...requests]).toEqual(initial);
 });
+
+const staff = `http://127.0.0.1:${env.BANK_CONSOLE_PORT ?? 3002}`;
+
+async function staffQueue(page: import("@playwright/test").Page) {
+  await page.goto(staff);
+  await fillSignInEmail(page, "officer-a@example.test");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(
+    page.getByRole("link", { name: "Cedar Workshop", exact: true }).first(),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Funded accounts", exact: true })).toBeVisible();
+}
+
+test("staff focus checks and account refresh keep the queue visible and preserve input", async ({
+  page,
+}) => {
+  await staffQueue(page);
+  await page.clock.install();
+  await page.getByLabel("Search applications", { exact: true }).fill("Unsaved search");
+  let release = () => {};
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let sessionRequests = 0;
+  let optionsRequests = 0;
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname.endsWith("/staff/options")) optionsRequests++;
+  });
+  await page.route("**/api/v1/auth/session", async (route) => {
+    sessionRequests++;
+    await pending;
+    await route.continue();
+  });
+  await page.route(/\/api\/v1\/banks\/[^/]+\/accounts$/, async (route) => {
+    await pending;
+    await route.continue();
+  });
+  try {
+    await page.clock.runFor(30_001);
+    // Browser focus and visibility notifications can arrive in the same turn.
+    await page.evaluate(() => {
+      window.dispatchEvent(new Event("focus"));
+      document.dispatchEvent(new Event("visibilitychange"));
+      window.dispatchEvent(new Event("focus"));
+    });
+    await expect.poll(() => sessionRequests).toBe(1);
+    await expect(
+      page.getByRole("link", { name: "Cedar Workshop", exact: true }).first(),
+    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Funded accounts", exact: true })).toBeVisible();
+    await expect(page.getByLabel("Search applications", { exact: true })).toHaveValue(
+      "Unsaved search",
+    );
+    await expect(page.getByText("Checking staff access…", { exact: true })).toHaveCount(0);
+    expect(sessionRequests).toBe(1);
+    expect(optionsRequests).toBe(0);
+  } finally {
+    release();
+  }
+});
+
+test("staff focus recheck hides protected content after another tab signs out", async ({
+  page,
+  context,
+}) => {
+  await staffQueue(page);
+  const session = await context.request.get(`${staff}/api/v1/auth/session`);
+  const current = await session.json();
+  const logout = await context.request.post(`${staff}/api/v1/auth/logout`, {
+    headers: { Origin: staff, "x-csrf-token": current.csrfToken },
+    data: {},
+  });
+  expect(logout.ok()).toBe(true);
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(page.getByRole("link", { name: "Cedar Workshop", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
+});

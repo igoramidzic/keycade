@@ -4,6 +4,7 @@ import {
   applicantContacts,
   applicationSetups,
   applications,
+  applicationTasks,
   auditEvents,
   bankMemberships,
   staffNotes,
@@ -12,7 +13,8 @@ import {
 import { seedIds as ids, seedDatabase } from "@keycade/db/seed";
 import { createTestDatabase } from "@keycade/db/testing";
 import { and, eq, sql } from "drizzle-orm";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import pg from "pg";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   type Actor,
   addStaffNote,
@@ -66,6 +68,40 @@ afterAll(async () => {
 });
 
 describe("staff queue and workspace on PostgreSQL", () => {
+  it("reads saved progress in a bounded batch without reconciling or locking applications", async () => {
+    const populated = await createDraft("Queue performance populated");
+    const untouched = await service().create(
+      officer,
+      ids.bankA,
+      { email: `${randomUUID()}@example.test`, idempotencyKey: randomUUID() },
+      randomUUID(),
+    );
+    const before = await database.db.select().from(applicationTasks);
+    const querySpy = vi.spyOn(pg.Client.prototype, "query");
+    try {
+      await listStaffApplications(database.db, demo, ids.bankA, { limit: 1 });
+      const oneRowQueries = querySpy.mock.calls.length;
+      querySpy.mockClear();
+      const page = await listStaffApplications(database.db, demo, ids.bankA, { limit: 50 });
+      expect(page.items.length).toBeGreaterThan(1);
+      expect(querySpy.mock.calls.length).toBe(oneRowQueries);
+      expect(oneRowQueries).toBeLessThanOrEqual(9);
+      const statements = querySpy.mock.calls.map(([query]: unknown[]) =>
+        typeof query === "string" ? query : (query as { text: string }).text,
+      );
+      expect(statements.some((query) => /for update|^insert|^update|^delete/i.test(query))).toBe(
+        false,
+      );
+      expect(page.items.find((item) => item.id === populated.id)?.taskProgress).toEqual(
+        populated.taskProgress,
+      );
+      // A draft with no materialized requirements must not claim zero required tasks.
+      expect(page.items.find((item) => item.id === untouched.id)?.taskProgress).toBeNull();
+    } finally {
+      querySpy.mockRestore();
+    }
+    expect(await database.db.select().from(applicationTasks)).toEqual(before);
+  });
   it("scopes queue, counts, options, details and note mutations to current bank staff", async () => {
     const own = await listStaffApplications(database.db, officer, ids.bankA);
     expect(own.items.length).toBeGreaterThan(0);

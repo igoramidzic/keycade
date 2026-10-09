@@ -48,10 +48,11 @@ export default {
       const durationMs = Math.round(performance.now() - startedAt);
       response.headers.set("server-timing", `api;dur=${durationMs}`);
       // No raw URL, query, identity, cookie or document content enters the logs.
+      const pathname = new URL(request.url).pathname;
       const resource =
-        new URL(request.url).pathname.match(
-          /\/(session|tasks|documents|readiness|review|portal|checks|closing)(?:\/|$)/,
-        )?.[1] ?? "other";
+        pathname.match(
+          /\/(session|tasks|documents|readiness|review|portal|checks|closing|options|accounts)(?:\/|$)/,
+        )?.[1] ?? (/\/staff\/applications$/.test(pathname) ? "staff-applications" : "other");
       console.info({
         event: "api.request",
         resource,

@@ -87,3 +87,19 @@ test("an older API still verifies the session during a mixed-version rollout", a
   expect(denied).toHaveBeenCalledOnce();
   expect(fetch).toHaveBeenCalledTimes(2);
 });
+
+test.each([
+  { ...session, staff: false },
+  { ...session, csrfToken: "b".repeat(64) },
+  { authenticated: false, demoSignInEnabled: true },
+])("focus verification rejects revoked or replaced staff sessions", async (current) => {
+  rememberSession(session);
+  const denied = vi.fn();
+  const fetch = vi.fn(async () => Response.json(current));
+  vi.stubGlobal("fetch", fetch);
+  await expect(createStaffApi(session, denied).verify()).rejects.toMatchObject({
+    code: "SESSION_CHANGED",
+  });
+  expect(denied).toHaveBeenCalledOnce();
+  expect(fetch).toHaveBeenCalledOnce();
+});

@@ -36,7 +36,8 @@ export function createStaffApi(session: AuthenticatedSession, onDenied: () => vo
       !current.staff ||
       current.bank.id !== session.bank.id ||
       current.authenticationMethod !== session.authenticationMethod ||
-      current.user.email !== session.user.email
+      current.user.email !== session.user.email ||
+      current.csrfToken !== session.csrfToken
     ) {
       onDenied();
       throw new ApiError(

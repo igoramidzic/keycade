@@ -7,21 +7,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@keycade/ui/components/card";
+import { LoadingState } from "@keycade/ui/components/empty-state";
 import { Input } from "@keycade/ui/components/input";
 import { NativeSelect, NativeSelectOption } from "@keycade/ui/components/native-select";
 import { rememberSession } from "@keycade/ui/lib/session-snapshot";
 import { workflowName } from "@keycade/ui/lib/workflow-text";
 import { cn } from "cn";
-import {
-  Check,
-  CircleAlert,
-  Inbox,
-  LoaderCircle,
-  LockKeyhole,
-  Mail,
-  MailCheck,
-  ShieldAlert,
-} from "lucide-react";
+import { Check, CircleAlert, Inbox, LockKeyhole, Mail, MailCheck, ShieldAlert } from "lucide-react";
 import { type FormEvent, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 export type Confirmation = { page: boolean; token: string | null };
@@ -463,6 +455,10 @@ export function IdentityPortal({
     if (!renderAuthenticated) window.history.replaceState(null, "", "/");
   }
 
+  // The cookie is HttpOnly and must be verified by the server. While its status
+  // is unknown, render neither the sign-in card/welcome nor private workspace.
+  if (screen === "loading") return <LoadingState>Checking access…</LoadingState>;
+
   if (screen === "signed-in" && session.authenticated && renderAuthenticated) {
     return renderAuthenticated(session, {
       signOut: logout,
@@ -472,8 +468,7 @@ export function IdentityPortal({
     });
   }
 
-  const titles: Record<Screen, string> = {
-    loading: "Checking your session…",
+  const titles: Record<Exclude<Screen, "loading">, string> = {
     request: isStaff
       ? "Sign in to the bank console"
       : isStarting
@@ -520,12 +515,6 @@ export function IdentityPortal({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
-        {screen === "loading" && (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <LoaderCircle aria-hidden="true" className="size-4 animate-spin" />
-            Checking access…
-          </p>
-        )}
         {screen === "request" && (
           <form onSubmit={(event) => void signIn(event)} className="space-y-4">
             <div className="space-y-2">
