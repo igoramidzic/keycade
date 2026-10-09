@@ -269,12 +269,3 @@
   text-transform: uppercase;
   color: var(--muted-foreground);
 }
-
-@utility disclosure {
-  /* A <details> summary that reads as a row with a rotating chevron. */
-  cursor: pointer;
-  list-style: none;
-  &::-webkit-details-marker {
-    display: none;
-  }
-}

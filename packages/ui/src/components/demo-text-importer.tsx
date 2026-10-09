@@ -9,6 +9,11 @@ import {
   validateDemoTextImportBatch,
 } from "@keycade/contracts/demo-import";
 import { Button } from "@keycade/ui/components/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@keycade/ui/components/collapsible";
 import type { DemoUploadTarget } from "@keycade/ui/components/demo-kit";
 import { DemoDestination, DemoStepHeading } from "@keycade/ui/components/demo-kit-parts";
 import {
@@ -120,26 +125,28 @@ export function DemoTextImporter({
           ? `PDF destination: ${uploadTarget.label}. Scanning and simulated analysis follow upload.`
           : "Open an authorized application document area or business task to generate uploadable samples. Generic downloads remain available."}
       </DemoDestination>
-      <details className="group/recipes overflow-hidden rounded-lg border bg-card">
-        <summary className="disclosure flex items-center justify-between gap-2 px-3 py-2.5 text-xs font-medium outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
+      <Collapsible className="group/recipes overflow-hidden rounded-lg border bg-card">
+        <CollapsibleTrigger className="flex items-center justify-between gap-2 px-3 py-2.5 text-xs font-medium outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset w-full text-left">
           Supported text filenames and outcomes
           <ChevronDown
             aria-hidden="true"
-            className="size-4 shrink-0 text-muted-foreground transition-transform group-open/recipes:rotate-180"
+            className="size-4 shrink-0 text-muted-foreground transition-transform group-data-open/recipes:rotate-180"
           />
-        </summary>
-        <ul className="divide-y border-t px-3 text-xs leading-5">
-          {demoImportRecipes.map((recipe) => (
-            <li key={recipe.id} className="py-2">
-              <p className="font-medium break-all">{recipe.basename}</p>
-              <p className="text-muted-foreground">
-                {recipe.title} ·{" "}
-                {recipe.outcome === "clear" ? "Simulated matching sample" : "Needs review"}
-              </p>
-            </li>
-          ))}
-        </ul>
-      </details>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <ul className="divide-y border-t px-3 text-xs leading-5">
+            {demoImportRecipes.map((recipe) => (
+              <li key={recipe.id} className="py-2">
+                <p className="font-medium break-all">{recipe.basename}</p>
+                <p className="text-muted-foreground">
+                  {recipe.title} ·{" "}
+                  {recipe.outcome === "clear" ? "Simulated matching sample" : "Needs review"}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </CollapsibleContent>
+      </Collapsible>
       <section
         aria-label="Demo text import drop area"
         aria-busy={busy}

@@ -7,9 +7,15 @@ import type {
 import { documentCategoryLabels } from "@keycade/contracts";
 import { Alert, AlertDescription, AlertTitle } from "@keycade/ui/components/alert";
 import { Button } from "@keycade/ui/components/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@keycade/ui/components/collapsible";
 import { Input } from "@keycade/ui/components/input";
 import { NativeSelect } from "@keycade/ui/components/native-select";
 import { Textarea } from "@keycade/ui/components/textarea";
+import { ChevronRight } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 
 export function DocumentInfo({
@@ -179,144 +185,158 @@ export function DocumentInfo({
         </Alert>
       )}
       {document.canEditMetadata && current && (
-        <details className="rounded-lg border p-3">
-          <summary className="cursor-pointer text-sm font-medium">Edit document details</summary>
-          <form
-            className="mt-4 space-y-3"
-            onSubmit={(event) => void save(event)}
-            onChange={() => setDirty(true)}
-          >
-            <label className="block space-y-1 text-sm">
-              Display name
-              <Input
-                value={displayName}
-                maxLength={180}
-                onChange={(event) => setDisplayName(event.target.value)}
-              />
-            </label>
-            <label className="block space-y-1 text-sm">
-              Description
-              <Textarea
-                value={description}
-                maxLength={2000}
-                onChange={(event) => setDescription(event.target.value)}
-              />
-            </label>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="block space-y-1 text-sm">
-                Expected period start
-                <Input
-                  type="date"
-                  value={start}
-                  required={Boolean(end)}
-                  onChange={(event) => setStart(event.target.value)}
-                />
-              </label>
-              <label className="block space-y-1 text-sm">
-                Expected period end
-                <Input
-                  type="date"
-                  value={end}
-                  min={start || undefined}
-                  required={Boolean(start)}
-                  onChange={(event) => setEnd(event.target.value)}
-                />
-              </label>
-            </div>
-            <label className="block space-y-1 text-sm">
-              Period basis
-              <NativeSelect
-                value={basis}
-                onChange={(event) => setBasis(event.target.value as typeof basis)}
-              >
-                <option value="fiscal_year">Fiscal year</option>
-                <option value="statement">Statement</option>
-              </NativeSelect>
-            </label>
-            <p className="text-xs text-muted-foreground">
-              Changing the expected period requires a fresh source review. Clear both dates to
-              remove the expected period.
-            </p>
-            <label className="block space-y-1 text-sm">
-              Reason for metadata change
-              <Textarea
-                required
-                maxLength={1000}
-                value={reason}
-                onChange={(event) => setReason(event.target.value)}
-              />
-            </label>
-            <Button
-              loading={busy}
-              type="submit"
-              size="sm"
-              disabled={busy || !dirty || !reason.trim()}
+        <Collapsible className="rounded-lg border p-3">
+          <CollapsibleTrigger className="flex cursor-pointer items-center gap-1.5 text-sm font-medium w-full text-left">
+            <ChevronRight
+              aria-hidden="true"
+              className="size-3.5 shrink-0 transition-transform in-data-panel-open:rotate-90"
+            />
+            Edit document details
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <form
+              className="mt-4 space-y-3"
+              onSubmit={(event) => void save(event)}
+              onChange={() => setDirty(true)}
             >
-              Save document details
-            </Button>
-          </form>
-        </details>
+              <label className="block space-y-1 text-sm">
+                Display name
+                <Input
+                  value={displayName}
+                  maxLength={180}
+                  onChange={(event) => setDisplayName(event.target.value)}
+                />
+              </label>
+              <label className="block space-y-1 text-sm">
+                Description
+                <Textarea
+                  value={description}
+                  maxLength={2000}
+                  onChange={(event) => setDescription(event.target.value)}
+                />
+              </label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block space-y-1 text-sm">
+                  Expected period start
+                  <Input
+                    type="date"
+                    value={start}
+                    required={Boolean(end)}
+                    onChange={(event) => setStart(event.target.value)}
+                  />
+                </label>
+                <label className="block space-y-1 text-sm">
+                  Expected period end
+                  <Input
+                    type="date"
+                    value={end}
+                    min={start || undefined}
+                    required={Boolean(start)}
+                    onChange={(event) => setEnd(event.target.value)}
+                  />
+                </label>
+              </div>
+              <label className="block space-y-1 text-sm">
+                Period basis
+                <NativeSelect
+                  value={basis}
+                  onChange={(event) => setBasis(event.target.value as typeof basis)}
+                >
+                  <option value="fiscal_year">Fiscal year</option>
+                  <option value="statement">Statement</option>
+                </NativeSelect>
+              </label>
+              <p className="text-xs text-muted-foreground">
+                Changing the expected period requires a fresh source review. Clear both dates to
+                remove the expected period.
+              </p>
+              <label className="block space-y-1 text-sm">
+                Reason for metadata change
+                <Textarea
+                  required
+                  maxLength={1000}
+                  value={reason}
+                  onChange={(event) => setReason(event.target.value)}
+                />
+              </label>
+              <Button
+                loading={busy}
+                type="submit"
+                size="sm"
+                disabled={busy || !dirty || !reason.trim()}
+              >
+                Save document details
+              </Button>
+            </form>
+          </CollapsibleContent>
+        </Collapsible>
       )}
       {version.processing?.canCorrectCategory && current && (
-        <details className="rounded-lg border p-3">
-          <summary className="cursor-pointer text-sm font-medium">
+        <Collapsible className="rounded-lg border p-3">
+          <CollapsibleTrigger className="flex cursor-pointer items-center gap-1.5 text-sm font-medium w-full text-left">
+            <ChevronRight
+              aria-hidden="true"
+              className="size-3.5 shrink-0 transition-transform in-data-panel-open:rotate-90"
+            />
             Correct document category
-          </summary>
-          <form
-            className="mt-4 space-y-3"
-            onSubmit={async (event) => {
-              event.preventDefault();
-              setBusy(true);
-              setError(null);
-              setNotice(null);
-              try {
-                await correctCategory(category, categoryReason.trim(), categoryRevision);
-                await reload();
-                setCategoryReason("");
-                setCategoryDirty(false);
-                setNotice(
-                  "Category corrected. The original suggestion is preserved; review any stale financial sources.",
-                );
-              } catch (failure) {
-                setError(errorMessage(failure));
-              } finally {
-                setBusy(false);
-              }
-            }}
-          >
-            <label className="block space-y-1 text-sm">
-              Document category
-              <NativeSelect
-                value={category}
-                onChange={(event) => {
-                  setCategoryDirty(true);
-                  setCategory(event.target.value as DocumentCategory);
-                }}
-              >
-                {Object.entries(documentCategoryLabels).map(([key, label]) => (
-                  <option key={key} value={key}>
-                    {label}
-                  </option>
-                ))}
-              </NativeSelect>
-            </label>
-            <label className="block space-y-1 text-sm">
-              Reason for category correction
-              <Textarea
-                required
-                maxLength={1000}
-                value={categoryReason}
-                onChange={(event) => {
-                  setCategoryDirty(true);
-                  setCategoryReason(event.target.value);
-                }}
-              />
-            </label>
-            <Button type="submit" size="sm" disabled={busy || !categoryReason.trim()}>
-              Save category correction
-            </Button>
-          </form>
-        </details>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <form
+              className="mt-4 space-y-3"
+              onSubmit={async (event) => {
+                event.preventDefault();
+                setBusy(true);
+                setError(null);
+                setNotice(null);
+                try {
+                  await correctCategory(category, categoryReason.trim(), categoryRevision);
+                  await reload();
+                  setCategoryReason("");
+                  setCategoryDirty(false);
+                  setNotice(
+                    "Category corrected. The original suggestion is preserved; review any stale financial sources.",
+                  );
+                } catch (failure) {
+                  setError(errorMessage(failure));
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            >
+              <label className="block space-y-1 text-sm">
+                Document category
+                <NativeSelect
+                  value={category}
+                  onChange={(event) => {
+                    setCategoryDirty(true);
+                    setCategory(event.target.value as DocumentCategory);
+                  }}
+                >
+                  {Object.entries(documentCategoryLabels).map(([key, label]) => (
+                    <option key={key} value={key}>
+                      {label}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </label>
+              <label className="block space-y-1 text-sm">
+                Reason for category correction
+                <Textarea
+                  required
+                  maxLength={1000}
+                  value={categoryReason}
+                  onChange={(event) => {
+                    setCategoryDirty(true);
+                    setCategoryReason(event.target.value);
+                  }}
+                />
+              </label>
+              <Button type="submit" size="sm" disabled={busy || !categoryReason.trim()}>
+                Save category correction
+              </Button>
+            </form>
+          </CollapsibleContent>
+        </Collapsible>
       )}
       {!document.canEditMetadata && (
         <p className="text-xs text-muted-foreground">

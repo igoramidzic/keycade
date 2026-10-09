@@ -17,6 +17,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@keycade/ui/components/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@keycade/ui/components/collapsible";
 import { useDemoApplication } from "@keycade/ui/components/demo-kit";
 import { EmptyState } from "@keycade/ui/components/empty-state";
 import type {
@@ -899,19 +904,21 @@ function ApplicationPortal({
                 </p>
               </CardContent>
             </Card>
-            <details className="group/readiness rounded-xl border bg-card shadow-xs">
-              <summary className="disclosure flex items-center justify-between gap-3 rounded-xl px-5 py-4 text-sm font-semibold hover:bg-muted/40">
+            <Collapsible className="group/readiness rounded-xl border bg-card shadow-xs">
+              <CollapsibleTrigger className="flex items-center justify-between gap-3 rounded-xl px-5 py-4 text-sm font-semibold hover:bg-muted/40 w-full text-left">
                 Task readiness
                 <ChevronIcon />
-              </summary>
-              <div className="border-t px-5 py-4">
-                <ApplicationReadiness
-                  session={session}
-                  applicationId={applicationId}
-                  active={dashboard}
-                />
-              </div>
-            </details>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="border-t px-5 py-4">
+                  <ApplicationReadiness
+                    session={session}
+                    applicationId={applicationId}
+                    active={dashboard}
+                  />
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
             <DashboardUpload
               session={session}
               applicationId={applicationId}
@@ -1008,7 +1015,7 @@ function ChevronIcon() {
     <svg
       aria-hidden="true"
       viewBox="0 0 16 16"
-      className="size-4 shrink-0 text-muted-foreground transition-transform group-open/readiness:rotate-180"
+      className="size-4 shrink-0 text-muted-foreground transition-transform group-data-open/readiness:rotate-180"
     >
       <path
         d="m4 6 4 4 4-4"

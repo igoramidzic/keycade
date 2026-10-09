@@ -253,10 +253,8 @@ test("submission, returned information, immutable resubmission, and explicit app
       .fill("Updated synthetic workshop details requested by the reviewer.");
     await page.getByRole("button", { name: "Save answer", exact: true }).click();
     await expect(page.getByRole("status").filter({ hasText: "Answer saved." })).toBeVisible();
-    await page.getByRole("button", { name: "Submit for review", exact: true }).click();
-    await expect(
-      page.getByRole("status").filter({ hasText: "Answer submitted for bank review." }),
-    ).toBeVisible();
+    await page.getByRole("button", { name: "Complete task", exact: true }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Task completed." })).toBeVisible();
     await page.goto(`${borrower}/api/ready`);
     const tasks = await api<TasksView>(officer, "GET", `/${app.id}/tasks`);
     const returned = tasks.tasks.find((task) => task.title === "Describe your business");
@@ -317,10 +315,9 @@ test("submission, returned information, immutable resubmission, and explicit app
     await expect(
       page.getByRole("region", { name: "Closing readiness", exact: true }),
     ).toBeVisible();
-    const original = page
-      .locator("details")
-      .filter({ has: page.locator("summary").filter({ hasText: /^Submission 1 ·/ }) });
-    await original.locator("summary").click();
+    const originalToggle = page.getByRole("button", { name: /^Submission 1 ·/ });
+    const original = page.locator('[data-slot="collapsible"]').filter({ has: originalToggle });
+    await originalToggle.click();
     await expect(original.getByText("$20,000.00", { exact: true })).toBeVisible();
     const final = await api<ReviewView>(page, "GET", `/${app.id}/review`);
     expect(final.submissions).toHaveLength(2);

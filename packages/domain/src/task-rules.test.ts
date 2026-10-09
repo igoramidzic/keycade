@@ -4,6 +4,8 @@ import {
   demoRequirementRules,
   evaluateRequirementRules,
   requirementsPassStage,
+  taskDone,
+  taskPasses,
   taskTransitionAllowed,
 } from "./task-rules.js";
 
@@ -95,6 +97,16 @@ describe("task evidence and stage rules", () => {
       required: 3,
       requiredCompleted: 2,
     });
+  });
+  it("counts work the assignee completed before lender review, but not toward reviewed evidence", () => {
+    const awaiting = { ...completed, state: "submitted" as const, reviewedEvidenceRevision: null };
+    expect(taskDone(awaiting)).toBe(true);
+    expect(taskPasses(awaiting)).toBe(false);
+    expect(taskDone({ ...awaiting, evidenceRevision: 0 })).toBe(false);
+    expect(taskDone({ ...awaiting, state: "needs_changes" as const })).toBe(false);
+    expect(
+      calculateTaskProgress([awaiting, { ...awaiting, state: "open" as const }]),
+    ).toMatchObject({ total: 2, completed: 1, required: 2, requiredCompleted: 1 });
   });
   it("ignores optional and later-stage tasks at a gate and blocks stale evidence", () => {
     const tasks = [

@@ -102,6 +102,12 @@ Done locally — October 8, 2026. Validation (shared with the other October 8 UI
 
 ## Green task status markers — October 9, 2026
 
+Superseded for the client view by the [client completion follow-up](T12-tasks-and-requirements.md#client-completion-without-a-review-step--october-9-2026): completed client work now shows as Completed with the solid green marker.
+
 At the user's request, the client task list shows tasks waiting for lender review as a green check on a light-green circle, with green “Submitted / Waiting for lender review” text. Completed and waived tasks show a white check on a solid green circle in both portals. This matches the setup wizard and timeline completion markers. Staff keep the blue clock for submitted tasks they need to review. Labels and accessible names are unchanged.
 
 Done locally — October 9, 2026. Validation: Biome and the shared UI typecheck pass. `tasks.spec.ts --grep 'staff requests a task, borrower submits'` passed on desktop and mobile (2/2, `.local/e2e-N0BPwe`). It now also captures the client view right after submission, and the submitted and completed desktop screenshots were inspected.
+
+## Animated disclosures — October 9, 2026
+
+At the user's request, task cards in both dashboards and every other collapsible card or section open and close with an animation, using the shadcn Collapsible added through `npx shadcn@latest add collapsible`. `CollapsibleContent` animates height (from Base UI's `--collapsible-panel-height`) and opacity over 200 ms, skips animation for reduced motion, and clips with a 6px `overflow-clip-margin` so focus rings near its edges stay visible. Closed content stays mounted and hidden like `<details>`, except task cards (`keepMounted={false}`), which keep their last detail on screen while closing and then unmount. Converted surfaces: 24 former `<details>` disclosures across both apps and shared components, the task cards, and the lender financial metric history cards. Compact text triggers gain a rotating `ChevronRight` in place of the native marker. The unused `AnimatedCollapse` helper and `disclosure` CSS utility are removed.

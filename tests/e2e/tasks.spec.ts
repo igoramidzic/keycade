@@ -73,9 +73,13 @@ for (const [actor, origin, email] of [
       const toggle = page.getByRole("button", { name: title, exact: true });
       await toggle.click();
       await expect(toggle).toHaveAttribute("aria-expanded", "true");
-      await expect(page.locator('[id^="task-answer-"]')).toBeVisible();
+      // The previously open task may still be animating closed; check the panel just opened.
+      const panel = page.locator(
+        `#${(await toggle.getAttribute("id"))?.replace("task-toggle-", "task-detail-")}`,
+      );
+      await expect(panel.locator('[id^="task-answer-"]')).toBeVisible();
       // Borrowers upload shared business files in the sidebar; staff keep task documents.
-      await expect(page.getByRole("heading", { name: "Task documents", exact: true })).toHaveCount(
+      await expect(panel.getByRole("heading", { name: "Task documents", exact: true })).toHaveCount(
         actor === "staff" ? 1 : 0,
       );
       await page.clock.runFor(100);
@@ -137,10 +141,10 @@ test("application dashboard keeps tasks beside details on desktop and stacks the
       exact: true,
     });
     await expect(next).toBeVisible();
-    const controlledId = await first.getAttribute("aria-controls");
-    if (!controlledId) throw new Error("Expected an accessible task detail control.");
     await first.click();
     await expect(first).toHaveAttribute("aria-expanded", "true");
+    const controlledId = await first.getAttribute("aria-controls");
+    if (!controlledId) throw new Error("Expected an accessible task detail control.");
     const expanded = taskPanel.locator(`[id="${controlledId}"]`);
     await expect(expanded.locator('[id^="task-answer-"]')).toBeVisible();
     const triggerBox = await first.boundingBox();
@@ -211,15 +215,18 @@ test("task switch confirmation stays locked until a pending answer save finishes
     await expect(page.getByRole("status").filter({ hasText: "Answer saved." })).toBeVisible();
     await expect(confirmation).toBeHidden();
     await expect(page.locator('[id^="task-answer-"]')).toHaveValue(answer);
-    await expect(
-      page.getByRole("button", { name: "Submit for review", exact: true }),
-    ).toBeEnabled();
+    await expect(page.getByRole("button", { name: "Complete task", exact: true })).toBeEnabled();
     await next.click();
     await expect(next).toHaveAttribute("aria-expanded", "true");
     await expect(current).toHaveAttribute("aria-expanded", "false");
     await expect(confirmation).toBeHidden();
     await current.click();
-    await expect(page.locator('[id^="task-answer-"]')).toHaveValue(answer);
+    // The other task may still be animating closed, so read the answer in this task's panel.
+    await expect(
+      page
+        .getByRole("region", { name: "Describe your business", exact: true })
+        .locator('[id^="task-answer-"]'),
+    ).toHaveValue(answer);
     await noOverflow(page);
   } finally {
     releaseAnswer();
@@ -255,15 +262,19 @@ test("staff requests a task, borrower submits, staff returns changes and complet
     await applicant.getByRole("button", { name: "Save answer", exact: true }).click();
     await expect(applicant.getByRole("status").filter({ hasText: "Answer saved." })).toBeVisible();
     await expect(
-      applicant.getByRole("button", { name: "Submit for review", exact: true }),
+      applicant.getByRole("button", { name: "Complete task", exact: true }),
     ).toBeEnabled();
-    await expect(applicant.getByRole("button", { name: "Complete task", exact: true })).toHaveCount(
+    await expect(applicant.getByRole("button", { name: "Mark reviewed", exact: true })).toHaveCount(
       0,
     );
-    await applicant.getByRole("button", { name: "Submit for review", exact: true }).click();
+    await applicant.getByRole("button", { name: "Complete task", exact: true }).click();
     await expect(
-      applicant.getByRole("status").filter({ hasText: "Answer submitted" }),
+      applicant.getByRole("status").filter({ hasText: "Task completed." }),
     ).toBeVisible();
+    // Completing is final for the client; only the lender sees it awaiting review.
+    await expect(applicant.locator("li").filter({ hasText: title }).first()).toContainText(
+      "Completed",
+    );
     await noOverflow(applicant);
 
     await page.reload();
@@ -271,7 +282,10 @@ test("staff requests a task, borrower submits, staff returns changes and complet
     await expect(page.locator('[id^="task-answer-"]')).toHaveValue(
       "Synthetic equipment for the workshop.",
     );
-    await expect(page.getByRole("button", { name: "Complete task", exact: true })).toBeDisabled();
+    await expect(page.locator("li").filter({ hasText: title }).first()).toContainText(
+      "Needs your review",
+    );
+    await expect(page.getByRole("button", { name: "Mark reviewed", exact: true })).toBeDisabled();
     await page
       .getByLabel("Review or waiver reason", { exact: true })
       .fill("Please describe the equipment and delivery.");
@@ -290,9 +304,9 @@ test("staff requests a task, borrower submits, staff returns changes and complet
       .fill("Synthetic woodworking equipment with delivery to the fictional workshop.");
     await applicant.getByRole("button", { name: "Save answer", exact: true }).click();
     await expect(applicant.getByRole("status").filter({ hasText: "Answer saved." })).toBeVisible();
-    await applicant.getByRole("button", { name: "Submit for review", exact: true }).click();
+    await applicant.getByRole("button", { name: "Complete task", exact: true }).click();
     await expect(
-      applicant.getByRole("status").filter({ hasText: "Answer submitted" }),
+      applicant.getByRole("status").filter({ hasText: "Task completed." }),
     ).toBeVisible();
     await applicant.screenshot({
       path: testInfo.outputPath("synthetic-borrower-task-submitted.png"),
@@ -304,18 +318,21 @@ test("staff requests a task, borrower submits, staff returns changes and complet
     await page
       .getByLabel("Review or waiver reason", { exact: true })
       .fill("Synthetic revised explanation reviewed.");
-    await page.getByRole("button", { name: "Complete task", exact: true }).click();
-    await expect(page.getByRole("status").filter({ hasText: "Task completed" })).toBeVisible();
-    await page.getByText("Details and history", { exact: true }).click();
+    await page.getByRole("button", { name: "Mark reviewed", exact: true }).click();
     await expect(
-      page.getByText("Synthetic equipment for the workshop.", { exact: true }),
+      page.getByRole("status").filter({ hasText: "Task marked reviewed." }),
+    ).toBeVisible();
+    const historyToggle = page.getByRole("button", { name: "Details and history", exact: true });
+    await historyToggle.click();
+    const history = page.locator(`[id="${await historyToggle.getAttribute("aria-controls")}"]`);
+    await expect(
+      history.getByText("Synthetic equipment for the workshop.", { exact: true }),
     ).toBeVisible();
     await expect(
-      page
-        .getByRole("group")
-        .getByText("Synthetic woodworking equipment with delivery to the fictional workshop.", {
-          exact: true,
-        }),
+      history.getByText(
+        "Synthetic woodworking equipment with delivery to the fictional workshop.",
+        { exact: true },
+      ),
     ).toBeVisible();
     await noOverflow(page);
     await page.screenshot({

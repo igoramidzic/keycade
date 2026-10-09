@@ -337,7 +337,7 @@ test("v2 business and loan details, current and finished items, and scenario con
   const stages = page.getByRole("region", { name: "Application stages", exact: true });
   await expect(stages).toContainText("Current stage: Collecting information");
   for (const label of ["Initial setup", "Approval", "Closing"]) {
-    const summary = stages.locator("summary").filter({ hasText: new RegExp(`^${label}`) });
+    const summary = stages.getByRole("button", { name: new RegExp(`^${label}`) });
     await summary.focus();
     await page.keyboard.press("Enter");
   }

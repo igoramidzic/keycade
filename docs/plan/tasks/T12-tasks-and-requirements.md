@@ -23,7 +23,7 @@ Every participant sees their next actions, and staff can review evidence against
 - Unknown EIN/industry can produce a later task without preventing minimal intake.
 - Re-running rules creates no duplicate tasks; per-subject keys keep two owners' requirements separate. Input changes add/cancel applicable requirements without destroying prior evidence or waivers.
 - Re-applicable cancelled requirements receive a new occurrence/revision under the same stable identity. Evidence reuse requires an explicit current-evidence policy; waivers require renewed confirmation. Test amount changes and owner removal/re-addition.
-- Assignees submit; staff completes/returns; waiver requires a reason. Uploading or editing an answer alone cannot imply approval.
+- Assignees complete their tasks (stored as `submitted`); staff mark them reviewed or return them; waiver requires a reason. Uploading or editing an answer alone cannot imply approval. See the [October 9 follow-up](#client-completion-without-a-review-step--october-9-2026).
 - Restricted participants see only permitted tasks/evidence/counts; owner-private fields remain private. Removing an assignee leaves unfinished tasks unassigned immediately, including after that person is reinvited; historical authorship and completed work remain intact.
 - Concurrent submissions/reviews reject stale revisions. Applicable completed/waived tasks drive progress accurately.
 - The October 7 reference layout shows tasks immediately on application entry, with a wider task column on the left and application details on the right at desktop sizes. Mobile stacks the regions without horizontal overflow. Task detail expands beneath its row; switching or collapsing a task protects unsaved entries.
@@ -54,8 +54,8 @@ Done — implemented and verified October 7, 2026.
 
 1. Apply migrations with `pnpm db:migrate`, then run `pnpm dev`.
 2. At the bank console, sign in as `officer-a@example.test`, open Synthetic Cedar Workshop, and choose **Tasks → Add task**. Enter fictional instructions, assign **Synthetic Borrower**, and create it.
-3. In a separate borrower session, sign in as `borrower@example.test`, open the same application's **Tasks**, and open the request. **Save answer** retains a draft; **Submit for review** sends it to the bank.
-4. In the bank session, reload/open the task, enter a review reason, and **Return for changes**. Revise and resubmit as the borrower, then **Complete task** as staff. Inspect **Task history** and the progress counts.
+3. In a separate borrower session, sign in as `borrower@example.test`, open the same application's **Tasks**, and open the request. **Save answer** retains a draft; **Complete task** saves and completes it, and it shows as Completed.
+4. In the bank session, reload/open the task, enter a review reason, and **Return for changes**. Revise and complete it again as the borrower, then **Mark reviewed** as staff. Inspect **Task history** and the progress counts.
 5. For private owner tasks, record an owner under **People/Participants**, link it to an existing participant, and assign its private task to that person. Other collaborators cannot read the task or count it. Marking the relationship inactive and restoring it creates a new occurrence requiring fresh evidence and review.
 
 ### Validation record
@@ -119,3 +119,13 @@ Final combined checkpoint: `pnpm check` passed Biome, browser boundaries, all wo
 ### Task selection on lender invitations — October 8, 2026
 
 Done — verified locally; see [T11 follow-up](T11-participants.md#lender-only-invitations-and-task-assignments--october-8-2026). Lender-selected tasks become editable assignments on verified acceptance, with safe replay, stale-selection checks and current bank/application/privacy boundaries. Existing Tasks reassignment remains available for accepted participants. Validation is recorded with T11; no dependency changes or hosted deployment.
+
+## Client completion without a review step — October 9, 2026
+
+At the user's request, completing a task completes it for the client; lender review happens only on the lender side.
+
+- **Complete task** replaces “Submit for review” for answer and secure-input tasks. It saves an edited answer first, then completes the task. The client sees **Completed** with a solid green check, and the task counts toward their progress and the submission gate right away.
+- The persisted `submitted` state now means “completed by the assignee, not yet lender-reviewed”. Staff see **Needs your review** (blue) and can **Mark reviewed** (the existing `completed` review decision) or **Return for changes**, which reopens the task for the client.
+- `taskDone` counts `submitted` with evidence as complete for progress. The submission gate accepts it. The same work appears to staff as an `awaiting_lender_review` blocker at the approval gate, so lender review is still required before approval. Simulated checks still require reviewed document evidence, and closing still requires reviewed closing tasks. Client readiness views never list review-pending items.
+- The client progress header counts the visible, non-cancelled tasks it lists (optional ones included) and names how many required tasks are left, so the bar always matches the checkmarks. Borrower task actions now also refresh Task readiness.
+- No schema migration: existing `submitted` rows take on the new meaning.

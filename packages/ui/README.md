@@ -47,7 +47,7 @@ Spacing follows a 4px grid: `space-y-6`/`gap-6` between page sections, card padd
 | `empty-state` | `EmptyState` for empty lists and `LoadingState` (spinner + `role="status"` text). |
 | `textarea` | `Textarea` and `textareaClassName` for legacy plain `<textarea>` fields. |
 | `currency-input` | `CurrencyInput` for whole-dollar amounts: `$` prefix and comma separators while typing; reports plain digits (`wholeDollars`, `groupDigits`). |
-| `dialog`, `dropdown-menu`, `spinner` | shadcn (Base UI) modal dialogs, action menus and the loading spinner, themed with the tokens above. |
+| `dialog`, `dropdown-menu`, `spinner`, `collapsible` | shadcn (Base UI) modal dialogs, action menus, the loading spinner and animated disclosures, themed with the tokens above. |
 
 `Badge` variants include `success`, `warning`, `info` and `brand` in addition to the shadcn
 variants. `Alert` adds `info`, `success` and `warning`. Place a lucide icon as the alert's first
@@ -70,9 +70,12 @@ child to get the icon column.
 - **Rows over walls of text.** Lists of tasks, requirements, documents and checks use bordered,
   rounded rows (`rounded-lg border` or `rounded-xl border`) with a toned icon at the start, the
   title and a one-line status beneath it, and the badge/action at the end.
-- **Disclosures** use native `<details>`/`<summary>` with the `disclosure` utility (hides the
-  default marker) and a rotating `ChevronDown` with `group-open/<name>:rotate-180`. Keep the
-  summary's text content stable — tests and assistive technology read it.
+- **Disclosures** use the shadcn `Collapsible` (`Collapsible`, `CollapsibleTrigger`,
+  `CollapsibleContent`). The content animates its height and, like `<details>`, stays in the DOM
+  while closed unless `keepMounted={false}` (task cards use that so editors unmount after
+  closing). Rotate a `ChevronDown` with `group-data-open/<name>:rotate-180` on a named group, or
+  a leading `ChevronRight` with `in-data-panel-open:rotate-90` for compact text triggers. Keep
+  the trigger's text stable — tests and assistive technology read it.
 - **Progress visuals** on the borrower list and dashboard are decorative `aria-hidden` bars next to
   the exact count text. Do not add `role="progressbar"` there; native `<progress>` is reserved for
   real in-flight progress (setup wizard, uploads).
@@ -104,7 +107,8 @@ configured for the [supported monorepo workflow](https://ui.shadcn.com/docs/mono
 generated components directly in this package. Separator, Progress, Skeleton, Avatar, Table and
 Label were added with the same CLI on October 8, 2026 for the design-system redesign. Dialog,
 Dropdown Menu and Spinner followed the same day for the participants redesign and in-button
-progress; the CLI's prompt to overwrite the customized `button.tsx` was declined. CLI
+progress; the CLI's prompt to overwrite the customized `button.tsx` was declined. Collapsible
+was added on October 9, 2026 to animate every disclosure. CLI
 dependencies are pinned in this package. Biome formats generated source; component sizing and the
 theme follow the Keycade design system above.
 

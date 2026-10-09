@@ -133,8 +133,10 @@ test("only the lender invites a lawyer, selects their tasks, and removes the act
       .fill("Synthetic legal summary for lender review.");
     await recipient.getByRole("button", { name: "Save answer", exact: true }).click();
     await expect(recipient.getByRole("status").filter({ hasText: "Answer saved" })).toBeVisible();
-    await recipient.getByRole("button", { name: "Submit for review", exact: true }).click();
-    await expect(recipient.getByRole("status").filter({ hasText: "Submitted" })).toBeVisible();
+    await recipient.getByRole("button", { name: "Complete task", exact: true }).click();
+    await expect(
+      recipient.getByRole("status").filter({ hasText: "Task completed." }),
+    ).toBeVisible();
     await recipient.goto(`${borrower}/applications/${applicationId}/people?bank=bank-a`);
     await expect(
       recipient.getByRole("heading", { name: "Invite a collaborator", exact: true }),

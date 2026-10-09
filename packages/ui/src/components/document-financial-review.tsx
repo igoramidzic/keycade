@@ -7,9 +7,15 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@keycade/ui/components/alert";
 import { Badge } from "@keycade/ui/components/badge";
 import { Button } from "@keycade/ui/components/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@keycade/ui/components/collapsible";
 import { Input } from "@keycade/ui/components/input";
 import { NativeSelect } from "@keycade/ui/components/native-select";
 import { Textarea } from "@keycade/ui/components/textarea";
+import { ChevronRight } from "lucide-react";
 import { type FormEvent, useRef, useState } from "react";
 
 type Selection = {
@@ -364,40 +370,46 @@ export function DocumentFinancialReview({
         </form>
       )}
       {history.length > 0 && (
-        <details className="rounded-lg border p-3">
-          <summary className="cursor-pointer text-sm font-medium">
+        <Collapsible className="rounded-lg border p-3">
+          <CollapsibleTrigger className="flex cursor-pointer items-center gap-1.5 text-sm font-medium w-full text-left">
+            <ChevronRight
+              aria-hidden="true"
+              className="size-3.5 shrink-0 transition-transform in-data-panel-open:rotate-90"
+            />
             Financial review history ({history.length})
-          </summary>
-          <ol className="mt-3 space-y-3 text-sm">
-            {history.map((entry) => (
-              <li key={entry.id} className="space-y-1 border-l-2 pl-3">
-                <p className="font-medium">
-                  {entry.label} ·{" "}
-                  {entry.disposition === "reject"
-                    ? "Rejected"
-                    : entry.disposition === "correct"
-                      ? "Corrected and accepted"
-                      : "Accepted"}{" "}
-                  · {documentMoney(entry.value)}
-                </p>
-                <p>
-                  {entry.period.start} to {entry.period.end} · run {entry.source.runGeneration}
-                </p>
-                {entry.disposition === "correct" && (
-                  <p>Original suggestion: {documentMoney(entry.originalCandidate.value)}</p>
-                )}
-                <p className="whitespace-pre-wrap break-words">{entry.reason}</p>
-                <p className="text-xs text-muted-foreground">
-                  Reviewed {new Date(entry.reviewedAt).toLocaleString()} · Staff{" "}
-                  {entry.reviewerUserId}
-                </p>
-                {data.facts.find((fact) => fact.id === entry.id)?.sourceStale && (
-                  <Badge variant="outline">Stale source — review required</Badge>
-                )}
-              </li>
-            ))}
-          </ol>
-        </details>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <ol className="mt-3 space-y-3 text-sm">
+              {history.map((entry) => (
+                <li key={entry.id} className="space-y-1 border-l-2 pl-3">
+                  <p className="font-medium">
+                    {entry.label} ·{" "}
+                    {entry.disposition === "reject"
+                      ? "Rejected"
+                      : entry.disposition === "correct"
+                        ? "Corrected and accepted"
+                        : "Accepted"}{" "}
+                    · {documentMoney(entry.value)}
+                  </p>
+                  <p>
+                    {entry.period.start} to {entry.period.end} · run {entry.source.runGeneration}
+                  </p>
+                  {entry.disposition === "correct" && (
+                    <p>Original suggestion: {documentMoney(entry.originalCandidate.value)}</p>
+                  )}
+                  <p className="whitespace-pre-wrap break-words">{entry.reason}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Reviewed {new Date(entry.reviewedAt).toLocaleString()} · Staff{" "}
+                    {entry.reviewerUserId}
+                  </p>
+                  {data.facts.find((fact) => fact.id === entry.id)?.sourceStale && (
+                    <Badge variant="outline">Stale source — review required</Badge>
+                  )}
+                </li>
+              ))}
+            </ol>
+          </CollapsibleContent>
+        </Collapsible>
       )}
     </section>
   );

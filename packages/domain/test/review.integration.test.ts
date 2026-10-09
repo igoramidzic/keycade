@@ -294,6 +294,65 @@ describe("submission and deliberate review on PostgreSQL", () => {
     ).rejects.toMatchObject({ code: "INVALID_STATE" });
     expect(await counts(id)).toEqual(before);
   });
+  it("counts client-completed tasks without lender review; only approval waits for the lender", async () => {
+    const { id } = await fixture();
+    const required = (await tasks().read(borrower, ids.bankA, id)).tasks.filter(
+      (t) => t.required && t.inputKind === "answer" && t.stage === "submission",
+    );
+    expect(required.length).toBeGreaterThan(0);
+    for (const task of required) {
+      const saved = await tasks().saveAnswer(
+        borrower,
+        ids.bankA,
+        id,
+        task.id,
+        { expectedRevision: task.revision, answer: "Synthetic completed answer." },
+        randomUUID(),
+      );
+      const completed = await tasks().submit(
+        borrower,
+        ids.bankA,
+        id,
+        task.id,
+        { expectedRevision: saved.revision },
+        randomUUID(),
+      );
+      expect(completed.state).toBe("submitted");
+    }
+    const progress = (await tasks().read(borrower, ids.bankA, id)).progress.byStage.find(
+      (stage) => stage.stage === "submission",
+    );
+    expect(progress?.requiredCompleted).toBe(progress?.required);
+    const client = await review().read(borrower, ids.bankA, id);
+    expect(client.readiness.gates.find((g) => g.stage === "submission")?.ready).toBe(true);
+    expect(
+      client.readiness.gates.some((g) =>
+        g.blockers.some((blocker) => blocker.reason === "awaiting_lender_review"),
+      ),
+    ).toBe(false);
+    const submitted = await review().submit(
+      borrower,
+      ids.bankA,
+      id,
+      command(client.revision),
+      randomUUID(),
+    );
+    expect(submitted.status).toBe("submitted");
+    const inReview = await review().startReview(
+      officer,
+      ids.bankA,
+      id,
+      command(submitted.revision),
+      randomUUID(),
+    );
+    const awaiting = inReview.readiness.gates
+      .find((g) => g.stage === "approval")
+      ?.blockers.filter((blocker) => blocker.reason === "awaiting_lender_review");
+    expect(awaiting?.map((blocker) => blocker.id).sort()).toEqual(
+      required.map((task) => task.id).sort(),
+    );
+    expect(awaiting?.every((blocker) => blocker.stage === "approval")).toBe(true);
+  });
   it("retains old submission evidence through request-information, fresh resubmission and approval", async () => {
     const { id } = await fixture();
     let v = await underReview(id);

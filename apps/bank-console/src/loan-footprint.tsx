@@ -1,9 +1,14 @@
 import { type BusinessAddress, checksViewSchema } from "@keycade/contracts";
 import { Badge } from "@keycade/ui/components/badge";
 import { Button } from "@keycade/ui/components/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@keycade/ui/components/collapsible";
 import { cn } from "@keycade/ui/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
-import { CircleCheck, MapPin, X } from "lucide-react";
+import { ChevronRight, CircleCheck, MapPin, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { ApiError, useStaffApi } from "./api";
 import {
@@ -265,30 +270,36 @@ function LoanFootprintDialog({
             </Button>
           </div>
           {check.runs.length > 1 && (
-            <details className="rounded-lg border p-3">
-              <summary className="cursor-pointer text-sm font-medium">
+            <Collapsible className="rounded-lg border p-3">
+              <CollapsibleTrigger className="flex cursor-pointer items-center gap-1.5 text-sm font-medium w-full text-left">
+                <ChevronRight
+                  aria-hidden="true"
+                  className="size-3.5 shrink-0 transition-transform in-data-panel-open:rotate-90"
+                />
                 Previous footprint runs ({check.runs.length - 1})
-              </summary>
-              <ul className="mt-3 space-y-4 text-sm">
-                {check.runs
-                  .filter((entry) => entry.id !== check.currentRunId)
-                  .map((entry) => (
-                    <li key={entry.id} className="space-y-1 break-words">
-                      <p>
-                        Revision {entry.footprintInput?.addressRevision ?? "unknown"} ·{" "}
-                        {entry.status.replaceAll("_", " ")} · Historical
-                      </p>
-                      <p className="text-muted-foreground">
-                        {footprintAddress(entry.footprintInput?.address)}
-                      </p>
-                      <p className="text-muted-foreground">
-                        {entry.footprintInput?.policyVersion} ·{" "}
-                        {new Date(entry.updatedAt).toLocaleString()}
-                      </p>
-                    </li>
-                  ))}
-              </ul>
-            </details>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <ul className="mt-3 space-y-4 text-sm">
+                  {check.runs
+                    .filter((entry) => entry.id !== check.currentRunId)
+                    .map((entry) => (
+                      <li key={entry.id} className="space-y-1 break-words">
+                        <p>
+                          Revision {entry.footprintInput?.addressRevision ?? "unknown"} ·{" "}
+                          {entry.status.replaceAll("_", " ")} · Historical
+                        </p>
+                        <p className="text-muted-foreground">
+                          {footprintAddress(entry.footprintInput?.address)}
+                        </p>
+                        <p className="text-muted-foreground">
+                          {entry.footprintInput?.policyVersion} ·{" "}
+                          {new Date(entry.updatedAt).toLocaleString()}
+                        </p>
+                      </li>
+                    ))}
+                </ul>
+              </CollapsibleContent>
+            </Collapsible>
           )}
         </div>
       </div>

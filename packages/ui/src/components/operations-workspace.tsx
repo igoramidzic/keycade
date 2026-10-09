@@ -1,5 +1,11 @@
 import { Badge } from "@keycade/ui/components/badge";
 import { Button } from "@keycade/ui/components/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@keycade/ui/components/collapsible";
+import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 
 type Action =
@@ -180,10 +186,18 @@ export function OperationsWorkspace({
                   {item.errorCode.replaceAll("_", " ")}
                 </p>
               )}
-              <details className="text-xs text-muted-foreground">
-                <summary className="cursor-pointer">Operation reference</summary>
-                <code className="mt-1 block break-all">{item.runId ?? item.resourceId}</code>
-              </details>
+              <Collapsible className="text-xs text-muted-foreground">
+                <CollapsibleTrigger className="flex cursor-pointer items-center gap-1.5 w-full text-left">
+                  <ChevronRight
+                    aria-hidden="true"
+                    className="size-3.5 shrink-0 transition-transform in-data-panel-open:rotate-90"
+                  />
+                  Operation reference
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <code className="mt-1 block break-all">{item.runId ?? item.resourceId}</code>
+                </CollapsibleContent>
+              </Collapsible>
               {!!item.actions.length && (
                 <div className="flex flex-wrap gap-2">
                   {item.actions.map((action) =>

@@ -2,6 +2,11 @@ import { Alert, AlertDescription, AlertTitle } from "@keycade/ui/components/aler
 import { Badge } from "@keycade/ui/components/badge";
 import { Button } from "@keycade/ui/components/button";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@keycade/ui/components/collapsible";
+import {
   Dialog,
   DialogClose,
   DialogContent,
@@ -418,23 +423,25 @@ export function ParticipantsManager({
           />
         )}
         {history.length > 0 && (
-          <details className="group/history rounded-xl border bg-card">
-            <summary className="disclosure flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium hover:bg-muted/40">
+          <Collapsible className="group/history rounded-xl border bg-card">
+            <CollapsibleTrigger className="flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium hover:bg-muted/40 w-full text-left">
               Past access and invitations · {history.length}
               <ChevronDown
                 aria-hidden="true"
-                className="ml-auto size-4 shrink-0 text-muted-foreground transition-transform group-open/history:rotate-180"
+                className="ml-auto size-4 shrink-0 text-muted-foreground transition-transform group-data-open/history:rotate-180"
               />
-            </summary>
-            <ul className="divide-y border-t">
-              {history.map((entry) => (
-                <li key={entry.id} className="flex flex-wrap justify-between gap-x-4 px-4 py-2.5">
-                  <span className="min-w-0 break-all text-sm">{entry.name}</span>
-                  <span className="text-xs leading-6 text-muted-foreground">{entry.detail}</span>
-                </li>
-              ))}
-            </ul>
-          </details>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <ul className="divide-y border-t">
+                {history.map((entry) => (
+                  <li key={entry.id} className="flex flex-wrap justify-between gap-x-4 px-4 py-2.5">
+                    <span className="min-w-0 break-all text-sm">{entry.name}</span>
+                    <span className="text-xs leading-6 text-muted-foreground">{entry.detail}</span>
+                  </li>
+                ))}
+              </ul>
+            </CollapsibleContent>
+          </Collapsible>
         )}
       </section>
       {(data.canManage || data.relationships.length > 0) && (

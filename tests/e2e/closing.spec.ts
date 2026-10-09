@@ -258,10 +258,8 @@ test("approved terms progress through two signatures and explicit funding into o
       .fill("I confirm the fictional closing details for this simulation.");
     await page.getByRole("button", { name: "Save answer", exact: true }).click();
     await expect(page.getByRole("status").filter({ hasText: "Answer saved." })).toBeVisible();
-    await page.getByRole("button", { name: "Submit for review", exact: true }).click();
-    await expect(
-      page.getByRole("status").filter({ hasText: "Answer submitted for bank review." }),
-    ).toBeVisible();
+    await page.getByRole("button", { name: "Complete task", exact: true }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Task completed." })).toBeVisible();
     await page.goto(`${borrower}/api/ready`);
     await officer.goto(url(staff, "closing"));
     await officer
@@ -271,9 +269,9 @@ test("approved terms progress through two signatures and explicit funding into o
     await officer
       .getByLabel("Review or waiver reason", { exact: true })
       .fill("Reviewed the fictional closing acknowledgement.");
-    await officer.getByRole("button", { name: "Complete task", exact: true }).click();
+    await officer.getByRole("button", { name: "Mark reviewed", exact: true }).click();
     await expect(
-      officer.getByRole("status").filter({ hasText: "Task completed after bank review." }),
+      officer.getByRole("status").filter({ hasText: "Task marked reviewed." }),
     ).toBeVisible();
     await officer.goto(url(staff, "closing"));
     const amount = officer.getByLabel("Recorded funded amount (USD)", { exact: true });

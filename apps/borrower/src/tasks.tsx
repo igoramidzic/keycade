@@ -131,6 +131,9 @@ export function ApplicationTasks({
               queryKey: ["portal", session.bank.id, session.user.email, applicationId],
             });
             await client.invalidateQueries({ queryKey: ["applications"] });
+            await client.invalidateQueries({
+              queryKey: ["readiness", session.bank.id, session.user.email, applicationId],
+            });
             return updated;
           })
         }

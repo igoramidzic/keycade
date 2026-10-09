@@ -55,7 +55,7 @@ test("staff retries failed work and both dashboards show only currently permitte
   const operation = page.getByRole("listitem").filter({ hasText: `Document scan · ${fileName}` });
   await expect(operation).toContainText("1 attempts");
   await operation.getByRole("button", { name: "Retry operation", exact: true }).click();
-  await expect(page.getByRole("status")).toContainText("Retry requested");
+  await expect(page.getByRole("status").filter({ hasText: "Retry requested" })).toBeVisible();
   await page
     .getByRole("combobox", { name: "Show operations", exact: true })
     .selectOption("document_scan");

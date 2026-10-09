@@ -118,8 +118,8 @@ test("borrower tax uploads appear in grouped tabs with unverified suggestions an
   await answer.selectOption(currentAnswer === "confirmed" ? "needs_help" : "confirmed");
   await page.getByRole("button", { name: "Save answer", exact: true }).click();
   await expect(page.getByRole("status").filter({ hasText: "Answer saved." })).toBeVisible();
-  await page.getByRole("button", { name: "Submit for review", exact: true }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Answer submitted" })).toBeVisible();
+  await page.getByRole("button", { name: "Complete task", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Task completed." })).toBeVisible();
   const staffContext = await browser.newContext({ viewport: page.viewportSize() });
   try {
     const officer = await staffContext.newPage();
@@ -136,8 +136,10 @@ test("borrower tax uploads appear in grouped tabs with unverified suggestions an
       .fill(
         "Synthetic task evidence reviewed with its original document and simulated suggestions.",
       );
-    await officer.getByRole("button", { name: "Complete task", exact: true }).click();
-    await expect(officer.getByRole("status").filter({ hasText: "Task completed" })).toBeVisible();
+    await officer.getByRole("button", { name: "Mark reviewed", exact: true }).click();
+    await expect(
+      officer.getByRole("status").filter({ hasText: "Task marked reviewed." }),
+    ).toBeVisible();
   } finally {
     await staffContext.close();
   }

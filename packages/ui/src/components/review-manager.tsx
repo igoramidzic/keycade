@@ -10,10 +10,16 @@ import {
 } from "@keycade/ui/components/card";
 import { type ReadinessData, ReadinessPanel } from "@keycade/ui/components/checks-manager";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@keycade/ui/components/collapsible";
+import {
   type ReviewAction,
   ReviewActionForm,
   type ReviewActionInput,
 } from "@keycade/ui/components/review-action-form";
+import { ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 type Status =
@@ -370,52 +376,58 @@ export function ReviewManager({
           <CardContent className="space-y-5">
             {snapshot.submissions.length ? (
               snapshot.submissions.map((submission) => (
-                <details key={submission.id} className="space-y-3">
-                  <summary className="cursor-pointer text-sm font-medium">
+                <Collapsible key={submission.id}>
+                  <CollapsibleTrigger className="flex cursor-pointer items-center gap-1.5 text-sm font-medium w-full text-left">
+                    <ChevronRight
+                      aria-hidden="true"
+                      className="size-3.5 shrink-0 transition-transform in-data-panel-open:rotate-90"
+                    />
                     Submission {submission.sequence} · {date(submission.createdAt)}
-                  </summary>
-                  <p className="text-xs text-muted-foreground">
-                    {submission.submittedOnBehalf
-                      ? "Submitted by bank staff on behalf of the applicant."
-                      : "Submitted by the applicant."}
-                  </p>
-                  {submission.facts && (
-                    <dl className="grid gap-3 text-sm sm:grid-cols-2">
-                      <div>
-                        <dt className="text-muted-foreground">Business</dt>
-                        <dd className="mt-1 break-words">
-                          {submission.facts.businessName ?? "Not recorded"}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="text-muted-foreground">Requested amount</dt>
-                        <dd className="mt-1">
-                          {submission.facts.requestedAmount
-                            ? amount(submission.facts.requestedAmount)
-                            : "Not recorded"}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="text-muted-foreground">Product</dt>
-                        <dd className="mt-1 break-words">{submission.facts.productName}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-muted-foreground">Industry</dt>
-                        <dd className="mt-1 break-words">
-                          {submission.facts.industryCode
-                            ? `${submission.facts.industryCode} · ${submission.facts.industryTaxonomyVersion}`
-                            : "Not provided"}
-                        </dd>
-                      </div>
-                      <div className="sm:col-span-2">
-                        <dt className="text-muted-foreground">Purpose</dt>
-                        <dd className="mt-1 break-words">
-                          {submission.facts.purpose ?? "Not recorded"}
-                        </dd>
-                      </div>
-                    </dl>
-                  )}
-                </details>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-3 pt-3">
+                    <p className="text-xs text-muted-foreground">
+                      {submission.submittedOnBehalf
+                        ? "Submitted by bank staff on behalf of the applicant."
+                        : "Submitted by the applicant."}
+                    </p>
+                    {submission.facts && (
+                      <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                        <div>
+                          <dt className="text-muted-foreground">Business</dt>
+                          <dd className="mt-1 break-words">
+                            {submission.facts.businessName ?? "Not recorded"}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-muted-foreground">Requested amount</dt>
+                          <dd className="mt-1">
+                            {submission.facts.requestedAmount
+                              ? amount(submission.facts.requestedAmount)
+                              : "Not recorded"}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt className="text-muted-foreground">Product</dt>
+                          <dd className="mt-1 break-words">{submission.facts.productName}</dd>
+                        </div>
+                        <div>
+                          <dt className="text-muted-foreground">Industry</dt>
+                          <dd className="mt-1 break-words">
+                            {submission.facts.industryCode
+                              ? `${submission.facts.industryCode} · ${submission.facts.industryTaxonomyVersion}`
+                              : "Not provided"}
+                          </dd>
+                        </div>
+                        <div className="sm:col-span-2">
+                          <dt className="text-muted-foreground">Purpose</dt>
+                          <dd className="mt-1 break-words">
+                            {submission.facts.purpose ?? "Not recorded"}
+                          </dd>
+                        </div>
+                      </dl>
+                    )}
+                  </CollapsibleContent>
+                </Collapsible>
               ))
             ) : (
               <p className="text-sm text-muted-foreground">

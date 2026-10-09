@@ -9,6 +9,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@keycade/ui/components/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@keycade/ui/components/collapsible";
 import { useDemoKit } from "@keycade/ui/components/demo-kit";
 import {
   categoryLabels,
@@ -30,7 +35,7 @@ import {
   readDemoImportDrag,
   sameDemoImportContext,
 } from "@keycade/ui/lib/demo-import-transfer";
-import { FileUp } from "lucide-react";
+import { ChevronRight, FileUp } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
 export type DocumentVersionData = {
@@ -504,8 +509,8 @@ export function DocumentsManager({
               </p>
             </section>
             <p className="text-xs text-muted-foreground">
-              Uploading task evidence reopens completed or submitted review. Keep this page open
-              until uploads finish.
+              Uploading task evidence reopens a completed task until it is completed again. Keep
+              this page open until uploads finish.
             </p>
           </div>
         )}
@@ -779,18 +784,24 @@ export function DocumentsManager({
                         </Button>
                       )}
                       {older.length > 0 && (
-                        <details>
-                          <summary className="cursor-pointer text-sm">
+                        <Collapsible>
+                          <CollapsibleTrigger className="flex cursor-pointer items-center gap-1.5 text-sm w-full text-left">
+                            <ChevronRight
+                              aria-hidden="true"
+                              className="size-3.5 shrink-0 transition-transform in-data-panel-open:rotate-90"
+                            />
                             Previous versions ({older.length})
-                          </summary>
-                          <ul className="mt-3 space-y-4">
-                            {older.map((version) => (
-                              <li className="border-l-2 pl-3" key={version.id}>
-                                {renderVersion(version)}
-                              </li>
-                            ))}
-                          </ul>
-                        </details>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <ul className="mt-3 space-y-4">
+                              {older.map((version) => (
+                                <li className="border-l-2 pl-3" key={version.id}>
+                                  {renderVersion(version)}
+                                </li>
+                              ))}
+                            </ul>
+                          </CollapsibleContent>
+                        </Collapsible>
                       )}
                     </li>
                   );

@@ -10,6 +10,11 @@ import { Alert, AlertDescription, AlertTitle } from "@keycade/ui/components/aler
 import { Badge } from "@keycade/ui/components/badge";
 import { Button } from "@keycade/ui/components/button";
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@keycade/ui/components/collapsible";
+import {
   DocumentFinancialReview,
   documentMoney,
 } from "@keycade/ui/components/document-financial-review";
@@ -17,6 +22,7 @@ import { DocumentInfo } from "@keycade/ui/components/document-info";
 import { DocumentPreview } from "@keycade/ui/components/document-preview";
 import { NativeSelect } from "@keycade/ui/components/native-select";
 import { displayDocumentField } from "@keycade/ui/lib/document-field-display";
+import { ChevronRight } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
 export function DocumentWorkspace({
@@ -292,72 +298,84 @@ export function DocumentWorkspace({
                         ))}
                       </div>
                     )}
-                    <details open className="rounded-lg border p-3">
-                      <summary className="cursor-pointer text-sm font-medium">
+                    <Collapsible defaultOpen className="rounded-lg border p-3">
+                      <CollapsibleTrigger className="flex cursor-pointer items-center gap-1.5 text-sm font-medium w-full text-left">
+                        <ChevronRight
+                          aria-hidden="true"
+                          className="size-3.5 shrink-0 transition-transform in-data-panel-open:rotate-90"
+                        />
                         Extracted data ({fields.length})
-                      </summary>
-                      <dl className="mt-4 space-y-4 text-sm">
-                        {fields.map((field) => {
-                          const disposition = facts?.history
-                            .filter(
-                              (entry) =>
-                                entry.source.versionId === version.id &&
-                                entry.source.runId === runId &&
-                                entry.fieldKey === field.key,
-                            )
-                            .toSorted((left, right) =>
-                              right.reviewedAt.localeCompare(left.reviewedAt),
-                            )[0]?.disposition;
-                          return (
-                            <div
-                              key={field.key}
-                              className="space-y-1 border-b pb-3 last:border-0 last:pb-0"
-                            >
-                              <dt className="font-medium">{field.label}</dt>
-                              <dd className="whitespace-pre-wrap break-words">
-                                {field.kind === "money"
-                                  ? documentMoney(field.value, field.provenance?.currency ?? "USD")
-                                  : displayDocumentField(field)}
-                              </dd>
-                              {field.provenance && (
-                                <>
-                                  <dd className="text-xs text-muted-foreground">
-                                    {field.provenance.period.start} to {field.provenance.period.end}{" "}
-                                    · {field.provenance.period.basis.replaceAll("_", " ")} ·{" "}
-                                    {field.kind === "money" ? "Money" : field.kind}
-                                  </dd>
-                                  <dd>
-                                    <Button
-                                      variant="link"
-                                      size="sm"
-                                      className="h-auto max-w-full whitespace-normal p-0 text-left"
-                                      onClick={() => sourcePage(field.provenance?.sourcePage ?? 1)}
-                                    >
-                                      Page {field.provenance.sourcePage} ·{" "}
-                                      {field.provenance.sourceLabel}
-                                    </Button>
-                                  </dd>
-                                </>
-                              )}
-                              <dd className="text-xs">
-                                {disposition === "accept"
-                                  ? "Accepted"
-                                  : disposition === "correct"
-                                    ? "Corrected and accepted"
-                                    : disposition === "reject"
-                                      ? "Rejected"
-                                      : "Pending review"}
-                              </dd>
-                            </div>
-                          );
-                        })}
-                      </dl>
-                      {!fields.length && (
-                        <p className="mt-3 text-sm text-muted-foreground">
-                          No extracted values were supplied for this file.
-                        </p>
-                      )}
-                    </details>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <dl className="mt-4 space-y-4 text-sm">
+                          {fields.map((field) => {
+                            const disposition = facts?.history
+                              .filter(
+                                (entry) =>
+                                  entry.source.versionId === version.id &&
+                                  entry.source.runId === runId &&
+                                  entry.fieldKey === field.key,
+                              )
+                              .toSorted((left, right) =>
+                                right.reviewedAt.localeCompare(left.reviewedAt),
+                              )[0]?.disposition;
+                            return (
+                              <div
+                                key={field.key}
+                                className="space-y-1 border-b pb-3 last:border-0 last:pb-0"
+                              >
+                                <dt className="font-medium">{field.label}</dt>
+                                <dd className="whitespace-pre-wrap break-words">
+                                  {field.kind === "money"
+                                    ? documentMoney(
+                                        field.value,
+                                        field.provenance?.currency ?? "USD",
+                                      )
+                                    : displayDocumentField(field)}
+                                </dd>
+                                {field.provenance && (
+                                  <>
+                                    <dd className="text-xs text-muted-foreground">
+                                      {field.provenance.period.start} to{" "}
+                                      {field.provenance.period.end} ·{" "}
+                                      {field.provenance.period.basis.replaceAll("_", " ")} ·{" "}
+                                      {field.kind === "money" ? "Money" : field.kind}
+                                    </dd>
+                                    <dd>
+                                      <Button
+                                        variant="link"
+                                        size="sm"
+                                        className="h-auto max-w-full whitespace-normal p-0 text-left"
+                                        onClick={() =>
+                                          sourcePage(field.provenance?.sourcePage ?? 1)
+                                        }
+                                      >
+                                        Page {field.provenance.sourcePage} ·{" "}
+                                        {field.provenance.sourceLabel}
+                                      </Button>
+                                    </dd>
+                                  </>
+                                )}
+                                <dd className="text-xs">
+                                  {disposition === "accept"
+                                    ? "Accepted"
+                                    : disposition === "correct"
+                                      ? "Corrected and accepted"
+                                      : disposition === "reject"
+                                        ? "Rejected"
+                                        : "Pending review"}
+                                </dd>
+                              </div>
+                            );
+                          })}
+                        </dl>
+                        {!fields.length && (
+                          <p className="mt-3 text-sm text-muted-foreground">
+                            No extracted values were supplied for this file.
+                          </p>
+                        )}
+                      </CollapsibleContent>
+                    </Collapsible>
                   </>
                 ) : !run || !["queued", "processing", "failed"].includes(run.state) ? (
                   <p className="text-sm text-muted-foreground">

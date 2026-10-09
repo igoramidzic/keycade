@@ -1,4 +1,10 @@
 import { Button } from "@keycade/ui/components/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@keycade/ui/components/collapsible";
+import { ChevronRight } from "lucide-react";
 
 type Entry = {
   id: string;
@@ -50,10 +56,18 @@ export function ActivityHistory({
               </div>
               <p className="text-xs text-muted-foreground">{entry.actor}</p>
               {entry.reference && (
-                <details className="text-xs text-muted-foreground">
-                  <summary className="cursor-pointer">Support reference</summary>
-                  <code className="mt-1 block break-all">{entry.reference}</code>
-                </details>
+                <Collapsible className="text-xs text-muted-foreground">
+                  <CollapsibleTrigger className="flex cursor-pointer items-center gap-1.5 w-full text-left">
+                    <ChevronRight
+                      aria-hidden="true"
+                      className="size-3.5 shrink-0 transition-transform in-data-panel-open:rotate-90"
+                    />
+                    Support reference
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <code className="mt-1 block break-all">{entry.reference}</code>
+                  </CollapsibleContent>
+                </Collapsible>
               )}
             </li>
           ))}

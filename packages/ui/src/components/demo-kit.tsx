@@ -5,6 +5,11 @@ import {
   demoScenarios,
 } from "@keycade/contracts/demo-scenarios";
 import { Button } from "@keycade/ui/components/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@keycade/ui/components/collapsible";
 import { DemoBadge, DemoDestination, DemoStepHeading } from "@keycade/ui/components/demo-kit-parts";
 import { DemoTextImporter } from "@keycade/ui/components/demo-text-importer";
 import { NativeSelect } from "@keycade/ui/components/native-select";
@@ -276,19 +281,21 @@ function KitDisclosure({
   children: ReactNode;
 }) {
   return (
-    <details className={cn("group/kit-disclosure", className)}>
-      <summary className="disclosure flex items-center justify-between gap-2 px-3 py-2.5 text-sm font-medium outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
+    <Collapsible className={cn("group/kit-disclosure", className)}>
+      <CollapsibleTrigger className="flex items-center justify-between gap-2 px-3 py-2.5 text-sm font-medium outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset w-full text-left">
         {title}
         <span className="flex items-center gap-2 text-xs font-normal text-muted-foreground">
           {meta}
           <ChevronDown
             aria-hidden="true"
-            className="size-4 transition-transform group-open/kit-disclosure:rotate-180"
+            className="size-4 transition-transform group-data-open/kit-disclosure:rotate-180"
           />
         </span>
-      </summary>
-      <div className="px-3 pb-3">{children}</div>
-    </details>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="px-3 pb-3">{children}</div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
 

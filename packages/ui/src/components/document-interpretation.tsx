@@ -1,7 +1,13 @@
 import { Alert, AlertDescription, AlertTitle } from "@keycade/ui/components/alert";
 import { Badge } from "@keycade/ui/components/badge";
 import { Button } from "@keycade/ui/components/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@keycade/ui/components/collapsible";
 import { NativeSelect } from "@keycade/ui/components/native-select";
+import { ChevronRight } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 
 export type DocumentCategory =
@@ -296,116 +302,132 @@ export function DocumentInterpretation({
         </Button>
       )}
       {processing.canCorrectCategory && (
-        <details>
-          <summary className="cursor-pointer text-sm font-medium">Correct category</summary>
-          <form
-            onSubmit={(event) => void save(event)}
-            className="mt-3 space-y-3 rounded-lg border p-3"
-          >
-            <div className="space-y-2">
-              <label htmlFor={`category-${versionId}`} className="text-sm">
-                Staff category
-              </label>
-              <NativeSelect
-                id={`category-${versionId}`}
-                className="w-full"
-                value={category}
-                disabled={busy}
-                onChange={(event) => {
-                  setCategory(event.target.value as DocumentCategory);
-                  setDirty(true);
-                  setNotice(null);
-                }}
-              >
-                {Object.entries(categoryLabels).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </NativeSelect>
-            </div>
-            <div className="space-y-2">
-              <label htmlFor={`category-reason-${versionId}`} className="text-sm">
-                Correction reason
-              </label>
-              <textarea
-                id={`category-reason-${versionId}`}
-                className="min-h-20 w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
-                required
-                maxLength={1000}
-                value={reason}
-                disabled={busy}
-                onChange={(event) => {
-                  setReason(event.target.value);
-                  setDirty(true);
-                  setNotice(null);
-                }}
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              This changes the displayed category for this version. The original suggestion and
-              correction history remain available.
-            </p>
-            <Button loading={busy} type="submit" size="sm" disabled={busy || !reason.trim()}>
-              Save staff category
-            </Button>
-          </form>
-        </details>
+        <Collapsible>
+          <CollapsibleTrigger className="flex cursor-pointer items-center gap-1.5 text-sm font-medium w-full text-left">
+            <ChevronRight
+              aria-hidden="true"
+              className="size-3.5 shrink-0 transition-transform in-data-panel-open:rotate-90"
+            />
+            Correct category
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <form
+              onSubmit={(event) => void save(event)}
+              className="mt-3 space-y-3 rounded-lg border p-3"
+            >
+              <div className="space-y-2">
+                <label htmlFor={`category-${versionId}`} className="text-sm">
+                  Staff category
+                </label>
+                <NativeSelect
+                  id={`category-${versionId}`}
+                  className="w-full"
+                  value={category}
+                  disabled={busy}
+                  onChange={(event) => {
+                    setCategory(event.target.value as DocumentCategory);
+                    setDirty(true);
+                    setNotice(null);
+                  }}
+                >
+                  {Object.entries(categoryLabels).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </NativeSelect>
+              </div>
+              <div className="space-y-2">
+                <label htmlFor={`category-reason-${versionId}`} className="text-sm">
+                  Correction reason
+                </label>
+                <textarea
+                  id={`category-reason-${versionId}`}
+                  className="min-h-20 w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50"
+                  required
+                  maxLength={1000}
+                  value={reason}
+                  disabled={busy}
+                  onChange={(event) => {
+                    setReason(event.target.value);
+                    setDirty(true);
+                    setNotice(null);
+                  }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                This changes the displayed category for this version. The original suggestion and
+                correction history remain available.
+              </p>
+              <Button loading={busy} type="submit" size="sm" disabled={busy || !reason.trim()}>
+                Save staff category
+              </Button>
+            </form>
+          </CollapsibleContent>
+        </Collapsible>
       )}
       {(processing.overrides.length > 0 || processing.history.length > 0) && (
-        <details>
-          <summary className="cursor-pointer text-sm font-medium">Interpretation history</summary>
-          <div className="mt-3 space-y-4 text-sm">
-            {processing.overrides.length > 0 && (
-              <section aria-label="Category corrections" className="space-y-3">
-                <h5 className="font-medium">Staff corrections</h5>
-                {processing.overrides.map((override) => (
-                  <div key={override.id} className="space-y-1 border-l-2 pl-3">
-                    <p>
-                      {categoryLabels[override.category]} · Correction {override.revision}
-                    </p>
-                    <p className="whitespace-pre-wrap break-words text-muted-foreground">
-                      {override.reason}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(override.createdAt).toLocaleString()}
-                    </p>
-                  </div>
-                ))}
-              </section>
-            )}
-            {processing.history.length > 0 && (
-              <section aria-label="Simulated interpretation runs" className="space-y-3">
-                <h5 className="font-medium">Simulated runs</h5>
-                {processing.history.map((run) => (
-                  <div key={run.id} className="space-y-2 border-l-2 pl-3">
-                    <p>
-                      Run {run.generation} · {stateLabels[run.state]}
-                      {run.stale ? " · Historical result" : ""}
-                    </p>
-                    {run.result && (
-                      <>
-                        <p className="text-muted-foreground">
-                          Original suggestion: {categoryLabels[run.result.category]} ·{" "}
-                          {Math.round(run.result.confidence * 100)}% confidence
-                        </p>
-                        {run.result.extractedFields.length > 0 && (
-                          <SuggestedFields fields={run.result.extractedFields} />
-                        )}
-                        {!!run.result.findings?.length && (
-                          <SimulatedFindings findings={run.result.findings} />
-                        )}
-                      </>
-                    )}
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(run.updatedAt).toLocaleString()}
-                    </p>
-                  </div>
-                ))}
-              </section>
-            )}
-          </div>
-        </details>
+        <Collapsible>
+          <CollapsibleTrigger className="flex cursor-pointer items-center gap-1.5 text-sm font-medium w-full text-left">
+            <ChevronRight
+              aria-hidden="true"
+              className="size-3.5 shrink-0 transition-transform in-data-panel-open:rotate-90"
+            />
+            Interpretation history
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="mt-3 space-y-4 text-sm">
+              {processing.overrides.length > 0 && (
+                <section aria-label="Category corrections" className="space-y-3">
+                  <h5 className="font-medium">Staff corrections</h5>
+                  {processing.overrides.map((override) => (
+                    <div key={override.id} className="space-y-1 border-l-2 pl-3">
+                      <p>
+                        {categoryLabels[override.category]} · Correction {override.revision}
+                      </p>
+                      <p className="whitespace-pre-wrap break-words text-muted-foreground">
+                        {override.reason}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(override.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                  ))}
+                </section>
+              )}
+              {processing.history.length > 0 && (
+                <section aria-label="Simulated interpretation runs" className="space-y-3">
+                  <h5 className="font-medium">Simulated runs</h5>
+                  {processing.history.map((run) => (
+                    <div key={run.id} className="space-y-2 border-l-2 pl-3">
+                      <p>
+                        Run {run.generation} · {stateLabels[run.state]}
+                        {run.stale ? " · Historical result" : ""}
+                      </p>
+                      {run.result && (
+                        <>
+                          <p className="text-muted-foreground">
+                            Original suggestion: {categoryLabels[run.result.category]} ·{" "}
+                            {Math.round(run.result.confidence * 100)}% confidence
+                          </p>
+                          {run.result.extractedFields.length > 0 && (
+                            <SuggestedFields fields={run.result.extractedFields} />
+                          )}
+                          {!!run.result.findings?.length && (
+                            <SimulatedFindings findings={run.result.findings} />
+                          )}
+                        </>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(run.updatedAt).toLocaleString()}
+                      </p>
+                    </div>
+                  ))}
+                </section>
+              )}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       )}
     </section>
   );

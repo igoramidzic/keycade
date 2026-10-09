@@ -17,6 +17,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@keycade/ui/components/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@keycade/ui/components/collapsible";
 import { DescriptionItem, DescriptionList } from "@keycade/ui/components/description-list";
 import { checkRefreshInterval } from "@keycade/ui/lib/refresh-policy";
 import { cn } from "@keycade/ui/lib/utils";
@@ -227,94 +232,96 @@ function TaxEvidence({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <details className="group/tax rounded-lg border">
-          <summary className="disclosure flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-semibold hover:bg-muted/40">
+        <Collapsible className="group/tax rounded-lg border">
+          <CollapsibleTrigger className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-semibold hover:bg-muted/40 w-full text-left">
             Business tax returns · {data.documentCount}{" "}
             {data.documentCount === 1 ? "document" : "documents"}
             <ChevronDown
               aria-hidden="true"
-              className="ml-auto size-4 shrink-0 text-muted-foreground transition-transform group-open/tax:rotate-180"
+              className="ml-auto size-4 shrink-0 text-muted-foreground transition-transform group-data-open/tax:rotate-180"
             />
-          </summary>
-          <div className="space-y-4 border-t px-4 py-4 text-sm">
-            <p className="font-medium">
-              {data.versionCount} file versions · {data.reviewedCount} reviewed,{" "}
-              {data.waitingForReviewCount} waiting for review · {data.staleCount} stale-source ·{" "}
-              {data.rejectedCount} rejected
-            </p>
-            <p className="text-muted-foreground">
-              Reviewed means at least one accepted financial field from the current source.{" "}
-              {data.currentAcceptedPeriodCount} distinct fiscal periods have current reviewed
-              fields. This is not a required-period completion count.
-            </p>
-            {data.documents.length ? (
-              <ul className="space-y-3">
-                {data.documents.map((document) => (
-                  <li key={document.documentId} className="space-y-3 rounded-lg border p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <span className="flex min-w-0 items-start gap-2 font-medium break-words">
-                        <FileText
-                          aria-hidden="true"
-                          className="mt-0.5 size-4 shrink-0 text-muted-foreground"
-                        />
-                        {document.displayName}
-                      </span>
-                      <Badge variant="info">Evidence</Badge>
-                    </div>
-                    <div className="space-y-1.5">
-                      <p>
-                        {document.period
-                          ? `Fiscal period ${document.period.start} – ${document.period.end}`
-                          : "Fiscal period not confirmed"}
-                      </p>
-                      {document.classificationStale && (
-                        <p className="text-muted-foreground">
-                          Previous tax classification; current analysis is pending or unavailable.
-                        </p>
-                      )}
-                      <p className="text-muted-foreground">
-                        Business subject: {document.subjectLabel ?? "Not provided"}
-                      </p>
-                      {document.expectedPeriod && (
-                        <p>
-                          Expected period {document.expectedPeriod.start} –{" "}
-                          {document.expectedPeriod.end}
-                        </p>
-                      )}
-                      {document.taskEvidenceState && (
-                        <p>Linked requirement: {taskStates[document.taskEvidenceState]}</p>
-                      )}
-                      <p className="text-muted-foreground">
-                        {document.versionCount}{" "}
-                        {document.versionCount === 1 ? "version" : "versions"} ·{" "}
-                        {document.reviewStatus.replaceAll("_", " ")} · Scan:{" "}
-                        {document.scanState.replaceAll("_", " ")} · Analysis:{" "}
-                        {document.processingState?.replaceAll("_", " ") ?? "Not available"}
-                      </p>
-                      <p>
-                        {document.acceptedFactCount} current reviewed fields ·{" "}
-                        {document.staleFactCount} stale-source fields
-                      </p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-auto max-w-full py-2 text-left whitespace-normal"
-                      onClick={() => open(document.documentId, document.currentVersionId)}
-                    >
-                      Open {document.displayName}
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="rounded-lg border border-dashed px-4 py-6 text-center text-muted-foreground">
-                No business tax documents uploaded. Missing years remain requirements; they are not
-                counted as documents.
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="space-y-4 border-t px-4 py-4 text-sm">
+              <p className="font-medium">
+                {data.versionCount} file versions · {data.reviewedCount} reviewed,{" "}
+                {data.waitingForReviewCount} waiting for review · {data.staleCount} stale-source ·{" "}
+                {data.rejectedCount} rejected
               </p>
-            )}
-          </div>
-        </details>
+              <p className="text-muted-foreground">
+                Reviewed means at least one accepted financial field from the current source.{" "}
+                {data.currentAcceptedPeriodCount} distinct fiscal periods have current reviewed
+                fields. This is not a required-period completion count.
+              </p>
+              {data.documents.length ? (
+                <ul className="space-y-3">
+                  {data.documents.map((document) => (
+                    <li key={document.documentId} className="space-y-3 rounded-lg border p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <span className="flex min-w-0 items-start gap-2 font-medium break-words">
+                          <FileText
+                            aria-hidden="true"
+                            className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+                          />
+                          {document.displayName}
+                        </span>
+                        <Badge variant="info">Evidence</Badge>
+                      </div>
+                      <div className="space-y-1.5">
+                        <p>
+                          {document.period
+                            ? `Fiscal period ${document.period.start} – ${document.period.end}`
+                            : "Fiscal period not confirmed"}
+                        </p>
+                        {document.classificationStale && (
+                          <p className="text-muted-foreground">
+                            Previous tax classification; current analysis is pending or unavailable.
+                          </p>
+                        )}
+                        <p className="text-muted-foreground">
+                          Business subject: {document.subjectLabel ?? "Not provided"}
+                        </p>
+                        {document.expectedPeriod && (
+                          <p>
+                            Expected period {document.expectedPeriod.start} –{" "}
+                            {document.expectedPeriod.end}
+                          </p>
+                        )}
+                        {document.taskEvidenceState && (
+                          <p>Linked requirement: {taskStates[document.taskEvidenceState]}</p>
+                        )}
+                        <p className="text-muted-foreground">
+                          {document.versionCount}{" "}
+                          {document.versionCount === 1 ? "version" : "versions"} ·{" "}
+                          {document.reviewStatus.replaceAll("_", " ")} · Scan:{" "}
+                          {document.scanState.replaceAll("_", " ")} · Analysis:{" "}
+                          {document.processingState?.replaceAll("_", " ") ?? "Not available"}
+                        </p>
+                        <p>
+                          {document.acceptedFactCount} current reviewed fields ·{" "}
+                          {document.staleFactCount} stale-source fields
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-auto max-w-full py-2 text-left whitespace-normal"
+                        onClick={() => open(document.documentId, document.currentVersionId)}
+                      >
+                        Open {document.displayName}
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="rounded-lg border border-dashed px-4 py-6 text-center text-muted-foreground">
+                  No business tax documents uploaded. Missing years remain requirements; they are
+                  not counted as documents.
+                </p>
+              )}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
         <Link to={documentsHref} className={buttonVariants({ variant: "outline", size: "sm" })}>
           View all documents
           <ArrowRight aria-hidden="true" data-icon="inline-end" />
@@ -325,7 +332,7 @@ function TaxEvidence({
 }
 const taskStates = {
   open: "Needs action",
-  submitted: "Waiting for lender review",
+  submitted: "Completed by the client · Needs your review",
   needs_changes: "Changes requested",
   completed: "Completed",
   waived: "Waived",
@@ -373,23 +380,25 @@ function ApplicationStages({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        <details className="group/setup rounded-lg border bg-card">
-          <summary className="disclosure flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-semibold hover:bg-muted/40">
+        <Collapsible className="group/setup rounded-lg border bg-card">
+          <CollapsibleTrigger className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-semibold hover:bg-muted/40 w-full text-left">
             Initial setup · {workspace.setup.status === "completed" ? "Completed" : "In progress"}
             <ChevronDown
               aria-hidden="true"
-              className="ml-auto size-4 shrink-0 text-muted-foreground transition-transform group-open/setup:rotate-180"
+              className="ml-auto size-4 shrink-0 text-muted-foreground transition-transform group-data-open/setup:rotate-180"
             />
-          </summary>
-          <p className="flex flex-wrap items-center gap-2 border-t px-4 py-3 text-sm">
-            <Badge variant={workspace.setup.status === "completed" ? "success" : "warning"}>
-              {workspace.setup.status === "completed" ? "Completed answer" : "Action required"}
-            </Badge>{" "}
-            {workspace.setup.status === "completed"
-              ? "Borrower confirmed the saved application answers."
-              : "The borrower must confirm the answers and finish setup before entering the task portal."}
-          </p>
-        </details>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <p className="flex flex-wrap items-center gap-2 border-t px-4 py-3 text-sm">
+              <Badge variant={workspace.setup.status === "completed" ? "success" : "warning"}>
+                {workspace.setup.status === "completed" ? "Completed answer" : "Action required"}
+              </Badge>{" "}
+              {workspace.setup.status === "completed"
+                ? "Borrower confirmed the saved application answers."
+                : "The borrower must confirm the answers and finish setup before entering the task portal."}
+            </p>
+          </CollapsibleContent>
+        </Collapsible>
         {!error &&
           checks.isFetchedAfterMount &&
           checks.data?.checks
@@ -424,140 +433,146 @@ function ApplicationStages({
               (check) => check.stage === stage && check.kind !== "loan_footprint",
             );
             const active = requirements.filter(
-              (task) => !["completed", "waived", "cancelled"].includes(task.state),
+              (task) => !["submitted", "completed", "waived", "cancelled"].includes(task.state),
             );
             return (
-              <details
+              <Collapsible
                 key={stage}
-                open={stage === currentStage}
+                defaultOpen={stage === currentStage}
                 className="group/stage rounded-lg border bg-card"
               >
-                <summary className="disclosure flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-semibold hover:bg-muted/40">
+                <CollapsibleTrigger className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-semibold hover:bg-muted/40 w-full text-left">
                   {label} · {active.length} unfinished requirements
                   <ChevronDown
                     aria-hidden="true"
-                    className="ml-auto size-4 shrink-0 text-muted-foreground transition-transform group-open/stage:rotate-180"
+                    className="ml-auto size-4 shrink-0 text-muted-foreground transition-transform group-data-open/stage:rotate-180"
                   />
-                </summary>
-                <div className="space-y-2 border-t px-4 py-4 text-sm">
-                  {!requirements.length && !results.length && (
-                    <p className="text-muted-foreground">
-                      No requirements or checks recorded for this stage.
-                    </p>
-                  )}
-                  {requirements.map((task) => {
-                    const finished = ["completed", "waived", "cancelled"].includes(task.state);
-                    return (
-                      <div
-                        key={task.id}
-                        className="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3.5 py-3"
-                      >
-                        <div className="flex min-w-0 items-start gap-3">
-                          <span
-                            aria-hidden="true"
-                            className={cn(
-                              "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full",
-                              finished
-                                ? "bg-success-soft text-success"
-                                : task.state === "submitted"
-                                  ? "bg-info-soft text-info"
-                                  : "bg-warning-soft text-warning",
-                            )}
-                          >
-                            {finished ? (
-                              <CircleCheck className="size-4" />
-                            ) : (
-                              <ClipboardList className="size-4" />
-                            )}
-                          </span>
-                          <div className="min-w-0 space-y-0.5">
-                            <Link
-                              to={`${href("tasks")}${href("tasks").includes("?") ? "&" : "?"}task=${task.id}`}
-                              className="font-medium break-words text-foreground underline-offset-4 hover:text-info hover:underline"
-                            >
-                              {task.title}
-                            </Link>
-                            <p className="text-xs text-muted-foreground">
-                              {taskStates[task.state]} · {task.required ? "Required" : "Optional"}
-                            </p>
-                          </div>
-                        </div>
-                        <Badge
-                          variant={
-                            finished ? "secondary" : task.state === "submitted" ? "info" : "warning"
-                          }
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="space-y-2 border-t px-4 py-4 text-sm">
+                    {!requirements.length && !results.length && (
+                      <p className="text-muted-foreground">
+                        No requirements or checks recorded for this stage.
+                      </p>
+                    )}
+                    {requirements.map((task) => {
+                      const finished = ["completed", "waived", "cancelled"].includes(task.state);
+                      return (
+                        <div
+                          key={task.id}
+                          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-3.5 py-3"
                         >
-                          {finished
-                            ? "Requirement record"
-                            : task.state === "submitted"
-                              ? "Review action"
-                              : "Action required"}
-                        </Badge>
-                      </div>
-                    );
-                  })}
-                  {results.map((check) => {
-                    const run = check.runs.find((run) => run.id === check.currentRunId);
-                    const state = !run
-                      ? "Waiting for input"
-                      : run.stale
-                        ? "Stale result"
-                        : run.resolved
-                          ? "Reviewed by staff"
-                          : run.outcome === "clear"
-                            ? "Simulated clear"
-                            : run.outcome === "needs_review"
-                              ? "Needs staff review"
-                              : run.outcome === "unable_to_verify"
-                                ? "Unable to verify"
-                                : run.status.replaceAll("_", " ");
-                    return (
-                      <div
-                        key={check.id}
-                        className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed px-3.5 py-3"
-                      >
-                        <div className="flex min-w-0 items-start gap-3">
-                          <span
-                            aria-hidden="true"
-                            className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
-                          >
-                            <ShieldCheck className="size-4" />
-                          </span>
-                          <div className="min-w-0 space-y-0.5">
-                            <Link
-                              to={href("checks")}
-                              className="font-medium break-words text-foreground underline-offset-4 hover:text-info hover:underline"
+                          <div className="flex min-w-0 items-start gap-3">
+                            <span
+                              aria-hidden="true"
+                              className={cn(
+                                "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full",
+                                finished
+                                  ? "bg-success-soft text-success"
+                                  : task.state === "submitted"
+                                    ? "bg-info-soft text-info"
+                                    : "bg-warning-soft text-warning",
+                              )}
                             >
-                              {check.title}
-                            </Link>
-                            <p className="text-xs text-muted-foreground">
-                              {state} · Simulated check
-                            </p>
+                              {finished ? (
+                                <CircleCheck className="size-4" />
+                              ) : (
+                                <ClipboardList className="size-4" />
+                              )}
+                            </span>
+                            <div className="min-w-0 space-y-0.5">
+                              <Link
+                                to={`${href("tasks")}${href("tasks").includes("?") ? "&" : "?"}task=${task.id}`}
+                                className="font-medium break-words text-foreground underline-offset-4 hover:text-info hover:underline"
+                              >
+                                {task.title}
+                              </Link>
+                              <p className="text-xs text-muted-foreground">
+                                {taskStates[task.state]} · {task.required ? "Required" : "Optional"}
+                              </p>
+                            </div>
                           </div>
+                          <Badge
+                            variant={
+                              finished
+                                ? "secondary"
+                                : task.state === "submitted"
+                                  ? "info"
+                                  : "warning"
+                            }
+                          >
+                            {finished
+                              ? "Requirement record"
+                              : task.state === "submitted"
+                                ? "Review action"
+                                : "Action required"}
+                          </Badge>
                         </div>
-                        <Badge variant="outline">Check result</Badge>
-                      </div>
-                    );
-                  })}
-                  <div className="flex flex-wrap gap-x-5 gap-y-2 pt-2">
-                    {stage === "submission" && (
-                      <a
-                        href="#business-tax-evidence"
+                      );
+                    })}
+                    {results.map((check) => {
+                      const run = check.runs.find((run) => run.id === check.currentRunId);
+                      const state = !run
+                        ? "Waiting for input"
+                        : run.stale
+                          ? "Stale result"
+                          : run.resolved
+                            ? "Reviewed by staff"
+                            : run.outcome === "clear"
+                              ? "Simulated clear"
+                              : run.outcome === "needs_review"
+                                ? "Needs staff review"
+                                : run.outcome === "unable_to_verify"
+                                  ? "Unable to verify"
+                                  : run.status.replaceAll("_", " ");
+                      return (
+                        <div
+                          key={check.id}
+                          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed px-3.5 py-3"
+                        >
+                          <div className="flex min-w-0 items-start gap-3">
+                            <span
+                              aria-hidden="true"
+                              className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
+                            >
+                              <ShieldCheck className="size-4" />
+                            </span>
+                            <div className="min-w-0 space-y-0.5">
+                              <Link
+                                to={href("checks")}
+                                className="font-medium break-words text-foreground underline-offset-4 hover:text-info hover:underline"
+                              >
+                                {check.title}
+                              </Link>
+                              <p className="text-xs text-muted-foreground">
+                                {state} · Simulated check
+                              </p>
+                            </div>
+                          </div>
+                          <Badge variant="outline">Check result</Badge>
+                        </div>
+                      );
+                    })}
+                    <div className="flex flex-wrap gap-x-5 gap-y-2 pt-2">
+                      {stage === "submission" && (
+                        <a
+                          href="#business-tax-evidence"
+                          className="inline-flex items-center gap-1 font-medium text-info underline-offset-4 hover:underline"
+                        >
+                          Inspect uploaded business tax evidence
+                        </a>
+                      )}
+                      <Link
+                        to={href(stage === "closing" ? "closing" : "review")}
                         className="inline-flex items-center gap-1 font-medium text-info underline-offset-4 hover:underline"
                       >
-                        Inspect uploaded business tax evidence
-                      </a>
-                    )}
-                    <Link
-                      to={href(stage === "closing" ? "closing" : "review")}
-                      className="inline-flex items-center gap-1 font-medium text-info underline-offset-4 hover:underline"
-                    >
-                      {stage === "closing" ? "Open closing workflow" : "Open review workflow"}
-                      <ArrowRight aria-hidden="true" className="size-3.5" />
-                    </Link>
+                        {stage === "closing" ? "Open closing workflow" : "Open review workflow"}
+                        <ArrowRight aria-hidden="true" className="size-3.5" />
+                      </Link>
+                    </div>
                   </div>
-                </div>
-              </details>
+                </CollapsibleContent>
+              </Collapsible>
             );
           })
         )}

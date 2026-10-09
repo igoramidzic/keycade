@@ -8,6 +8,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@keycade/ui/components/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@keycade/ui/components/collapsible";
 import { Input } from "@keycade/ui/components/input";
 import { NativeSelect } from "@keycade/ui/components/native-select";
 import {
@@ -24,7 +29,7 @@ import {
   CircleAlert,
   CircleDot,
   CircleMinus,
-  Clock3,
+  Eye,
   Plus,
 } from "lucide-react";
 import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
@@ -108,6 +113,9 @@ const stageLabels: Record<Stage, string> = {
   closing: "Closing",
 };
 const stageOrder: Record<Stage, number> = { submission: 0, approval: 1, closing: 2 };
+/** Completed by its assignee, whether or not the lender has reviewed it yet. */
+const done = (task: TaskSummary) =>
+  task.state === "completed" || task.state === "waived" || task.state === "submitted";
 const textareaClass = textareaClassName;
 const displayDate = (date: string) => new Date(date).toLocaleDateString();
 const dateInput = (date: string | null) => date?.slice(0, 10) ?? "";
@@ -188,6 +196,18 @@ export function TasksManager({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [pendingSelection, setPendingSelection] = useState<{ id: string | null } | null>(null);
   const confirmRef = useRef<HTMLDivElement>(null);
+  const closingDetails = useRef(new Map<string, TaskDetailData>());
+  // The task that just closed keeps its content while its panel animates shut, then unmounts.
+  const [closing, setClosing] = useState<string | null>(null);
+  const previousSelection = useRef(selected);
+  useEffect(() => {
+    const prior = previousSelection.current;
+    previousSelection.current = selected;
+    if (!prior || prior === selected) return;
+    setClosing(prior);
+    const timer = window.setTimeout(() => setClosing((id) => (id === prior ? null : id)), 250);
+    return () => window.clearTimeout(timer);
+  }, [selected]);
   const lastRequestedTask = useRef(initialTaskId);
   useEffect(() => {
     // A contextual closing/reminder link may change the requested task while
@@ -245,10 +265,11 @@ export function TasksManager({
   const assignee = (id: string | null) =>
     data.assignees.find((person) => person.id === id)?.displayName ??
     (id ? "Assigned participant" : "Unassigned");
-  const requiredPercent =
-    data.progress.required > 0
-      ? Math.round((data.progress.requiredCompleted / data.progress.required) * 100)
-      : 0;
+  // Count from the same rows the list shows, so the bar always matches the checkmarks.
+  const applicable = data.tasks.filter((task) => task.state !== "cancelled");
+  const doneCount = applicable.filter(done).length;
+  const requiredLeft = applicable.filter((task) => task.required && !done(task)).length;
+  const donePercent = applicable.length ? Math.round((doneCount / applicable.length) * 100) : 0;
   // The list sits directly on the page; each task row is the only card surface.
   return (
     <div className="space-y-6">
@@ -256,9 +277,6 @@ export function TasksManager({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
             <h2 className="text-lg font-semibold tracking-tight">Tasks</h2>
-            <p className="text-sm leading-6 text-muted-foreground">
-              Complete your checklist, one task at a time.
-            </p>
           </div>
           {data.canManage && (
             <Button
@@ -276,9 +294,14 @@ export function TasksManager({
           <div className="min-w-48 flex-1 space-y-2">
             <p className="text-sm text-muted-foreground" aria-label="Visible task progress">
               <span className="font-semibold text-foreground tabular-nums">
-                {data.progress.requiredCompleted} of {data.progress.required}
+                {doneCount} of {applicable.length}
               </span>{" "}
-              required tasks satisfied
+              tasks complete
+              {requiredLeft > 0
+                ? ` · ${requiredLeft} required ${requiredLeft === 1 ? "task" : "tasks"} left`
+                : applicable.some((task) => task.required)
+                  ? " · All required tasks done"
+                  : ""}
             </p>
             <span
               aria-hidden="true"
@@ -286,7 +309,7 @@ export function TasksManager({
             >
               <span
                 className="block h-full rounded-full bg-success transition-[width] duration-500"
-                style={{ width: `${requiredPercent}%` }}
+                style={{ width: `${donePercent}%` }}
               />
             </span>
           </div>
@@ -341,12 +364,8 @@ export function TasksManager({
               <div className="flex items-center justify-between gap-3">
                 <h3 className="text-sm font-semibold">{group.title}</h3>
                 <span className="text-xs text-muted-foreground tabular-nums">
-                  {
-                    group.tasks.filter(
-                      (task) => task.state === "completed" || task.state === "waived",
-                    ).length
-                  }
-                  /{group.tasks.filter((task) => task.state !== "cancelled").length} complete
+                  {group.tasks.filter(done).length}/
+                  {group.tasks.filter((task) => task.state !== "cancelled").length} complete
                 </span>
               </div>
               <ul className="space-y-2">
@@ -355,40 +374,42 @@ export function TasksManager({
                   const actionable =
                     task.state === "open" &&
                     (task.canEdit || task.canSubmit || Boolean(task.secureInput?.canEdit));
-                  // Finished work is solid green; work the client has handed to the lender is
-                  // pale green. Staff see submitted work as their own blue review action.
-                  const tone =
-                    task.state === "completed" || task.state === "waived"
+                  // A task the client completed is complete for them. Staff see the same task
+                  // as their own blue review action until they mark it reviewed.
+                  const awaitingReview = staffView && task.state === "submitted";
+                  const tone = awaitingReview
+                    ? "info"
+                    : done(task)
                       ? "complete"
-                      : task.state === "submitted"
-                        ? staffView
-                          ? "info"
-                          : "success"
-                        : task.state === "needs_changes"
-                          ? "warning"
-                          : task.state === "cancelled"
-                            ? "muted"
-                            : actionable || staffView
-                              ? "info"
-                              : "muted";
-                  const StatusIcon =
-                    task.state === "completed" || task.state === "waived"
+                      : task.state === "needs_changes"
+                        ? "warning"
+                        : task.state === "cancelled"
+                          ? "muted"
+                          : actionable || staffView
+                            ? "info"
+                            : "muted";
+                  const StatusIcon = awaitingReview
+                    ? Eye
+                    : done(task)
                       ? Check
-                      : task.state === "submitted"
-                        ? staffView
-                          ? Clock3
-                          : Check
-                        : task.state === "needs_changes"
-                          ? CircleAlert
-                          : task.state === "cancelled"
-                            ? CircleMinus
-                            : actionable
-                              ? CircleDot
-                              : Circle;
+                      : task.state === "needs_changes"
+                        ? CircleAlert
+                        : task.state === "cancelled"
+                          ? CircleMinus
+                          : actionable
+                            ? CircleDot
+                            : Circle;
+                  // Keep the last opened detail so a card stays filled while it animates closed.
+                  if (detail?.id === task.id) closingDetails.current.set(task.id, detail);
+                  const shown =
+                    detail?.id === task.id
+                      ? detail
+                      : closing === task.id
+                        ? closingDetails.current.get(task.id)
+                        : undefined;
                   // A host may return null where its own uploader already covers the task.
                   const taskDocuments =
-                    expanded &&
-                    detail?.id === task.id &&
+                    shown &&
                     renderDocuments &&
                     ["answer", "signature"].includes(task.inputKind ?? "answer")
                       ? renderDocuments(task.id, setUploading, task.visibility)
@@ -402,193 +423,199 @@ export function TasksManager({
                         task.state === "cancelled" && "bg-muted/40",
                       )}
                     >
-                      <h4>
-                        <button
-                          type="button"
-                          id={`task-toggle-${task.id}`}
-                          aria-label={task.title}
-                          aria-expanded={expanded}
-                          aria-controls={`task-detail-${task.id}`}
-                          aria-describedby={`task-status-${task.id}`}
-                          disabled={busy}
-                          onClick={() => selectTask(expanded ? null : task.id)}
-                          className={cn(
-                            "flex w-full items-center gap-3.5 px-4 py-3.5 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:opacity-50 sm:px-5",
-                            expanded && "bg-muted/40",
-                          )}
-                        >
-                          <span
-                            aria-hidden="true"
+                      <Collapsible
+                        open={expanded}
+                        disabled={busy}
+                        onOpenChange={(open) => selectTask(open ? task.id : null)}
+                      >
+                        <h4>
+                          <CollapsibleTrigger
+                            id={`task-toggle-${task.id}`}
+                            aria-label={task.title}
+                            aria-describedby={`task-status-${task.id}`}
                             className={cn(
-                              "flex size-9 shrink-0 items-center justify-center rounded-full",
-                              tone === "complete" && "bg-success text-white",
-                              tone === "success" && "bg-success-soft text-success",
-                              tone === "info" && "bg-info-soft text-info",
-                              tone === "warning" && "bg-warning-soft text-warning",
-                              tone === "muted" && "bg-muted text-muted-foreground",
+                              "flex w-full items-center gap-3.5 px-4 py-3.5 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:opacity-50 sm:px-5",
+                              expanded && "bg-muted/40",
                             )}
                           >
-                            <StatusIcon
-                              className="size-[1.125rem]"
-                              strokeWidth={StatusIcon === Check ? 2.75 : 2}
-                            />
-                          </span>
-                          <span className="min-w-0 flex-1 space-y-1">
                             <span
+                              aria-hidden="true"
                               className={cn(
-                                "block break-words text-sm leading-5 font-medium",
-                                task.state === "cancelled" && "text-muted-foreground",
+                                "flex size-9 shrink-0 items-center justify-center rounded-full",
+                                tone === "complete" && "bg-success text-white",
+                                tone === "info" && "bg-info-soft text-info",
+                                tone === "warning" && "bg-warning-soft text-warning",
+                                tone === "muted" && "bg-muted text-muted-foreground",
                               )}
                             >
-                              {task.title}
+                              <StatusIcon
+                                className="size-[1.125rem]"
+                                strokeWidth={StatusIcon === Check ? 2.75 : 2}
+                              />
                             </span>
-                            <span
-                              id={`task-status-${task.id}`}
-                              className="block text-xs leading-5 text-muted-foreground"
-                            >
+                            <span className="min-w-0 flex-1 space-y-1">
                               <span
                                 className={cn(
-                                  "font-medium",
-                                  (tone === "complete" || tone === "success") && "text-success",
-                                  tone === "info" && "text-info",
-                                  tone === "warning" && "text-warning",
+                                  "block break-words text-sm leading-5 font-medium",
+                                  task.state === "cancelled" && "text-muted-foreground",
                                 )}
                               >
-                                {!staffView && task.state === "open"
-                                  ? task.canEdit || task.canSubmit || task.secureInput?.canEdit
-                                    ? "Needs your action"
-                                    : task.inputKind === "signature"
-                                      ? "Signature request"
-                                      : "Waiting for assignee"
-                                  : !staffView && task.state === "submitted"
-                                    ? "Submitted / Waiting for lender review"
-                                    : stateLabels[task.state]}
-                              </span>{" "}
-                              · {stageLabels[task.stage]}
-                              {!task.required && " · Optional"}
-                              {task.dueAt && ` · Due ${displayDate(task.dueAt)}`}
+                                {task.title}
+                              </span>
+                              <span
+                                id={`task-status-${task.id}`}
+                                className="block text-xs leading-5 text-muted-foreground"
+                              >
+                                <span
+                                  className={cn(
+                                    "font-medium",
+                                    tone === "complete" && "text-success",
+                                    tone === "info" && "text-info",
+                                    tone === "warning" && "text-warning",
+                                  )}
+                                >
+                                  {!staffView && task.state === "open"
+                                    ? task.canEdit || task.canSubmit || task.secureInput?.canEdit
+                                      ? "Needs your action"
+                                      : task.inputKind === "signature"
+                                        ? "Signature request"
+                                        : "Waiting for assignee"
+                                    : task.state === "submitted"
+                                      ? staffView
+                                        ? "Needs your review"
+                                        : "Completed"
+                                      : stateLabels[task.state]}
+                                </span>{" "}
+                                · {stageLabels[task.stage]}
+                                {!task.required && " · Optional"}
+                                {task.dueAt && ` · Due ${displayDate(task.dueAt)}`}
+                              </span>
                             </span>
-                          </span>
-                          <ChevronDown
-                            aria-hidden="true"
-                            className={cn(
-                              "size-4 shrink-0 text-muted-foreground transition-transform",
-                              expanded && "rotate-180",
-                            )}
-                          />
-                        </button>
-                      </h4>
-                      {expanded && (
-                        <div
+                            <ChevronDown
+                              aria-hidden="true"
+                              className={cn(
+                                "size-4 shrink-0 text-muted-foreground transition-transform",
+                                expanded && "rotate-180",
+                              )}
+                            />
+                          </CollapsibleTrigger>
+                        </h4>
+                        <CollapsibleContent
                           id={`task-detail-${task.id}`}
                           role="region"
                           aria-labelledby={`task-toggle-${task.id}`}
-                          className="border-t pb-1"
                         >
-                          {pendingSelection && (
-                            <div
-                              ref={confirmRef}
-                              tabIndex={-1}
-                              className="px-4 pt-4 outline-none sm:px-5"
-                            >
-                              <Alert role="alert">
-                                <AlertTitle>You have unsaved changes</AlertTitle>
-                                <AlertDescription>
-                                  <p>
-                                    Keep editing this task, or discard your unsaved entries to
-                                    continue.
-                                  </p>
-                                  <div className="flex flex-wrap gap-2">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      disabled={busy}
-                                      onClick={() => {
-                                        setPendingSelection(null);
-                                        document.getElementById(`task-toggle-${selected}`)?.focus();
-                                      }}
-                                    >
-                                      Keep editing
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      disabled={busy}
-                                      onClick={() => {
-                                        openTask(pendingSelection.id);
-                                        document
-                                          .getElementById(
-                                            `task-toggle-${pendingSelection.id ?? selected}`,
-                                          )
-                                          ?.focus();
-                                        setPendingSelection(null);
-                                        setNotice(null);
-                                      }}
-                                    >
-                                      Discard changes
-                                    </Button>
-                                  </div>
-                                </AlertDescription>
-                              </Alert>
-                            </div>
-                          )}
-                          {detailError && (
-                            <div className="p-4">
-                              <Alert variant="destructive" role="alert">
-                                <AlertTitle>Saved task could not be reloaded</AlertTitle>
-                                <AlertDescription>
-                                  <p>{detailError}</p>
-                                </AlertDescription>
-                              </Alert>
-                            </div>
-                          )}
-                          {detail?.id === task.id && (
-                            <>
-                              <TaskDetail
-                                key={`${detail.id}:${reloadCount}`}
-                                task={detail}
-                                signatureHref={signatureHref}
-                                data={data}
-                                busy={busy}
-                                // List refreshes can observe our write before mutate returns
-                                // its detail. Compare only after that write has settled;
-                                // an older list snapshot never makes the editor stale.
-                                stale={!busy && task.revision > detail.revision}
-                                onBusy={setBusy}
-                                onDirtyChange={setHasUnsavedChanges}
-                                assigneeName={assignee(task.assigneeParticipantId)}
-                                errorMessage={errorMessage}
-                                onReload={async () => {
-                                  setBusy(true);
-                                  setDetailError(null);
-                                  try {
-                                    const latest = await reload();
-                                    setDetail(
-                                      latest.tasks.find((current) => current.id === task.id) ??
-                                        null,
-                                    );
-                                    setHasUnsavedChanges(false);
-                                    setPendingSelection(null);
-                                    setReloadCount((value) => value + 1);
-                                  } catch (error) {
-                                    setDetailError(errorMessage(error));
-                                  } finally {
-                                    setBusy(false);
-                                  }
-                                }}
-                                mutate={async (path, body, method) => {
-                                  const updated = await mutate(path, body, method);
-                                  if ("id" in updated) setDetail(updated);
-                                  setPendingSelection(null);
-                                  return updated;
-                                }}
-                              />
-                              {taskDocuments && (
-                                <div className="px-4 pb-4 sm:px-5 sm:pb-5">{taskDocuments}</div>
+                          {(expanded || closing === task.id) && (
+                            // A closing task stays visible for the animation but cannot be used.
+                            <div className="border-t pb-1" inert={!expanded || undefined}>
+                              {pendingSelection && (
+                                <div
+                                  ref={confirmRef}
+                                  tabIndex={-1}
+                                  className="px-4 pt-4 outline-none sm:px-5"
+                                >
+                                  <Alert role="alert">
+                                    <AlertTitle>You have unsaved changes</AlertTitle>
+                                    <AlertDescription>
+                                      <p>
+                                        Keep editing this task, or discard your unsaved entries to
+                                        continue.
+                                      </p>
+                                      <div className="flex flex-wrap gap-2">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          disabled={busy}
+                                          onClick={() => {
+                                            setPendingSelection(null);
+                                            document
+                                              .getElementById(`task-toggle-${selected}`)
+                                              ?.focus();
+                                          }}
+                                        >
+                                          Keep editing
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          disabled={busy}
+                                          onClick={() => {
+                                            openTask(pendingSelection.id);
+                                            document
+                                              .getElementById(
+                                                `task-toggle-${pendingSelection.id ?? selected}`,
+                                              )
+                                              ?.focus();
+                                            setPendingSelection(null);
+                                            setNotice(null);
+                                          }}
+                                        >
+                                          Discard changes
+                                        </Button>
+                                      </div>
+                                    </AlertDescription>
+                                  </Alert>
+                                </div>
                               )}
-                            </>
+                              {detailError && (
+                                <div className="p-4">
+                                  <Alert variant="destructive" role="alert">
+                                    <AlertTitle>Saved task could not be reloaded</AlertTitle>
+                                    <AlertDescription>
+                                      <p>{detailError}</p>
+                                    </AlertDescription>
+                                  </Alert>
+                                </div>
+                              )}
+                              {shown && (
+                                <>
+                                  <TaskDetail
+                                    key={`${shown.id}:${reloadCount}`}
+                                    task={shown}
+                                    signatureHref={signatureHref}
+                                    data={data}
+                                    busy={busy}
+                                    // List refreshes can observe our write before mutate returns
+                                    // its detail. Compare only after that write has settled;
+                                    // an older list snapshot never makes the editor stale.
+                                    stale={!busy && task.revision > shown.revision}
+                                    onBusy={setBusy}
+                                    onDirtyChange={setHasUnsavedChanges}
+                                    assigneeName={assignee(task.assigneeParticipantId)}
+                                    errorMessage={errorMessage}
+                                    onReload={async () => {
+                                      setBusy(true);
+                                      setDetailError(null);
+                                      try {
+                                        const latest = await reload();
+                                        setDetail(
+                                          latest.tasks.find((current) => current.id === task.id) ??
+                                            null,
+                                        );
+                                        setHasUnsavedChanges(false);
+                                        setPendingSelection(null);
+                                        setReloadCount((value) => value + 1);
+                                      } catch (error) {
+                                        setDetailError(errorMessage(error));
+                                      } finally {
+                                        setBusy(false);
+                                      }
+                                    }}
+                                    mutate={async (path, body, method) => {
+                                      const updated = await mutate(path, body, method);
+                                      if ("id" in updated) setDetail(updated);
+                                      setPendingSelection(null);
+                                      return updated;
+                                    }}
+                                  />
+                                  {taskDocuments && (
+                                    <div className="px-4 pb-4 sm:px-5 sm:pb-5">{taskDocuments}</div>
+                                  )}
+                                </>
+                              )}
+                            </div>
                           )}
-                        </div>
-                      )}
+                        </CollapsibleContent>
+                      </Collapsible>
                     </li>
                   );
                 })}
@@ -644,6 +671,8 @@ function TaskDetail({
   const [secureDirty, setSecureDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // Which button shows the spinner; every other control is simply disabled while busy.
+  const [pending, setPending] = useState<string | null>(null);
   const dirty = answer !== (task.answer ?? "");
   const hasUnsavedChanges =
     secureDirty ||
@@ -656,6 +685,7 @@ function TaskDetail({
   }, [hasUnsavedChanges, onDirtyChange]);
   async function save(action: string, body: object, method: "POST" | "PATCH", message: string) {
     onBusy(true);
+    setPending(action);
     setError(null);
     setNotice(null);
     try {
@@ -677,6 +707,33 @@ function TaskDetail({
       return false;
     } finally {
       onBusy(false);
+      setPending(null);
+    }
+  }
+  const completedNotice = "Task completed. Your lender will follow up if anything needs to change.";
+  async function complete() {
+    onBusy(true);
+    setPending("submit");
+    setError(null);
+    setNotice(null);
+    try {
+      let revision = task.revision;
+      if (dirty) {
+        const saved = await mutate(
+          `/${task.id}/answer`,
+          { expectedRevision: revision, answer: answer.trim() },
+          "PATCH",
+        );
+        if ("id" in saved) revision = saved.revision;
+      }
+      const updated = await mutate(`/${task.id}/submit`, { expectedRevision: revision }, "POST");
+      if ("id" in updated) setAnswer(updated.answer ?? "");
+      setNotice(completedNotice);
+    } catch (failure) {
+      setError(errorMessage(failure));
+    } finally {
+      onBusy(false);
+      setPending(null);
     }
   }
   const kind = task.inputKind ?? "answer";
@@ -739,12 +796,11 @@ function TaskDetail({
           />
           {task.canSubmit && (
             <Button
+              loading={pending === "submit"}
               disabled={busy || stale || secureDirty || task.evidenceRevision === 0}
-              onClick={() =>
-                void save("submit", {}, "POST", "Private task evidence submitted for bank review.")
-              }
+              onClick={() => void save("submit", {}, "POST", completedNotice)}
             >
-              Submit for review
+              Complete task
             </Button>
           )}
         </div>
@@ -757,7 +813,7 @@ function TaskDetail({
               "answer",
               { answer: answer.trim() },
               "PATCH",
-              "Answer saved. Submit it when you’re ready.",
+              "Answer saved. Choose Complete task when you’re ready.",
             );
           }}
         >
@@ -792,13 +848,13 @@ function TaskDetail({
           )}
           {task.canEdit && ["completed", "waived", "submitted"].includes(task.state) && (
             <p className="text-xs leading-5 text-muted-foreground">
-              Changing your answer reopens this task for bank review.
+              Changing your answer reopens this task until you complete it again.
             </p>
           )}
           <div className="flex flex-wrap gap-2">
             {task.canEdit && (
               <Button
-                loading={busy}
+                loading={pending === "answer"}
                 type="submit"
                 variant="outline"
                 disabled={busy || !answer.trim() || !dirty || stale}
@@ -806,28 +862,25 @@ function TaskDetail({
                 Save answer
               </Button>
             )}
-            {task.canSubmit && (
+            {(task.canSubmit ||
+              (task.canEdit && (dirty || ["open", "needs_changes"].includes(task.state)))) && (
               <Button
                 type="button"
-                disabled={busy || dirty || !task.answer || stale}
-                onClick={() => void save("submit", {}, "POST", "Answer submitted for bank review.")}
+                loading={pending === "submit"}
+                disabled={busy || !answer.trim() || stale}
+                onClick={() => void complete()}
               >
-                Submit for review
+                Complete task
               </Button>
             )}
           </div>
-          {dirty && task.canSubmit && (
-            <p className="text-xs leading-5 text-muted-foreground">
-              Save your answer before submitting it.
-            </p>
-          )}
           {!task.canEdit && !task.canSubmit && (
             <p className="text-sm text-muted-foreground">
-              {task.state === "submitted"
-                ? "This answer is waiting for bank review."
+              {task.state === "submitted" || task.state === "completed"
+                ? "This task is complete."
                 : task.state === "cancelled"
                   ? "This requirement no longer applies. Its history is preserved."
-                  : "Only the authorized assignee can answer and submit this task."}
+                  : "Only the authorized assignee can answer and complete this task."}
             </p>
           )}
         </form>
@@ -898,7 +951,15 @@ function TaskDetail({
         )}
       {task.canReview && !["completed", "waived", "cancelled"].includes(task.state) && (
         <div className="space-y-3 border-t pt-4">
-          <h4 className="text-sm font-semibold">Review task</h4>
+          <h4 className="text-sm font-semibold">
+            {task.state === "submitted" ? "Review completed task" : "Review task"}
+          </h4>
+          {task.state === "submitted" && (
+            <p className="text-xs leading-5 text-muted-foreground">
+              The assignee completed this task. Mark it reviewed, or return it for changes to reopen
+              it for them.
+            </p>
+          )}
           <label className="block text-sm" htmlFor={`review-reason-${task.id}`}>
             Review or waiver reason
           </label>
@@ -920,11 +981,11 @@ function TaskDetail({
                       "review",
                       { decision: "completed", reason: reason.trim() },
                       "POST",
-                      "Task completed after bank review.",
+                      "Task marked reviewed.",
                     )
                   }
                 >
-                  Complete task
+                  Mark reviewed
                 </Button>
                 <Button
                   variant="outline"
@@ -964,69 +1025,71 @@ function TaskDetail({
           </p>
         </div>
       )}
-      <details className="group/history border-t pt-4">
-        <summary className="disclosure flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground">
+      <Collapsible className="group/history border-t pt-4">
+        <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground w-full text-left">
           <ChevronDown
             aria-hidden="true"
-            className="size-4 -rotate-90 transition-transform group-open/history:rotate-0"
+            className="size-4 -rotate-90 transition-transform group-data-open/history:rotate-0"
           />
           Details and history
-        </summary>
-        <div className="mt-3 space-y-4 text-sm">
-          <div className="space-y-1">
-            <h4 className="font-medium">Why this applies</h4>
-            <p className="leading-6 text-muted-foreground">{task.reason}</p>
-          </div>
-          {kind === "answer" && choiceAnswer && (
-            <p className="leading-6 text-muted-foreground">{task.description}</p>
-          )}
-          <p className="text-xs leading-5 text-muted-foreground">
-            {task.source === "manual" ? "Staff requested" : "Product requirement"} ·{" "}
-            {task.required ? "Required" : "Optional"} · {assigneeName}
-            {task.visibility === "private" && " · Owner private"}
-            <br />
-            Use fictional details only. Never enter real EINs, SSNs, or other identifiers.
-          </p>
-          {task.answers.length > 0 && (
-            <div className="space-y-3">
-              <h4 className="font-medium">Saved answers</h4>
-              {task.answers.map((entry) => (
-                <div key={entry.id} className="border-l-2 pl-3">
-                  <p className="text-xs text-muted-foreground">
-                    Answer {entry.evidenceRevision} · {displayDate(entry.createdAt)}
-                  </p>
-                  <p className="mt-1 whitespace-pre-wrap break-words">{entry.answer}</p>
-                </div>
-              ))}
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="mt-3 space-y-4 text-sm">
+            <div className="space-y-1">
+              <h4 className="font-medium">Why this applies</h4>
+              <p className="leading-6 text-muted-foreground">{task.reason}</p>
             </div>
-          )}
-          {task.reviews.length > 0 && (
-            <div className="space-y-3">
-              <h4 className="font-medium">Reviews</h4>
-              {task.reviews.map((review) => (
-                <div key={review.id} className="border-l-2 pl-3">
-                  <p>
-                    {stateLabels[review.decision]} · Answer {review.evidenceRevision} ·{" "}
-                    {displayDate(review.createdAt)}
-                  </p>
-                  <p className="mt-1 whitespace-pre-wrap break-words text-muted-foreground">
-                    {review.reason}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-          {!task.answers.length && !task.reviews.length && (
-            <p className="text-muted-foreground">No answers or reviews yet.</p>
-          )}
-          {data.canManage && (
-            <p className="text-xs text-muted-foreground">
-              Occurrence {task.occurrence} · Record revision {task.revision} · Answer revision{" "}
-              {task.evidenceRevision}
+            {kind === "answer" && choiceAnswer && (
+              <p className="leading-6 text-muted-foreground">{task.description}</p>
+            )}
+            <p className="text-xs leading-5 text-muted-foreground">
+              {task.source === "manual" ? "Staff requested" : "Product requirement"} ·{" "}
+              {task.required ? "Required" : "Optional"} · {assigneeName}
+              {task.visibility === "private" && " · Owner private"}
+              <br />
+              Use fictional details only. Never enter real EINs, SSNs, or other identifiers.
             </p>
-          )}
-        </div>
-      </details>
+            {task.answers.length > 0 && (
+              <div className="space-y-3">
+                <h4 className="font-medium">Saved answers</h4>
+                {task.answers.map((entry) => (
+                  <div key={entry.id} className="border-l-2 pl-3">
+                    <p className="text-xs text-muted-foreground">
+                      Answer {entry.evidenceRevision} · {displayDate(entry.createdAt)}
+                    </p>
+                    <p className="mt-1 whitespace-pre-wrap break-words">{entry.answer}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            {task.reviews.length > 0 && (
+              <div className="space-y-3">
+                <h4 className="font-medium">Reviews</h4>
+                {task.reviews.map((review) => (
+                  <div key={review.id} className="border-l-2 pl-3">
+                    <p>
+                      {stateLabels[review.decision]} · Answer {review.evidenceRevision} ·{" "}
+                      {displayDate(review.createdAt)}
+                    </p>
+                    <p className="mt-1 whitespace-pre-wrap break-words text-muted-foreground">
+                      {review.reason}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+            {!task.answers.length && !task.reviews.length && (
+              <p className="text-muted-foreground">No answers or reviews yet.</p>
+            )}
+            {data.canManage && (
+              <p className="text-xs text-muted-foreground">
+                Occurrence {task.occurrence} · Record revision {task.revision} · Answer revision{" "}
+                {task.evidenceRevision}
+              </p>
+            )}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
     </div>
   );
 }

@@ -99,9 +99,7 @@ test("private synthetic inputs load upfront and drive scoped readiness, review, 
     await expect(
       page.getByRole("status").filter({ hasText: "Synthetic identifier saved privately" }),
     ).toBeVisible();
-    await expect(page.getByRole("button", { name: "Submit for review", exact: true })).toHaveCount(
-      0,
-    );
+    await expect(page.getByRole("button", { name: "Complete task", exact: true })).toHaveCount(0);
     await expect(fraud.getByText("Needs staff review", { exact: true })).toBeVisible({
       timeout: 45000,
     });

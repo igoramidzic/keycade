@@ -8,7 +8,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@keycade/ui/components/card";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@keycade/ui/components/collapsible";
 import { NativeSelect } from "@keycade/ui/components/native-select";
+import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 
 type Stage = "submission" | "approval" | "closing";
@@ -55,6 +61,7 @@ const blockerReasons: Record<string, string> = {
   signature_evidence_not_current: "Current evidence needs a completed signature request.",
   current_document_not_ready: "Current documents must finish upload and simulated scan.",
   current_evidence_not_reviewed: "The bank must review the current evidence.",
+  awaiting_lender_review: "Completed by the client. Mark it reviewed before approval.",
   requirement_unfinished: "Complete this required task.",
   required_check_missing: "Required checks have not been initialized.",
   check_needs_review: "The simulated finding needs a permitted staff resolution.",
@@ -143,12 +150,18 @@ export function ReadinessPanel({
               </Badge>
             </div>
             {gate.blockers.length > 0 && (
-              <details open={!compact && gate.stage === currentStage}>
-                <summary className="cursor-pointer text-xs text-muted-foreground">
+              <Collapsible defaultOpen={!compact && gate.stage === currentStage}>
+                <CollapsibleTrigger className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground w-full text-left">
+                  <ChevronRight
+                    aria-hidden="true"
+                    className="size-3.5 shrink-0 transition-transform in-data-panel-open:rotate-90"
+                  />
                   View next actions
-                </summary>
-                <Blockers blockers={gate.blockers} />
-              </details>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <Blockers blockers={gate.blockers} />
+                </CollapsibleContent>
+              </Collapsible>
             )}
           </section>
         ))}
@@ -395,18 +408,24 @@ function Check({
         </div>
       )}
       {check.runs.length > 1 && (
-        <details>
-          <summary className="cursor-pointer text-sm font-medium">
+        <Collapsible>
+          <CollapsibleTrigger className="flex cursor-pointer items-center gap-1.5 text-sm font-medium w-full text-left">
+            <ChevronRight
+              aria-hidden="true"
+              className="size-3.5 shrink-0 transition-transform in-data-panel-open:rotate-90"
+            />
             Check history ({check.runs.length - 1})
-          </summary>
-          <div className="mt-3 space-y-4">
-            {check.runs
-              .filter((run) => run.id !== current?.id)
-              .map((run) => (
-                <div key={run.id}>{result(run)}</div>
-              ))}
-          </div>
-        </details>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="mt-3 space-y-4">
+              {check.runs
+                .filter((run) => run.id !== current?.id)
+                .map((run) => (
+                  <div key={run.id}>{result(run)}</div>
+                ))}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       )}
     </section>
   );
