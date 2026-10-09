@@ -15,6 +15,7 @@ import {
   type FundedAccountData,
 } from "@keycade/ui/components/funded-accounts";
 import { Input } from "@keycade/ui/components/input";
+import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
 import { useEffect, useRef, useState } from "react";
 
 export type ClosingData = {
@@ -111,9 +112,7 @@ export function ClosingManager({
       setFormKey((key) => key + 1);
       attempt.current = null;
       setNotice(
-        action === "start"
-          ? "Closing started against the approved terms."
-          : "Simulated funding recorded. No money was moved.",
+        action === "start" ? "Closing started against the approved terms." : "Funding recorded.",
       );
     } catch (failure) {
       setError(errorMessage(failure));
@@ -160,13 +159,12 @@ export function ClosingManager({
               <CardTitle>
                 <h2>{current.account ? "Completed closing" : "Closing and funding"}</h2>
               </CardTitle>
-              <Badge variant="secondary">Simulated</Badge>
             </div>
             <CardDescription>
               {current.account
                 ? "The completed closing record remains linked to this application and its approved terms."
                 : current.status === "closing"
-                  ? "Complete the current closing requirements before a staff member records simulated funding."
+                  ? "Complete the current closing requirements before a staff member records funding."
                   : current.status === "approved"
                     ? "A staff member can start closing against the approved terms. Approval does not record funding."
                     : "Closing becomes available after an explicit bank approval."}
@@ -212,11 +210,11 @@ export function ClosingManager({
                 </div>
                 <div>
                   <dt className="text-muted-foreground">Product</dt>
-                  <dd className="mt-1">{terms.productName}</dd>
+                  <dd className="mt-1">{workflowText(terms.productName)}</dd>
                 </div>
                 <div>
                   <dt className="text-muted-foreground">Business</dt>
-                  <dd className="mt-1 break-words">{terms.businessName}</dd>
+                  <dd className="mt-1 break-words">{workflowName(terms.businessName)}</dd>
                 </div>
                 <div>
                   <dt className="text-muted-foreground">Approval recorded</dt>
@@ -255,8 +253,8 @@ export function ClosingManager({
                 <h2>Closing conditions</h2>
               </CardTitle>
               <CardDescription>
-                Task evidence and simulated signatures must be current. A completed signature
-                request does not record funding by itself.
+                Task evidence and signatures must be current. A completed signature request does not
+                record funding by itself.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -264,11 +262,11 @@ export function ClosingManager({
                 {current.conditions.map((condition) => (
                   <li
                     key={condition.id}
-                    aria-label={`Closing condition ${condition.title}`}
+                    aria-label={`Closing condition ${workflowText(condition.title)}`}
                     className="space-y-2"
                   >
                     <div className="flex flex-wrap justify-between gap-2">
-                      <h3 className="text-sm font-medium">{condition.title}</h3>
+                      <h3 className="text-sm font-medium">{workflowText(condition.title)}</h3>
                       <Badge variant={condition.passes ? "secondary" : "outline"}>
                         {condition.passes
                           ? "Satisfied"
@@ -282,7 +280,7 @@ export function ClosingManager({
                         {condition.signatureState
                           ? (signatureStates[condition.signatureState] ??
                             "Signature status unavailable")
-                          : "A simulated signature request is needed."}
+                          : "A signature request is needed."}
                         {condition.signatureState === "completed" && !condition.passes
                           ? " Current signature evidence still needs attention."
                           : ""}
@@ -315,7 +313,7 @@ export function ClosingManager({
           <Card className="ring-0 shadow-sm">
             <CardHeader>
               <CardTitle>
-                <h2>Record simulated funding</h2>
+                <h2>Record funding</h2>
               </CardTitle>
               <CardDescription>
                 A deliberate staff action creates one funding record and one account. No payment
@@ -367,7 +365,7 @@ function FundingForm({
   useEffect(() => onEditing(dirty), [dirty, onEditing]);
   return (
     <form
-      aria-label="Record simulated funding"
+      aria-label="Record funding"
       className="space-y-5"
       onSubmit={async (event) => {
         event.preventDefault();
@@ -391,7 +389,7 @@ function FundingForm({
         </label>
         <Input id="funded-amount" value={amount} readOnly />
         <p className="text-xs text-muted-foreground">
-          Exactly the approved amount, as required by this demo product.
+          Exactly the approved amount, as required by this product.
         </p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
@@ -412,7 +410,7 @@ function FundingForm({
         </div>
         <div className="space-y-2">
           <label htmlFor="funding-reference" className="text-sm font-medium">
-            Synthetic funding reference
+            Funding reference
           </label>
           <Input
             id="funding-reference"
@@ -420,7 +418,7 @@ function FundingForm({
             maxLength={100}
             value={reference}
             disabled={busy || stale}
-            placeholder="DEMO-FUNDING-001"
+            placeholder="FUNDING-001"
             onChange={(event) => setReference(event.target.value)}
           />
         </div>
@@ -433,15 +431,14 @@ function FundingForm({
           onChange={(event) => setConfirmed(event.target.checked)}
           className="mt-1"
         />
-        I confirm the closing requirements were reviewed and this is simulated funding with no money
-        movement.
+        I confirm the closing requirements were reviewed and the funding details are correct.
       </label>
       <Button
         loading={busy}
         type="submit"
         disabled={busy || stale || !allowed || !confirmed || !reference.trim() || !fundedOn}
       >
-        Record simulated funding
+        Record funding
       </Button>
     </form>
   );

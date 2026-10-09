@@ -24,7 +24,7 @@ Borrowers and seeded staff can return without passwords. By the user's explicit 
 - Logout/session revocation takes effect immediately. A borrower session cannot enter staff routes without membership.
 - Return URLs cannot redirect to arbitrary sites; request-link responses do not enumerate known accounts.
 - Local email delivery failures and crashes after SMTP acceptance recover without exposing tokens in logs. Retry-issued sibling links share one atomic consumption record; using one invalidates all siblings.
-- Demo sign-in enters directly from email without queueing mail. Staff membership, bank boundaries, origin/CSRF, expiry and revocation still apply. Disabling demo sign-in also rejects existing demo sessions. The UI labels demo access clearly.
+- Demo sign-in enters directly from email without queueing mail. Staff membership, bank boundaries, origin/CSRF, expiry and revocation still apply. Disabling demo sign-in also rejects existing demo sessions. The UI uses neutral access wording and an existing-account lender picker per the October 9 D07 override.
 
 ## Validation
 

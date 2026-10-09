@@ -185,8 +185,8 @@ export function DocumentPreview({
           {version.uploadState !== "uploaded"
             ? "The file is not available in storage."
             : version.scanState === "blocked"
-              ? "This file is blocked by the simulated scan."
-              : "The file must pass its simulated scan before its bytes can be viewed."}{" "}
+              ? "This file is blocked by the scan."
+              : "The file must pass its scan before its bytes can be viewed."}{" "}
           Its permitted metadata and history remain below.
         </div>
       ) : error ? (

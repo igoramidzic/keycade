@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { readEnvironment } from "@keycade/config/server";
 import { expect, type Page, test } from "@playwright/test";
+import { fillSignInEmail } from "./identity-helpers";
 import { completeAddressAndSkipOptional } from "./setup-helpers";
 
 const env = readEnvironment();
@@ -50,8 +51,8 @@ async function api<T>(page: Page, method: string, suffix: string, body?: object)
 
 async function signIn(page: Page, email = "borrower@example.test") {
   await page.goto(borrower);
-  await page.getByLabel("Email address", { exact: true }).fill(email);
-  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+  await fillSignInEmail(page, email);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Your applications", exact: true })).toBeVisible();
 }
 
@@ -88,12 +89,12 @@ test("business groups show granted applications and portal navigation keeps appl
       backgroundReviewReads++;
   });
   await signIn(page);
-  const cedar = page.getByRole("region", { name: "Synthetic Cedar Workshop", exact: true });
-  const maple = page.getByRole("region", { name: "Synthetic Maple Supply", exact: true });
+  const cedar = page.getByRole("region", { name: "Cedar Workshop", exact: true });
+  const maple = page.getByRole("region", { name: "Maple Supply", exact: true });
   await expect(cedar.getByRole("article", { name: `Application ${ids.small}` })).toBeVisible();
   await expect(cedar.getByRole("article", { name: `Application ${ids.draft}` })).toBeVisible();
   await expect(maple.getByRole("article", { name: `Application ${ids.large}` })).toBeVisible();
-  await expect(card(page, ids.small)).toContainText("Synthetic Business Credit");
+  await expect(card(page, ids.small)).toContainText("Business Credit");
   await expect(card(page, ids.small)).toContainText("$10,000");
   await expect(card(page, ids.large)).toContainText("$5,000,000");
   await expect(card(page, ids.small)).toContainText("Collecting information");
@@ -110,9 +111,7 @@ test("business groups show granted applications and portal navigation keeps appl
   await expect(open).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(applicationUrl(ids.small));
-  await expect(
-    page.getByRole("heading", { name: "Synthetic Cedar Workshop", exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Cedar Workshop", exact: true })).toBeVisible();
   await expect(page.getByText("Initial setup complete", { exact: true })).toBeVisible();
   await expect(page.getByRole("progressbar")).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath("synthetic-overview.png"), fullPage: true });
@@ -122,7 +121,7 @@ test("business groups show granted applications and portal navigation keeps appl
   ).toHaveCount(0);
   for (const section of [
     { path: "documents", label: "View documents", heading: "Documents" },
-    { path: "signatures", label: "View signatures", heading: "Simulated signatures" },
+    { path: "signatures", label: "View signatures", heading: "Signatures" },
     { path: "activity", label: "View activity", heading: "Application activity" },
     { path: "people", label: "People and access", heading: "People with portal access" },
   ]) {
@@ -155,9 +154,7 @@ test("business groups show granted applications and portal navigation keeps appl
     .getByRole("button", { name: "Open application", exact: true })
     .click();
   await expect(page).toHaveURL(applicationUrl(ids.large));
-  await expect(
-    page.getByRole("heading", { name: "Synthetic Maple Supply", exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Maple Supply", exact: true })).toBeVisible();
   await expect(
     page
       .getByRole("complementary", { name: "Application details", exact: true })
@@ -369,9 +366,7 @@ test("portal detail failure retries the selected application without replaying s
   await noOverflow(page);
   await page.unroute(detailPattern);
   await page.getByRole("button", { name: "Try again", exact: true }).click();
-  await expect(
-    page.getByRole("heading", { name: "Synthetic Maple Supply", exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Maple Supply", exact: true })).toBeVisible();
   await expect(page.getByText("Initial setup complete", { exact: true })).toBeVisible();
 });
 
@@ -492,7 +487,7 @@ test("polling after an account switch clears application cards and detail instea
         stalePage.getByRole("navigation", { name: "Application sections", exact: true }),
       ).toHaveCount(0);
       await expect(
-        stalePage.getByRole("main").getByText("Synthetic Cedar Workshop", { exact: true }),
+        stalePage.getByRole("main").getByText("Cedar Workshop", { exact: true }),
       ).toHaveCount(0);
       await expect(
         stalePage.getByText("Synthetic Other Account Business", { exact: true }),

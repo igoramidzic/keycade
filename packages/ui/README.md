@@ -72,8 +72,8 @@ child to get the icon column.
   title and a one-line status beneath it, and the badge/action at the end.
 - **Disclosures** use the shadcn `Collapsible` (`Collapsible`, `CollapsibleTrigger`,
   `CollapsibleContent`). The content animates its height and, like `<details>`, stays in the DOM
-  while closed unless `keepMounted={false}` (task cards use that so editors unmount after
-  closing). Rotate a `ChevronDown` with `group-data-open/<name>:rotate-180` on a named group, or
+  while closed. Heavy panels (task cards) render their body only while open and briefly while
+  closing, marking that closing body `inert` and `aria-hidden`. Rotate a `ChevronDown` with `group-data-open/<name>:rotate-180` on a named group, or
   a leading `ChevronRight` with `in-data-panel-open:rotate-90` for compact text triggers. Keep
   the trigger's text stable — tests and assistive technology read it.
 - **Progress visuals** on the borrower list and dashboard are decorative `aria-hidden` bars next to

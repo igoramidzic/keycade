@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { readEnvironment } from "@keycade/config/server";
 import { syntheticDocumentPdf } from "@keycade/integrations/document-fixtures";
 import { type BrowserContext, expect as baseExpect, type Page, test } from "@playwright/test";
-import { messages, openLink, waitForLink } from "./identity-helpers";
+import { fillSignInEmail, messages, openLink, waitForLink } from "./identity-helpers";
 
 const env = readEnvironment();
 const borrower = `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
@@ -16,8 +16,8 @@ const url = (origin: string, section: string) =>
   `${origin}/applications/${applicationId}/${section}?bank=bank-a`;
 async function signIn(page: Page, origin: string, email: string) {
   await page.goto(origin);
-  await page.getByLabel("Email address", { exact: true }).fill(email);
-  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+  await fillSignInEmail(page, email);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
     page.getByRole("heading", {
       name: origin === staff ? "Applications" : "Your applications",
@@ -44,7 +44,7 @@ async function api<T>(page: Page, suffix: string, body?: object): Promise<T> {
   );
 }
 async function fixture(page: Page) {
-  const title = `Synthetic agreement ${randomUUID().slice(0, 8)}`;
+  const title = `Agreement ${randomUUID().slice(0, 8)}`;
   const tasks = await api<{ tasks: { id: string; title: string }[] }>(page, "/tasks", {
     title,
     description: "Fictional agreement for a simulated signature workflow.",
@@ -128,6 +128,7 @@ test("two intended signers complete a simulated request through emailed continua
   await pace(signerContext);
   await pace(applicantContext);
   try {
+    await page.goto(`${staff}/api/ready`);
     const signer = await signerContext.newPage();
     await openLink(signer, await waitForLink(borrower, email, previous));
     await signer.getByRole("button", { name: "Confirm and sign in", exact: true }).click();
@@ -139,7 +140,7 @@ test("two intended signers complete a simulated request through emailed continua
     await page.getByLabel("Current document", { exact: true }).selectOption(source.sourceVersionId);
     await page.getByLabel(/borrower@example\.test/).check();
     await page.getByLabel(new RegExp(email.replaceAll(".", "\\."))).check();
-    await page.getByRole("button", { name: "Create simulated request", exact: true }).click();
+    await page.getByRole("button", { name: "Create request", exact: true }).click();
     const envelope = page.getByRole("region", {
       name: `Signature request ${source.title}`,
       exact: true,
@@ -147,7 +148,7 @@ test("two intended signers complete a simulated request through emailed continua
     await expect(envelope.getByText("Draft", { exact: true })).toBeVisible();
     const beforeSend = new Set((await messages()).map((message) => message.ID));
     await envelope.getByRole("button", { name: "Send request", exact: true }).click();
-    await expect(envelope.getByText("Sent in demo", { exact: true })).toBeVisible({
+    await expect(envelope.getByText("Delivered", { exact: true })).toBeVisible({
       timeout: 25000,
     });
     await page.goto(`${staff}/api/ready`);
@@ -170,15 +171,13 @@ test("two intended signers complete a simulated request through emailed continua
     const sourceDownload = applicant.waitForEvent("download");
     await own.getByRole("button", { name: "View source document", exact: true }).click();
     expect((await sourceDownload).suggestedFilename()).toBe(source.fileName);
-    await expect(own.getByRole("button", { name: "Sign in demo", exact: true })).toBeDisabled();
-    await own
-      .getByLabel("I understand this is a simulated signature with no legal effect.")
-      .check();
-    await own.getByRole("button", { name: "Sign in demo", exact: true }).click();
+    await expect(own.getByRole("button", { name: "Sign", exact: true })).toBeDisabled();
+    await own.getByLabel("I have reviewed the document and am ready to sign.").check();
+    await own.getByRole("button", { name: "Sign", exact: true }).click();
     await expect(own.getByText("Partially signed", { exact: true })).toBeVisible();
-    await expect(
-      own.getByRole("button", { name: "Download simulated artifact", exact: true }),
-    ).toHaveCount(0);
+    await expect(own.getByRole("button", { name: "Download artifact", exact: true })).toHaveCount(
+      0,
+    );
     await applicant.goto(`${borrower}/api/ready`);
     await openLink(signer, await waitForLink(borrower, email, beforeSend));
     await signer.getByRole("button", { name: "Confirm and sign in", exact: true }).click();
@@ -187,13 +186,11 @@ test("two intended signers complete a simulated request through emailed continua
       exact: true,
     });
     await expect(invited).toBeVisible();
-    await invited
-      .getByLabel("I understand this is a simulated signature with no legal effect.")
-      .check();
-    await invited.getByRole("button", { name: "Sign in demo", exact: true }).click();
+    await invited.getByLabel("I have reviewed the document and am ready to sign.").check();
+    await invited.getByRole("button", { name: "Sign", exact: true }).click();
     await expect(invited.getByText("Completed", { exact: true })).toBeVisible();
     const download = signer.waitForEvent("download");
-    await invited.getByRole("button", { name: "Download simulated artifact", exact: true }).click();
+    await invited.getByRole("button", { name: "Download artifact", exact: true }).click();
     const downloaded = await download;
     expect(downloaded.suggestedFilename()).toMatch(/^simulated-signature-.+\.txt$/);
     const artifactPath = await downloaded.path();
@@ -203,7 +200,7 @@ test("two intended signers complete a simulated request through emailed continua
     const toggle = applicant.getByRole("button", { name: source.title, exact: true });
     await toggle.click();
     await expect(
-      applicant.getByRole("link", { name: "View simulated signature request", exact: true }),
+      applicant.getByRole("link", { name: "View signature request", exact: true }),
     ).toBeVisible();
     await expect(applicant.locator('[id^="task-answer-"]')).toHaveCount(0);
     const statusId = await toggle.getAttribute("aria-describedby");
@@ -295,7 +292,7 @@ test("failed send, retry, void, decline, and expiry are explicit simulated state
     );
     await request.getByRole("button", { name: "Decline request", exact: true }).click();
     await expect(request.getByText("Declined", { exact: true }).first()).toBeVisible();
-    await expect(request.getByRole("button", { name: "Sign in demo", exact: true })).toHaveCount(0);
+    await expect(request.getByRole("button", { name: "Sign", exact: true })).toHaveCount(0);
   } finally {
     await context.close();
   }

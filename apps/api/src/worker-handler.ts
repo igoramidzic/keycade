@@ -61,6 +61,8 @@ import {
   staffOverviewSchema,
   staffPageQuerySchema,
   staffSessionSchema,
+  staffSignInAccountsSchema,
+  staffSignInQuerySchema,
   staffWorkspaceSchema,
   taskRevisionSchema,
   tasksViewSchema,
@@ -345,6 +347,24 @@ export async function handleWorkerRequest(
                 ...Object.fromEntries(
                   [400, 404, 429, 500].map((code) => [code, response(errorSchema)]),
                 ),
+              },
+            },
+          },
+          "/api/v1/auth/staff-accounts": {
+            get: {
+              parameters: [
+                {
+                  name: "bankSlug",
+                  in: "query",
+                  required: true,
+                  schema: z.toJSONSchema(staffSignInQuerySchema.shape.bankSlug),
+                },
+              ],
+              responses: {
+                "200": response(staffSignInAccountsSchema),
+                "400": response(errorSchema),
+                "429": response(errorSchema),
+                "503": response(errorSchema),
               },
             },
           },
@@ -1020,6 +1040,14 @@ export async function handleWorkerRequest(
           publicSession(authentication, deps.demoSignInEnabled, deps.demoInboxEnabled),
         ),
       );
+    if (get && path === "/api/v1/auth/staff-accounts") {
+      const query = staffSignInQuerySchema.parse(Object.fromEntries(url.searchParams));
+      if (deps.demoSignInEnabled !== true)
+        return failure(503, "DEMO_SIGN_IN_UNAVAILABLE", "Sign-in is temporarily unavailable.");
+      return json(
+        staffSignInAccountsSchema.parse(await identity.listDemoStaffAccounts(query.bankSlug)),
+      );
+    }
     if (get && path === "/api/v1/auth/staff")
       return json(staffSessionSchema.parse(await readStaffSession(deps.db, authentication)));
     if (request.method === "POST" && path === "/api/v1/auth/request-link") {
@@ -1028,7 +1056,7 @@ export async function handleWorkerRequest(
         return failure(
           503,
           "AUTH_DELIVERY_UNAVAILABLE",
-          "Email sign-in is available in the local demo. Hosted email delivery is not configured.",
+          "Email sign-in is temporarily unavailable.",
         );
       if (!originHeader || !isAllowedOrigin(originHeader, deps.portalOrigins?.[body.portal] ?? []))
         return failure(403, "FORBIDDEN", "Request origin is not allowed for this portal.");
@@ -1046,7 +1074,7 @@ export async function handleWorkerRequest(
         return failure(
           503,
           "DEMO_SIGN_IN_UNAVAILABLE",
-          "Immediate demo sign-in is unavailable in this environment.",
+          "Immediate sign-in is temporarily unavailable.",
         );
       if (!originHeader || !isAllowedOrigin(originHeader, deps.portalOrigins?.[body.portal] ?? []))
         return failure(403, "FORBIDDEN", "Request origin is not allowed for this portal.");
@@ -1093,7 +1121,7 @@ export async function handleWorkerRequest(
         return failure(
           503,
           "AUTH_DELIVERY_UNAVAILABLE",
-          "Email sign-in is available in the local demo. Hosted email delivery is not configured.",
+          "Email sign-in is temporarily unavailable.",
         );
       if (!originHeader || !isAllowedOrigin(originHeader, deps.portalOrigins?.borrower ?? []))
         return failure(403, "FORBIDDEN", "Request origin is not allowed for this portal.");

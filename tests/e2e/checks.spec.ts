@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { readEnvironment } from "@keycade/config/server";
 import { expect, type Page, test } from "@playwright/test";
+import { fillSignInEmail } from "./identity-helpers";
 
 const env = readEnvironment();
 const borrower = `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
@@ -10,8 +11,8 @@ test.use({ trace: "off", screenshot: "off", video: "off", actionTimeout: 15000 }
 test.setTimeout(180000);
 async function signIn(page: Page, origin: string, email: string) {
   await page.goto(origin);
-  await page.getByLabel("Email address", { exact: true }).fill(email);
-  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+  await fillSignInEmail(page, email);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
     page.getByRole("heading", {
       name: origin === staff ? "Applications" : "Your applications",
@@ -70,16 +71,16 @@ test("private synthetic inputs load upfront and drive scoped readiness, review, 
     await addSelfOwner(officer, applicationId);
     await officer.goto(url(staff, "checks"));
     const fraud = officer.getByRole("region", {
-      name: "Simulated business fraud check",
+      name: "Business fraud check",
       exact: true,
     });
-    await expect(fraud).toContainText("A synthetic identifier is needed.");
+    await expect(fraud).toContainText("A identifier is needed.");
     await expect(
       officer.getByRole("region", { name: "Submission readiness", exact: true }),
-    ).not.toContainText("Simulated business fraud check");
+    ).not.toContainText("Business fraud check");
     await expect(
       officer.getByRole("region", { name: "Approval readiness", exact: true }),
-    ).toContainText("Simulated business fraud check");
+    ).toContainText("Business fraud check");
     await page.goto(url(borrower, "tasks"));
     await expect(page.getByRole("heading", { name: "Your tasks", exact: true })).toBeVisible();
     const detailRequests: string[] = [];
@@ -89,15 +90,15 @@ test("private synthetic inputs load upfront and drive scoped readiness, review, 
         await route.abort();
       } else await route.continue();
     });
-    await page.getByRole("button", { name: "Add synthetic business EIN", exact: true }).click();
-    const ein = page.getByLabel("Choose a synthetic EIN", { exact: true });
+    await page.getByRole("button", { name: "Add business EIN", exact: true }).click();
+    const ein = page.getByLabel("Choose an EIN", { exact: true });
     await expect(ein).toBeVisible();
     expect(detailRequests).toEqual([]);
     await expect(page.locator('[id^="task-answer-"]')).toHaveCount(0);
     await ein.selectOption("000000003");
-    await page.getByRole("button", { name: "Save synthetic identifier", exact: true }).click();
+    await page.getByRole("button", { name: "Save identifier", exact: true }).click();
     await expect(
-      page.getByRole("status").filter({ hasText: "Synthetic identifier saved privately" }),
+      page.getByRole("status").filter({ hasText: "Identifier saved privately" }),
     ).toBeVisible();
     await expect(page.getByRole("button", { name: "Complete task", exact: true })).toHaveCount(0);
     await expect(fraud.getByText("Needs staff review", { exact: true })).toBeVisible({
@@ -106,30 +107,28 @@ test("private synthetic inputs load upfront and drive scoped readiness, review, 
     await expect(
       fraud.getByRole("button", { name: "Record staff resolution", exact: true }),
     ).toBeDisabled();
-    await fraud.getByLabel("I reviewed the synthetic evidence for this result.").check();
+    await fraud.getByLabel("I reviewed the evidence for this result.").check();
     await fraud.getByRole("button", { name: "Record staff resolution", exact: true }).click();
     await expect(fraud.getByText("Requirement satisfied", { exact: true })).toBeVisible();
     await expect(fraud.getByText("Needs staff review", { exact: true })).toBeVisible();
     await page
       .getByRole("button", { name: "Authorize sample tax availability — business", exact: true })
       .click();
-    await expect(
-      page.getByLabel("Authorize simulated tax records", { exact: true }),
-    ).not.toBeChecked();
-    await page.getByLabel("Authorize simulated tax records", { exact: true }).check();
+    await expect(page.getByLabel("Authorize tax records", { exact: true })).not.toBeChecked();
+    await page.getByLabel("Authorize tax records", { exact: true }).check();
     await page.getByRole("button", { name: "Save tax authorization", exact: true }).click();
     await expect(
-      page.getByRole("status").filter({ hasText: "Synthetic tax authorization saved." }),
+      page.getByRole("status").filter({ hasText: "Tax authorization saved." }),
     ).toBeVisible();
-    await page.getByRole("button", { name: /^Add synthetic personal identifier/ }).click();
-    await page.getByLabel("Choose a synthetic SSN", { exact: true }).selectOption("000000001");
-    await page.getByRole("button", { name: "Save synthetic identifier", exact: true }).click();
+    await page.getByRole("button", { name: /^Add personal identifier/ }).click();
+    await page.getByLabel("Choose an SSN", { exact: true }).selectOption("000000001");
+    await page.getByRole("button", { name: "Save identifier", exact: true }).click();
     await expect(
-      page.getByRole("status").filter({ hasText: "Synthetic identifier saved privately" }),
+      page.getByRole("status").filter({ hasText: "Identifier saved privately" }),
     ).toBeVisible();
-    await page.getByRole("button", { name: "Add synthetic business EIN", exact: true }).click();
+    await page.getByRole("button", { name: "Add business EIN", exact: true }).click();
     await ein.selectOption("000000006");
-    await page.getByRole("button", { name: "Save synthetic identifier", exact: true }).click();
+    await page.getByRole("button", { name: "Save identifier", exact: true }).click();
     await expect(fraud.getByText("Failed", { exact: true })).toBeVisible({ timeout: 45000 });
     await expect(fraud.getByText("Not satisfied", { exact: true })).toBeVisible();
     await fraud.getByText(/^Check history/).click();
@@ -141,17 +140,15 @@ test("private synthetic inputs load upfront and drive scoped readiness, review, 
       timeout: 45000,
     });
     await ein.selectOption("000000001");
-    await page.getByRole("button", { name: "Save synthetic identifier", exact: true }).click();
-    await expect(fraud.getByText("Simulated clear", { exact: true }).first()).toBeVisible({
+    await page.getByRole("button", { name: "Save identifier", exact: true }).click();
+    await expect(fraud.getByText("Clear", { exact: true }).first()).toBeVisible({
       timeout: 45000,
     });
     await expect(fraud.getByText("Requirement satisfied", { exact: true })).toBeVisible();
     await page
       .getByRole("button", { name: "Authorize sample tax availability — business", exact: true })
       .click();
-    await expect(
-      page.getByLabel("Authorize simulated tax records", { exact: true }),
-    ).not.toBeChecked();
+    await expect(page.getByLabel("Authorize tax records", { exact: true })).not.toBeChecked();
     await expect(
       page.getByText("Current authorization: Not granted.", { exact: true }),
     ).toBeVisible();

@@ -20,7 +20,7 @@ export function StaffDemoInbox() {
         Back to applications
       </Link>
       {inbox.isPending ? (
-        <Loading>Loading demo inbox…</Loading>
+        <Loading>Loading Inbox…</Loading>
       ) : inbox.error ? (
         <ErrorNotice error={inbox.error} onRetry={() => void inbox.refetch()} />
       ) : (

@@ -15,6 +15,7 @@ import {
 import { Input } from "@keycade/ui/components/input";
 import { NativeSelect } from "@keycade/ui/components/native-select";
 import { Textarea } from "@keycade/ui/components/textarea";
+import { workflowName } from "@keycade/ui/lib/workflow-text";
 import { ChevronRight } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 
@@ -106,12 +107,12 @@ export function DocumentInfo({
       "Analysis recipe",
       version.demoImportFixture
         ? `${version.demoImportFixture.recipeId} · recipe ${version.demoImportFixture.recipeVersion}`
-        : "Content-based simulated interpretation",
+        : "Content-based interpretation",
     ],
-    ["Associated business", document.applicationBusinessName ?? "Not provided"],
+    ["Associated business", workflowName(document.applicationBusinessName ?? "Not provided")],
     [
       "Subject",
-      document.subjectDisplayName ??
+      workflowName(document.subjectDisplayName) ||
         (document.visibility === "private" ? "Private participant" : "Application business"),
     ],
     ["Application", document.applicationId ?? "Current application"],
@@ -121,7 +122,7 @@ export function DocumentInfo({
         ? `${version.metadata.expectedPeriod.start} to ${version.metadata.expectedPeriod.end} (${version.metadata.expectedPeriod.basis.replaceAll("_", " ")})`
         : "Not provided",
     ],
-    ["Uploader", version.uploadedByName ?? "Historical uploader unavailable"],
+    ["Uploader", workflowName(version.uploadedByName ?? "Historical uploader unavailable")],
     [
       "Extracted period",
       version.processing?.extractedFields.find((field) => field.provenance)?.provenance

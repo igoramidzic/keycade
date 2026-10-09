@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { readEnvironment } from "@keycade/config/server";
 import { expect, type Page, test } from "@playwright/test";
 import { paceHostedRequests } from "./hosted-helpers";
-import { messages } from "./identity-helpers";
+import { fillSignInEmail, messages, requestAccessEmail } from "./identity-helpers";
 import { completeAddressAndSkipOptional } from "./setup-helpers";
 
 const env = readEnvironment();
@@ -19,28 +19,28 @@ test.beforeEach(async ({ context }) => {
 });
 
 async function requestEmail(page: Page, email: string, action = "Send sign-in link") {
-  await page.getByLabel("Email address", { exact: true }).fill(email);
-  const toggle = page.getByRole("button", { name: "Use an email link instead", exact: true });
-  if (await toggle.isVisible()) await toggle.click();
-  await page.getByRole("button", { name: action, exact: true }).click();
-  await expect(page.getByText("Check your inbox", { exact: true })).toBeVisible();
-  await expect(page.getByText(/No email is sent externally\./)).toBeVisible();
+  await expect(page.getByLabel("Email address", { exact: true })).toBeVisible();
+  await requestAccessEmail(page, email, action === "Start application");
+  const origin = new URL(page.url()).origin;
+  await page.goto(`${origin}/?bank=bank-a`);
+  await fillSignInEmail(page, email);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
 }
 async function openInbox(page: Page) {
-  await page.getByRole("button", { name: "Open demo inbox", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Demo inbox", exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "Inbox", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Inbox", exact: true })).toBeVisible();
 }
 async function selectReadyMessage(page: Page, subject: string) {
   const item = page
-    .getByRole("list", { name: "Simulated messages" })
+    .getByRole("list", { name: "Messages" })
     .getByRole("button")
     .filter({ hasText: subject })
     .filter({ hasText: "Ready" })
     .first();
   await expect(item).toBeVisible({ timeout: 25_000 });
   await item.click();
-  const detail = page.getByRole("region", { name: "Selected simulated message" });
-  await expect(detail.getByText(/No external email has been sent\./)).toBeVisible();
+  const detail = page.getByRole("region", { name: "Selected message" });
+  await expect(detail.getByText(/No external email has been sent\./)).toHaveCount(0);
   // Boolean checks cannot print an accidentally rendered credential in the report.
   expect(await detail.evaluate((node) => !/#token=[a-f0-9]{64}/.test(node.textContent ?? ""))).toBe(
     true,
@@ -94,14 +94,14 @@ test("borrower inbox requires deliberate confirmation, conceals the used link, a
   await expect(page.getByRole("heading", { name: "Your applications", exact: true })).toBeVisible();
   expect(consumptions).toBe(1);
   expect(await authenticationMethod(page)).toBe("email_link");
-  await page.getByRole("link", { name: "Demo inbox", exact: true }).click();
+  await page.getByRole("link", { name: "Inbox", exact: true }).click();
   const used = page
-    .getByRole("list", { name: "Simulated messages" })
+    .getByRole("list", { name: "Messages" })
     .getByRole("button")
     .filter({ hasText: "Your Keycade sign-in link" });
   await expect(used).toContainText("Used");
   await used.click();
-  const detail = page.getByRole("region", { name: "Selected simulated message" });
+  const detail = page.getByRole("region", { name: "Selected message" });
   await expect(
     detail.getByText("This confirmation link is no longer available.", { exact: false }),
   ).toBeVisible();
@@ -112,7 +112,7 @@ test("borrower inbox requires deliberate confirmation, conceals the used link, a
     true,
   );
   await page.reload();
-  await expect(page.getByRole("list", { name: "Simulated messages" })).toContainText("Used");
+  await expect(page.getByRole("list", { name: "Messages" })).toContainText("Used");
   if (!hosted)
     expect(
       (await messages()).filter((message) => message.To.some((to) => to.Address === email)),
@@ -120,7 +120,7 @@ test("borrower inbox requires deliberate confirmation, conceals the used link, a
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   // Do not reload: logout must preserve the feature flag needed by the next request.
   await requestEmail(page, email);
-  await expect(page.getByRole("button", { name: "Open demo inbox", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Open inbox", exact: true })).toBeVisible();
 });
 
 test("email-started application resumes its saved setup through a fresh simulated inbox link", async ({
@@ -190,9 +190,9 @@ test("known synthetic staff confirms through its own demo inbox", async ({ page 
   await expect(page.getByRole("heading", { name: "Applications", exact: true })).toBeVisible();
   expect(await authenticationMethod(page)).toBe("email_link");
   expect(await page.evaluate(async () => (await fetch("/api/v1/auth/staff")).status)).toBe(200);
-  await page.getByRole("link", { name: "Demo inbox", exact: true }).click();
+  await page.getByRole("link", { name: "Inbox", exact: true }).click();
   const used = page
-    .getByRole("list", { name: "Simulated messages" })
+    .getByRole("list", { name: "Messages" })
     .getByRole("button")
     .filter({ hasText: "Your Keycade sign-in link" })
     .first();
@@ -200,7 +200,7 @@ test("known synthetic staff confirms through its own demo inbox", async ({ page 
   await used.click();
   await expect(
     page
-      .getByRole("region", { name: "Selected simulated message" })
+      .getByRole("region", { name: "Selected message" })
       .getByText("This confirmation link is no longer available.", { exact: false }),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: "Open confirmation", exact: true })).toHaveCount(0);
@@ -209,10 +209,21 @@ test("known synthetic staff confirms through its own demo inbox", async ({ page 
 test("unknown staff cannot open a demo inbox or acquire bank membership", async ({ page }) => {
   const email = `synthetic-inbox-nonstaff-${randomUUID()}@example.test`;
   await page.goto(staff);
-  await requestEmail(page, email);
-  await page.getByRole("button", { name: "Open demo inbox", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("demo inbox is unavailable for this account");
-  await expect(page.getByRole("heading", { name: "Demo inbox", exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("Email address", { exact: true })).toBeVisible();
+  await requestAccessEmail(page, email);
+  const status = await page.evaluate(
+    async (email) =>
+      (
+        await fetch("/api/v1/auth/demo-sign-in", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, bankSlug: "bank-a", portal: "staff" }),
+        })
+      ).status,
+    email,
+  );
+  expect(status).toBe(404);
+  await expect(page.getByRole("heading", { name: "Inbox", exact: true })).toHaveCount(0);
   expect(await authenticationMethod(page)).toBe("anonymous");
   expect(await page.evaluate(async () => (await fetch("/api/v1/auth/staff")).status)).toBe(404);
   if (!hosted)

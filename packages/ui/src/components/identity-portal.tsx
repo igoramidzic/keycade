@@ -1,5 +1,5 @@
-import { Badge } from "@keycade/ui/components/badge";
-import { Button, buttonVariants } from "@keycade/ui/components/button";
+import { type StaffSignInAccounts, staffSignInAccountsSchema } from "@keycade/contracts";
+import { Button } from "@keycade/ui/components/button";
 import {
   Card,
   CardContent,
@@ -8,7 +8,9 @@ import {
   CardTitle,
 } from "@keycade/ui/components/card";
 import { Input } from "@keycade/ui/components/input";
+import { NativeSelect, NativeSelectOption } from "@keycade/ui/components/native-select";
 import { rememberSession } from "@keycade/ui/lib/session-snapshot";
+import { workflowName } from "@keycade/ui/lib/workflow-text";
 import { cn } from "cn";
 import {
   Check,
@@ -21,8 +23,6 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { type FormEvent, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
-
-declare const __KEYCADE_PUBLIC__: { hosted: boolean; mailpitUrl: string | null };
 
 export type Confirmation = { page: boolean; token: string | null };
 // The app captures each email link once before mounting. Remember when that capture
@@ -95,7 +95,7 @@ export function IdentityPortal({
   portal,
   confirmation,
   bankSlug = "bank-a",
-  bankName = "Synthetic Bank A",
+  bankName = "Bank A",
   intent = "resume",
   returnPath = "/",
   onApplicationCreated,
@@ -128,6 +128,7 @@ export function IdentityPortal({
     demoSignInEnabled: false,
   });
   const [email, setEmail] = useState("");
+  const [staffAccounts, setStaffAccounts] = useState<StaffSignInAccounts["accounts"]>([]);
   const [emailLinkMode, setEmailLinkMode] = useState(initialConfirmation?.page ?? false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -136,12 +137,38 @@ export function IdentityPortal({
   const createKey = useRef<{ payload: string; key: string } | null>(null);
   const isStaff = portal === "staff";
   const isStarting = !isStaff && intent === "start" && !resumeAfterStart;
-  const useDemo = session.demoSignInEnabled && !emailLinkMode;
+  const useDemo = session.demoSignInEnabled && (isStaff || !emailLinkMode);
   function clearConfirmation() {
     credential.current = null;
     confirmationPending.current = false;
     if (confirmation) handledConfirmations.add(confirmation);
   }
+
+  const loadStaffAccounts = useCallback(
+    async (signal?: AbortSignal) => {
+      setStaffAccounts([]);
+      const response = await fetch(
+        `/api/v1/auth/staff-accounts?bankSlug=${encodeURIComponent(bankSlug)}`,
+        {
+          credentials: "same-origin",
+          cache: "no-store",
+          signal: signal
+            ? AbortSignal.any([signal, AbortSignal.timeout(10_000)])
+            : AbortSignal.timeout(10_000),
+        },
+      );
+      if (!response.ok) throw new Error("Staff accounts unavailable");
+      const { accounts } = staffSignInAccountsSchema.parse(await response.json());
+      if (signal?.aborted) return;
+      setStaffAccounts(accounts);
+      setEmail((current) =>
+        accounts.some((account) => account.email === current)
+          ? current
+          : (accounts[0]?.email ?? ""),
+      );
+    },
+    [bankSlug],
+  );
 
   const loadSession = useCallback(
     async (signal?: AbortSignal, showConfirmation = false) => {
@@ -151,6 +178,7 @@ export function IdentityPortal({
       if (showConfirmation && confirmationPending.current) {
         setScreen(credential.current ? "confirm" : "expired");
       } else if (!next.authenticated) {
+        if (isStaff) await loadStaffAccounts(signal);
         setScreen("request");
       } else if (isStaff) {
         // A protected server endpoint verifies active bank membership independently.
@@ -168,6 +196,7 @@ export function IdentityPortal({
             demoSignInEnabled: next.demoSignInEnabled,
             demoInboxEnabled: next.demoInboxEnabled,
           });
+          await loadStaffAccounts(signal);
           setScreen("request");
         } else if (proof.status === 403 || proof.status === 404) {
           setScreen("denied");
@@ -180,7 +209,7 @@ export function IdentityPortal({
         setScreen("signed-in");
       }
     },
-    [isStaff],
+    [isStaff, loadStaffAccounts],
   );
 
   useEffect(() => {
@@ -220,6 +249,7 @@ export function IdentityPortal({
 
   async function signIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isStaff && (!useDemo || !staffAccounts.some((account) => account.email === email))) return;
     setBusy(true);
     setError(null);
     try {
@@ -261,13 +291,15 @@ export function IdentityPortal({
       } else if (useDemo && [403, 404].includes(response.status)) {
         setError(
           isStaff
-            ? "This email can’t access this staff demo. Use your bank staff email address."
-            : "We couldn’t sign you in to this demo. Please check your email and try again.",
+            ? "This account no longer has access to this bank. Choose another account or try again."
+            : "We couldn’t sign you in. Please check your email and try again.",
         );
       } else if (!response.ok) {
         setError(
           useDemo
-            ? "We couldn’t sign you in to this demo. Please try again."
+            ? isStaff
+              ? "We couldn’t sign you in. Please try again."
+              : "We couldn’t sign you in. Please try again."
             : "We couldn’t request your link. Check your email address and try again.",
         );
       } else if (useDemo) {
@@ -319,7 +351,11 @@ export function IdentityPortal({
         setScreen("inbox");
       }
     } catch {
-      setError("We couldn’t connect. Your email address is still here; please try again.");
+      setError(
+        isStaff
+          ? "We couldn’t connect. Your selected account is still here; please try again."
+          : "We couldn’t connect. Your email address is still here; please try again.",
+      );
     } finally {
       setBusy(false);
     }
@@ -330,13 +366,13 @@ export function IdentityPortal({
     setError(null);
     try {
       const response = await post("demo-sign-in", { email, bankSlug, portal, returnPath: "/" });
-      if (!response.ok) throw new Error("Demo inbox unavailable.");
+      if (!response.ok) throw new Error("Inbox unavailable.");
       clearConfirmation();
       await loadSession();
       if (renderAuthenticated) onSignedIn?.("/demo-inbox");
       else window.location.assign(`/demo-inbox?bank=${encodeURIComponent(bankSlug)}`);
     } catch {
-      setError("This demo inbox is unavailable for this account. Please try again.");
+      setError("This inbox is unavailable for this account. Please try again.");
     } finally {
       setBusy(false);
     }
@@ -401,7 +437,8 @@ export function IdentityPortal({
       setEmail("");
       setEmailLinkMode(false);
       setResumeAfterStart(false);
-      setScreen("request");
+      setScreen("loading");
+      await loadSession().catch(() => setScreen("unavailable"));
       if (!renderAuthenticated) window.history.replaceState(null, "", "/");
       return true;
     } catch {
@@ -415,11 +452,14 @@ export function IdentityPortal({
   function startAgain() {
     clearConfirmation();
     setError(null);
-    setEmailLinkMode(true);
+    setEmailLinkMode(!isStaff);
     // Once a public start was acknowledged, a fresh link is generic resume and must
     // neither create another application nor rely on the original browser key.
     if (screen === "inbox" && isStarting) setResumeAfterStart(true);
-    setScreen("request");
+    if (isStaff) {
+      setScreen("loading");
+      void loadSession().catch(() => setScreen("unavailable"));
+    } else setScreen("request");
     if (!renderAuthenticated) window.history.replaceState(null, "", "/");
   }
 
@@ -460,21 +500,20 @@ export function IdentityPortal({
           <span className="flex size-9 items-center justify-center rounded-lg bg-info-soft text-info">
             <ScreenIcon aria-hidden="true" className="size-4.5" />
           </span>
-          <span className="text-sm font-medium text-foreground">{bankName}</span>
-          <Badge variant="outline">Demo</Badge>
+          <span className="text-sm font-medium text-foreground">
+            {isStaff ? "Staff access" : workflowName(bankName)}
+          </span>
         </div>
         <CardTitle className="pt-1 text-2xl font-semibold tracking-tight" aria-live="polite">
           {titles[screen]}
         </CardTitle>
         <CardDescription className="text-pretty">
-          {useDemo
-            ? isStaff
-              ? "Enter a seeded staff email to open the local demo immediately. Bank membership is still required."
-              : isStarting
-                ? "Enter a synthetic email to start your application. No password or inbox visit needed."
-                : "Enter a synthetic email to continue the local demo immediately. No password or email confirmation needed."
-            : isStaff
-              ? "Use your bank staff email address. Your bank membership is checked when you sign in."
+          {isStaff
+            ? "Choose an account to open your bank workspace."
+            : useDemo
+              ? isStarting
+                ? "Enter your email to start your application. No password needed."
+                : "Enter your email to continue. No password needed."
               : isStarting
                 ? "We’ll save your application and email a one-time link so you can continue. You don’t need a password."
                 : "Get a one-time email link. You don’t need a password."}
@@ -493,50 +532,74 @@ export function IdentityPortal({
               <label htmlFor="sign-in-email" className="text-sm font-medium">
                 Email address
               </label>
-              <Input
-                id="sign-in-email"
-                type="email"
-                autoComplete="email"
-                placeholder="you@example.test"
-                required
-                maxLength={254}
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                disabled={busy}
-                aria-describedby="email-help"
-                className="h-11"
-              />
+              {isStaff ? (
+                <NativeSelect
+                  id="sign-in-email"
+                  required
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  disabled={busy || staffAccounts.length === 0}
+                  aria-describedby="email-help"
+                  className="w-full [&_select]:h-11"
+                >
+                  {staffAccounts.length === 0 && (
+                    <NativeSelectOption value="">No accounts available</NativeSelectOption>
+                  )}
+                  {staffAccounts.map((account) => (
+                    <NativeSelectOption key={account.email} value={account.email}>
+                      {account.email} ·{" "}
+                      {account.role === "admin" ? "Administrator" : "Loan officer"}
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
+              ) : (
+                <Input
+                  id="sign-in-email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="you@example.test"
+                  required
+                  maxLength={254}
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  disabled={busy}
+                  aria-describedby="email-help"
+                  className="h-11"
+                />
+              )}
               <p id="email-help" className="text-xs leading-5 text-muted-foreground">
-                {isStarting
-                  ? "Use synthetic information only. You can save your progress and return later."
-                  : "Requesting access won’t start a new application."}
+                {isStaff
+                  ? staffAccounts.length
+                    ? "Select the account you want to use."
+                    : "No staff accounts are available for this bank."
+                  : isStarting
+                    ? "You can save your progress and return later."
+                    : "Requesting access won’t start a new application."}
               </p>
             </div>
-            <Button loading={busy} type="submit" size="lg" disabled={busy} className="w-full">
+            <Button
+              loading={busy}
+              type="submit"
+              size="lg"
+              disabled={busy || (isStaff && (!useDemo || !email))}
+              className="w-full"
+            >
               {useDemo ? <LockKeyhole aria-hidden="true" /> : <Mail aria-hidden="true" />}
-              {isStarting ? "Start application" : useDemo ? "Sign in to demo" : "Send sign-in link"}
+              {isStaff
+                ? "Sign in"
+                : isStarting
+                  ? "Start application"
+                  : useDemo
+                    ? "Sign in"
+                    : "Send sign-in link"}
             </Button>
-            {session.demoSignInEnabled && (
-              <Button
-                type="button"
-                variant="link"
-                disabled={busy}
-                className="h-auto w-full whitespace-normal py-1"
-                onClick={() => {
-                  setEmailLinkMode(!emailLinkMode);
-                  setError(null);
-                }}
-              >
-                {emailLinkMode ? "Use immediate demo sign-in instead" : "Use an email link instead"}
-              </Button>
-            )}
           </form>
         )}
         {screen === "inbox" && (
           <div className="space-y-4">
             <p className="text-sm leading-6">
               {session.demoInboxEnabled
-                ? "Your simulated message will appear in the demo inbox. Open it and confirm to continue. No email is sent externally."
+                ? "Your message will appear in your inbox. Open it and confirm to continue."
                 : "If this address can sign in, a link will arrive shortly. Open the email and confirm to continue."}
             </p>
             <p className="flex items-center gap-2.5 rounded-lg border bg-muted/60 px-3 py-2.5 text-sm font-medium break-all">
@@ -552,7 +615,7 @@ export function IdentityPortal({
                 onClick={() => void openDemoInbox()}
               >
                 <Inbox aria-hidden="true" />
-                Open demo inbox
+                Open inbox
               </Button>
             )}
 
@@ -591,9 +654,11 @@ export function IdentityPortal({
           <div className="space-y-4">
             <p className="text-sm leading-6">
               The link may have expired, already been used, or be unavailable for this workspace.
-              Request a fresh link to continue.
+              {isStaff ? "Choose an account to continue." : "Request a fresh link to continue."}
             </p>
-            <Button onClick={startAgain}>Request a new link</Button>
+            <Button onClick={startAgain}>
+              {isStaff ? "Choose an account" : "Request a new link"}
+            </Button>
           </div>
         )}
         {(screen === "signed-in" || screen === "denied") && session.authenticated && (
@@ -612,12 +677,18 @@ export function IdentityPortal({
                 )}
                 {screen === "signed-in"
                   ? session.authenticationMethod === "demo"
-                    ? "Demo access"
+                    ? isStaff
+                      ? "Staff access"
+                      : "Signed in"
                     : "Email verified"
                   : "Bank membership not found"}
               </p>
               <p className="break-all text-sm">{session.user.email}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{session.bank.name}</p>
+              {!isStaff && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {workflowName(session.bank.name)}
+                </p>
+              )}
             </div>
             <p className="text-sm leading-6 text-muted-foreground">
               {screen === "denied"
@@ -626,11 +697,6 @@ export function IdentityPortal({
                   ? "Your staff access is confirmed. The application queue and review tools will be available in a later milestone."
                   : "Your portal access is ready. Application forms and saved application workspaces will be available in a later milestone."}
             </p>
-            {session.authenticationMethod === "demo" && (
-              <p className="text-xs leading-5 text-muted-foreground">
-                This session uses demo access. It does not verify ownership of the email address.
-              </p>
-            )}
             <Button loading={busy} variant="outline" onClick={() => void logout()} disabled={busy}>
               Sign out
             </Button>
@@ -658,37 +724,6 @@ export function IdentityPortal({
             className="rounded-lg border border-danger/25 bg-danger-soft p-3 text-sm leading-6 text-danger"
           >
             {error}
-          </p>
-        )}
-        {!__KEYCADE_PUBLIC__.hosted && (
-          <div className="space-y-1.5 rounded-lg bg-muted/70 px-4 py-3 text-xs leading-5 text-muted-foreground">
-            <p>
-              Synthetic demo email:{" "}
-              <span className="break-all font-medium text-foreground">
-                {isStaff ? "officer-a@example.test" : "borrower@example.test"}
-              </span>
-            </p>
-            <p>
-              {useDemo
-                ? "Demo sign-in needs no inbox visit. Use synthetic information only."
-                : "Emails are delivered to the local inbox only. Use synthetic information."}
-            </p>
-            {!useDemo && __KEYCADE_PUBLIC__.mailpitUrl && (
-              <a
-                href={__KEYCADE_PUBLIC__.mailpitUrl}
-                target="_blank"
-                rel="noreferrer"
-                className={buttonVariants({ variant: "link", size: "sm", className: "h-auto p-0" })}
-              >
-                Open local inbox
-              </a>
-            )}
-          </div>
-        )}
-        {__KEYCADE_PUBLIC__.hosted && (
-          <p className="rounded-lg bg-muted/70 px-4 py-3 text-xs leading-5 text-muted-foreground">
-            Email sign-in is available in the local development demo. Hosted email delivery is not
-            configured.
           </p>
         )}
       </CardContent>

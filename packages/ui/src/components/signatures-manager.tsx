@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@keycade/ui/components/card";
 import { NativeSelect } from "@keycade/ui/components/native-select";
+import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
 import { useEffect, useState } from "react";
 
 type Envelope = {
@@ -52,7 +53,7 @@ const delivery: Record<Envelope["deliveryStatus"], string> = {
   not_sent: "Not sent",
   pending: "Send queued",
   running: "Sending",
-  sent: "Sent in demo",
+  sent: "Delivered",
   failed: "Send failed",
 };
 export function SignaturesManager({
@@ -88,11 +89,9 @@ export function SignaturesManager({
       <Card className="ring-0 shadow-sm">
         <CardHeader>
           <CardTitle>
-            <h2>Simulated signatures</h2>
+            <h2>Signatures</h2>
           </CardTitle>
-          <CardDescription>
-            Requests and signed artifacts are fictional. They have no legal effect.
-          </CardDescription>
+          <CardDescription>Manage signature requests and signed documents.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-8">
           {data.envelopes.length ? (
@@ -155,12 +154,14 @@ function SignatureRequest({
   return (
     <section
       id={`envelope-${envelope.id}`}
-      aria-label={`Signature request ${envelope.taskTitle}`}
+      aria-label={`Signature request ${workflowText(envelope.taskTitle)}`}
       className="space-y-4 py-1"
     >
       <div className="flex flex-wrap justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="break-words font-semibold tracking-tight">{envelope.taskTitle}</h3>
+          <h3 className="break-words font-semibold tracking-tight">
+            {workflowText(envelope.taskTitle)}
+          </h3>
           <p className="mt-1 break-words text-sm text-muted-foreground">
             Source: {envelope.sourceFileName}
           </p>
@@ -180,7 +181,7 @@ function SignatureRequest({
         </div>
       </div>
       <p className="text-xs text-muted-foreground">
-        Expires {new Date(envelope.expiresAt).toLocaleString()} · Simulated
+        Expires {new Date(envelope.expiresAt).toLocaleString()}
       </p>
       {envelope.stale && (
         <p className="text-sm text-muted-foreground">
@@ -190,18 +191,18 @@ function SignatureRequest({
       )}
       {envelope.sendError && (
         <p className="text-sm text-muted-foreground">
-          The simulated delivery failed. Staff can retry when the request is still current.
+          The delivery failed. Staff can retry when the request is still current.
         </p>
       )}
       <ul className="space-y-2 text-sm" aria-label="Intended signers">
         {envelope.signers.map((signer) => (
           <li className="flex flex-wrap justify-between gap-2" key={signer.id}>
             <span className="break-all">
-              {signer.displayName} · {signer.email}
+              {workflowName(signer.displayName)} · {signer.email}
             </span>
             <span>
               {signer.state === "signed"
-                ? "Signed in demo"
+                ? "Signed"
                 : signer.state === "declined"
                   ? "Declined"
                   : "Awaiting signature"}
@@ -229,7 +230,7 @@ function SignatureRequest({
             checked={consent}
             onChange={(event) => setConsent(event.target.checked)}
           />
-          I understand this is a simulated signature with no legal effect.
+          I have reviewed the document and am ready to sign.
         </label>
       )}
       <div className="flex flex-wrap gap-2">
@@ -237,9 +238,9 @@ function SignatureRequest({
           <Button
             size="sm"
             disabled={busy || !consent}
-            onClick={() => void run(() => act("sign"), "Your simulated signature was recorded.")}
+            onClick={() => void run(() => act("sign"), "Your signature was recorded.")}
           >
-            Sign in demo
+            Sign
           </Button>
         )}
         {envelope.canDecline && (
@@ -247,7 +248,7 @@ function SignatureRequest({
             size="sm"
             variant="outline"
             disabled={busy}
-            onClick={() => void run(() => act("decline"), "You declined this simulated request.")}
+            onClick={() => void run(() => act("decline"), "You declined this request.")}
           >
             Decline request
           </Button>
@@ -257,7 +258,7 @@ function SignatureRequest({
             size="sm"
             variant="outline"
             disabled={busy}
-            onClick={() => void run(() => act("send"), "Simulated delivery was requested.")}
+            onClick={() => void run(() => act("send"), "Delivery was requested.")}
           >
             {envelope.deliveryStatus === "failed" ? "Retry sending" : "Send request"}
           </Button>
@@ -267,7 +268,7 @@ function SignatureRequest({
             size="sm"
             variant="outline"
             disabled={busy}
-            onClick={() => void run(() => act("void"), "This simulated request was voided.")}
+            onClick={() => void run(() => act("void"), "This request was voided.")}
           >
             Void request
           </Button>
@@ -277,9 +278,9 @@ function SignatureRequest({
             size="sm"
             variant="outline"
             disabled={busy}
-            onClick={() => void run(download, "Synthetic signed artifact downloaded.")}
+            onClick={() => void run(download, "Signed artifact downloaded.")}
           >
-            Download simulated artifact
+            Download artifact
           </Button>
         )}
       </div>
@@ -337,7 +338,7 @@ function CreateRequest({
               setSourceVersionId("");
               setSigners([]);
               setAttempt(null);
-              setNotice("Simulated request created. Send it when ready.");
+              setNotice("Request created. Send it when ready.");
             } catch (failure) {
               setError(errorMessage(failure));
             } finally {
@@ -371,7 +372,7 @@ function CreateRequest({
                 <option value="">Choose a task</option>
                 {choices.tasks.map((task) => (
                   <option key={task.id} value={task.id}>
-                    {task.title}
+                    {workflowText(task.title)}
                   </option>
                 ))}
               </NativeSelect>
@@ -413,7 +414,7 @@ function CreateRequest({
                   }
                 />
                 <span className="break-all">
-                  {signer.displayName} · {signer.email}
+                  {workflowName(signer.displayName)} · {signer.email}
                 </span>
               </label>
             ))}
@@ -423,7 +424,7 @@ function CreateRequest({
           </fieldset>
           <div className="space-y-2">
             <label htmlFor="signature-scenario" className="text-sm">
-              Simulated delivery scenario
+              Delivery scenario
             </label>
             <NativeSelect
               id="signature-scenario"
@@ -440,7 +441,7 @@ function CreateRequest({
             type="submit"
             disabled={busy || !taskId || !sourceVersionId || signers.length === 0}
           >
-            Create simulated request
+            Create request
           </Button>
         </form>
       </CardContent>

@@ -15,6 +15,7 @@ import {
 import { Input } from "@keycade/ui/components/input";
 import { NativeSelect } from "@keycade/ui/components/native-select";
 import { Textarea } from "@keycade/ui/components/textarea";
+import { workflowText } from "@keycade/ui/lib/workflow-text";
 import { ChevronRight } from "lucide-react";
 import { type FormEvent, useRef, useState } from "react";
 
@@ -141,7 +142,7 @@ export function DocumentFinancialReview({
     <section aria-label="Reviewed financial facts" className="space-y-4 border-t pt-5">
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="font-medium">Reviewed financial facts</h3>
-        <Badge variant="outline">Simulated source</Badge>
+        <Badge variant="outline">Document source</Badge>
       </div>
       <p className="text-xs leading-5 text-muted-foreground">
         Select suggestions to explicitly accept, reject or correct. Deposits, ordinary income and
@@ -230,7 +231,7 @@ export function DocumentFinancialReview({
                           });
                       }}
                     />
-                    Select {candidate.label}
+                    Select {workflowText(candidate.label)}
                   </label>
                   <p className="text-xs text-muted-foreground">
                     {candidate.period.start} to {candidate.period.end} ·{" "}
@@ -278,7 +279,7 @@ export function DocumentFinancialReview({
                   {selection && (
                     <div className="space-y-3 border-t pt-3">
                       <label className="block space-y-1">
-                        Review action for {candidate.label}
+                        Review action for {workflowText(candidate.label)}
                         <NativeSelect
                           value={selection.disposition}
                           onChange={(event) =>
@@ -295,7 +296,7 @@ export function DocumentFinancialReview({
                       </label>
                       {selection.disposition === "correct" && (
                         <label className="block space-y-1">
-                          Corrected value for {candidate.label}
+                          Corrected value for {workflowText(candidate.label)}
                           <Input
                             inputMode="decimal"
                             value={selection.value}
@@ -333,7 +334,7 @@ export function DocumentFinancialReview({
                               update(candidate.fieldKey, { replace: event.target.checked })
                             }
                           />
-                          Replace the accepted value for {candidate.label}
+                          Replace the accepted value for {workflowText(candidate.label)}
                         </label>
                       )}
                     </div>
@@ -383,7 +384,7 @@ export function DocumentFinancialReview({
               {history.map((entry) => (
                 <li key={entry.id} className="space-y-1 border-l-2 pl-3">
                   <p className="font-medium">
-                    {entry.label} ·{" "}
+                    {workflowText(entry.label)} ·{" "}
                     {entry.disposition === "reject"
                       ? "Rejected"
                       : entry.disposition === "correct"

@@ -26,6 +26,7 @@ import { EmptyState } from "@keycade/ui/components/empty-state";
 import { Input } from "@keycade/ui/components/input";
 import { NativeSelect } from "@keycade/ui/components/native-select";
 import { StatusPill, type StatusTone } from "@keycade/ui/components/status-pill";
+import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
 import { cn } from "cn";
 import {
   Building2,
@@ -138,7 +139,7 @@ const invitationStatusLabels = {
 const deliveryStatusLabels = {
   queued: "Email queued",
   sending: "Email sending",
-  delivered: "Email delivered to local inbox",
+  delivered: "Email delivered",
   failed: "Email delivery failed — resend to try again",
   disabled: "Email delivery is unavailable in this environment",
 };
@@ -289,7 +290,7 @@ export function ParticipantsManager({
                 avatar={<Initials name={participant.displayName} />}
                 name={
                   <>
-                    {participant.displayName}
+                    {workflowName(participant.displayName)}
                     {participant.isSelf && (
                       <span className="font-normal text-muted-foreground"> (you)</span>
                     )}
@@ -435,8 +436,10 @@ export function ParticipantsManager({
               <ul className="divide-y border-t">
                 {history.map((entry) => (
                   <li key={entry.id} className="flex flex-wrap justify-between gap-x-4 px-4 py-2.5">
-                    <span className="min-w-0 break-all text-sm">{entry.name}</span>
-                    <span className="text-xs leading-6 text-muted-foreground">{entry.detail}</span>
+                    <span className="min-w-0 break-all text-sm">{workflowName(entry.name)}</span>
+                    <span className="text-xs leading-6 text-muted-foreground">
+                      {workflowText(entry.detail)}
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -920,7 +923,7 @@ function InviteForm({
                 id={`${id}-role-${option.value}-hint`}
                 className="block text-xs leading-5 text-muted-foreground"
               >
-                {option.description}
+                {workflowText(option.description)}
               </span>
             </span>
           </label>
@@ -999,7 +1002,7 @@ function TaskChecklist({
             />
             <span className="min-w-0">
               <span id={`${id}-${task.id}`} className="block text-sm break-words">
-                {task.title}
+                {workflowText(task.title)}
               </span>
               {task.assigneeName && task.assigneeParticipantId !== currentParticipantId && (
                 <span className="block text-xs text-muted-foreground">
@@ -1059,8 +1062,8 @@ function TasksForm({
       <DialogHeader>
         <DialogTitle>Edit assigned tasks</DialogTitle>
         <DialogDescription>
-          Choose the unfinished tasks {participant.displayName} should complete. Checking a task
-          replaces its current assignee; unchecking leaves it unassigned.
+          Choose the unfinished tasks {workflowName(participant.displayName)} should complete.
+          Checking a task replaces its current assignee; unchecking leaves it unassigned.
         </DialogDescription>
       </DialogHeader>
       {error && <SaveError message={error} />}
@@ -1172,7 +1175,7 @@ function LinkForm({
       }}
     >
       <DialogHeader>
-        <DialogTitle>Link {relationship.displayName} to a participant</DialogTitle>
+        <DialogTitle>Link {workflowName(relationship.displayName)} to a participant</DialogTitle>
         <DialogDescription>
           Choose the owner’s existing portal account. Linking shows private owner tasks to that
           person; their portal permissions stay the same.
@@ -1194,7 +1197,7 @@ function LinkForm({
           <option value="">Choose the owner’s existing account</option>
           {participants.map((person) => (
             <option key={person.id} value={person.userId}>
-              {person.displayName}
+              {workflowName(person.displayName)}
             </option>
           ))}
         </NativeSelect>

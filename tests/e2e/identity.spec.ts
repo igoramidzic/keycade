@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { readEnvironment } from "@keycade/config/server";
 import { expect, type Response, test } from "@playwright/test";
-import { openLink, requestLink } from "./identity-helpers";
+import { fillSignInEmail, openLink, requestLink } from "./identity-helpers";
 
 const env = readEnvironment();
 const borrower = `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
@@ -21,18 +21,18 @@ test("borrower demo sign-in opens immediately, persists, and logs out without an
   });
   const email = `demo-browser-${randomUUID()}@example.test`;
   await page.goto(borrower);
-  await page.getByLabel("Email address", { exact: true }).fill(email);
-  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+  await fillSignInEmail(page, email);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByText("You’re signed in", { exact: true })).toBeVisible();
-  await expect(page.locator("#identity").getByText("Demo access", { exact: true })).toBeVisible();
+  await expect(page.locator("#identity").getByText("Signed in", { exact: true })).toBeVisible();
   await expect(page.getByText(email, { exact: true })).toBeVisible();
   await expect(page.getByText("Email verified", { exact: true })).toHaveCount(0);
   await page.reload();
   await expect(page.getByRole("button", { name: "Sign out", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Sign in to demo", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole("button", { name: "Sign in to demo", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
   expect(emailsRequested).toBe(0);
 });
 
@@ -43,18 +43,33 @@ test("staff demo sign-in enforces bank membership without an email", async ({ pa
   });
   const nonstaff = `demo-nonstaff-${randomUUID()}@example.test`;
   await page.goto(staff);
-  await page.getByLabel("Email address", { exact: true }).fill(nonstaff);
-  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("can’t access this staff demo");
-  await expect(page.getByLabel("Email address", { exact: true })).toHaveValue(nonstaff);
+  const account = page.getByRole("combobox", { name: "Email address", exact: true });
+  await expect(account).toBeVisible();
+  await expect(account.locator("option")).toHaveText(["officer-a@example.test · Administrator"]);
+  await expect(
+    page.getByRole("button", { name: "Use an email link instead", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.locator("body")).not.toContainText(/\b(demo|simulated|synthetic|fictional)\b/i);
+  const denied = await page.evaluate(
+    async (email) =>
+      (
+        await fetch("/api/v1/auth/demo-sign-in", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, bankSlug: "bank-a", portal: "staff" }),
+        })
+      ).status,
+    nonstaff,
+  );
+  expect(denied).toBe(404);
   expect(await page.evaluate(async () => (await fetch("/api/v1/auth/staff")).status)).toBe(404);
-  await page.getByLabel("Email address", { exact: true }).fill("officer-a@example.test");
-  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+  await fillSignInEmail(page, "officer-a@example.test");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Applications", exact: true })).toBeVisible();
-  await expect(page.getByText("Demo access · email unverified", { exact: true })).toBeVisible();
+  await expect(page.getByText("Staff access", { exact: true })).toBeVisible();
   expect(await page.evaluate(async () => (await fetch("/api/v1/auth/staff")).status)).toBe(200);
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Sign in to demo", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
   expect(emailsRequested).toBe(0);
 });
 
@@ -74,8 +89,8 @@ test("staff demo sign-in preserves email during a service outage and can retry",
     }),
   );
   await page.goto(staff);
-  await page.getByLabel("Email address", { exact: true }).fill("officer-a@example.test");
-  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+  await fillSignInEmail(page, "officer-a@example.test");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByRole("alert")).toHaveText(
     "Sign-in is temporarily unavailable. Please try again in a moment.",
   );
@@ -83,8 +98,47 @@ test("staff demo sign-in preserves email during a service outage and can retry",
     "officer-a@example.test",
   );
   await page.unroute("**/api/v1/auth/demo-sign-in");
-  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Applications", exact: true })).toBeVisible();
+});
+
+test("staff accounts follow the selected bank and empty banks cannot sign in", async ({ page }) => {
+  await page.goto(`${staff}/?bank=bank-b`);
+  const picker = page.getByRole("combobox", { name: "Email address", exact: true });
+  await expect(picker.locator("option")).toHaveText(["officer-b@example.test · Loan officer"]);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Applications", exact: true })).toBeVisible();
+  expect(
+    await page.evaluate(async () => (await (await fetch("/api/v1/auth/session")).json()).bank.slug),
+  ).toBe("bank-b");
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
+  await page.goto(`${staff}/?bank=missing-bank`);
+  await expect(picker).toBeDisabled();
+  await expect(page.getByText("No staff accounts are available for this bank.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeDisabled();
+});
+
+test("account loading can retry and borrower sign-in has no alternate link or example email", async ({
+  page,
+}) => {
+  await page.route("**/api/v1/auth/staff-accounts?*", (route) => route.abort());
+  await page.goto(staff);
+  await expect(page.getByText("Sign-in is temporarily unavailable", { exact: true })).toBeVisible();
+  await page.unroute("**/api/v1/auth/staff-accounts?*");
+  await page.getByRole("button", { name: "Try again", exact: true }).click();
+  await expect(page.getByRole("combobox", { name: "Email address", exact: true })).toHaveValue(
+    "officer-a@example.test",
+  );
+  await page.goto(borrower);
+  await expect(page.getByRole("textbox", { name: "Email address", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Use an email link instead", exact: true }),
+  ).toHaveCount(0);
+  await expect(page.locator("#identity")).not.toContainText("borrower@example.test");
+  await expect(page.locator("#identity")).not.toContainText(
+    /\b(demo|simulated|synthetic|fictional)\b/i,
+  );
 });
 
 test("borrower email confirmation is deliberate, resumes, revokes on logout, and rejects replay", async ({
@@ -175,7 +229,7 @@ test("sign-in preserves email on a failed request and recovers from a missing li
   await expect(page.getByText("This link can’t be used", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Request a new link", exact: true }).click();
   await page.route("**/api/v1/auth/request-link", (route) => route.abort());
-  await page.getByLabel("Email address", { exact: true }).fill("retry@example.test");
+  await fillSignInEmail(page, "retry@example.test");
   await page.getByRole("button", { name: "Send sign-in link", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("please try again");
   await expect(page.getByLabel("Email address", { exact: true })).toHaveValue("retry@example.test");

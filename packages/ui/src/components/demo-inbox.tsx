@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@keycade/ui/components/card";
+import { workflowText } from "@keycade/ui/lib/workflow-text";
 import { useEffect, useRef, useState } from "react";
 
 type Message = {
@@ -53,7 +54,7 @@ export function DemoInbox({
           target.password ||
           !/^#token=[a-f0-9]{64}$/.test(target.hash)
         )
-          throw new Error("Invalid demo confirmation.");
+          throw new Error("Invalid confirmation.");
         window.location.assign(target.href);
       }
     } catch {
@@ -70,12 +71,9 @@ export function DemoInbox({
       <CardHeader className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-2">
           <CardTitle>
-            <h1>Demo inbox</h1>
+            <h1>Inbox</h1>
           </CardTitle>
-          <CardDescription>
-            Simulated messages for your current demo identity. Nothing is sent to a real email
-            address.
-          </CardDescription>
+          <CardDescription>Messages and sign-in links for your current account.</CardDescription>
         </div>
         <Button
           loading={refreshing}
@@ -94,10 +92,10 @@ export function DemoInbox({
         )}
         {!messages.length ? (
           <p className="text-sm text-muted-foreground">
-            No simulated messages yet. Requested links can take a few seconds to appear.
+            No messages yet. Requested links can take a few seconds to appear.
           </p>
         ) : (
-          <ul className="space-y-2" aria-label="Simulated messages">
+          <ul className="space-y-2" aria-label="Messages">
             {messages.map((message) => (
               <li key={message.id}>
                 <button
@@ -107,7 +105,9 @@ export function DemoInbox({
                   className={`flex w-full flex-wrap items-center justify-between gap-3 rounded-lg p-3 text-left hover:bg-muted ${selected?.id === message.id ? "bg-muted" : ""}`}
                 >
                   <span className="min-w-0 space-y-1">
-                    <span className="block text-sm font-medium">{message.subject}</span>
+                    <span className="block text-sm font-medium">
+                      {workflowText(message.subject)}
+                    </span>
                     <time
                       dateTime={message.receivedAt}
                       className="block text-xs text-muted-foreground"
@@ -130,12 +130,11 @@ export function DemoInbox({
           </ul>
         )}
         {selected && (
-          <section
-            aria-label="Selected simulated message"
-            className="space-y-4 rounded-lg bg-muted p-4"
-          >
-            <h2 className="text-base font-semibold">{selected.subject}</h2>
-            <p className="whitespace-pre-wrap break-words text-sm leading-6">{selected.text}</p>
+          <section aria-label="Selected message" className="space-y-4 rounded-lg bg-muted p-4">
+            <h2 className="text-base font-semibold">{workflowText(selected.subject)}</h2>
+            <p className="whitespace-pre-wrap break-words text-sm leading-6">
+              {workflowText(selected.text)}
+            </p>
             {selected.state === "available" ? (
               <Button loading={busy} disabled={busy} onClick={() => void read(selected.id, true)}>
                 Open confirmation

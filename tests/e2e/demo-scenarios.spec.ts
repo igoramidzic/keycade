@@ -9,6 +9,7 @@ import {
   demoScenarios,
 } from "../../packages/contracts/src/demo-scenarios";
 import { workflowApi } from "./closing-helpers";
+import { fillSignInEmail } from "./identity-helpers";
 
 const env = readEnvironment();
 const borrower = `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
@@ -24,12 +25,17 @@ test.setTimeout(150_000);
 function fixture(id: string) {
   const document = demoDocuments.find((document) => document.id === id);
   if (!document) throw new Error(`Missing synthetic demonstration document ${id}.`);
-  return document;
+  return {
+    ...document,
+    title: document.title
+      .replace(/^(?:Synthetic|Simulated) /, "")
+      .replace(/^[a-z]/, (letter) => letter.toUpperCase()),
+  };
 }
 async function signIn(page: Page, origin: string, email: string) {
   await page.goto(origin);
-  await page.getByLabel("Email address", { exact: true }).fill(email);
-  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+  await fillSignInEmail(page, email);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
     page.getByRole("heading", {
       name: origin === staff ? "Applications" : "Your applications",
@@ -40,17 +46,17 @@ async function signIn(page: Page, origin: string, email: string) {
   await expect(page.getByRole("heading", { name: "Documents", exact: true })).toBeVisible();
 }
 function kit(page: Page) {
-  return page.getByLabel("Demo scenario kit", { exact: true });
+  return page.getByLabel("Sample scenario kit", { exact: true });
 }
 async function openKit(page: Page) {
   if (!(await kit(page).isVisible()))
-    await page.getByRole("button", { name: "Show demo kit", exact: true }).click();
+    await page.getByRole("button", { name: "Show sample kit", exact: true }).click();
   await expect(kit(page)).toBeVisible();
   return kit(page);
 }
 async function closeKit(page: Page) {
   if (await kit(page).isVisible())
-    await kit(page).getByRole("button", { name: "Hide demo kit", exact: true }).click();
+    await kit(page).getByRole("button", { name: "Hide sample kit", exact: true }).click();
   await expect(kit(page)).not.toBeVisible();
 }
 async function noOverflow(page: Page) {
@@ -62,7 +68,7 @@ async function noOverflow(page: Page) {
 }
 async function chooseScenario(page: Page, id: string) {
   const panel = await openKit(page);
-  await panel.getByLabel("Demo scenario", { exact: true }).selectOption(id);
+  await panel.getByLabel("Scenario", { exact: true }).selectOption(id);
   return panel;
 }
 function savedDocuments(page: Page, id: string) {
@@ -134,13 +140,13 @@ test("the separate demo kit stays fixed on desktop, opens on mobile, and retains
   await signIn(page, borrower, "borrower@example.test");
   if (isMobile) await expect(kit(page)).not.toBeVisible();
   const panel = await openKit(page);
-  await expect(panel).toContainText(businessName);
+  await expect(panel).toContainText("Cedar Workshop");
   await expect(panel).toContainText("borrower@example.test");
   await expect(panel).toContainText("owner@example.test");
-  await expect(panel).toContainText("fictional");
+  await expect(panel).not.toContainText("fictional");
   if (isMobile) {
     await expect(
-      page.getByRole("dialog", { name: "Demo scenario kit", exact: true }),
+      page.getByRole("dialog", { name: "Sample scenario kit", exact: true }),
     ).toBeVisible();
   } else {
     expect(await panel.evaluate((element) => getComputedStyle(element).position)).toBe("fixed");
@@ -158,16 +164,18 @@ test("the separate demo kit stays fixed on desktop, opens on mobile, and retains
   for (const scenario of demoScenarios) {
     await chooseScenario(page, scenario.id);
     for (const document of scenario.documents)
-      await expect(panel.getByRole("article", { name: document.title, exact: true })).toBeVisible();
+      await expect(
+        panel.getByRole("article", { name: fixture(document.id).title, exact: true }),
+      ).toBeVisible();
     await noOverflow(page);
     await page.reload();
     await openKit(page);
-    await expect(panel.getByLabel("Demo scenario", { exact: true })).toHaveValue(scenario.id);
+    await expect(panel.getByLabel("Scenario", { exact: true })).toHaveValue(scenario.id);
   }
   await closeKit(page);
   await noOverflow(page);
   await openKit(page);
-  await expect(panel.getByLabel("Demo scenario", { exact: true })).toHaveValue("recovery");
+  await expect(panel.getByLabel("Scenario", { exact: true })).toHaveValue("recovery");
   await noOverflow(page);
 });
 
@@ -197,8 +205,8 @@ test("kit downloads, internal drags, and keyboard uploads use real PDFs and reta
 
   const tax = await dragFromKit(page, "clear-tax");
   await expect(tax).toContainText("Business name matches", { timeout: 30_000 });
-  await expect(tax).toContainText("Simulated document checks");
-  await expect(tax).toContainText("Simulated, unverified");
+  await expect(tax).toContainText("Document checks");
+  await expect(tax).toContainText("Unverified");
   const uploaded = await download(page, tax.getByRole("button", { name: "Download", exact: true }));
   expect(uploaded.bytes).toEqual(sample.bytes);
   await openKit(page);
@@ -241,8 +249,8 @@ test("kit downloads, internal drags, and keyboard uploads use real PDFs and reta
   await chooseScenario(page, "review");
   const mismatch = await uploadFromKit(page, "review-tax");
   await expect(mismatch).toContainText("Business name does not match", { timeout: 30_000 });
-  await expect(mismatch).toContainText("Synthetic Juniper Services");
-  await expect(mismatch).toContainText(businessName);
+  await expect(mismatch).toContainText("Juniper Services");
+  await expect(mismatch).toContainText("Cedar Workshop");
   const cashFlow = await uploadFromKit(page, "review-bank");
   await expect(cashFlow).toContainText("Cash flow needs review", { timeout: 30_000 });
   await expect(cashFlow).toContainText("1200.00");
@@ -265,7 +273,7 @@ test("kit downloads, internal drags, and keyboard uploads use real PDFs and reta
       "Business name does not match",
     );
     await expect(savedDocument(officer, "review-bank")).toContainText("Cash flow needs review");
-    await expect(savedDocument(officer, "review-bank")).toContainText("Simulated, unverified");
+    await expect(savedDocument(officer, "review-bank")).toContainText("Unverified");
     await noOverflow(officer);
   } finally {
     await officerContext.close();
@@ -281,7 +289,7 @@ test("the recovery kit demonstrates automatic retry, interpretation failure, qua
   await expect(retrying).toContainText("Business name matches", { timeout: 40_000 });
   await retrying.getByText("Interpretation history", { exact: true }).click();
   const retryHistory = retrying.getByRole("region", {
-    name: "Simulated interpretation runs",
+    name: "Interpretation runs",
     exact: true,
   });
   await expect(retryHistory).toContainText("Run 1 · Suggested category ready");
@@ -301,13 +309,13 @@ test("the recovery kit demonstrates automatic retry, interpretation failure, qua
   await unreadable.getByRole("button", { name: "Retry interpretation", exact: true }).click();
   await unreadable.getByText("Interpretation history", { exact: true }).click();
   await expect(
-    unreadable.getByRole("region", { name: "Simulated interpretation runs", exact: true }),
+    unreadable.getByRole("region", { name: "Interpretation runs", exact: true }),
   ).toContainText("Run 2 · Interpretation failed", { timeout: 30_000 });
 
   const blocked = await uploadFromKit(page, "recovery-blocked");
-  await expect(blocked).toContainText("Blocked by simulated scan", { timeout: 30_000 });
+  await expect(blocked).toContainText("Blocked by scan", { timeout: 30_000 });
   await expect(blocked.getByRole("button", { name: "Download", exact: true })).toHaveCount(0);
-  await expect(blocked.getByText("Simulated document checks", { exact: true })).toHaveCount(0);
+  await expect(blocked.getByText("Document checks", { exact: true })).toHaveCount(0);
   const unknown = await uploadFromKit(page, "recovery-unknown");
   await expect(unknown).toContainText("Interpretation needs review", { timeout: 30_000 });
   await page.getByRole("tab", { name: /^Other/ }).click();

@@ -7,6 +7,7 @@ import {
   CollapsibleTrigger,
 } from "@keycade/ui/components/collapsible";
 import { cn } from "@keycade/ui/lib/utils";
+import { workflowText } from "@keycade/ui/lib/workflow-text";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronRight, CircleCheck, MapPin, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
@@ -71,7 +72,7 @@ export function LoanFootprintItem({
             </p>
           </div>
         </div>
-        <Badge variant="outline">Informational · Simulated</Badge>
+        <Badge variant="outline">Informational</Badge>
       </div>
       {open && (
         <LoanFootprintDialog
@@ -171,7 +172,7 @@ function LoanFootprintDialog({
               Geographic Eligibility
             </h2>
             <p id={`${id}-description`} className="text-sm text-muted-foreground">
-              Loan Footprint · Simulated country check
+              Loan Footprint · country check
             </p>
           </div>
           <Button
@@ -204,7 +205,7 @@ function LoanFootprintDialog({
               {display.clear && <CircleCheck aria-hidden="true" className="size-4.5" />}
               {display.label}.
             </p>
-            <p className="mt-2 text-sm">{display.detail}</p>
+            <p className="mt-2 text-sm">{workflowText(display.detail)}</p>
           </section>
           <dl className="grid min-w-0 gap-x-6 gap-y-4 text-sm sm:grid-cols-2 [&_dt]:text-xs [&_dt]:font-medium">
             <div className="sm:col-span-2">
@@ -213,11 +214,13 @@ function LoanFootprintDialog({
             </div>
             <div>
               <dt className="text-muted-foreground">Country rule</dt>
-              <dd className="mt-1">Complete US addresses are within the demo footprint.</dd>
+              <dd className="mt-1">Complete US addresses are within the lending footprint.</dd>
             </div>
             <div>
               <dt className="text-muted-foreground">Policy version</dt>
-              <dd className="mt-1 break-words">{input?.policyVersion ?? "Not available"}</dd>
+              <dd className="mt-1 break-words">
+                {input?.policyVersion === "US-only-demo-v1" ? "US footprint · v1" : "Not available"}
+              </dd>
             </div>
             <div>
               <dt className="text-muted-foreground">Evaluated address revision</dt>
@@ -243,9 +246,8 @@ function LoanFootprintDialog({
             </p>
           )}
           <p className="text-sm text-muted-foreground">
-            Synthetic demo data · This informational check does not approve or decline a loan,
-            verify an identity, or add a submission, approval or funding requirement. No live
-            geocoder or map service is used.
+            This informational check does not approve or decline a loan or add a submission,
+            approval or funding requirement.
           </p>
           {Boolean(error) && <ErrorNotice error={error} />}
           <div className="flex flex-wrap gap-2">
@@ -292,8 +294,10 @@ function LoanFootprintDialog({
                           {footprintAddress(entry.footprintInput?.address)}
                         </p>
                         <p className="text-muted-foreground">
-                          {entry.footprintInput?.policyVersion} ·{" "}
-                          {new Date(entry.updatedAt).toLocaleString()}
+                          {entry.footprintInput?.policyVersion === "US-only-demo-v1"
+                            ? "US footprint · v1"
+                            : "Not available"}{" "}
+                          · {new Date(entry.updatedAt).toLocaleString()}
                         </p>
                       </li>
                     ))}
@@ -321,7 +325,7 @@ function FootprintMap({
         <p className="mt-2 text-muted-foreground">
           {failed
             ? "The bundled illustration could not load."
-            : "No current registered synthetic coordinates are available."}{" "}
+            : "No current registered coordinates are available."}{" "}
           The geographic result is determined independently by the saved country.
         </p>
       </div>
@@ -331,7 +335,7 @@ function FootprintMap({
       <div
         className="relative overflow-hidden rounded-lg border"
         role="img"
-        aria-label={`Synthetic map with registered fixture pin: ${coordinates.label}`}
+        aria-label={`Map with location pin: ${coordinates.label}`}
       >
         <img
           src={new URL("./loan-footprint-map.svg", import.meta.url).href}
@@ -346,8 +350,8 @@ function FootprintMap({
         />
       </div>
       <figcaption className="break-words text-xs text-muted-foreground">
-        Registered synthetic fixture pin · {coordinates.label}. Bundled schematic; not a
-        street-level location or verified address.
+        Registered fixture pin {coordinates.label}. Bundled schematic; not a street-level location
+        or verified address.
       </figcaption>
     </figure>
   );

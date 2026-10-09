@@ -21,6 +21,7 @@ import { NativeSelect } from "@keycade/ui/components/native-select";
 import { backLinkClassName } from "@keycade/ui/components/page-header";
 import { applicationStatusTone, StatusPill } from "@keycade/ui/components/status-pill";
 import { cn } from "@keycade/ui/lib/utils";
+import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -145,8 +146,8 @@ export function ApplicationDetail() {
                 <CircleCheck aria-hidden="true" />
                 <AlertTitle>Draft created</AlertTitle>
                 <AlertDescription>
-                  Your draft and prefilled details are saved. A simulated continuation email is
-                  queued for the borrower, who must confirm the answers and finish setup.
+                  Your draft and prefilled details are saved. A continuation email is queued for the
+                  borrower, who must confirm the answers and finish setup.
                 </AlertDescription>
               </Alert>
             )}
@@ -158,7 +159,7 @@ export function ApplicationDetail() {
                   </span>
                   <div className="min-w-0 space-y-2.5">
                     <h1 className="text-2xl leading-tight font-semibold tracking-tight break-words sm:text-[1.75rem]">
-                      {data.businessName ?? "Untitled application"}
+                      {workflowName(data.businessName ?? "Untitled application")}
                     </h1>
                     <p className="text-xs break-all text-muted-foreground">Application {data.id}</p>
                     <div className="flex flex-wrap gap-2">
@@ -171,7 +172,7 @@ export function ApplicationDetail() {
                           ? "Staff created"
                           : data.source === "borrower"
                             ? "Borrower created"
-                            : "Synthetic fixture"}
+                            : "Existing record"}
                       </Badge>
                     </div>
                   </div>
@@ -182,7 +183,7 @@ export function ApplicationDetail() {
                     {formatAmount(data.requestedAmount)}
                   </p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {data.productName ?? "Product not provided"}
+                    {workflowText(data.productName ?? "Product not provided")}
                   </p>
                 </div>
               </div>
@@ -435,7 +436,7 @@ function Assignment({
                 )}
               {options.officers.map((officer) => (
                 <option key={officer.id} value={officer.id}>
-                  {officer.displayName}
+                  {workflowName(officer.displayName)}
                 </option>
               ))}
             </NativeSelect>
@@ -585,7 +586,7 @@ function Notes({
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <StickyNote aria-hidden="true" className="size-4 text-muted-foreground" />
-                {note.author.displayName}
+                {workflowName(note.author.displayName)}
               </CardTitle>
               <CardDescription>
                 Added {new Date(note.createdAt).toLocaleString()}

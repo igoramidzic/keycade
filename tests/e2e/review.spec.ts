@@ -3,6 +3,7 @@ import { readEnvironment } from "@keycade/config/server";
 import type { ApplicationSetup, ReviewView, TasksView, TaskView } from "@keycade/contracts";
 import { expect as baseExpect, type Page, test } from "@playwright/test";
 import { setupFixtureSteps } from "../setup-fixture";
+import { fillSignInEmail } from "./identity-helpers";
 
 const env = readEnvironment();
 const borrower = `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
@@ -35,10 +36,11 @@ function paceRequests() {
 }
 async function signIn(page: Page, origin: string) {
   await page.goto(origin);
-  await page
-    .getByLabel("Email address", { exact: true })
-    .fill(origin === staff ? "officer-a@example.test" : "borrower@example.test");
-  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+  await fillSignInEmail(
+    page,
+    origin === staff ? "officer-a@example.test" : "borrower@example.test",
+  );
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
     page.getByRole("heading", {
       name: origin === staff ? "Applications" : "Your applications",
@@ -190,7 +192,7 @@ test("submission, returned information, immutable resubmission, and explicit app
     await page.reload();
     await expect(
       page.getByRole("region", { name: "Approval readiness", exact: true }),
-    ).toContainText("Simulated business fraud check");
+    ).toContainText("Business fraud check");
     await submit(page);
     await officer.goto(url(staff, app.id));
     await expect(
@@ -284,7 +286,7 @@ test("submission, returned information, immutable resubmission, and explicit app
     ).toBeDisabled();
     await officer
       .getByLabel(
-        "I reviewed the current application and am deliberately recording this simulated decision.",
+        "I reviewed the current application and am deliberately recording this decision.",
         { exact: true },
       )
       .check();
@@ -295,11 +297,12 @@ test("submission, returned information, immutable resubmission, and explicit app
     await expect(
       officer.getByText("Synthetic internal approval note.", { exact: true }),
     ).toBeVisible();
+    await officer.goto(`${staff}/api/ready`);
     await page.reload();
     await expect(page.getByText("$19,000.25", { exact: true })).toBeVisible();
     await expect(
       page.getByText(
-        "The bank recorded a simulated approval. Closing requirements and recorded funding are separate steps.",
+        "The bank recorded an approval. Closing requirements and recorded funding are separate steps.",
         { exact: true },
       ),
     ).toBeVisible();
@@ -372,7 +375,7 @@ test("staff-on-behalf submission and stale decision forms require explicit reloa
     await note.fill("Unsaved synthetic decision rationale.");
     await officer
       .getByLabel(
-        "I reviewed the current application and am deliberately recording this simulated decision.",
+        "I reviewed the current application and am deliberately recording this decision.",
         { exact: true },
       )
       .check();
@@ -403,7 +406,7 @@ test("staff-on-behalf submission and stale decision forms require explicit reloa
       .selectOption("demo_criteria_not_met");
     await officer
       .getByLabel(
-        "I reviewed the current application and am deliberately recording this simulated decision.",
+        "I reviewed the current application and am deliberately recording this decision.",
         { exact: true },
       )
       .check();
@@ -414,7 +417,7 @@ test("staff-on-behalf submission and stale decision forms require explicit reloa
       page.getByRole("status").filter({ hasText: "This application is closed" }),
     ).toBeVisible();
     await expect(
-      page.getByText("The application does not meet the simulated review criteria.", {
+      page.getByText("The application does not meet the review criteria.", {
         exact: true,
       }),
     ).toBeVisible();

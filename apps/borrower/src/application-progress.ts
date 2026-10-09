@@ -15,7 +15,7 @@ export const lifecycleLabels: Record<string, string> = {
   declined: "Credit Decision declined",
   withdrawn: "Application withdrawn",
   closing: "Closing started",
-  funded: "Simulated funding recorded",
+  funded: "Funding recorded",
 };
 
 // A projection of persisted state and events, never a second workflow or approval score.
@@ -121,10 +121,10 @@ export function applicationProgress(
       "Funding",
       status === "funded" ? "complete" : terminal ? "stopped" : "upcoming",
       status === "funded"
-        ? "Simulated funding recorded"
+        ? "Funding recorded"
         : terminal
           ? "Not reached"
-          : "No money moves in this demo",
+          : "Funding has not been recorded",
     ),
   ];
   if (application.accessScope === "full")
@@ -138,10 +138,10 @@ export function applicationProgress(
             ? "stopped"
             : "upcoming",
         status === "funded" && application.fundedAccountId
-          ? "Simulated loan account recorded"
+          ? "Loan account recorded"
           : terminal
             ? "Not reached"
-            : "Account recorded after simulated funding",
+            : "Account recorded after funding",
       ),
     );
   return steps;

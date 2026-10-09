@@ -1,5 +1,6 @@
 import { readEnvironment } from "@keycade/config/server";
 import { expect, test } from "@playwright/test";
+import { fillSignInEmail } from "./identity-helpers";
 
 const env = readEnvironment();
 const borrower = `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
@@ -10,8 +11,8 @@ test("idle borrower overview avoids session fan-out and three-second background 
   page,
 }) => {
   await page.goto(borrower);
-  await page.getByLabel("Email address", { exact: true }).fill("borrower@example.test");
-  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+  await fillSignInEmail(page, "borrower@example.test");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Your applications", exact: true })).toBeVisible();
   await page.clock.install();
   const requests = new Map<string, number>();

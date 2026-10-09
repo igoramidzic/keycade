@@ -5,6 +5,7 @@ import type { DocumentsView, TasksView } from "@keycade/contracts";
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { createDemoImportPdf, demoImportRecipes } from "../../packages/contracts/src/demo-import";
 import { workflowApi } from "./closing-helpers";
+import { fillSignInEmail } from "./identity-helpers";
 
 const env = readEnvironment();
 const borrower = `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
@@ -22,8 +23,8 @@ async function signIn(
   dashboard = false,
 ) {
   await page.goto(origin);
-  await page.getByLabel("Email address", { exact: true }).fill(email);
-  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+  await fillSignInEmail(page, email);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
     page.getByRole("heading", {
       name: origin === staff ? "Applications" : "Your applications",
@@ -39,17 +40,17 @@ async function signIn(
   ).toBeVisible();
 }
 function kit(page: Page) {
-  return page.getByLabel("Demo scenario kit", { exact: true });
+  return page.getByLabel("Sample scenario kit", { exact: true });
 }
 async function openKit(page: Page) {
   if (!(await kit(page).isVisible()))
-    await page.getByRole("button", { name: "Show demo kit", exact: true }).click();
+    await page.getByRole("button", { name: "Show sample kit", exact: true }).click();
   await expect(kit(page)).toBeVisible();
-  return kit(page).getByRole("region", { name: "Demo text importer", exact: true });
+  return kit(page).getByRole("region", { name: "Sample text importer", exact: true });
 }
 async function closeKit(page: Page) {
   if (await kit(page).isVisible())
-    await kit(page).getByRole("button", { name: "Hide demo kit", exact: true }).click();
+    await kit(page).getByRole("button", { name: "Hide sample kit", exact: true }).click();
 }
 const textFile = (name: string, text = "Synthetic recipe selection only") => ({
   name,
@@ -64,7 +65,7 @@ async function importRecipes(page: Page, ids: string[], keyboard = false) {
     await panel.getByRole("button", { name: "Choose text files", exact: true }).focus();
     await page.keyboard.press("Enter");
     await (await choosing).setFiles(files);
-  } else await panel.getByLabel("Choose demo text files", { exact: true }).setInputFiles(files);
+  } else await panel.getByLabel("Choose Sample text files", { exact: true }).setInputFiles(files);
   await expect(panel.getByRole("article")).toHaveCount(ids.length);
   return panel;
 }
@@ -131,7 +132,7 @@ test("registered text previews expose mapping, ignore instructions and download 
   await panel.getByText("Supported text filenames and outcomes", { exact: true }).click();
   for (const recipe of demoImportRecipes) await expect(panel).toContainText(recipe.basename);
   await panel
-    .getByLabel("Choose demo text files", { exact: true })
+    .getByLabel("Choose Sample text files", { exact: true })
     .setInputFiles(
       textFile(
         "BUSINESS-TAX-RETURN-2023.TXT",
@@ -139,11 +140,11 @@ test("registered text previews expose mapping, ignore instructions and download 
       ),
     );
   const article = panel.getByRole("article", {
-    name: "Imported 2023 synthetic business tax return",
+    name: "Imported 2023 business tax return",
     exact: true,
   });
   await expect(article).toContainText("2023-01-01–2023-12-31");
-  await expect(article).toContainText("Synthetic Cedar Workshop");
+  await expect(article).toContainText("Cedar Workshop");
   const file = await download(
     page,
     article.getByRole("button", {
@@ -199,9 +200,7 @@ test("keyboard and drag upload three tax periods, bank facts and the review reci
     const officer = await context.newPage();
     await signIn(officer, staff, "officer-a@example.test");
     for (const recipe of demoImportRecipes)
-      await expect(savedRows(officer, recipe.fileName).first()).toContainText(
-        "Simulated, unverified",
-      );
+      await expect(savedRows(officer, recipe.fileName).first()).toContainText("Unverified");
     await importRecipes(officer, ["business-tax-return-2024"]);
     const uploaded = await uploadPreview(officer, "business-tax-return-2024");
     await expect(uploaded).toContainText("210000.00", { timeout: 30_000 });
@@ -218,7 +217,7 @@ test("unknown, invalid and oversized text imports leave no evidence and ordinary
   await signIn(page);
   const before = await workflowApi<DocumentsView>(page, "GET", `${base}/documents`);
   const panel = await openKit(page);
-  const input = panel.getByLabel("Choose demo text files", { exact: true });
+  const input = panel.getByLabel("Choose Sample text files", { exact: true });
   for (const [file, error] of [
     [textFile("approved.txt"), "Unknown demo filename"],
     [textFile("business-tax-return-2023.txt.pdf"), "supported .txt basename"],
@@ -271,7 +270,7 @@ test("text drop and renamed downloaded PDF preserve registered bytes while a for
   });
   try {
     await panel
-      .getByRole("region", { name: "Demo text import drop area", exact: true })
+      .getByRole("region", { name: "Sample text import drop area", exact: true })
       .dispatchEvent("drop", { dataTransfer: textDrag });
   } finally {
     await textDrag.dispose();
@@ -345,7 +344,7 @@ test("the borrower dashboard importer uploads through its visible sidebar and ex
   const transfer = await page.evaluateHandle(() => new DataTransfer());
   try {
     await panel
-      .getByRole("article", { name: "Imported 2023 synthetic business tax return", exact: true })
+      .getByRole("article", { name: "Imported 2023 business tax return", exact: true })
       .dispatchEvent("dragstart", { dataTransfer: transfer });
     await closeKit(page);
     await dropArea.dispatchEvent("drop", { dataTransfer: transfer });

@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import { readEnvironment } from "@keycade/config/server";
 import { syntheticDocumentPdf } from "@keycade/integrations/document-fixtures";
 import { expect, type Page, test } from "@playwright/test";
+import { fillSignInEmail } from "./identity-helpers";
 
 const env = readEnvironment();
 const borrower = `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
@@ -15,8 +16,8 @@ test.setTimeout(90_000);
 
 async function signIn(page: Page, origin: string, email: string) {
   await page.goto(origin);
-  await page.getByLabel("Email address", { exact: true }).fill(email);
-  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+  await fillSignInEmail(page, email);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
     page.getByRole("heading", {
       name: origin === staff ? "Applications" : "Your applications",
@@ -64,7 +65,7 @@ for (const [label, origin, email] of [
     const uploaded = page.getByRole("listitem", { name: `Upload ${name}`, exact: true });
     await expect(uploaded).toContainText("Uploaded.");
     const saved = page.getByRole("listitem", { name: `Document ${name}`, exact: true });
-    await expect(saved).toContainText("Simulated scan clean", { timeout: 25_000 });
+    await expect(saved).toContainText("Scan clean", { timeout: 25_000 });
     const downloading = page.waitForEvent("download");
     await saved.getByRole("button", { name: "Download", exact: true }).click();
     const downloaded = await downloading;
@@ -77,7 +78,7 @@ for (const [label, origin, email] of [
     await dropPdf(page, droppedName);
     await expect(
       page.getByRole("listitem", { name: `Document ${droppedName}`, exact: true }),
-    ).toContainText("Simulated scan clean", { timeout: 25_000 });
+    ).toContainText("Scan clean", { timeout: 25_000 });
 
     const replacing = page.waitForEvent("filechooser");
     await saved.getByRole("button", { name: "Upload replacement", exact: true }).click();
@@ -88,10 +89,9 @@ for (const [label, origin, email] of [
       exact: true,
     });
     await expect(replaced).toContainText("Version 2");
-    await expect(replaced.locator('[data-slot="badge"]').first()).toHaveText(
-      "Simulated scan clean",
-      { timeout: 25_000 },
-    );
+    await expect(replaced.locator('[data-slot="badge"]').first()).toHaveText("Scan clean", {
+      timeout: 25_000,
+    });
     await replaced.getByText("Previous versions (1)", { exact: true }).click();
     await expect(replaced.getByText(name, { exact: true })).toBeVisible();
     await noOverflow(page);
@@ -126,7 +126,7 @@ test("partial upload failure preserves a valid file and retries a lost upload ac
     page.getByRole("listitem", { name: `Upload ${spoof}`, exact: true }).getByRole("alert"),
   ).toBeVisible();
   await expect(page.getByRole("listitem", { name: `Document ${good}`, exact: true })).toContainText(
-    "Simulated scan clean",
+    "Scan clean",
     { timeout: 25_000 },
   );
   const acknowledged = `synthetic-retry-${randomUUID().slice(0, 8)}.pdf`;
@@ -198,7 +198,7 @@ test("an in-flight upload can be cancelled and retried independently", async ({ 
     await expect(
       page
         .getByRole("listitem", { name: `Document ${name}`, exact: true })
-        .filter({ hasText: "Simulated scan clean" }),
+        .filter({ hasText: "Scan clean" }),
     ).toHaveCount(1, { timeout: 25_000 });
     await noOverflow(page);
   } finally {
@@ -230,12 +230,12 @@ test("blocked and failed simulated scans stay quarantined and a transient scan c
     ]);
   const blocked = page.getByRole("listitem", { name: `Document ${blockedName}`, exact: true });
   const retry = page.getByRole("listitem", { name: `Document ${retryName}`, exact: true });
-  await expect(blocked).toContainText("Blocked by simulated scan", { timeout: 25_000 });
+  await expect(blocked).toContainText("Blocked by scan", { timeout: 25_000 });
   await expect(blocked.getByRole("button", { name: "Download", exact: true })).toHaveCount(0);
-  await expect(retry).toContainText("Simulated scan failed", { timeout: 25_000 });
+  await expect(retry).toContainText("Scan failed", { timeout: 25_000 });
   await expect(retry.getByRole("button", { name: "Download", exact: true })).toHaveCount(0);
-  await retry.getByRole("button", { name: "Retry simulated scan", exact: true }).click();
-  await expect(retry).toContainText("Simulated scan clean", { timeout: 25_000 });
+  await retry.getByRole("button", { name: "Retry scan", exact: true }).click();
+  await expect(retry).toContainText("Scan clean", { timeout: 25_000 });
   await expect(retry.getByRole("button", { name: "Download", exact: true })).toBeVisible();
   await noOverflow(page);
 });

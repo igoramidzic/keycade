@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { readEnvironment } from "@keycade/config/server";
 import { syntheticDocumentPdf } from "@keycade/integrations/document-fixtures";
 import { expect, type Page, test } from "@playwright/test";
+import { fillSignInEmail } from "./identity-helpers";
 
 const env = readEnvironment();
 const borrower = `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
@@ -11,8 +12,8 @@ test.use({ trace: "off", screenshot: "off", video: "off", actionTimeout: 15000 }
 test.setTimeout(90000);
 async function signIn(page: Page, origin: string, email: string) {
   await page.goto(origin);
-  await page.getByLabel("Email address", { exact: true }).fill(email);
-  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+  await fillSignInEmail(page, email);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
     page.getByRole("heading", {
       name: origin === staff ? "Applications" : "Your applications",
@@ -43,7 +44,7 @@ test("staff retries failed work and both dashboards show only currently permitte
       buffer: Buffer.from(syntheticDocumentPdf("scan-transient")),
     });
   const document = page.getByRole("listitem", { name: `Document ${fileName}`, exact: true });
-  await expect(document).toContainText("Simulated scan failed", { timeout: 25000 });
+  await expect(document).toContainText("Scan failed", { timeout: 25000 });
   await page.goto(`${staff}/applications/${id}/operations?bank=bank-a`);
   await expect(
     page.getByRole("heading", { name: "Background operations", exact: true }),
@@ -74,9 +75,7 @@ test("staff retries failed work and both dashboards show only currently permitte
     page.getByRole("heading", { name: "Application activity", exact: true }),
   ).toBeVisible();
   await expect(page.getByText("Document scan retried", { exact: true }).first()).toBeVisible();
-  await expect(
-    page.getByText("Simulated document scan completed", { exact: true }).first(),
-  ).toBeVisible();
+  await expect(page.getByText("Document scan completed", { exact: true }).first()).toBeVisible();
   const applicantContext = await browser.newContext({ viewport: page.viewportSize() });
   const adviserContext = await browser.newContext({ viewport: page.viewportSize() });
   try {
@@ -102,9 +101,7 @@ test("staff retries failed work and both dashboards show only currently permitte
       limited.getByRole("heading", { name: "Application activity", exact: true }),
     ).toBeVisible();
     await expect(limited.getByText("Document scan retried", { exact: true })).toHaveCount(0);
-    await expect(
-      limited.getByText("Simulated document scan completed", { exact: true }),
-    ).toHaveCount(0);
+    await expect(limited.getByText("Document scan completed", { exact: true })).toHaveCount(0);
   } finally {
     await applicantContext.close();
     await adviserContext.close();

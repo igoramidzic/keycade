@@ -4,6 +4,7 @@ import type { DocumentsView, TasksView } from "@keycade/contracts";
 import { syntheticDocumentPdf } from "@keycade/integrations/document-fixtures";
 import { expect, type Page, test } from "@playwright/test";
 import { workflowApi } from "./closing-helpers";
+import { fillSignInEmail } from "./identity-helpers";
 
 const env = readEnvironment();
 const borrower = `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
@@ -17,8 +18,8 @@ test.setTimeout(100_000);
 
 async function signIn(page: Page) {
   await page.goto(borrower);
-  await page.getByLabel("Email address", { exact: true }).fill("borrower@example.test");
-  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+  await fillSignInEmail(page, "borrower@example.test");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Your applications", exact: true })).toBeVisible();
   await page.goto(dashboard);
   await expect(page.getByRole("heading", { name: "Tasks", exact: true })).toBeVisible();
@@ -111,7 +112,7 @@ test("sidebar upload is keyboard accessible, retries an interrupted acknowledgem
       .getByRole("list", { name: "Recent other documents", exact: true })
       .getByRole("listitem")
       .filter({ hasText: fileName });
-    await expect(saved).toContainText(/Simulated processing complete|Ready for lender review/, {
+    await expect(saved).toContainText(/Processing complete|Ready for lender review/, {
       timeout: 25_000,
     });
     await expect(saved).toHaveCount(1);
@@ -149,13 +150,13 @@ test("application progress expands by keyboard and the demo kit leaves both dash
   await expect(sidebar.getByText("Application In Progress", { exact: true })).toBeVisible();
   await expect(sidebar.getByText("Underwriting", { exact: true })).toBeVisible();
   await expect(sidebar.getByText("Loan Booked", { exact: true })).toBeVisible();
-  const kit = page.getByLabel("Demo scenario kit", { exact: true });
+  const kit = page.getByLabel("Sample scenario kit", { exact: true });
   if (!(await kit.isVisible()))
-    await page.getByRole("button", { name: "Show demo kit", exact: true }).click();
+    await page.getByRole("button", { name: "Show sample kit", exact: true }).click();
   await expect(kit).toBeVisible();
   if (isMobile) {
     await expect(
-      page.getByRole("dialog", { name: "Demo scenario kit", exact: true }),
+      page.getByRole("dialog", { name: "Sample scenario kit", exact: true }),
     ).toBeVisible();
   } else {
     const kitBox = await kit.boundingBox();
@@ -167,7 +168,7 @@ test("application progress expands by keyboard and the demo kit leaves both dash
     expect(sidebarBox.x + sidebarBox.width).toBeLessThanOrEqual(kitBox.x + 1);
     expect(taskBox.x + taskBox.width).toBeLessThanOrEqual(sidebarBox.x + 1);
   }
-  await kit.getByRole("button", { name: "Hide demo kit", exact: true }).click();
+  await kit.getByRole("button", { name: "Hide sample kit", exact: true }).click();
   await expect(kit).not.toBeVisible();
   await expect(sidebar.getByRole("button", { name: "Choose files", exact: true })).toBeVisible();
   await noOverflow(page);

@@ -85,6 +85,11 @@ export const consumeAccessLinkSchema = z.strictObject({
 export const consumeAccessLinkResponseSchema = z.object({ returnPath: authReturnPathSchema });
 export const demoSignInSchema = requestAccessLinkSchema;
 export const demoSignInResponseSchema = consumeAccessLinkResponseSchema;
+export const staffSignInQuerySchema = requestAccessLinkSchema.pick({ bankSlug: true });
+export const staffSignInAccountsSchema = z.object({
+  accounts: z.array(z.object({ email: z.string().email(), role: z.enum(["officer", "admin"]) })),
+});
+export type StaffSignInAccounts = z.infer<typeof staffSignInAccountsSchema>;
 export const sessionBankSchema = z.object({
   id: z.string().uuid(),
   slug: z.string(),

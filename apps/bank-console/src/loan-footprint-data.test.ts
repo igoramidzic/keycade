@@ -73,7 +73,7 @@ test("a current successful US footprint is clear regardless of registered map co
   expect(loanFootprintDisplay(check({ evidence: missingMap }), address)).toMatchObject({
     clear: true,
     coordinates: null,
-    label: "Within the demo's US footprint",
+    label: "Within the US lending footprint",
   });
 });
 
@@ -159,7 +159,7 @@ test("a non-US result is informational and not clear; missing addresses need inp
       }),
       outside,
     ),
-  ).toMatchObject({ clear: false, label: "Outside the demo's US footprint", coordinates: null });
+  ).toMatchObject({ clear: false, label: "Outside the US lending footprint", coordinates: null });
   expect(
     loanFootprintDisplay(
       check({

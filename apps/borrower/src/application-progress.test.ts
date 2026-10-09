@@ -79,7 +79,7 @@ describe("borrower application timeline", () => {
       applicationProgress({ ...base, status: "funded", fundedAccountId: "recorded-account" }).find(
         (step) => step.key === "booked",
       ),
-    ).toMatchObject({ state: "complete", description: "Simulated loan account recorded" });
+    ).toMatchObject({ state: "complete", description: "Loan account recorded" });
     expect(
       applicationProgress({ ...base, status: "funded", accessScope: "assigned" }).some(
         (step) => step.key === "booked",

@@ -32,6 +32,7 @@ import {
 import { createDocumentTransfer } from "@keycade/ui/lib/document-transfer";
 import { documentRefreshInterval } from "@keycade/ui/lib/refresh-policy";
 import { cn } from "@keycade/ui/lib/utils";
+import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, CloudUpload, FileText } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
@@ -285,7 +286,7 @@ function ApplicationUpload({
   demoUpload.current = (document) => {
     if (!active || !demoKit?.uploadsEnabled || !canUpload) return;
     if (document.subject !== "business") {
-      setMessage("Open the corresponding private task to upload personal demo evidence.");
+      setMessage("Open the corresponding private task to upload personal evidence.");
       return;
     }
     addFiles([createDemoDocumentFile(document, demoKit.businessName)]);
@@ -345,9 +346,7 @@ function ApplicationUpload({
         <CardTitle>
           <h2>Upload other documents</h2>
         </CardTitle>
-        <CardDescription>
-          Use synthetic files only. Uploading here does not complete a task.
-        </CardDescription>
+        <CardDescription>Uploading here does not complete a task.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {currentAccessError ? (
@@ -386,14 +385,14 @@ function ApplicationUpload({
                     if (preview) demoImportUpload.current(preview);
                     else
                       setMessage(
-                        "This imported demo preview is unavailable. Import the text file again.",
+                        "This imported import preview is unavailable. Import the text file again.",
                       );
                   } else if (event.dataTransfer.types.includes(demoDocumentMime)) {
                     const sample = readDemoDocumentDrag(event.dataTransfer);
                     if (sample) demoUpload.current(sample.document);
                     else
                       setMessage(
-                        "This demo document is unavailable. Choose a sample from the demo kit again.",
+                        "This sample document is unavailable. Choose a sample from the Sample kit again.",
                       );
                   } else addFiles(Array.from(event.dataTransfer.files));
                 }}
@@ -460,14 +459,16 @@ function ApplicationUpload({
                         className="mt-0.5 size-4 shrink-0 text-muted-foreground"
                       />
                       <div className="min-w-0 flex-1 space-y-0.5">
-                        <p className="break-all text-sm font-medium">{entry.file.name}</p>
+                        <p className="break-all text-sm font-medium">
+                          {workflowName(entry.file.name)}
+                        </p>
                         <p className="text-xs leading-5 text-muted-foreground">
                           {entry.state === "preparing"
                             ? "Preparing upload…"
                             : entry.state === "uploading"
                               ? `Uploading · ${entry.percent}%`
                               : entry.state === "complete"
-                                ? "Uploaded · awaiting simulated scan"
+                                ? "Uploaded · awaiting scan"
                                 : entry.error}
                         </p>
                       </div>
@@ -538,7 +539,7 @@ function ApplicationUpload({
                           disabled={Boolean(action)}
                           onClick={() => void retryVersion(version.id, "scan")}
                         >
-                          Retry simulated scan
+                          Retry scan
                         </Button>
                       )}
                       {version.processing?.canRetry && version.scanState === "clean" && (
@@ -548,7 +549,7 @@ function ApplicationUpload({
                           disabled={Boolean(action)}
                           onClick={() => void retryVersion(version.id, "processing")}
                         >
-                          Retry simulated processing
+                          Retry processing
                         </Button>
                       )}
                     </li>

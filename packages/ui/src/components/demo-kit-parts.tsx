@@ -18,7 +18,7 @@ export function DemoBadge({ className }: { className?: string }) {
       )}
     >
       <FlaskConical aria-hidden="true" className="size-3.5" />
-      Demo only
+      Examples
     </span>
   );
 }

@@ -53,7 +53,7 @@ export function loanFootprintDisplay(
     return {
       ...base,
       label: "Needs address",
-      detail: "Save a complete business address, including its country, to run this simulation.",
+      detail: "Save a complete business address, including its country, to run this check.",
     };
   if (["queued", "running", "retry_scheduled"].includes(run.status))
     return {
@@ -64,15 +64,13 @@ export function loanFootprintDisplay(
           : run.status === "retry_scheduled"
             ? "Retry scheduled"
             : "Queued",
-      detail:
-        "The simulated country check is in progress. No current geographic result is available.",
+      detail: "The country check is in progress. No current geographic result is available.",
     };
   if (run.status !== "succeeded" || !result)
     return {
       ...base,
       label: run.status === "cancelled" ? "Cancelled" : "Unable to verify",
-      detail:
-        "The simulation did not produce a current result. Refresh Loan Footprint to try again.",
+      detail: "The check did not produce a current result. Refresh Loan Footprint to try again.",
     };
   // Result status alone is insufficient: both the saved input and evaluated snapshot must agree.
   if (
@@ -92,14 +90,14 @@ export function loanFootprintDisplay(
       ...base,
       clear: true,
       coordinates: result.coordinates,
-      label: "Within the demo's US footprint",
-      detail: "This complete US address meets the simulated country rule.",
+      label: "Within the US lending footprint",
+      detail: "This complete US address meets the country rule.",
     };
   if (result.reason === "outside_us_demo")
     return {
       ...base,
       coordinates: result.coordinates,
-      label: "Outside the demo's US footprint",
+      label: "Outside the US lending footprint",
       detail:
         "The saved country is outside the US. This informational result does not block the application.",
     };

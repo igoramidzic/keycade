@@ -18,6 +18,7 @@ import {
 } from "../../packages/contracts/src/demo-import";
 import { setupFixtureSteps } from "../setup-fixture";
 import { workflowApi } from "./closing-helpers";
+import { fillSignInEmail } from "./identity-helpers";
 
 const env = readEnvironment();
 const borrower = `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
@@ -34,8 +35,8 @@ test.setTimeout(120_000);
 
 async function signIn(page: Page, origin = staff, email = "officer-a@example.test") {
   await page.goto(origin);
-  await page.getByLabel("Email address", { exact: true }).fill(email);
-  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+  await fillSignInEmail(page, email);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
     page.getByRole("heading", {
       name: origin === staff ? "Applications" : "Your applications",
@@ -231,7 +232,9 @@ test("three fiscal-year documents keep preview, analysis, source metadata and or
     await expect(
       dialog.getByRole("region", { name: "Document analysis", exact: true }),
     ).toContainText(`${year}-01-01`);
-    await expect(dialog).toContainText("Simulated");
+    await expect(
+      dialog.getByRole("region", { name: "Document analysis", exact: true }),
+    ).not.toContainText("Simulated");
     await noOverflow(page);
     if (year === 2025)
       await page.screenshot({
@@ -712,7 +715,7 @@ test("replacement and reanalysis keep historical bytes and accepted values bound
     dialog.getByRole("region", { name: "Document analysis", exact: true }),
   ).toContainText("2024-01-01");
   const review = dialog.getByRole("region", { name: "Reviewed financial facts", exact: true });
-  const revenueLabel = "Suggested synthetic Revenue / net sales";
+  const revenueLabel = "Suggested Revenue / net sales";
   await review.getByRole("checkbox", { name: `Select ${revenueLabel}`, exact: true }).check();
   await review
     .getByLabel("Reason for financial review", { exact: true })
@@ -724,7 +727,7 @@ test("replacement and reanalysis keep historical bytes and accepted values bound
   const accepted = await workflowApi<FinancialFactsView>(page, "GET", `${base}/financial-facts`);
   const accepted2024 = accepted.facts.find((fact) => fact.period.start === "2024-01-01");
   if (!accepted2024) throw new Error("Expected independently accepted second fiscal year.");
-  await dialog.getByRole("button", { name: "Run simulated analysis", exact: true }).click();
+  await dialog.getByRole("button", { name: "Run analysis", exact: true }).click();
   await expect
     .poll(
       async () => {
@@ -766,14 +769,14 @@ test("quarantined documents expose only permitted metadata and failed analysis p
       .setInputFiles({ name: fileName, mimeType: "application/pdf", buffer });
     const row = savedRow(page, fileName);
     await expect(row).toContainText(
-      scenario === "blocked" ? "Blocked by simulated scan" : "Interpretation failed",
+      scenario === "blocked" ? "Blocked by scan" : "Interpretation failed",
       { timeout: 30_000 },
     );
     const { dialog } = await openWorkspace(page, row, fileName);
     if (scenario === "blocked") {
       await expect(
         dialog.getByRole("region", { name: "Document preview", exact: true }),
-      ).toContainText("This file is blocked by the simulated scan");
+      ).toContainText("This file is blocked by the scan");
       await expect(dialog.locator("canvas")).toHaveCount(0);
       await expect(
         dialog.getByRole("button", { name: "Download document", exact: true }),
@@ -781,13 +784,13 @@ test("quarantined documents expose only permitted metadata and failed analysis p
     } else {
       expect(await previewBytes(dialog)).toEqual([...buffer]);
       const analysis = dialog.getByRole("region", { name: "Document analysis", exact: true });
-      await expect(analysis).toContainText("Simulated analysis failed");
-      await analysis.getByRole("button", { name: "Retry simulated analysis", exact: true }).click();
+      await expect(analysis).toContainText("Analysis failed");
+      await analysis.getByRole("button", { name: "Retry analysis", exact: true }).click();
       await page.keyboard.press("Escape");
       await expect(dialog).toHaveCount(0);
       await row.getByText("Interpretation history", { exact: true }).click();
       await expect(
-        row.getByRole("region", { name: "Simulated interpretation runs", exact: true }),
+        row.getByRole("region", { name: "Interpretation runs", exact: true }),
       ).toContainText("Run 2 · Interpretation failed", { timeout: 30_000 });
       await openWorkspace(page, row, fileName);
       await expect(
@@ -795,7 +798,7 @@ test("quarantined documents expose only permitted metadata and failed analysis p
       ).toHaveCount(2);
       await expect(
         dialog.getByRole("region", { name: "Document analysis", exact: true }),
-      ).toContainText("Simulated analysis failed");
+      ).toContainText("Analysis failed");
       expect(await previewBytes(dialog)).toEqual([...buffer]);
     }
     await expect(dialog.getByRole("region", { name: "Document info", exact: true })).toContainText(

@@ -1,5 +1,6 @@
 import { Button } from "@keycade/ui/components/button";
 import { NativeSelect } from "@keycade/ui/components/native-select";
+import { workflowText } from "@keycade/ui/lib/workflow-text";
 import { useEffect, useState } from "react";
 
 export type SecureTaskInputData = {
@@ -69,7 +70,7 @@ export function SecureTaskInput({
                 authorized,
                 noticeVersion: data.noticeVersion,
               },
-              "Synthetic tax authorization saved.",
+              "Tax authorization saved.",
             )
           )
             setAuthorizationEdited(false);
@@ -77,7 +78,7 @@ export function SecureTaskInput({
           await save(
             "identifier",
             { expectedInputRevision: data.revision, value },
-            "Synthetic identifier saved privately. Only its masked value is displayed.",
+            "Identifier saved privately. Only its masked value is displayed.",
           )
         )
           setValue("");
@@ -85,21 +86,21 @@ export function SecureTaskInput({
     >
       <p className="text-sm font-medium">
         {authorization
-          ? "Synthetic tax authorization"
+          ? "Tax authorization"
           : kind === "synthetic_business_identifier"
-            ? "Synthetic business identifier"
-            : "Synthetic personal identifier"}
+            ? "Business identifier"
+            : "Personal identifier"}
       </p>
       {authorization ? (
         <>
           <p className="text-sm text-muted-foreground" id={`tax-notice-${taskId}`}>
-            {data.notice}
+            {workflowText(data.notice)}
           </p>
           <label className="flex items-start gap-2 text-sm">
             <input
               type="checkbox"
               className="mt-0.5"
-              aria-label="Authorize simulated tax records"
+              aria-label="Authorize tax records"
               aria-describedby={`tax-notice-${taskId}`}
               checked={authorized}
               disabled={locked}
@@ -108,11 +109,10 @@ export function SecureTaskInput({
                 setAuthorizationEdited(true);
               }}
             />
-            Authorize simulated tax records
+            Authorize tax records
           </label>
           <p className="text-xs text-muted-foreground">
-            Current authorization:{" "}
-            {data.taxAuthorized ? "Granted for this demonstration" : "Not granted"}.
+            Current authorization: {data.taxAuthorized ? "Granted" : "Not granted"}.
           </p>
         </>
       ) : (
@@ -128,7 +128,7 @@ export function SecureTaskInput({
           {data.canEdit && (
             <div className="space-y-2">
               <label htmlFor={`synthetic-identifier-${taskId}`} className="text-sm">
-                Choose a synthetic {kind === "synthetic_business_identifier" ? "EIN" : "SSN"}
+                Choose an {kind === "synthetic_business_identifier" ? "EIN" : "SSN"}
               </label>
               <NativeSelect
                 id={`synthetic-identifier-${taskId}`}
@@ -138,7 +138,7 @@ export function SecureTaskInput({
                 required
                 onChange={(event) => setValue(event.target.value)}
               >
-                <option value="">Choose a demo value</option>
+                <option value="">Choose a value</option>
                 {Array.from({ length: 7 }, (_, index) => `00000000${index + 1}`).map((fixture) => (
                   <option value={fixture} key={fixture}>
                     {fixture}
@@ -148,14 +148,14 @@ export function SecureTaskInput({
             </div>
           )}
           <p className="text-xs text-muted-foreground">
-            Only these registered fictional values are accepted. Never enter a real EIN or SSN.
-            Saving a demo identifier does not verify identity or approve the application.
+            Choose one of the supported values. Saving an identifier does not verify identity or
+            approve the application.
           </p>
         </>
       )}
       {data.canEdit ? (
         <Button type="submit" variant="outline" disabled={locked || !dirty}>
-          {authorization ? "Save tax authorization" : "Save synthetic identifier"}
+          {authorization ? "Save tax authorization" : "Save identifier"}
         </Button>
       ) : (
         <p className="text-sm text-muted-foreground">

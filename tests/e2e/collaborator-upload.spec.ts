@@ -5,7 +5,7 @@ import type { DocumentsView, ParticipantsWorkspace, TasksView, TaskView } from "
 import { syntheticDocumentPdf } from "@keycade/integrations/document-fixtures";
 import { type BrowserContext, expect as baseExpect, type Page, test } from "@playwright/test";
 import { workflowApi } from "./closing-helpers";
-import { messages, openLink, waitForLink } from "./identity-helpers";
+import { fillSignInEmail, messages, openLink, waitForLink } from "./identity-helpers";
 import { participantCard, removeAccess } from "./participant-helpers";
 
 const env = readEnvironment();
@@ -51,8 +51,8 @@ test("an invited adviser uploads assigned evidence without private access and lo
   }
   await pace(officer.context());
   await officer.goto(staff);
-  await officer.getByLabel("Email address", { exact: true }).fill("officer-a@example.test");
-  await officer.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+  await fillSignInEmail(officer, "officer-a@example.test");
+  await officer.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(officer.getByRole("heading", { name: "Applications", exact: true })).toBeVisible();
   await officer.goto(`${staff}/api/ready`);
   const applicationId =
@@ -89,7 +89,7 @@ test("an invited adviser uploads assigned evidence without private access and lo
   });
   await expect(
     officer.getByRole("listitem", { name: `Document ${privateName}`, exact: true }),
-  ).toContainText("Simulated scan clean", { timeout: 30000 });
+  ).toContainText("Scan clean", { timeout: 30000 });
   await officer.goto(`${staff}/api/ready`);
   const privateDocument = (
     await workflowApi<DocumentsView>(officer, "GET", `${base}/documents`)
@@ -201,7 +201,7 @@ test("an invited adviser uploads assigned evidence without private access and lo
     await adviser.keyboard.press("Enter");
     await (await picker).setFiles({ name: fileName, mimeType: "application/pdf", buffer: pdf });
     const evidence = adviser.getByRole("listitem", { name: `Document ${fileName}`, exact: true });
-    await expect(evidence).toContainText("Simulated scan clean", { timeout: 30000 });
+    await expect(evidence).toContainText("Scan clean", { timeout: 30000 });
     await expect(evidence).toContainText(assigned.title);
     const scopedDocuments = await workflowApi<DocumentsView>(adviser, "GET", `${base}/documents`);
     expect(scopedDocuments.documents.map((document) => document.taskId)).toEqual([assigned.id]);
@@ -220,7 +220,7 @@ test("an invited adviser uploads assigned evidence without private access and lo
       name: `Document ${fileName}`,
       exact: true,
     });
-    await expect(staffEvidence).toContainText("Simulated scan clean");
+    await expect(staffEvidence).toContainText("Scan clean");
     await expect(staffEvidence).toContainText(assigned.title);
     const downloading = officer.waitForEvent("download");
     await staffEvidence.getByRole("button", { name: "Download", exact: true }).click();

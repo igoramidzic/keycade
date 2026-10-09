@@ -17,7 +17,7 @@ The affected hosted API disabled demo sign-in and email delivery. This was an im
 - Enable the synthetic demo entry path on the deployed API, preserving bank scope, explicit staff memberships, sessions, CSRF and revocation checks.
 - Provide repeatable, non-destructive hosted synthetic fixtures needed by the demo. Never seed real user or financial records.
 - Provide simulated hosted delivery/inbox behavior for access links, application continuations, invitations, notifications and signature requests using T06/T18 contracts. No real SMTP, identity provider or external delivery is permitted.
-- Keep simulation obvious in UI and delivery content. A simulated mailbox/identity confirmation is never a real identity determination.
+- The October 9 [D07 override](D07-account-picker-and-product-copy.md) removes simulation wording from product screens. Runtime markers and synthetic access/delivery remain; a simulated mailbox/identity confirmation is never a real identity determination.
 - Route links to current setup/application/signature state with the same backend authorization and stale/replay behavior as local.
 
 ## Acceptance criteria

@@ -10,6 +10,7 @@ import {
 import { NativeSelect } from "@keycade/ui/components/native-select";
 import { SectionHeading } from "@keycade/ui/components/page-header";
 import { cn } from "@keycade/ui/lib/utils";
+import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
 import { ChevronDown, FileSearch } from "lucide-react";
 import { useId, useState } from "react";
 import {
@@ -46,7 +47,6 @@ export function FinancialOverview({
       <SectionHeading
         title="Financial overview"
         description="Values reflect explicit lender review of supplied document facts. Select a card to inspect available periods and their evidence."
-        actions={<Badge variant="outline">Synthetic demo data</Badge>}
       />
       <div className="grid items-start gap-4 lg:grid-cols-2">
         {overviewFinancialMetrics.map(({ metric, label }) => (
@@ -100,7 +100,7 @@ function MetricCard({
           </span>
           {latest && (
             <span className="mt-0.5 block text-xs text-muted-foreground">
-              {latest.businessSnapshot.businessName}
+              {workflowName(latest.businessSnapshot.businessName)}
             </span>
           )}
           <span className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-info">
@@ -144,7 +144,7 @@ function MetricCard({
                       >
                         {series.map((item) => (
                           <option key={item.key} value={item.key}>
-                            {item.facts[0]?.businessSnapshot.businessName} ·{" "}
+                            {workflowName(item.facts[0]?.businessSnapshot.businessName)} ·{" "}
                             {item.facts[0]?.period.basis === "fiscal_year"
                               ? "Fiscal periods"
                               : "Statements"}{" "}
@@ -158,7 +158,7 @@ function MetricCard({
                     </div>
                   )}
                   <p className="text-sm text-muted-foreground">
-                    {selected.facts[0]?.businessSnapshot.businessName} · USD ·{" "}
+                    {workflowName(selected.facts[0]?.businessSnapshot.businessName)} · USD ·{" "}
                     {selected.facts[0]?.period.basis === "fiscal_year"
                       ? "Fiscal-year basis"
                       : "Statement basis"}

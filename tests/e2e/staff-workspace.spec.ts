@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { readEnvironment } from "@keycade/config/server";
 import { expect, type Page, type Response, test } from "@playwright/test";
-import { messages, openLink, waitForLink } from "./identity-helpers";
+import { fillSignInEmail, messages, openLink, waitForLink } from "./identity-helpers";
 
 const env = readEnvironment();
 const borrower = `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
@@ -73,8 +73,8 @@ async function api<T>(page: Page, method: string, suffix: string, body?: object)
 
 async function signIn(page: Page, origin = staff, email = "officer-a@example.test") {
   await page.goto(origin);
-  await page.getByLabel("Email address", { exact: true }).fill(email);
-  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+  await fillSignInEmail(page, email);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
     page.getByRole("heading", {
       name: origin === staff ? "Applications" : "Your applications",
@@ -511,9 +511,7 @@ test("staff workspace sections stay scoped and explain unavailable capabilities"
 }) => {
   await signIn(page);
   await page.goto(workspaceUrl(ids.small));
-  await expect(
-    page.getByRole("heading", { name: "Synthetic Cedar Workshop", exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Cedar Workshop", exact: true })).toBeVisible();
   await page.getByRole("link", { name: "Participants", exact: true }).click();
   await expect(page).toHaveURL(workspaceUrl(ids.small, "participants"));
   await expect(
@@ -532,7 +530,7 @@ test("staff workspace sections stay scoped and explain unavailable capabilities"
   await expect(page.getByRole("heading", { name: "Tasks", exact: true })).toBeVisible();
   for (const section of [
     { path: "documents", label: "Documents", empty: null },
-    { path: "checks", label: "Checks", empty: "Simulated checks" },
+    { path: "checks", label: "Checks", empty: "Checks" },
   ]) {
     await page.getByRole("link", { name: section.label, exact: true }).click();
     await expect(page).toHaveURL(workspaceUrl(ids.small, section.path));
@@ -543,7 +541,7 @@ test("staff workspace sections stay scoped and explain unavailable capabilities"
     await noOverflow(page);
   }
   await page.reload();
-  await expect(page.getByRole("heading", { name: "Simulated checks", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Checks", exact: true })).toBeVisible();
   await page.goto(workspaceUrl(ids.otherBank));
   await expect(page.getByRole("alert")).toContainText("unavailable");
   await expect(page.getByText("Synthetic Birch Services", { exact: true })).toHaveCount(0);
@@ -571,7 +569,7 @@ test("queue loading and service failure are clear and retryable", async ({ page 
     release();
   }
   await expect(
-    page.getByRole("link", { name: "Synthetic Cedar Workshop", exact: true }).first(),
+    page.getByRole("link", { name: "Cedar Workshop", exact: true }).first(),
   ).toBeVisible();
   await page.unroute(queuePattern);
   await page.route(queuePattern, (route) =>
@@ -588,21 +586,30 @@ test("queue loading and service failure are clear and retryable", async ({ page 
   await page.unroute(queuePattern);
   await page.getByRole("button", { name: "Try again", exact: true }).click();
   await expect(
-    page.getByRole("link", { name: "Synthetic Cedar Workshop", exact: true }).first(),
+    page.getByRole("link", { name: "Cedar Workshop", exact: true }).first(),
   ).toBeVisible();
 });
 
 test("an address without staff membership cannot open the staff queue", async ({ page }) => {
   await page.goto(staff);
   const email = `staff-workspace-denied-${randomUUID()}@example.test`;
-  await page.getByLabel("Email address", { exact: true }).fill(email);
-  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
-  await expect(page.getByRole("alert")).toContainText("can’t access this staff demo");
-  await expect(page.getByLabel("Email address", { exact: true })).toHaveValue(email);
+  const picker = page.getByRole("combobox", { name: "Email address", exact: true });
+  await expect(picker).toBeVisible();
+  expect(await picker.locator("option").allTextContents()).not.toContain(email);
+  const status = await page.evaluate(
+    async (email) =>
+      (
+        await fetch("/api/v1/auth/demo-sign-in", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, bankSlug: "bank-a", portal: "staff" }),
+        })
+      ).status,
+    email,
+  );
+  expect(status).toBe(404);
   await expect(page.getByRole("link", { name: "Create application", exact: true })).toHaveCount(0);
-  await expect(
-    page.getByRole("link", { name: "Synthetic Cedar Workshop", exact: true }),
-  ).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Cedar Workshop", exact: true })).toHaveCount(0);
   expect(await page.evaluate(async () => (await fetch("/api/v1/auth/staff")).status)).toBe(404);
   await noOverflow(page);
 });

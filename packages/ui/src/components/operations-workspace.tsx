@@ -5,6 +5,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@keycade/ui/components/collapsible";
+import { workflowText } from "@keycade/ui/lib/workflow-text";
 import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 
@@ -105,7 +106,7 @@ export function OperationsWorkspace({
         <div>
           <h2 className="text-lg font-semibold">Background operations</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Simulated work for this application. Retries use current permissions and inputs.
+            Work for this application. Retries use current permissions and inputs.
           </p>
         </div>
         <Button type="button" variant="outline" disabled={refreshing || !!busy} onClick={refresh}>
@@ -172,7 +173,7 @@ export function OperationsWorkspace({
             <li key={item.id} className="space-y-3 rounded-lg bg-muted/50 p-4">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="break-words text-sm font-medium">{item.title}</p>
+                  <p className="break-words text-sm font-medium">{workflowText(item.title)}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {new Date(item.createdAt).toLocaleString()} · {item.attempts} attempts
                   </p>
@@ -206,8 +207,8 @@ export function OperationsWorkspace({
                         {confirm === item.id ? (
                           <>
                             <p className="text-xs">
-                              Void this simulated signature request? A new request will be needed to
-                              collect signatures.
+                              Void this signature request? A new request will be needed to collect
+                              signatures.
                             </p>
                             <div className="flex gap-2">
                               <Button

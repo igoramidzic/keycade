@@ -14,6 +14,7 @@ import {
   CollapsibleTrigger,
 } from "@keycade/ui/components/collapsible";
 import { NativeSelect } from "@keycade/ui/components/native-select";
+import { workflowText } from "@keycade/ui/lib/workflow-text";
 import { ChevronRight } from "lucide-react";
 import { useState } from "react";
 
@@ -34,7 +35,7 @@ type Status =
   | "timed_out"
   | "cancelled";
 const outcomeLabels: Record<Outcome, string> = {
-  clear: "Simulated clear",
+  clear: "Clear",
   needs_review: "Needs staff review",
   unable_to_verify: "Unable to verify",
 };
@@ -49,8 +50,8 @@ const statusLabels: Record<Status, string> = {
   cancelled: "Cancelled",
 };
 const prerequisiteLabels = {
-  business_address: "A complete business address is needed for the simulated country check.",
-  identifier: "A synthetic identifier is needed.",
+  business_address: "A complete business address is needed for the country check.",
+  identifier: "A identifier is needed.",
   owner_access: "The owner needs current portal access.",
   reviewed_documents: "Current document evidence needs bank review.",
 };
@@ -59,22 +60,22 @@ const blockerReasons: Record<string, string> = {
   initial_fields_invalid: "Review the business and requested loan details.",
   verified_applicant_authority_required: "A verified applicant with full access is required.",
   signature_evidence_not_current: "Current evidence needs a completed signature request.",
-  current_document_not_ready: "Current documents must finish upload and simulated scan.",
+  current_document_not_ready: "Current documents must finish upload and scan.",
   current_evidence_not_reviewed: "The bank must review the current evidence.",
   awaiting_lender_review: "Completed by the client. Mark it reviewed before approval.",
   requirement_unfinished: "Complete this required task.",
   required_check_missing: "Required checks have not been initialized.",
-  check_needs_review: "The simulated finding needs a permitted staff resolution.",
-  check_unable_to_verify: "The simulated check could not verify its inputs.",
+  check_needs_review: "The finding needs a permitted staff resolution.",
+  check_unable_to_verify: "The check could not verify its inputs.",
   check_waiting_for_input: "Required inputs are missing.",
-  check_queued: "The simulated check is queued.",
-  check_running: "The simulated check is running.",
-  check_retry_scheduled: "A simulated retry is scheduled.",
-  check_failed: "The simulated check failed and needs attention.",
-  check_timed_out: "The simulated check timed out.",
+  check_queued: "The check is queued.",
+  check_running: "The check is running.",
+  check_retry_scheduled: "A retry is scheduled.",
+  check_failed: "The check failed and needs attention.",
+  check_timed_out: "The check timed out.",
   check_cancelled: "The current check was cancelled.",
-  check_stale_or_missing: "A current simulated result is needed.",
-  check_unknown: "The simulated result is unknown.",
+  check_stale_or_missing: "A current result is needed.",
+  check_unknown: "The result is unknown.",
   lifecycle_not_ready: "The application has not entered the required stage.",
 };
 type CheckRun = {
@@ -166,8 +167,8 @@ export function ReadinessPanel({
           </section>
         ))}
         <p className="text-xs leading-5 text-muted-foreground">
-          Simulated readiness · Each stage includes earlier required work. Later-stage checks do not
-          block earlier stages. These results do not approve or decline the application.
+          Readiness · Each stage includes earlier required work. Later-stage checks do not block
+          earlier stages. These results do not approve or decline the application.
         </p>
       </CardContent>
     </Card>
@@ -178,7 +179,7 @@ function Blockers({ blockers }: { blockers: ReadinessData["gates"][number]["bloc
     <ul className="mt-2 space-y-3 text-sm">
       {blockers.map((blocker, index) => (
         <li key={`${blocker.kind}-${blocker.id}-${index}`} className="space-y-1">
-          <p className="font-medium">{blocker.title}</p>
+          <p className="font-medium">{workflowText(blocker.title)}</p>
           <p className="text-xs leading-5 text-muted-foreground">
             {blockerReasons[blocker.reason] ?? "This requirement needs attention."} ·{" "}
             {stageLabels[blocker.stage]}
@@ -208,10 +209,10 @@ export function ChecksManager({
     <Card className="ring-0 shadow-sm">
       <CardHeader>
         <CardTitle>
-          <h2>Simulated checks</h2>
+          <h2>Checks</h2>
         </CardTitle>
         <CardDescription>
-          Current identity and fraud checks use fictional inputs. Bank decisions remain separate.
+          Review current identity and fraud checks. Bank decisions remain separate.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-8">
@@ -303,10 +304,10 @@ function Check({
               .map(
                 (finding) =>
                   ({
-                    synthetic_match: "synthetic match",
-                    synthetic_review_flag: "synthetic review flag",
-                    synthetic_no_match: "no synthetic match",
-                  })[finding] ?? "synthetic finding",
+                    synthetic_match: "Match",
+                    synthetic_review_flag: "Review flag",
+                    synthetic_no_match: "No match",
+                  })[finding] ?? "Finding",
               )
               .join("; ")}
             .
@@ -314,9 +315,8 @@ function Check({
         )}
         {run.resolution && (
           <p className="text-xs text-muted-foreground">
-            Staff reviewed synthetic evidence on{" "}
-            {new Date(run.resolution.createdAt).toLocaleString()}. The original finding is
-            preserved.
+            Staff reviewed evidence on {new Date(run.resolution.createdAt).toLocaleString()}. The
+            original finding is preserved.
           </p>
         )}
         <p className="text-xs text-muted-foreground">
@@ -326,10 +326,10 @@ function Check({
     );
   }
   return (
-    <section aria-label={check.title} className="space-y-4 py-1">
+    <section aria-label={workflowText(check.title)} className="space-y-4 py-1">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h3 className="font-semibold tracking-tight">{check.title}</h3>
+          <h3 className="font-semibold tracking-tight">{workflowText(check.title)}</h3>
           <p className="mt-1 text-xs text-muted-foreground">
             {stageLabels[check.stage]} · {check.required ? "Required" : "Optional"}
           </p>
@@ -391,7 +391,7 @@ function Check({
               disabled={busy}
               onChange={(event) => setReviewedRun(event.target.checked ? current.id : null)}
             />
-            I reviewed the synthetic evidence for this result.
+            I reviewed the evidence for this result.
           </label>
           <Button
             size="sm"
@@ -399,7 +399,7 @@ function Check({
             onClick={() =>
               void act(
                 () => resolve(current.id),
-                "Staff resolution recorded. The original simulated outcome remains visible.",
+                "Staff resolution recorded. The original outcome remains visible.",
               )
             }
           >

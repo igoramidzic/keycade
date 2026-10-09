@@ -11,7 +11,7 @@ import {
 import { Badge } from "@keycade/ui/components/badge";
 import { BrandLockup } from "@keycade/ui/components/brand";
 import { Button, buttonVariants } from "@keycade/ui/components/button";
-import { useDemoUploadAvailability } from "@keycade/ui/components/demo-kit";
+import { DemoKitProvider, useDemoUploadAvailability } from "@keycade/ui/components/demo-kit";
 import { EmptyState } from "@keycade/ui/components/empty-state";
 import {
   type AuthenticatedSession,
@@ -20,6 +20,7 @@ import {
   IdentityPortal,
 } from "@keycade/ui/components/identity-portal";
 import { cn } from "@keycade/ui/lib/utils";
+import { workflowText } from "@keycade/ui/lib/workflow-text";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   BarChart3,
@@ -43,51 +44,58 @@ export function BankApp({ confirmation }: { confirmation: Confirmation }) {
   const location = useLocation();
   const navigate = useNavigate();
   const header = useHeaderSlot();
+  const [showKit, setShowKit] = useState(false);
   const bankSlug = new URLSearchParams(location.search).get("bank") ?? "bank-a";
   return (
-    <div className="flex min-h-screen flex-col bg-canvas text-foreground">
-      <a
-        href="#main"
-        className="sr-only z-50 rounded-md bg-primary px-4 py-2 text-primary-foreground focus:not-sr-only focus:absolute focus:left-4 focus:top-4"
-      >
-        Skip to content
-      </a>
-      <AppHeader
-        slotRef={header.ref}
-        brand={
-          <Link
-            to={`/?bank=${encodeURIComponent(bankSlug)}`}
-            className="min-w-0 rounded-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-          >
-            <BrandLockup name="Keycade Bank Console" detail="Staff workspace" />
-          </Link>
-        }
-      />
-      <HeaderSlotProvider slot={header.slot}>
-        <main id="main" className={cn(shellWidth, "flex-1 py-8 sm:py-10")}>
-          <IdentityPortal
-            portal="staff"
-            confirmation={confirmation}
-            bankSlug={bankSlug}
-            aside={<StaffWelcome />}
-            onSignedIn={(path) =>
-              navigate(
-                `${path === "/demo-inbox" ? path : "/"}?bank=${encodeURIComponent(bankSlug)}`,
-                { replace: true },
-              )
-            }
-            renderAuthenticated={(session, controls) => (
-              <Workspace
-                key={`${session.bank.id}:${session.user.email}:${session.authenticationMethod}`}
-                session={session}
-                controls={controls}
-              />
-            )}
-          />
-        </main>
-      </HeaderSlotProvider>
-      <AppFooter />
-    </div>
+    <DemoKitProvider visible={showKit}>
+      <div className="flex min-h-screen flex-col bg-canvas text-foreground">
+        <a
+          href="#main"
+          className="sr-only z-50 rounded-md bg-primary px-4 py-2 text-primary-foreground focus:not-sr-only focus:absolute focus:left-4 focus:top-4"
+        >
+          Skip to content
+        </a>
+        <AppHeader
+          slotRef={header.ref}
+          brand={
+            <Link
+              to={`/?bank=${encodeURIComponent(bankSlug)}`}
+              className="min-w-0 rounded-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+            >
+              <BrandLockup name="Keycade Bank Console" detail="Staff workspace" />
+            </Link>
+          }
+        />
+        <HeaderSlotProvider slot={header.slot}>
+          <main id="main" className={cn(shellWidth, "flex-1 py-8 sm:py-10")}>
+            <IdentityPortal
+              key={bankSlug}
+              portal="staff"
+              confirmation={confirmation}
+              bankSlug={bankSlug}
+              aside={<StaffWelcome />}
+              onSignedIn={(path) =>
+                navigate(
+                  `${path === "/demo-inbox" ? path : "/"}?bank=${encodeURIComponent(bankSlug)}`,
+                  { replace: true },
+                )
+              }
+              renderAuthenticated={(session, controls) => (
+                <Workspace
+                  key={`${session.bank.id}:${session.user.email}:${session.authenticationMethod}`}
+                  session={session}
+                  controls={controls}
+                  showKit={setShowKit}
+                />
+              )}
+            />
+          </main>
+        </HeaderSlotProvider>
+        <AppFooter>
+          <p>Keycade · Business lending</p>
+        </AppFooter>
+      </div>
+    </DemoKitProvider>
   );
 }
 
@@ -106,7 +114,7 @@ function StaffWelcome() {
     {
       icon: Scale,
       title: "Guarded decisions",
-      text: "Human review, closing and simulated funding with a full audit trail.",
+      text: "Human review, closing and funding with a full audit trail.",
     },
   ];
   return (
@@ -125,7 +133,7 @@ function StaffWelcome() {
               <point.icon aria-hidden="true" className="size-5" />
             </span>
             <span className="min-w-0">
-              <span className="block font-medium">{point.title}</span>
+              <span className="block font-medium">{workflowText(point.title)}</span>
               <span className="mt-0.5 block text-sm leading-6 text-muted-foreground">
                 {point.text}
               </span>
@@ -143,10 +151,16 @@ function StaffWelcome() {
 function Workspace({
   session,
   controls,
+  showKit,
 }: {
   session: AuthenticatedSession;
   controls: IdentityControls;
+  showKit: (visible: boolean) => void;
 }) {
+  useEffect(() => {
+    showKit(true);
+    return () => showKit(false);
+  }, [showKit]);
   // A private cache belongs to this mounted identity only and is discarded on sign-out.
   const [client] = useState(
     () =>
@@ -211,9 +225,7 @@ function Workspace({
               <div className="min-w-0 space-y-0.5">
                 <p className="max-w-[16rem] truncate text-xs font-medium">{session.user.email}</p>
                 <Badge variant="secondary" className="h-5">
-                  {session.authenticationMethod === "demo"
-                    ? "Demo access · email unverified"
-                    : "Email verified"}
+                  {session.authenticationMethod === "demo" ? "Staff access" : "Email verified"}
                 </Badge>
               </div>
             </div>
@@ -223,7 +235,7 @@ function Workspace({
                 className={buttonVariants({ variant: "ghost", size: "sm" })}
               >
                 <Inbox aria-hidden="true" />
-                Demo inbox
+                Inbox
               </Link>
             )}
             <Button

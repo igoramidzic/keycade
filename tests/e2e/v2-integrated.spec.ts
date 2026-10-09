@@ -9,6 +9,7 @@ import type {
 import { expect as browserExpect, type Page, type Route, test } from "@playwright/test";
 import { demoImportRecipes } from "../../packages/contracts/src/demo-import";
 import { workflowApi } from "./closing-helpers";
+import { fillSignInEmail } from "./identity-helpers";
 
 const env = readEnvironment();
 const expect = browserExpect.configure({ timeout: 15_000 });
@@ -21,8 +22,8 @@ test.setTimeout(360_000);
 
 async function signIn(page: Page, origin: string, email: string) {
   await page.goto(origin);
-  await page.getByLabel("Email address", { exact: true }).fill(email);
-  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+  await fillSignInEmail(page, email);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
     page.getByRole("heading", {
       name: origin === staff ? "Applications" : "Your applications",
@@ -58,7 +59,7 @@ test("one new applicant resumes expanded setup and reaches reviewed financial hi
   const name = `Synthetic Integrated Workshop ${randomUUID().slice(0, 8)}`;
   await page.goto(bank);
   await page.getByRole("link", { name: "Apply for business financing", exact: true }).click();
-  await page.getByLabel("Email address", { exact: true }).fill(email);
+  await fillSignInEmail(page, email);
   await page.getByRole("button", { name: "Start application", exact: true }).click();
   await page.getByLabel("Legal business name", { exact: true }).fill(name);
   await page.getByRole("button", { name: "Continue", exact: true }).click();
@@ -141,12 +142,12 @@ test("one new applicant resumes expanded setup and reaches reviewed financial hi
     fullPage: true,
   });
 
-  const kit = page.getByLabel("Demo scenario kit", { exact: true });
+  const kit = page.getByLabel("Sample scenario kit", { exact: true });
   if (!(await kit.isVisible()))
-    await page.getByRole("button", { name: "Show demo kit", exact: true }).click();
+    await page.getByRole("button", { name: "Show sample kit", exact: true }).click();
   if (isMobile)
     await expect(
-      page.getByRole("dialog", { name: "Demo scenario kit", exact: true }),
+      page.getByRole("dialog", { name: "Sample scenario kit", exact: true }),
     ).toBeVisible();
   else {
     const kitBox = await kit.boundingBox();
@@ -159,7 +160,7 @@ test("one new applicant resumes expanded setup and reaches reviewed financial hi
     expect(sideBox.x + sideBox.width).toBeLessThanOrEqual(kitBox.x + 1);
     expect(taskBox.x + taskBox.width).toBeLessThanOrEqual(sideBox.x + 1);
   }
-  const importer = kit.getByRole("region", { name: "Demo text importer", exact: true });
+  const importer = kit.getByRole("region", { name: "Sample text importer", exact: true });
   const recipes = demoImportRecipes.filter((recipe) => recipe.outcome === "clear");
   const choosing = page.waitForEvent("filechooser");
   await importer.getByRole("button", { name: "Choose text files", exact: true }).focus();
@@ -186,7 +187,7 @@ test("one new applicant resumes expanded setup and reaches reviewed financial hi
       importer.getByRole("button", { name: `Upload imported ${recipe.title}`, exact: true }),
     ).toBeEnabled();
   }
-  await kit.getByRole("button", { name: "Hide demo kit", exact: true }).click();
+  await kit.getByRole("button", { name: "Hide sample kit", exact: true }).click();
   const recent = sidebar.getByRole("list", { name: "Recent other documents", exact: true });
   for (const recipe of recipes)
     await expect(recent.getByRole("listitem").filter({ hasText: recipe.fileName })).toContainText(
@@ -301,10 +302,10 @@ test("one new applicant resumes expanded setup and reaches reviewed financial hi
     await officer.keyboard.press("Enter");
     const geography = officer.getByRole("dialog", { name: "Geographic Eligibility", exact: true });
     await expect(
-      geography.getByText("Within the demo's US footprint.", { exact: true }),
+      geography.getByText("Within the US lending footprint.", { exact: true }),
     ).toBeVisible({ timeout: 30_000 });
     await expect(geography).toContainText("123 Synthetic Avenue");
-    await expect(geography).toContainText("US-only-demo-v1");
+    await expect(geography).toContainText("US footprint · v1");
     await expect(geography.getByRole("img")).toBeVisible();
     await noOverflow(officer);
     await geography.screenshot({

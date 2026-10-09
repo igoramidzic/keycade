@@ -31,6 +31,7 @@ import type {
 import { backLinkClassName, PageHeader } from "@keycade/ui/components/page-header";
 import { applicationStatusTone, StatusPill } from "@keycade/ui/components/status-pill";
 import { cn } from "@keycade/ui/lib/utils";
+import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -87,7 +88,7 @@ const statusDescriptions: Record<ApplicationSelection["status"], string> = {
   declined: "This application was declined. You can return to your other applications.",
   closing:
     "Your application is in closing. Review available tasks for remaining closing requirements.",
-  funded: "Simulated funding has been recorded. View Closing for the funded account summary.",
+  funded: "Funding has been recorded. View Closing for the funded account summary.",
   withdrawn: "This application was withdrawn. You can return to your other applications.",
 };
 const setupSteps: Record<ApplicationSelection["currentStep"], string> = {
@@ -127,7 +128,7 @@ function Summary({ application }: { application: ApplicationSelection }) {
       <div className="min-w-0">
         <dt className="text-xs font-medium text-muted-foreground">Product</dt>
         <dd className="mt-1 font-medium break-words">
-          {application.productName ?? "Not assigned"}
+          {workflowText(application.productName ?? "Not assigned")}
         </dd>
       </div>
       <div className="min-w-0">
@@ -567,7 +568,9 @@ function ClosedApplication({
           <CardTitle>
             <h1 className="text-2xl">This application is closed</h1>
           </CardTitle>
-          <CardDescription>{data.businessName ?? "Business application"}</CardDescription>
+          <CardDescription>
+            {workflowName(data.businessName ?? "Business application")}
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <p className="text-sm leading-6">{statusDescriptions[data.status]}</p>
@@ -721,7 +724,7 @@ function ApplicationPortal({
               Application {data.id.slice(-8)}
             </p>
             <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight break-words sm:text-[2rem]">
-              {data.businessName ?? "Business application"}
+              {workflowName(data.businessName ?? "Business application")}
             </h1>
           </div>
           {limited && <Badge variant="secondary">Limited access</Badge>}
@@ -755,7 +758,7 @@ function ApplicationPortal({
             Current application
           </h2>
           <p className="mt-1.5 font-medium break-words">
-            {data.businessName ?? "Business application"}
+            {workflowName(data.businessName ?? "Business application")}
           </p>
           <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
             <StatusPill tone={applicationStatusTone(data.status)}>
@@ -801,10 +804,7 @@ function ApplicationPortal({
                     </Link>
                   </ActionRow>
                 )}
-                <ActionRow
-                  icon={FileSignature}
-                  text="Open your permitted simulated signature requests."
-                >
+                <ActionRow icon={FileSignature} text="Open your permitted signature requests.">
                   <Link to={path("signatures")} className={quietLink}>
                     View signatures
                     <ArrowRight aria-hidden="true" className="size-3.5" />
@@ -815,7 +815,7 @@ function ApplicationPortal({
                     icon={ListChecks}
                     text={
                       data.status === "funded"
-                        ? "Simulated funding is recorded for this application."
+                        ? "Funding is recorded for this application."
                         : "Complete remaining closing conditions and signatures."
                     }
                   >
@@ -839,7 +839,7 @@ function ApplicationPortal({
                   <h2>Application details</h2>
                 </CardTitle>
                 <CardDescription className="break-words">
-                  {data.businessName ?? "Business application"}
+                  {workflowName(data.businessName ?? "Business application")}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
@@ -852,7 +852,7 @@ function ApplicationPortal({
                     </p>
                   )}
                   <p className="text-sm text-muted-foreground">
-                    {data.productName ?? "Product not assigned"}
+                    {workflowText(data.productName ?? "Product not assigned")}
                   </p>
                 </div>
                 {!limited && (data.fundingPurposes.length > 0 || data.purpose) && (
@@ -931,9 +931,9 @@ function ApplicationPortal({
                 <div className="flex items-center gap-3">
                   <IdentityAvatar email={data.loanOfficer.email} className="size-10" />
                   <div className="min-w-0 space-y-0.5 text-sm">
-                    <p className="font-medium">{data.loanOfficer.displayName}</p>
+                    <p className="font-medium">{workflowName(data.loanOfficer.displayName)}</p>
                     <p className="break-all text-muted-foreground">{data.loanOfficer.email}</p>
-                    <Badge variant="secondary">Synthetic contact</Badge>
+                    <Badge variant="secondary">Contact</Badge>
                   </div>
                 </div>
               ) : (

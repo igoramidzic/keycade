@@ -66,6 +66,8 @@ import {
   staffOverviewSchema,
   staffPageQuerySchema,
   staffSessionSchema,
+  staffSignInAccountsSchema,
+  staffSignInQuerySchema,
   staffWorkspaceSchema,
   taskRevisionSchema,
   tasksViewSchema,
@@ -447,6 +449,26 @@ export async function buildServer(options: ServerOptions) {
       publicSession(request.authentication, options.demoSignInEnabled, options.demoInboxEnabled),
   );
   app.get(
+    "/api/v1/auth/staff-accounts",
+    {
+      schema: {
+        querystring: staffSignInQuerySchema,
+        response: { 200: staffSignInAccountsSchema, ...responses },
+      },
+    },
+    async (request, reply) => {
+      if (options.demoSignInEnabled !== true)
+        return reply.code(503).send({
+          error: {
+            code: "DEMO_SIGN_IN_UNAVAILABLE",
+            message: "Sign-in is temporarily unavailable.",
+            requestId: request.id,
+          },
+        });
+      return identity.listDemoStaffAccounts(request.query.bankSlug);
+    },
+  );
+  app.get(
     "/api/v1/auth/staff",
     {
       schema: { response: { 200: staffSessionSchema, ...responses } },
@@ -467,8 +489,7 @@ export async function buildServer(options: ServerOptions) {
         return reply.code(503).send({
           error: {
             code: "AUTH_DELIVERY_UNAVAILABLE",
-            message:
-              "Email sign-in is available in the local demo. Hosted email delivery is not configured.",
+            message: "Email sign-in is temporarily unavailable.",
             requestId: request.id,
           },
         });
@@ -501,7 +522,7 @@ export async function buildServer(options: ServerOptions) {
         return reply.code(503).send({
           error: {
             code: "DEMO_SIGN_IN_UNAVAILABLE",
-            message: "Immediate demo sign-in is unavailable in this environment.",
+            message: "Immediate sign-in is temporarily unavailable.",
             requestId: request.id,
           },
         });
@@ -584,8 +605,7 @@ export async function buildServer(options: ServerOptions) {
         return reply.code(503).send({
           error: {
             code: "AUTH_DELIVERY_UNAVAILABLE",
-            message:
-              "Email sign-in is available in the local demo. Hosted email delivery is not configured.",
+            message: "Email sign-in is temporarily unavailable.",
             requestId: request.id,
           },
         });

@@ -7,6 +7,7 @@ import {
   CollapsibleTrigger,
 } from "@keycade/ui/components/collapsible";
 import { NativeSelect } from "@keycade/ui/components/native-select";
+import { workflowText } from "@keycade/ui/lib/workflow-text";
 import { ChevronRight } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 
@@ -89,7 +90,7 @@ function SuggestedFields({ fields }: { fields: ExtractedField[] }) {
     <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
       {fields.map((field) => (
         <div key={field.key}>
-          <dt className="text-muted-foreground">{field.label}</dt>
+          <dt className="text-muted-foreground">{workflowText(field.label)}</dt>
           <dd className="mt-1 whitespace-pre-wrap break-words font-medium">{field.value}</dd>
         </div>
       ))}
@@ -99,8 +100,8 @@ function SuggestedFields({ fields }: { fields: ExtractedField[] }) {
 
 function SimulatedFindings({ findings }: { findings: DocumentFinding[] }) {
   return (
-    <section aria-label="Simulated document checks" className="space-y-3">
-      <h5 className="text-sm font-medium">Simulated document checks</h5>
+    <section aria-label="Document checks" className="space-y-3">
+      <h5 className="text-sm font-medium">Document checks</h5>
       {findings.map((finding) => (
         <div
           key={`${finding.code}-${finding.title}`}
@@ -111,14 +112,15 @@ function SimulatedFindings({ findings }: { findings: DocumentFinding[] }) {
           }`}
         >
           <p className="font-medium">
-            {finding.title} · {finding.severity === "clear" ? "Clear" : "Review needed"}
+            {workflowText(finding.title)} ·{" "}
+            {finding.severity === "clear" ? "Clear" : "Review needed"}
           </p>
-          <p className="whitespace-pre-wrap break-words">{finding.detail}</p>
+          <p className="whitespace-pre-wrap break-words">{workflowText(finding.detail)}</p>
         </div>
       ))}
       <p className="text-xs leading-5 text-muted-foreground">
-        These checks are simulated and unverified. They do not confirm authenticity, verify
-        identity, complete a requirement, or approve a loan.
+        These checks are unverified. They do not confirm authenticity, verify identity, complete a
+        requirement, or approve a loan.
       </p>
     </section>
   );
@@ -179,7 +181,7 @@ export function DocumentInterpretation({
     if (
       await act(
         () => correct(category, reason.trim(), categoryRevision),
-        "Staff category saved. The original simulated result is preserved.",
+        "Staff category saved. The original result is preserved.",
       )
     ) {
       setReason("");
@@ -187,9 +189,9 @@ export function DocumentInterpretation({
     }
   }
   return (
-    <section aria-label="Simulated document interpretation" className="space-y-4 border-t pt-4">
+    <section aria-label="Document interpretation" className="space-y-4 border-t pt-4">
       <div className="flex flex-wrap items-center gap-2">
-        <h4 className="text-sm font-medium">Simulated interpretation</h4>
+        <h4 className="text-sm font-medium">Interpretation</h4>
         <Badge variant={processing.state === "failed" ? "destructive" : "secondary"}>
           {stateLabels[processing.state]}
         </Badge>
@@ -197,8 +199,8 @@ export function DocumentInterpretation({
       {processing.state === "queued" || processing.state === "processing" ? (
         <p role="status" className="text-sm text-muted-foreground">
           {processing.state === "queued" && processing.errorCode
-            ? "A temporary interpretation error occurred. The demo will retry automatically; the original clean file remains available."
-            : "The demo is interpreting this clean file. Results will appear here after the simulated delay."}
+            ? "A temporary interpretation error occurred. Processing will retry automatically; the original clean file remains available."
+            : "This file is being interpreted. Results will appear here shortly."}
         </p>
       ) : null}
       {processing.state === "failed" && (
@@ -210,10 +212,10 @@ export function DocumentInterpretation({
         <p className="text-sm text-muted-foreground">
           {processing.category === "other"
             ? processing.manualCategory
-              ? "The simulated interpreter could not identify this content. Its original result remains available for review."
-              : "The simulated interpreter could not identify this content. It stays in Other for review."
+              ? "The interpreter could not identify this content. Its original result remains available for review."
+              : "The interpreter could not identify this content. It stays in Other for review."
             : processing.findings?.some((finding) => finding.severity === "warning")
-              ? "The simulated checks found an issue. Review the original file and suggested findings before accepting this evidence."
+              ? "The checks found an issue. Review the original file and suggested findings before accepting this evidence."
               : "The suggested category has low confidence. Review the original file before relying on its suggested values."}
         </p>
       )}
@@ -239,7 +241,7 @@ export function DocumentInterpretation({
       {!!processing.findings?.length && <SimulatedFindings findings={processing.findings} />}
       {processing.extractedFields.length > 0 && (
         <div className="space-y-3 rounded-lg bg-muted/40 p-3">
-          <h5 className="text-sm font-medium">Suggested fields · Simulated, unverified</h5>
+          <h5 className="text-sm font-medium">Suggested fields · Unverified</h5>
           <SuggestedFields fields={processing.extractedFields} />
           <p className="text-xs leading-5 text-muted-foreground">
             These suggestions do not change confirmed application values.
@@ -251,7 +253,7 @@ export function DocumentInterpretation({
           <h5 className="font-medium">Suggested task matches</h5>
           <ul className="list-disc space-y-1 pl-5">
             {processing.suggestedTasks.map((task) => (
-              <li key={task.id}>{task.title}</li>
+              <li key={task.id}>{workflowText(task.title)}</li>
             ))}
           </ul>
           <p className="text-xs text-muted-foreground">
@@ -296,7 +298,7 @@ export function DocumentInterpretation({
           size="sm"
           variant="outline"
           disabled={busy}
-          onClick={() => void act(retry, "Simulated interpretation queued again.")}
+          onClick={() => void act(retry, "Interpretation queued again.")}
         >
           {processing.state === "failed" ? "Retry interpretation" : "Interpret again"}
         </Button>
@@ -396,8 +398,8 @@ export function DocumentInterpretation({
                 </section>
               )}
               {processing.history.length > 0 && (
-                <section aria-label="Simulated interpretation runs" className="space-y-3">
-                  <h5 className="font-medium">Simulated runs</h5>
+                <section aria-label="Interpretation runs" className="space-y-3">
+                  <h5 className="font-medium">Runs</h5>
                   {processing.history.map((run) => (
                     <div key={run.id} className="space-y-2 border-l-2 pl-3">
                       <p>

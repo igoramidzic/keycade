@@ -8,6 +8,7 @@ import {
   CardTitle,
 } from "@keycade/ui/components/card";
 import { type Confirmation, IdentityPortal } from "@keycade/ui/components/identity-portal";
+import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
 import { ArrowRight, Check, CircleAlert, CircleDashed, Landmark, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -24,11 +25,10 @@ declare const __KEYCADE_PUBLIC__: {
 const applications = {
   "bank-site": {
     name: "Keycade Bank",
-    label: "Mock bank site",
+    label: "Bank website",
     eyebrow: "The beginning of the journey",
     title: "A place for businesses to move forward.",
-    description:
-      "The public entry point for Keycade’s business lending experience. Sign in to the borrower portal to try the demo.",
+    description: "Start or continue your business loan application in the borrower portal.",
     url: () => __KEYCADE_PUBLIC__.bankSiteUrl,
   },
   borrower: {
@@ -36,8 +36,7 @@ const applications = {
     label: "Borrower workspace",
     eyebrow: "Your business, in one place",
     title: "Room for your next chapter.",
-    description:
-      "Enter a synthetic email to open the local borrower demo immediately. You can also test the one-time email link flow.",
+    description: "Enter your email to open your workspace.",
     url: () => __KEYCADE_PUBLIC__.borrowerUrl,
   },
   "bank-console": {
@@ -137,7 +136,7 @@ export function FoundationShell({
             <span className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Landmark aria-hidden="true" className="size-5" />
             </span>
-            <span>{current.name}</span>
+            <span>{workflowName(current.name)}</span>
           </a>
           <nav aria-label="Applications" className="flex flex-wrap items-center gap-1">
             {(Object.entries(applications) as [AppName, (typeof applications)[AppName]][]).map(
@@ -160,25 +159,16 @@ export function FoundationShell({
 
       <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-6 py-12 lg:px-8 lg:py-20">
         <div className="mb-5 flex flex-wrap items-center gap-3">
-          <Badge variant="secondary">
-            {app === "bank-site"
-              ? __KEYCADE_PUBLIC__.hosted
-                ? "Demo foundation"
-                : "Local foundation"
-              : "Demo access"}
-          </Badge>
-          <span className="text-xs text-muted-foreground">
-            {__KEYCADE_PUBLIC__.hosted ? "Hosted preview" : "Development preview"}
-          </span>
+          <Badge variant="secondary">{app === "bank-site" ? "Workspace" : "Signed in"}</Badge>
         </div>
         <div className="grid items-start gap-10 lg:grid-cols-[1.35fr_1fr] lg:gap-20">
           <section>
             <p className="mb-4 text-sm font-medium text-muted-foreground">{current.eyebrow}</p>
             <h1 className="max-w-xl text-4xl font-semibold tracking-tight text-balance sm:text-5xl sm:leading-[1.12]">
-              {current.title}
+              {workflowText(current.title)}
             </h1>
             <p className="mt-6 max-w-xl text-base leading-7 text-muted-foreground">
-              {current.description}
+              {workflowText(current.description)}
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <a
@@ -236,7 +226,7 @@ export function FoundationShell({
       </main>
       <footer className="border-t">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-6 py-5 text-xs text-muted-foreground lg:px-8">
-          <span>Keycade · Local development</span>
+          <span>Keycade · Business lending</span>
           <span>Applications through funding</span>
         </div>
       </footer>

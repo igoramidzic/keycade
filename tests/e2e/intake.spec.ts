@@ -1,7 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { readEnvironment } from "@keycade/config/server";
 import { expect, type Page, test } from "@playwright/test";
-import { messages, openLink, requestLink, waitForLink } from "./identity-helpers";
+import {
+  fillSignInEmail,
+  messages,
+  openLink,
+  requestAccessEmail,
+  requestLink,
+  waitForLink,
+} from "./identity-helpers";
 
 const env = readEnvironment();
 const bank = `http://127.0.0.1:${env.BANK_SITE_PORT ?? 3000}`;
@@ -62,8 +69,8 @@ async function setup(page: Page): Promise<Setup> {
 
 async function demoSignIn(page: Page, email: string) {
   await page.goto(borrower);
-  await page.getByLabel("Email address", { exact: true }).fill(email);
-  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+  await fillSignInEmail(page, email);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Your applications", exact: true })).toBeVisible();
 }
 
@@ -137,8 +144,8 @@ test("bank apply, saved edits, browser loss, and explicit completion use the sam
   await page.goto(bank);
   await page.getByRole("link", { name: "Apply for business financing", exact: true }).click();
   await expect(page).toHaveURL(apply);
-  await expect(page.getByText("Synthetic Bank A", { exact: true }).first()).toBeVisible();
-  await page.getByLabel("Email address", { exact: true }).fill(email);
+  await expect(page.getByText("Bank A", { exact: true }).first()).toBeVisible();
+  await fillSignInEmail(page, email);
   await page.getByRole("button", { name: "Start application", exact: true }).click();
   await expect(page.getByLabel("Legal business name", { exact: true })).toBeVisible();
   const original = await setup(page);
@@ -279,7 +286,7 @@ test("failed saves retain edits and stale revisions require an explicit recovera
     return route.abort();
   });
   await page.goto(`${borrower}/apply?bank=bank-a`);
-  await page.getByLabel("Email address", { exact: true }).fill(email);
+  await fillSignInEmail(page, email);
   await page.getByRole("button", { name: "Start application", exact: true }).click();
   await expect(page.getByRole("alert")).toBeVisible();
   await expect(page.getByLabel("Email address", { exact: true })).toHaveValue(email);
@@ -360,10 +367,8 @@ test("email start, expired-link recovery, and fresh links resume the same draft 
     if (new URL(request.url()).pathname === "/api/v1/applications/start") starts += 1;
   });
   await page.goto(apply);
-  await page.getByLabel("Email address", { exact: true }).fill(email);
-  await page.getByRole("button", { name: "Use an email link instead", exact: true }).click();
-  await page.getByRole("button", { name: "Start application", exact: true }).click();
-  await expect(page.getByText("Check your inbox", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Email address", { exact: true })).toBeVisible();
+  await requestAccessEmail(page, email, true);
   const originalLink = await waitForLink(borrower, email, previous);
   await openLink(page, originalLink);
   // Deterministically exercise expiry presentation; identity integration tests verify
@@ -425,8 +430,8 @@ test("a staff-prefilled draft requires the applicant to review and explicitly fi
   );
   const email = `intake-staff-prefill-${randomUUID()}@example.test`;
   await page.goto(staff);
-  await page.getByLabel("Email address", { exact: true }).fill("officer-a@example.test");
-  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+  await fillSignInEmail(page, "officer-a@example.test");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Applications", exact: true })).toBeVisible();
   const draft = await api<Setup>(page, "POST", "", { email, idempotencyKey: randomUUID() });
   const catalog = await page.evaluate(async () =>
@@ -475,7 +480,7 @@ test("session recovery keeps unsaved answers and another signed-in account canno
 }) => {
   const email = `intake-session-${randomUUID()}@example.test`;
   await page.goto(apply);
-  await page.getByLabel("Email address", { exact: true }).fill(email);
+  await fillSignInEmail(page, email);
   await page.getByRole("button", { name: "Start application", exact: true }).click();
   await expect(page.getByLabel("Legal business name", { exact: true })).toBeVisible();
   await answer(page, "Legal business name", "Synthetic Session Workshop", "Street address");
@@ -486,8 +491,8 @@ test("session recovery keeps unsaved answers and another signed-in account canno
     await expect(page.getByRole("button", { name: "Sign in again", exact: true })).toBeVisible();
     await expect(page.getByLabel("Business EIN", { exact: true })).toHaveValue("");
     await page.getByRole("button", { name: "Sign in again", exact: true }).click();
-    await page.getByLabel("Email address", { exact: true }).fill(email);
-    await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+    await fillSignInEmail(page, email);
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(page.getByLabel("Business EIN", { exact: true })).toHaveValue("");
     expect((await setup(page)).businessEin).toEqual({ present: false, mask: null });
   });
@@ -504,8 +509,8 @@ test("session recovery keeps unsaved answers and another signed-in account canno
   await expect(page.getByRole("button", { name: "Sign in again", exact: true })).toBeVisible();
   await expect(page.getByLabel("Requested amount", { exact: true })).toHaveValue("37,500");
   await page.getByRole("button", { name: "Sign in again", exact: true }).click();
-  await page.getByLabel("Email address", { exact: true }).fill(email);
-  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+  await fillSignInEmail(page, email);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByLabel("Requested amount", { exact: true })).toHaveValue("37,500");
   expect((await setup(page)).requestedAmount).toBeNull();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
@@ -580,9 +585,7 @@ test("optional EIN, website and Other detail persist safely and require delibera
   page,
 }) => {
   await page.goto(apply);
-  await page
-    .getByLabel("Email address", { exact: true })
-    .fill(`intake-optional-${randomUUID()}@example.test`);
+  await fillSignInEmail(page, `intake-optional-${randomUUID()}@example.test`);
   await page.getByRole("button", { name: "Start application", exact: true }).click();
   await answer(page, "Legal business name", "Synthetic Optional Workshop", "Street address");
   for (const [label, value] of [

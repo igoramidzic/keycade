@@ -1,5 +1,6 @@
 import { authSessionSchema } from "@keycade/contracts";
 import { currentSession, rememberSession } from "@keycade/ui/lib/session-snapshot";
+import { workflowText } from "@keycade/ui/lib/workflow-text";
 
 export class ApiError extends Error {
   constructor(
@@ -7,7 +8,7 @@ export class ApiError extends Error {
     public status: number,
     message: string,
   ) {
-    super(message);
+    super(workflowText(message));
   }
 }
 type RequestOptions = {

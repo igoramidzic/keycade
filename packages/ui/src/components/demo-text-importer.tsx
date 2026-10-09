@@ -22,6 +22,7 @@ import {
   demoImportMime,
   sameDemoImportContext,
 } from "@keycade/ui/lib/demo-import-transfer";
+import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
 import { cn } from "cn";
 import { ChevronDown, Download, FileText, GripVertical, Upload } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
@@ -76,7 +77,7 @@ export function DemoTextImporter({
       if (files.length > demoImportMaxFiles)
         throw new Error(`Choose up to ${demoImportMaxFiles} text files at a time.`);
       if (files.some((file) => file.size > demoImportMaxBytes))
-        throw new Error("Each demo text file must be 64 KiB or smaller.");
+        throw new Error("Each Sample text file must be 64 KiB or smaller.");
       const inputs = await Promise.all(
         files.map(async (file) => ({
           fileName: file.name,
@@ -96,14 +97,14 @@ export function DemoTextImporter({
         })),
       );
       setMessage(
-        `${recipes.length} synthetic PDF preview${recipes.length === 1 ? "" : "s"} ready. Review the recipe before uploading.`,
+        `${recipes.length} PDF preview${recipes.length === 1 ? "" : "s"} ready. Review the recipe before uploading.`,
       );
     } catch (failure) {
       if (mounted.current && token === sequence.current)
         setError(
           failure instanceof Error
             ? failure.message
-            : "Unable to read these demo text files. Try again.",
+            : "Unable to read these Sample text files. Try again.",
         );
     } finally {
       if (mounted.current && token === sequence.current) setBusy(false);
@@ -111,18 +112,18 @@ export function DemoTextImporter({
   }
 
   return (
-    <section aria-label="Demo text importer" className="space-y-3">
+    <section aria-label="Sample text importer" className="space-y-3">
       <DemoStepHeading
         id={headingId}
         step={step}
-        title="Import demo text files"
-        hint="A registered filename picks a synthetic PDF recipe; text content is ignored. Importing saves nothing until you upload the generated PDF."
+        title="Import Sample text files"
+        hint="A registered filename picks a PDF recipe; text content is ignored. Importing saves nothing until you upload the generated PDF."
       />
       <DemoDestination
         ready={Boolean(uploadTarget?.demoImportContext && uploadTarget.subject === "business")}
       >
         {uploadTarget?.demoImportContext && uploadTarget.subject === "business"
-          ? `PDF destination: ${uploadTarget.label}. Scanning and simulated analysis follow upload.`
+          ? `PDF destination: ${uploadTarget.label}. Scanning and analysis follow upload.`
           : "Open an authorized application document area or business task to generate uploadable samples. Generic downloads remain available."}
       </DemoDestination>
       <Collapsible className="group/recipes overflow-hidden rounded-lg border bg-card">
@@ -139,8 +140,8 @@ export function DemoTextImporter({
               <li key={recipe.id} className="py-2">
                 <p className="font-medium break-all">{recipe.basename}</p>
                 <p className="text-muted-foreground">
-                  {recipe.title} ·{" "}
-                  {recipe.outcome === "clear" ? "Simulated matching sample" : "Needs review"}
+                  {workflowText(recipe.title)} ·{" "}
+                  {recipe.outcome === "clear" ? "Matching sample" : "Needs review"}
                 </p>
               </li>
             ))}
@@ -148,7 +149,7 @@ export function DemoTextImporter({
         </CollapsibleContent>
       </Collapsible>
       <section
-        aria-label="Demo text import drop area"
+        aria-label="Sample text import drop area"
         aria-busy={busy}
         onDragOver={(event) => {
           event.preventDefault();
@@ -168,7 +169,7 @@ export function DemoTextImporter({
         <p className="text-xs">Drop registered .txt files here</p>
         <input
           ref={picker}
-          aria-label="Choose demo text files"
+          aria-label="Choose Sample text files"
           className="sr-only"
           tabIndex={-1}
           type="file"
@@ -188,12 +189,12 @@ export function DemoTextImporter({
       </section>
       {busy && (
         <p role="status" className="text-xs">
-          Reading demo text files…
+          Reading Sample text files…
         </p>
       )}
       {error && (
         <p role="alert" className="break-words text-xs text-destructive">
-          {error} Open the supported filename list above.
+          {workflowText(error)} Open the supported filename list above.
         </p>
       )}
       {message && (
@@ -223,7 +224,7 @@ export function DemoTextImporter({
         return (
           <article
             key={`${fixture.recipeId}:${index}`}
-            aria-label={`Imported ${recipe.title}`}
+            aria-label={`Imported ${workflowText(recipe.title)}`}
             draggable
             onDragStart={(event) => {
               event.dataTransfer.setData(demoImportMime, JSON.stringify(preview));
@@ -237,11 +238,13 @@ export function DemoTextImporter({
                 aria-hidden="true"
               />
               <div className="min-w-0 space-y-1">
-                <p className="text-sm leading-6 font-medium">{recipe.title}</p>
+                <p className="text-sm leading-6 font-medium">{workflowText(recipe.title)}</p>
                 <p className="text-xs break-all text-muted-foreground">{recipe.fileName}</p>
               </div>
             </div>
-            <p className="text-xs leading-5 text-muted-foreground">{recipe.summary}</p>
+            <p className="text-xs leading-5 text-muted-foreground">
+              {workflowText(recipe.summary)}
+            </p>
             <dl className="divide-y rounded-md border px-2.5 text-xs">
               {financialFields.map((field) => (
                 <div key={field.key} className="flex justify-between gap-3 py-1.5">
@@ -262,29 +265,27 @@ export function DemoTextImporter({
               Period: {recipe.period.start}–{recipe.period.end}
             </p>
             <p className="text-xs break-words text-muted-foreground">
-              {uploadTarget?.demoImportContext
-                ? "Application snapshot"
-                : "Generic synthetic business"}
-              : {fixture.businessName}
+              {uploadTarget?.demoImportContext ? "Application snapshot" : "Generic business"}:{" "}
+              {workflowName(fixture.businessName)}
             </p>
             <p className="text-xs break-words text-muted-foreground">
               PDF business: {demoImportBusinessName(fixture)}
             </p>
             <p className="text-xs">
               {recipe.outcome === "clear"
-                ? "Expected result: simulated name match to the printed snapshot"
+                ? "Expected result: name match to the printed snapshot"
                 : "Needs review"}{" "}
-              · Synthetic, unverified
+              · Unverified
             </p>
             <div className="flex gap-2">
               <Button
                 size="sm"
-                aria-label={`Upload imported ${recipe.title}`}
+                aria-label={`Upload imported ${workflowText(recipe.title)}`}
                 disabled={!canUpload}
                 onClick={() => {
                   uploadTarget?.uploadImport?.(preview);
                   setMessage(
-                    `${recipe.title} sent to ${uploadTarget?.label ?? "the upload area"}.`,
+                    `${workflowText(recipe.title)} sent to ${uploadTarget?.label ?? "the upload area"}.`,
                   );
                 }}
               >
@@ -293,7 +294,7 @@ export function DemoTextImporter({
               <Button
                 size="sm"
                 variant="outline"
-                aria-label={`Download imported ${recipe.title}`}
+                aria-label={`Download imported ${workflowText(recipe.title)}`}
                 onClick={() => {
                   const url = URL.createObjectURL(createDemoImportFile(fixture));
                   const anchor = document.createElement("a");

@@ -16,21 +16,21 @@ export function generalUploadStatus(version: DocumentVersion) {
   if (version.uploadState === "missing") return "File unavailable";
   if (version.uploadState === "abandoned") return "Upload cancelled";
   if (version.uploadState === "staged") return "Upload unfinished";
-  if (version.scanState === "pending") return "Simulated scan pending";
-  if (version.scanState === "blocked") return "Blocked by simulated scan";
-  if (version.scanState === "error") return "Simulated scan failed";
+  if (version.scanState === "pending") return "Scan pending";
+  if (version.scanState === "blocked") return "Blocked by scan";
+  if (version.scanState === "error") return "Scan failed";
   switch (version.processing?.state) {
     case "queued":
-      return "Simulated processing queued";
+      return "Processing queued";
     case "processing":
-      return "Simulated processing in progress";
+      return "Processing in progress";
     case "failed":
-      return "Simulated processing failed";
+      return "Processing failed";
     case "needs_review":
       return "Ready for lender review";
     case "classified":
-      return "Simulated processing complete";
+      return "Processing complete";
     default:
-      return "Simulated scan clean";
+      return "Scan clean";
   }
 }

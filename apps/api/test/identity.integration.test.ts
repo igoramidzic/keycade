@@ -112,6 +112,60 @@ for (const transport of ["fastify", "worker"] as const) {
       return { app, call, requestLink };
     }
 
+    it("lists only current synthetic staff in the selected bank and remains disabled by default", async () => {
+      const enabled = await client(true);
+      const disabled = await client();
+      try {
+        const path = "/api/v1/auth/staff-accounts?bankSlug=";
+        expect((await disabled.call(`${path}bank-a`)).status).toBe(503);
+        expect((await enabled.call(`${path}bank-a`)).body).toEqual({
+          accounts: [{ email: "officer-a@example.test", role: "admin" }],
+        });
+        expect((await enabled.call(`${path}bank-b`)).body).toEqual({
+          accounts: [{ email: "officer-b@example.test", role: "officer" }],
+        });
+        expect((await enabled.call(`${path}missing-bank`)).body).toEqual({ accounts: [] });
+        expect((await enabled.call(`${path}invalid!`)).status).toBe(400);
+        const email = `staff-picker-${transport}@example.test`;
+        const inserted = await database.pool.query<{ id: string }>(
+          "INSERT INTO users (email, display_name, synthetic) VALUES ($1, 'Picker test', true) RETURNING id",
+          [email],
+        );
+        const userId = inserted.rows[0]?.id;
+        await database.pool.query(
+          "INSERT INTO bank_memberships (bank_id, user_id, role, synthetic) VALUES ($1, $2, 'officer', true)",
+          [seedIds.bankA, userId],
+        );
+        const list = async () => (await enabled.call(`${path}bank-a`)).body.accounts;
+        expect(await list()).toContainEqual({ email, role: "officer" });
+        await database.pool.query("UPDATE users SET synthetic = false WHERE id = $1", [userId]);
+        expect(await list()).not.toContainEqual({ email, role: "officer" });
+        await database.pool.query("UPDATE users SET synthetic = true WHERE id = $1", [userId]);
+        await database.pool.query(
+          "UPDATE bank_memberships SET synthetic = false WHERE user_id = $1",
+          [userId],
+        );
+        expect(await list()).not.toContainEqual({ email, role: "officer" });
+        await database.pool.query(
+          "UPDATE bank_memberships SET synthetic = true, revoked_at = now() WHERE user_id = $1",
+          [userId],
+        );
+        expect(await list()).not.toContainEqual({ email, role: "officer" });
+        expect(
+          (
+            await enabled.call("/api/v1/auth/demo-sign-in", {
+              method: "POST",
+              origin: staffOrigin,
+              body: { email, bankSlug: "bank-a", portal: "staff" },
+            })
+          ).status,
+        ).toBe(404);
+      } finally {
+        await enabled.app.close();
+        await disabled.app.close();
+      }
+    });
+
     it("binds reads and writes to the mounted session without trusting the binding as authentication", async () => {
       const enabled = await client(true);
       try {

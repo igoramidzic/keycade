@@ -91,25 +91,21 @@ test("the general upload projection excludes task/private evidence and supersede
 
 test("quarantine and missing bytes override a previously successful interpretation", () => {
   const interpreted = version({ processing: processing("classified") });
-  expect(generalUploadStatus(interpreted)).toBe("Simulated processing complete");
-  expect(generalUploadStatus({ ...interpreted, scanState: "blocked" })).toBe(
-    "Blocked by simulated scan",
-  );
-  expect(generalUploadStatus({ ...interpreted, scanState: "pending" })).toBe(
-    "Simulated scan pending",
-  );
+  expect(generalUploadStatus(interpreted)).toBe("Processing complete");
+  expect(generalUploadStatus({ ...interpreted, scanState: "blocked" })).toBe("Blocked by scan");
+  expect(generalUploadStatus({ ...interpreted, scanState: "pending" })).toBe("Scan pending");
   expect(generalUploadStatus({ ...interpreted, uploadState: "missing" })).toBe("File unavailable");
 });
 
 test("a clean scan distinguishes in-progress, failed and human-review interpretation states", () => {
   expect(generalUploadStatus(version({ processing: processing("queued") }))).toBe(
-    "Simulated processing queued",
+    "Processing queued",
   );
   expect(generalUploadStatus(version({ processing: processing("processing") }))).toBe(
-    "Simulated processing in progress",
+    "Processing in progress",
   );
   expect(generalUploadStatus(version({ processing: processing("failed") }))).toBe(
-    "Simulated processing failed",
+    "Processing failed",
   );
   expect(generalUploadStatus(version({ processing: processing("needs_review") }))).toBe(
     "Ready for lender review",

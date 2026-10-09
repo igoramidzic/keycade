@@ -55,7 +55,7 @@ export function ApplicationClosing({
           return result.data;
         }}
         mutate={async () => {
-          throw new Error("Only bank staff can start closing or record simulated funding.");
+          throw new Error("Only bank staff can start closing or record funding.");
         }}
       />
     </div>

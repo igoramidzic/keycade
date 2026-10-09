@@ -3,6 +3,7 @@ import { readEnvironment } from "@keycade/config/server";
 import type { ApplicationSetup, BusinessAddress, ChecksView } from "@keycade/contracts";
 import { expect, type Page, test } from "@playwright/test";
 import { workflowApi } from "./closing-helpers";
+import { fillSignInEmail } from "./identity-helpers";
 
 const env = readEnvironment();
 const staff = `http://127.0.0.1:${env.BANK_CONSOLE_PORT ?? 3002}`;
@@ -18,8 +19,8 @@ test.setTimeout(90_000);
 
 async function signIn(page: Page) {
   await page.goto(staff);
-  await page.getByLabel("Email address", { exact: true }).fill("officer-a@example.test");
-  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+  await fillSignInEmail(page, "officer-a@example.test");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Applications", exact: true })).toBeVisible();
 }
 
@@ -68,11 +69,11 @@ test("registered US footprint opens from Overview and Checks with keyboard focus
   await signIn(page);
   const app = await draft(page, registeredAddress);
   const { dialog, trigger } = await open(page, app.id);
-  await expect(dialog.getByText("Within the demo's US footprint.", { exact: true })).toBeVisible({
+  await expect(dialog.getByText("Within the US lending footprint.", { exact: true })).toBeVisible({
     timeout: 30_000,
   });
   await expect(dialog).toContainText("123 Synthetic Avenue");
-  await expect(dialog).toContainText("US-only-demo-v1");
+  await expect(dialog).toContainText("US footprint · v1");
   await expect(dialog.getByRole("img")).toBeVisible();
   await expect(dialog).not.toContainText("Map location unavailable");
   await noOverflow(page);
@@ -89,7 +90,7 @@ test("registered US footprint opens from Overview and Checks with keyboard focus
   await expect(trigger).toBeFocused();
   const checks = await open(page, app.id, "checks");
   await expect(
-    checks.dialog.getByText("Within the demo's US footprint.", { exact: true }),
+    checks.dialog.getByText("Within the US lending footprint.", { exact: true }),
   ).toBeVisible();
   await checks.dialog
     .getByRole("button", { name: "Close geographic eligibility", exact: true })
@@ -108,7 +109,7 @@ test("unregistered US address stays eligible without a pin and changed non-US ad
   await signIn(page);
   const app = await draft(page, { ...registeredAddress, line1: "987 Unregistered Demo Lane" });
   const { dialog } = await open(page, app.id);
-  await expect(dialog.getByText("Within the demo's US footprint.", { exact: true })).toBeVisible({
+  await expect(dialog.getByText("Within the US lending footprint.", { exact: true })).toBeVisible({
     timeout: 30_000,
   });
   await expect(dialog).toContainText("Map location unavailable");
@@ -129,7 +130,7 @@ test("unregistered US address stays eligible without a pin and changed non-US ad
   });
   const changed = await open(page, app.id);
   await expect(
-    changed.dialog.getByText("Outside the demo's US footprint.", { exact: true }),
+    changed.dialog.getByText("Outside the US lending footprint.", { exact: true }),
   ).toBeVisible({ timeout: 30_000 });
   await expect(changed.dialog).toContainText("42 Synthetic Road");
   await expect(changed.dialog.locator("dl")).not.toContainText("987 Unregistered Demo Lane");
@@ -148,7 +149,7 @@ test("missing address remains informational and the dialog preserves focus", asy
   const app = await draft(page);
   const { dialog, trigger } = await open(page, app.id, "checks");
   await expect(dialog.getByText("Needs address.", { exact: true })).toBeVisible();
-  await expect(dialog).not.toContainText("Within the demo's US footprint");
+  await expect(dialog).not.toContainText("Within the US lending footprint");
   await expect(dialog.getByRole("img")).toHaveCount(0);
   await noOverflow(page);
   await dialog.screenshot({ path: testInfo.outputPath("synthetic-footprint-missing.png") });
@@ -163,7 +164,7 @@ test("queued running failed and stale runs never display the old green result or
   const app = await draft(page, registeredAddress);
   await open(page, app.id);
   await expect(
-    page.getByRole("dialog").getByText("Within the demo's US footprint.", { exact: true }),
+    page.getByRole("dialog").getByText("Within the US lending footprint.", { exact: true }),
   ).toBeVisible({ timeout: 30_000 });
   const saved = await workflowApi<ChecksView>(page, "GET", `/applications/${app.id}/checks`);
   const footprint = saved.checks.find((check) => check.kind === "loan_footprint");
@@ -185,7 +186,7 @@ test("queued running failed and stale runs never display the old green result or
       await route.fulfill({ json: body });
     });
     const { dialog } = await open(page, app.id, "checks");
-    await expect(dialog).not.toContainText("Within the demo's US footprint");
+    await expect(dialog).not.toContainText("Within the US lending footprint");
     await expect(dialog.getByRole("img")).toHaveCount(0);
     await page.unroute(pattern);
   }
@@ -197,7 +198,7 @@ test("map failure preserves the country result and asynchronous refresh recovers
   await signIn(page);
   const app = await draft(page, registeredAddress);
   const { dialog } = await open(page, app.id, "checks");
-  await expect(dialog.getByText("Within the demo's US footprint.", { exact: true })).toBeVisible({
+  await expect(dialog.getByText("Within the US lending footprint.", { exact: true })).toBeVisible({
     timeout: 30_000,
   });
   await expect(dialog.getByRole("img")).toBeVisible();
@@ -218,7 +219,7 @@ test("map failure preserves the country result and asynchronous refresh recovers
   expect(response.ok()).toBe(true);
   const next = (await response.json()) as ChecksView;
   expect(next.checks.find((check) => check.kind === "loan_footprint")?.currentRunId).not.toBe(old);
-  await expect(dialog.getByText("Within the demo's US footprint.", { exact: true })).toBeVisible({
+  await expect(dialog.getByText("Within the US lending footprint.", { exact: true })).toBeVisible({
     timeout: 30_000,
   });
   await expect(dialog.getByText(/^Previous footprint runs/)).toBeVisible();
@@ -237,11 +238,11 @@ test("map failure preserves the country result and asynchronous refresh recovers
   );
   await dialog.getByRole("button", { name: "Reload status", exact: true }).click();
   await expect(dialog.getByText("Status unavailable.", { exact: true })).toBeVisible();
-  await expect(dialog).not.toContainText("Within the demo's US footprint");
+  await expect(dialog).not.toContainText("Within the US lending footprint");
   await expect(dialog.getByRole("img")).toHaveCount(0);
   await page.unroute(pattern);
   await dialog.getByRole("button", { name: "Reload status", exact: true }).click();
-  await expect(dialog.getByText("Within the demo's US footprint.", { exact: true })).toBeVisible();
+  await expect(dialog.getByText("Within the US lending footprint.", { exact: true })).toBeVisible();
   await page.route(pattern, (route) =>
     route.fulfill({
       status: 404,

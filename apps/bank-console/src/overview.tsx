@@ -25,6 +25,7 @@ import {
 import { DescriptionItem, DescriptionList } from "@keycade/ui/components/description-list";
 import { checkRefreshInterval } from "@keycade/ui/lib/refresh-policy";
 import { cn } from "@keycade/ui/lib/utils";
+import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
@@ -86,7 +87,9 @@ export function ApplicationOverview({
           </CardHeader>
           <CardContent>
             <DescriptionList>
-              <Fact label="Legal business name">{workspace.businessName ?? "Not provided"}</Fact>
+              <Fact label="Legal business name">
+                {workflowName(workspace.businessName ?? "Not provided")}
+              </Fact>
               <Fact label="Industry">
                 {workspace.industryCode
                   ? `${workspace.industryCode} · ${industryByCode(workspace.industryCode)?.title ?? workspace.industryTaxonomyVersion}`
@@ -146,7 +149,7 @@ export function ApplicationOverview({
                 </span>
               </Fact>
               <Fact label="Current stage">{statusLabels[workspace.status]}</Fact>
-              <Fact label="Product">{workspace.productName ?? "Not provided"}</Fact>
+              <Fact label="Product">{workflowText(workspace.productName ?? "Not provided")}</Fact>
               <Fact label="Funding purposes">
                 {workspace.fundingPurposes.length
                   ? workspace.fundingPurposes
@@ -263,7 +266,7 @@ function TaxEvidence({
                             aria-hidden="true"
                             className="mt-0.5 size-4 shrink-0 text-muted-foreground"
                           />
-                          {document.displayName}
+                          {workflowName(document.displayName)}
                         </span>
                         <Badge variant="info">Evidence</Badge>
                       </div>
@@ -308,7 +311,7 @@ function TaxEvidence({
                         className="h-auto max-w-full py-2 text-left whitespace-normal"
                         onClick={() => open(document.documentId, document.currentVersionId)}
                       >
-                        Open {document.displayName}
+                        Open {workflowName(document.displayName)}
                       </Button>
                     </li>
                   ))}
@@ -375,8 +378,8 @@ function ApplicationStages({
           <h2>Application stages</h2>
         </CardTitle>
         <CardDescription>
-          Current stage: {statusLabels[workspace.status]}. Inspect requirements, simulated checks
-          and completed evidence; use the existing review and closing workflows to advance.
+          Current stage: {statusLabels[workspace.status]}. Inspect requirements, checks and
+          completed evidence; use the existing review and closing workflows to advance.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -485,7 +488,7 @@ function ApplicationStages({
                                 to={`${href("tasks")}${href("tasks").includes("?") ? "&" : "?"}task=${task.id}`}
                                 className="font-medium break-words text-foreground underline-offset-4 hover:text-info hover:underline"
                               >
-                                {task.title}
+                                {workflowText(task.title)}
                               </Link>
                               <p className="text-xs text-muted-foreground">
                                 {taskStates[task.state]} · {task.required ? "Required" : "Optional"}
@@ -519,7 +522,7 @@ function ApplicationStages({
                           : run.resolved
                             ? "Reviewed by staff"
                             : run.outcome === "clear"
-                              ? "Simulated clear"
+                              ? "Clear"
                               : run.outcome === "needs_review"
                                 ? "Needs staff review"
                                 : run.outcome === "unable_to_verify"
@@ -542,11 +545,9 @@ function ApplicationStages({
                                 to={href("checks")}
                                 className="font-medium break-words text-foreground underline-offset-4 hover:text-info hover:underline"
                               >
-                                {check.title}
+                                {workflowText(check.title)}
                               </Link>
-                              <p className="text-xs text-muted-foreground">
-                                {state} · Simulated check
-                              </p>
+                              <p className="text-xs text-muted-foreground">{state} · check</p>
                             </div>
                           </div>
                           <Badge variant="outline">Check result</Badge>
@@ -622,7 +623,7 @@ function RecentHistory({ applicationId, href }: { applicationId: string; href: s
                   className="relative mt-1.5 size-2.5 shrink-0 rounded-full border-2 border-info bg-card"
                 />
                 <div className="min-w-0">
-                  <p className="break-words">{entry.description}</p>
+                  <p className="break-words">{workflowText(entry.description)}</p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     {entry.actor} · {new Date(entry.createdAt).toLocaleString()}
                   </p>

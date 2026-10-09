@@ -5,7 +5,13 @@ import { syntheticDocumentPdf } from "@keycade/integrations/document-fixtures";
 import { type BrowserContext, expect as baseExpect, type Page, test } from "@playwright/test";
 import { prepareReview, workflowApi } from "./closing-helpers";
 import { confirmHostedInboxMessage, paceHostedRequests } from "./hosted-helpers";
-import { messages, openLink, waitForLink } from "./identity-helpers";
+import {
+  fillSignInEmail,
+  messages,
+  openLink,
+  requestAccessEmail,
+  waitForLink,
+} from "./identity-helpers";
 
 const env = readEnvironment();
 const borrower = env.KEYCADE_E2E_BORROWER_ORIGIN ?? `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
@@ -16,10 +22,11 @@ test.setTimeout(hosted ? 900000 : 420000);
 const expect = baseExpect.configure({ timeout: hosted ? 30000 : 15000 });
 async function signIn(page: Page, origin: string, email?: string) {
   await page.goto(origin);
-  await page
-    .getByLabel("Email address", { exact: true })
-    .fill(email ?? (origin === staff ? "officer-a@example.test" : "borrower@example.test"));
-  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+  await fillSignInEmail(
+    page,
+    email ?? (origin === staff ? "officer-a@example.test" : "borrower@example.test"),
+  );
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
     page.getByRole("heading", {
       name: origin === staff ? "Applications" : "Your applications",
@@ -61,11 +68,11 @@ test("approved terms progress through two signatures and explicit funding into o
     : "borrower@example.test";
   if (hosted) {
     await page.goto(`${borrower}/?bank=bank-a`);
-    await page.getByLabel("Email address", { exact: true }).fill(primaryEmail);
-    await page.getByRole("button", { name: "Use an email link instead", exact: true }).click();
-    await page.getByRole("button", { name: "Send sign-in link", exact: true }).click();
-    await expect(page.getByText("Check your inbox", { exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Open demo inbox", exact: true }).click();
+    await expect(page.getByLabel("Email address", { exact: true })).toBeVisible();
+    await requestAccessEmail(page, primaryEmail);
+    await fillSignInEmail(page, primaryEmail);
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    await page.getByRole("link", { name: "Inbox", exact: true }).click();
     await confirmHostedInboxMessage(page, "Your Keycade sign-in link");
     await expect(
       page.getByRole("heading", { name: "Your applications", exact: true }),
@@ -94,7 +101,7 @@ test("approved terms progress through two signatures and explicit funding into o
       .selectOption("demo_criteria_met");
     await officer
       .getByLabel(
-        "I reviewed the current application and am deliberately recording this simulated decision.",
+        "I reviewed the current application and am deliberately recording this decision.",
         { exact: true },
       )
       .check();
@@ -116,7 +123,7 @@ test("approved terms progress through two signatures and explicit funding into o
     expect(initial.account).toBeNull();
     expect(initial.capabilities.recordFunding).toBe(false);
     await expect(
-      officer.getByRole("button", { name: "Record simulated funding", exact: true }),
+      officer.getByRole("button", { name: "Record funding", exact: true }),
     ).toBeDisabled();
     // A forged early funding command is rejected by the same backend guard.
     const earlyStatus = await officer.evaluate(
@@ -182,7 +189,7 @@ test("approved terms progress through two signatures and explicit funding into o
     if (hosted) {
       await officer.goto(`${staff}/api/ready`);
       await signIn(signer, borrower, email);
-      await signer.getByRole("link", { name: "Demo inbox", exact: true }).click();
+      await signer.getByRole("link", { name: "Inbox", exact: true }).click();
       await confirmHostedInboxMessage(signer, "Your application invitation");
     } else {
       await openLink(signer, await waitForLink(borrower, email, previous));
@@ -198,25 +205,23 @@ test("approved terms progress through two signatures and explicit funding into o
       .selectOption(source.currentVersionId);
     await officer.getByLabel(new RegExp(primaryEmail.replaceAll(".", "\\."))).check();
     await officer.getByLabel(new RegExp(email.replaceAll(".", "\\."))).check();
-    await officer.getByRole("button", { name: "Create simulated request", exact: true }).click();
+    await officer.getByRole("button", { name: "Create request", exact: true }).click();
     const envelope = officer.getByRole("region", {
-      name: `Signature request ${signature.title}`,
+      name: "Signature request Sign closing agreement",
       exact: true,
     });
     await envelope.getByRole("button", { name: "Send request", exact: true }).click();
-    await expect(envelope.getByText("Sent in demo", { exact: true })).toBeVisible({
+    await expect(envelope.getByText("Delivered", { exact: true })).toBeVisible({
       timeout: hosted ? 120000 : 25000,
     });
     await officer.goto(`${staff}/api/ready`);
     await page.goto(url(borrower, "signatures"));
     const primary = page.getByRole("region", {
-      name: `Signature request ${signature.title}`,
+      name: "Signature request Sign closing agreement",
       exact: true,
     });
-    await primary
-      .getByLabel("I understand this is a simulated signature with no legal effect.")
-      .check();
-    await primary.getByRole("button", { name: "Sign in demo", exact: true }).click();
+    await primary.getByLabel("I have reviewed the document and am ready to sign.").check();
+    await primary.getByRole("button", { name: "Sign", exact: true }).click();
     await expect(primary.getByText("Partially signed", { exact: true })).toBeVisible();
     expect(
       (await workflowApi<ClosingView>(officer, "GET", `${base}/closing`)).capabilities
@@ -225,13 +230,11 @@ test("approved terms progress through two signatures and explicit funding into o
     await page.goto(`${borrower}/api/ready`);
     await signer.goto(url(borrower, "signatures"));
     const invited = signer.getByRole("region", {
-      name: `Signature request ${signature.title}`,
+      name: "Signature request Sign closing agreement",
       exact: true,
     });
-    await invited
-      .getByLabel("I understand this is a simulated signature with no legal effect.")
-      .check();
-    await invited.getByRole("button", { name: "Sign in demo", exact: true }).click();
+    await invited.getByLabel("I have reviewed the document and am ready to sign.").check();
+    await invited.getByRole("button", { name: "Sign", exact: true }).click();
     await expect(invited.getByText("Completed", { exact: true })).toBeVisible();
     if (hosted)
       console.log("Hosted closing: both intended signers completed the current closing agreement.");
@@ -244,12 +247,12 @@ test("approved terms progress through two signatures and explicit funding into o
       await expect(page).toHaveURL(url(borrower, "closing"));
     }
     const condition = page.getByRole("listitem", {
-      name: `Closing condition ${acknowledgement.title}`,
+      name: "Closing condition Confirm funding readiness",
       exact: true,
     });
     await condition.getByRole("link", { name: "View task", exact: true }).click();
     await expect(
-      page.getByRole("button", { name: acknowledgement.title, exact: true }),
+      page.getByRole("button", { name: "Confirm funding readiness", exact: true }),
     ).toHaveAttribute("aria-expanded", "true");
     // A condition link selects details from the upfront task snapshot.
     await expect(page.locator('[id^="task-answer-"]')).toBeVisible();
@@ -263,7 +266,7 @@ test("approved terms progress through two signatures and explicit funding into o
     await page.goto(`${borrower}/api/ready`);
     await officer.goto(url(staff, "closing"));
     await officer
-      .getByRole("listitem", { name: `Closing condition ${acknowledgement.title}`, exact: true })
+      .getByRole("listitem", { name: "Closing condition Confirm funding readiness", exact: true })
       .getByRole("link", { name: "View task", exact: true })
       .click();
     await officer
@@ -278,23 +281,23 @@ test("approved terms progress through two signatures and explicit funding into o
     await expect(amount).toHaveValue("19000.25");
     await expect(amount).toHaveAttribute("readonly", "");
     const reference = `DEMO-FUNDING-${randomUUID().slice(0, 8)}`;
-    await officer.getByLabel("Synthetic funding reference", { exact: true }).fill(reference);
+    await officer.getByLabel("Funding reference", { exact: true }).fill(reference);
     await expect(
-      officer.getByRole("button", { name: "Record simulated funding", exact: true }),
+      officer.getByRole("button", { name: "Record funding", exact: true }),
     ).toBeDisabled();
     await officer
       .getByLabel(
-        "I confirm the closing requirements were reviewed and this is simulated funding with no money movement.",
+        "I confirm the closing requirements were reviewed and the funding details are correct.",
         { exact: true },
       )
       .check();
     await expect(
-      officer.getByRole("button", { name: "Record simulated funding", exact: true }),
+      officer.getByRole("button", { name: "Record funding", exact: true }),
     ).toBeEnabled();
     const fundingRequest = officer.waitForRequest(
       (request) => request.method() === "POST" && request.url().endsWith(`${base}/closing/fund`),
     );
-    await officer.getByRole("button", { name: "Record simulated funding", exact: true }).click();
+    await officer.getByRole("button", { name: "Record funding", exact: true }).click();
     const command = (await fundingRequest).postDataJSON() as object;
     await expect(
       officer.getByRole("heading", { name: "Completed closing", exact: true }),
@@ -309,9 +312,9 @@ test("approved terms progress through two signatures and explicit funding into o
     const replay = await workflowApi<ClosingView>(officer, "POST", `${base}/closing/fund`, command);
     expect(replay.account?.id).toBe(funded.account?.id);
     expect(replay.account?.fundedAmount).toBe("19000.25");
-    await expect(
-      officer.getByRole("button", { name: "Record simulated funding", exact: true }),
-    ).toHaveCount(0);
+    await expect(officer.getByRole("button", { name: "Record funding", exact: true })).toHaveCount(
+      0,
+    );
     if (hosted) await page.goto(url(borrower, "closing"));
     else {
       await page.goto(`${borrower}${base}?bank=bank-a`);
@@ -323,11 +326,9 @@ test("approved terms progress through two signatures and explicit funding into o
       exact: true,
     });
     await expect(account).toContainText(reference);
-    await expect(account.getByText("Simulated", { exact: true })).toBeVisible();
+    await expect(account.getByText("Recorded funded amount", { exact: true })).toBeVisible();
     await expect(account.getByText("$19,000.25", { exact: true })).toHaveCount(2);
-    await expect(
-      page.getByRole("button", { name: "Record simulated funding", exact: true }),
-    ).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Record funding", exact: true })).toHaveCount(0);
     await noOverflow(page);
     await noOverflow(officer);
     await page.screenshot({
@@ -375,7 +376,7 @@ test("approved terms progress through two signatures and explicit funding into o
       await signer.goto("about:blank");
       await page.goto(url(borrower, "activity"));
       const activity = page.getByRole("region", { name: "Application activity", exact: true });
-      await expect(activity.getByText("Simulated funding recorded", { exact: true })).toBeVisible();
+      await expect(activity.getByText("Funding recorded", { exact: true })).toBeVisible();
       await expect(activity.getByText("Support reference", { exact: true })).toHaveCount(0);
       await noOverflow(page);
       await page.screenshot({

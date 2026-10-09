@@ -4,6 +4,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@keycade/ui/components/collapsible";
+import { workflowText } from "@keycade/ui/lib/workflow-text";
 import { ChevronRight } from "lucide-react";
 
 type Entry = {
@@ -34,9 +35,7 @@ export function ActivityHistory({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold">Application activity</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Progress and changes you can access. All activity is simulated.
-          </p>
+          <p className="mt-1 text-sm text-muted-foreground">Progress and changes you can access.</p>
         </div>
         <Button type="button" variant="outline" disabled={busy} onClick={refresh}>
           Refresh activity
@@ -49,7 +48,7 @@ export function ActivityHistory({
           {entries.map((entry) => (
             <li key={entry.id} className="space-y-1">
               <div className="flex flex-wrap items-baseline justify-between gap-x-5 gap-y-1">
-                <p className="text-sm font-medium">{entry.description}</p>
+                <p className="text-sm font-medium">{workflowText(entry.description)}</p>
                 <time className="text-xs text-muted-foreground" dateTime={entry.createdAt}>
                   {new Date(entry.createdAt).toLocaleString()}
                 </time>

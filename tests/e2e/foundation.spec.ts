@@ -5,7 +5,7 @@ const env = readEnvironment();
 const workspaces = [
   {
     name: "Keycade Bank",
-    brand: "Synthetic Bank A",
+    brand: "Bank A",
     port: env.BANK_SITE_PORT ?? 3000,
   },
   {

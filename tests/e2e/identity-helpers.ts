@@ -6,6 +6,56 @@ const inbox = `http://127.0.0.1:${env.MAILPIT_UI_PORT ?? 8025}`;
 
 type InboxMessage = { ID: string; To: { Address: string }[] };
 
+export async function fillSignInEmail(page: Page, email: string) {
+  const field = page.getByLabel("Email address", { exact: true });
+  await expect(field).toBeVisible();
+  if (await field.evaluate((element) => element.tagName === "SELECT"))
+    await field.selectOption(email);
+  else await field.fill(email);
+}
+
+// Email confirmations still support invitations and recovery. Their fixture setup no longer
+// depends on a sign-in method switch in the product UI.
+export async function requestAccessEmail(page: Page, email: string, start = false) {
+  const staff = await page
+    .getByRole("combobox", { name: "Email address", exact: true })
+    .isVisible();
+  const status = await page.evaluate(
+    async ({ email, start, staff }) => {
+      const session = await (await fetch("/api/v1/auth/session")).json();
+      const bankSlug = new URLSearchParams(location.search).get("bank") ?? "bank-a";
+      const returnPath =
+        /^\/(?:invitations|signatures|applications)\/[0-9a-f-]{36}(?:\/setup)?$/.test(
+          location.pathname,
+        )
+          ? location.pathname
+          : "/";
+      return (
+        await fetch(start ? "/api/v1/applications/start" : "/api/v1/auth/request-link", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(session.authenticated ? { "x-csrf-token": session.csrfToken } : {}),
+          },
+          body: JSON.stringify(
+            start
+              ? {
+                  email,
+                  bankSlug,
+                  idempotencyKey:
+                    crypto.randomUUID().replaceAll("-", "") +
+                    crypto.randomUUID().replaceAll("-", ""),
+                }
+              : { email, bankSlug, portal: staff ? "staff" : "borrower", returnPath },
+          ),
+        })
+      ).status;
+    },
+    { email, start, staff },
+  );
+  expect(status).toBe(202);
+}
+
 export async function messages(): Promise<InboxMessage[]> {
   const response = await fetch(`${inbox}/api/v1/messages?limit=200`);
   if (!response.ok) throw new Error("Local inbox is unavailable.");
@@ -16,14 +66,8 @@ export async function messages(): Promise<InboxMessage[]> {
 export async function requestLink(page: Page, origin: string, email: string) {
   const previous = new Set((await messages()).map((message) => message.ID));
   await page.goto(origin);
-  await page.getByLabel("Email address", { exact: true }).fill(email);
-  const emailLinkOption = page.getByRole("button", {
-    name: "Use an email link instead",
-    exact: true,
-  });
-  if (await emailLinkOption.isVisible()) await emailLinkOption.click();
-  await page.getByRole("button", { name: "Send sign-in link", exact: true }).click();
-  await expect(page.getByText("Check your inbox", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Email address", { exact: true })).toBeVisible();
+  await requestAccessEmail(page, email);
   return waitForLink(origin, email, previous);
 }
 

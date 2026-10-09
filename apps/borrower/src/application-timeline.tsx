@@ -5,6 +5,7 @@ import {
   CollapsibleTrigger,
 } from "@keycade/ui/components/collapsible";
 import { cn } from "@keycade/ui/lib/utils";
+import { workflowText } from "@keycade/ui/lib/workflow-text";
 import { Check, ChevronDown, History, Minus } from "lucide-react";
 import { applicationProgress, lifecycleLabels, type ProgressStep } from "./application-progress";
 
@@ -81,7 +82,7 @@ export function ApplicationTimeline({ application }: { application: ApplicationP
                     {step.label}
                   </p>
                   <p className="text-xs leading-5 text-muted-foreground">
-                    {stateText[step.state]} · {step.description}
+                    {stateText[step.state]} · {workflowText(step.description)}
                   </p>
                 </div>
               </li>
@@ -115,7 +116,7 @@ export function ApplicationTimeline({ application }: { application: ApplicationP
           )}
           <p className="text-xs leading-5 text-muted-foreground">
             Progress reflects the saved application stage. Task completion does not guarantee
-            approval. Funding is simulated.
+            approval.
           </p>
         </div>
       </CollapsibleContent>

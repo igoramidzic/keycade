@@ -1,6 +1,7 @@
 import { authSessionSchema } from "@keycade/contracts";
 import type { AuthenticatedSession } from "@keycade/ui/components/identity-portal";
 import { currentSession } from "@keycade/ui/lib/session-snapshot";
+import { workflowText } from "@keycade/ui/lib/workflow-text";
 import { createContext, useContext } from "react";
 
 export class ApiError extends Error {
@@ -9,7 +10,7 @@ export class ApiError extends Error {
     public status: number,
     message: string,
   ) {
-    super(message);
+    super(workflowText(message));
   }
 }
 export type StaffApi = ReturnType<typeof createStaffApi>;

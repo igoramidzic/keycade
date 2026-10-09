@@ -19,6 +19,7 @@ import type { AuthenticatedSession } from "@keycade/ui/components/identity-porta
 import { Input } from "@keycade/ui/components/input";
 import { SearchCombobox } from "@keycade/ui/components/search-combobox";
 import { cn } from "@keycade/ui/lib/utils";
+import { workflowText } from "@keycade/ui/lib/workflow-text";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -353,7 +354,7 @@ function WizardForm({
         !enteredEin &&
         !saved.businessEin.present
       )
-        throw new Error("Enter a supported synthetic EIN or use Skip for now.");
+        throw new Error("Enter a supported EIN or use Skip for now.");
       const cleared =
         step === "industry"
           ? { industryCode: null, industryTaxonomyVersion: null }
@@ -514,7 +515,7 @@ function WizardForm({
             if (!sectionSteps.length) return null;
             return (
               <div key={section.title}>
-                <p className="eyebrow">{section.title}</p>
+                <p className="eyebrow">{workflowText(section.title)}</p>
                 <ol className="mt-2.5 space-y-0.5">
                   {sectionSteps.map((key) => {
                     const state = stepState(key);
@@ -563,7 +564,7 @@ function WizardForm({
         </div>
         <p className="mt-8 flex gap-2 rounded-lg border bg-card px-3 py-2.5 text-xs leading-5 text-muted-foreground">
           <LockKeyhole aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
-          Use synthetic information only. Your answers are saved to this application.
+          Your answers are saved to this application.
         </p>
       </div>
       <div className="min-w-0">
@@ -604,7 +605,7 @@ function WizardForm({
               tabIndex={-1}
               className="mt-4 text-[1.625rem] leading-tight font-semibold tracking-tight text-balance outline-none sm:text-[2rem]"
             >
-              {question.title}
+              {workflowText(question.title)}
             </h1>
             {helpText[step] && (
               <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
@@ -617,8 +618,8 @@ function WizardForm({
               <Alert variant="warning" className="mb-6">
                 <AlertTitle>This financial product is no longer available</AlertTitle>
                 <AlertDescription>
-                  Synthetic Business Credit is currently unavailable. Please contact the bank. Your
-                  saved answers are safe.
+                  Business Credit is currently unavailable. Please contact the bank. Your saved
+                  answers are safe.
                 </AlertDescription>
               </Alert>
             )}
@@ -837,14 +838,14 @@ function WizardForm({
                         >
                           <Info aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-info" />
                           <span>
-                            Synthetic information only. Use a supported demo EIN from 000000001 to
-                            000000007. Never enter a real EIN or SSN. You can skip this question.
+                            Supported EINs range from 000000001 to 000000007. You can skip this
+                            question.
                           </span>
                         </p>
                       )}
                       {step === "amount" && selectedProduct && (
                         <p id="answer-help" className="text-xs leading-5 text-muted-foreground">
-                          Synthetic Business Credit: {formatAmount(selectedProduct.minimumAmount)}–
+                          Business Credit: {formatAmount(selectedProduct.minimumAmount)}–
                           {formatAmount(selectedProduct.maximumAmount)}
                         </p>
                       )}
@@ -982,7 +983,7 @@ function WizardForm({
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-b-2xl border-t bg-muted/40 px-5 py-3.5 sm:px-10">
             <p className="text-xs text-muted-foreground">
-              Application reference {applicationId.slice(0, 8)} · Synthetic information only
+              Application reference {applicationId.slice(0, 8)} · information only
             </p>
             <Button
               type="button"

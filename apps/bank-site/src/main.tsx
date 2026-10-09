@@ -1,3 +1,4 @@
+import { workflowText } from "@keycade/ui/lib/workflow-text";
 import "@keycade/ui/styles.css";
 import { Badge } from "@keycade/ui/components/badge";
 import { BrandMark } from "@keycade/ui/components/brand";
@@ -78,7 +79,7 @@ function BankSite() {
           >
             <BrandMark className="size-7 sm:size-8" />
             <span className="truncate text-[0.9375rem] font-semibold tracking-tight sm:text-[1.0625rem]">
-              Synthetic Bank A
+              Bank A
             </span>
           </a>
           <nav aria-label="Main navigation" className="flex shrink-0 items-center gap-1">
@@ -130,7 +131,7 @@ function BankSite() {
             <div className="min-w-0">
               <Badge variant="outline" className="h-7 gap-1.5 px-3 shadow-xs">
                 <span aria-hidden="true" className="size-1.5 rounded-full bg-brand" />
-                Fictional bank · Simulated lending
+                Business lending
               </Badge>
               <h1
                 id="bank-introduction"
@@ -139,9 +140,9 @@ function BankSite() {
                 A next step for your business.
               </h1>
               <p className="mt-6 max-w-xl text-lg leading-8 text-pretty text-muted-foreground">
-                Explore business financing with Synthetic Bank A. Start with your email, tell us a
-                little about your business, and come back whenever you’re ready — your progress is
-                saved along the way.
+                Explore business financing with Bank A. Start with your email, tell us a little
+                about your business, and come back whenever you’re ready — your progress is saved
+                along the way.
               </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
                 <a
@@ -190,7 +191,7 @@ function BankSite() {
                 id="financing-title"
                 className="mt-3 text-3xl leading-tight font-semibold tracking-tight sm:text-4xl"
               >
-                Synthetic Business Credit
+                Business Credit
               </h2>
               <p className="mt-5 text-base leading-7 text-pretty text-muted-foreground">
                 One flexible credit product for growing businesses. Tell us what the funds are for
@@ -199,7 +200,7 @@ function BankSite() {
               </p>
               <dl className="mt-8 grid gap-4 sm:grid-cols-2">
                 <Highlight icon={KeyRound} title="Passwordless access">
-                  Secure one-time links or instant demo sign-in.
+                  Secure one-time links or instant sign-in.
                 </Highlight>
                 <Highlight icon={ShieldCheck} title="Private documents">
                   Uploads stay within your application.
@@ -268,7 +269,7 @@ function BankSite() {
                       0{index + 1}
                     </span>
                   </div>
-                  <h3 className="mt-5 font-semibold tracking-tight">{step.title}</h3>
+                  <h3 className="mt-5 font-semibold tracking-tight">{workflowText(step.title)}</h3>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">{step.text}</p>
                 </li>
               ))}
@@ -324,12 +325,11 @@ function BankSite() {
           <div className="max-w-md space-y-3">
             <p className="flex items-center gap-2 font-semibold tracking-tight">
               <BrandMark className="size-6" />
-              Synthetic Bank A
+              Bank A
             </p>
             <p className="text-xs leading-5 text-muted-foreground">
-              A fictional bank for the Keycade demo. Use synthetic information only. This is a
-              simulated lending experience; no real credit decision or transfer of money takes
-              place.
+              Business financing, from application to funding. Track your progress and return
+              whenever you’re ready.
             </p>
           </div>
           <a

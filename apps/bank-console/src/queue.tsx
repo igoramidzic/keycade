@@ -7,6 +7,7 @@ import { NativeSelect } from "@keycade/ui/components/native-select";
 import { PageHeader } from "@keycade/ui/components/page-header";
 import { applicationStatusTone, StatusText } from "@keycade/ui/components/status-pill";
 import { cn } from "@keycade/ui/lib/utils";
+import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Plus, Search, SearchX, X } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -125,7 +126,7 @@ export function ApplicationQueue() {
               <option value="">All products</option>
               {options.data?.products.map((product) => (
                 <option key={product.id} value={product.id}>
-                  {product.name} · v{product.version}
+                  {workflowName(product.name)} · v{product.version}
                   {product.active ? "" : " (inactive)"}
                 </option>
               ))}
@@ -143,7 +144,7 @@ export function ApplicationQueue() {
               <option value="unassigned">Unassigned</option>
               {options.data?.officers.map((officer) => (
                 <option key={officer.id} value={officer.id}>
-                  {officer.displayName}
+                  {workflowName(officer.displayName)}
                 </option>
               ))}
             </NativeSelect>
@@ -242,7 +243,7 @@ export function ApplicationQueue() {
                           to={`/applications/${item.id}/overview${bankQuery}${bankQuery ? "&" : "?"}queue=${encodeURIComponent(params.toString())}`}
                           className="block font-semibold break-words text-foreground underline-offset-4 hover:text-info hover:underline"
                         >
-                          {item.businessName ?? "Untitled application"}
+                          {workflowName(item.businessName ?? "Untitled application")}
                         </Link>
                         <p className="truncate text-xs text-muted-foreground">
                           {item.contactEmail ?? "Contact not provided"}
@@ -254,7 +255,7 @@ export function ApplicationQueue() {
                               ? "Staff created"
                               : item.source === "borrower"
                                 ? "Borrower created"
-                                : "Synthetic fixture"}
+                                : "Existing record"}
                           </Badge>
                         </div>
                       </div>

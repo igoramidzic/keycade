@@ -1,6 +1,7 @@
 import { Button } from "@keycade/ui/components/button";
 import { Input } from "@keycade/ui/components/input";
 import { NativeSelect } from "@keycade/ui/components/native-select";
+import { workflowText } from "@keycade/ui/lib/workflow-text";
 import { useEffect, useState } from "react";
 
 export type ReviewAction =
@@ -135,7 +136,7 @@ export function ReviewActionForm({
             <option value="">Choose a reason</option>
             {reasonOptions.map((reason) => (
               <option key={reason.value} value={reason.value}>
-                {reason.label}
+                {workflowText(reason.label)}
               </option>
             ))}
           </NativeSelect>
@@ -158,7 +159,7 @@ export function ReviewActionForm({
                   )
                 }
               />
-              {task.title}
+              {workflowText(task.title)}
             </label>
           ))}
           {requestableTasks.length === 0 && (
@@ -194,7 +195,7 @@ export function ReviewActionForm({
           )}
           <p className="text-xs text-muted-foreground">
             The amount must stay within this product’s limits and the submitted requested amount.
-            Repayment and servicing terms are outside this demo.
+            Repayment and servicing terms are outside this release.
           </p>
         </div>
       )}
@@ -212,7 +213,7 @@ export function ReviewActionForm({
             onChange={(event) => setPrivateNote(event.target.value)}
           />
           <p className="text-xs text-muted-foreground">
-            Visible only to authorized bank staff. Use fictional information.
+            Visible only to authorized bank staff. Use information.
           </p>
         </div>
       )}
@@ -225,7 +226,7 @@ export function ReviewActionForm({
           onChange={(event) => setConfirmed(event.target.checked)}
         />
         {decision
-          ? "I reviewed the current application and am deliberately recording this simulated decision."
+          ? "I reviewed the current application and am deliberately recording this decision."
           : action === "submit"
             ? "I confirm this application is ready for bank review."
             : action === "request-information"
@@ -249,9 +250,7 @@ export function ReviewActionForm({
           Cancel
         </Button>
       </div>
-      <p className="text-xs text-muted-foreground">
-        Simulated workflow · No real credit decision or money movement.
-      </p>
+      <p className="text-xs text-muted-foreground">Review all details before continuing.</p>
     </form>
   );
 }

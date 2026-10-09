@@ -16,6 +16,7 @@ import { NativeSelect } from "@keycade/ui/components/native-select";
 import { createDemoDocumentFile, demoDocumentMime } from "@keycade/ui/lib/demo-document-transfer";
 import type { DemoImportPreview } from "@keycade/ui/lib/demo-import-transfer";
 import { preferredDemoUploadTarget } from "@keycade/ui/lib/demo-upload-targets";
+import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
 import { cn } from "cn";
 import {
   Check,
@@ -89,7 +90,13 @@ function initialScenario() {
   }
 }
 
-export function DemoKitProvider({ children }: { children: ReactNode }) {
+export function DemoKitProvider({
+  children,
+  visible = true,
+}: {
+  children: ReactNode;
+  visible?: boolean;
+}) {
   const [selected, setSelected] = useState(initialScenario);
   const scenario = demoScenarios.find((item) => item.id === selected) ?? demoScenarios[0];
   const [desktop, setDesktop] = useState(() => window.matchMedia("(min-width: 1280px)").matches);
@@ -164,8 +171,8 @@ export function DemoKitProvider({ children }: { children: ReactNode }) {
   );
   return (
     <DemoKitContext.Provider value={context}>
-      <div style={{ paddingRight: desktop ? (expanded ? 340 : 56) : 0 }}>
-        {!desktop && (
+      <div style={{ paddingRight: desktop && visible ? (expanded ? 340 : 56) : 0 }}>
+        {!desktop && visible && (
           <div
             className={cn(
               kitTheme,
@@ -175,7 +182,7 @@ export function DemoKitProvider({ children }: { children: ReactNode }) {
             <span className="flex min-w-0 items-center gap-2">
               <DemoBadge />
               <span className="truncate text-xs text-muted-foreground max-sm:hidden">
-                Fictional data only
+                Sample files
               </span>
             </span>
             <Button
@@ -186,64 +193,68 @@ export function DemoKitProvider({ children }: { children: ReactNode }) {
               aria-haspopup="dialog"
               onClick={() => setMobileOpen(true)}
             >
-              <PanelRightOpen aria-hidden="true" /> Show demo kit
+              <PanelRightOpen aria-hidden="true" /> Show sample kit
             </Button>
           </div>
         )}
         {children}
       </div>
-      {desktop ? (
-        expanded ? (
-          <aside
-            aria-label="Demo scenario kit"
+      {visible &&
+        (desktop ? (
+          expanded ? (
+            <aside
+              aria-label="Sample scenario kit"
+              className={cn(
+                kitTheme,
+                "fixed inset-y-0 right-0 z-20 w-[340px] overflow-y-auto overscroll-contain border-l",
+              )}
+            >
+              {panel}
+            </aside>
+          ) : (
+            <div
+              className={cn(
+                kitTheme,
+                "fixed inset-y-0 right-0 z-20 flex w-14 flex-col items-center border-l py-3",
+              )}
+            >
+              <Button
+                variant="ghost"
+                aria-label="Show sample kit"
+                aria-expanded={false}
+                onClick={() => setExpanded(true)}
+                className="h-auto flex-col gap-3 px-2 py-3 text-muted-foreground"
+              >
+                <PanelRightOpen aria-hidden="true" />
+                <span
+                  aria-hidden="true"
+                  className="flex size-6 items-center justify-center rounded-full bg-demo-accent text-demo-accent-foreground"
+                >
+                  <FlaskConical className="size-3.5" />
+                </span>
+                <span
+                  aria-hidden="true"
+                  className="text-xs font-semibold [writing-mode:vertical-rl]"
+                >
+                  Sample kit
+                </span>
+              </Button>
+            </div>
+          )
+        ) : (
+          <dialog
+            ref={dialog}
+            aria-label="Sample scenario kit"
+            onCancel={closeMobile}
+            onClose={closeMobile}
             className={cn(
               kitTheme,
-              "fixed inset-y-0 right-0 z-20 w-[340px] overflow-y-auto overscroll-contain border-l",
+              "fixed inset-y-0 right-0 left-auto m-0 h-dvh max-h-none w-[min(100%,380px)] max-w-none overflow-y-auto overscroll-contain border-l p-0 backdrop:bg-black/50",
             )}
           >
             {panel}
-          </aside>
-        ) : (
-          <div
-            className={cn(
-              kitTheme,
-              "fixed inset-y-0 right-0 z-20 flex w-14 flex-col items-center border-l py-3",
-            )}
-          >
-            <Button
-              variant="ghost"
-              aria-label="Show demo kit"
-              aria-expanded={false}
-              onClick={() => setExpanded(true)}
-              className="h-auto flex-col gap-3 px-2 py-3 text-muted-foreground"
-            >
-              <PanelRightOpen aria-hidden="true" />
-              <span
-                aria-hidden="true"
-                className="flex size-6 items-center justify-center rounded-full bg-demo-accent text-demo-accent-foreground"
-              >
-                <FlaskConical className="size-3.5" />
-              </span>
-              <span aria-hidden="true" className="text-xs font-semibold [writing-mode:vertical-rl]">
-                Demo kit
-              </span>
-            </Button>
-          </div>
-        )
-      ) : (
-        <dialog
-          ref={dialog}
-          aria-label="Demo scenario kit"
-          onCancel={closeMobile}
-          onClose={closeMobile}
-          className={cn(
-            kitTheme,
-            "fixed inset-y-0 right-0 left-auto m-0 h-dvh max-h-none w-[min(100%,380px)] max-w-none overflow-y-auto overscroll-contain border-l p-0 backdrop:bg-black/50",
-          )}
-        >
-          {panel}
-        </dialog>
-      )}
+          </dialog>
+        ))}
     </DemoKitContext.Provider>
   );
 }
@@ -309,6 +320,7 @@ function CopyValue({
   /** Distinguishes repeated labels, such as each person's email, in the copy button's name. */
   name?: string;
 }) {
+  const displayValue = label === "Business name" ? workflowName(value) : workflowText(value);
   const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
   useEffect(() => {
     if (state !== "copied") return;
@@ -319,7 +331,7 @@ function CopyValue({
     <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 py-2">
       <dt className="text-xs text-muted-foreground">{label}</dt>
       <dd className="col-start-1 text-sm break-words">
-        {value}
+        {displayValue}
         <span
           role="status"
           className={state === "failed" ? "block text-xs text-warning" : "sr-only"}
@@ -335,7 +347,7 @@ function CopyValue({
           className="text-muted-foreground"
           onClick={async () => {
             try {
-              await navigator.clipboard.writeText(value);
+              await navigator.clipboard.writeText(displayValue);
               setState("copied");
             } catch {
               setState("failed");
@@ -397,12 +409,12 @@ function DemoKitPanel({
       <header className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b bg-background/95 px-4 py-4 backdrop-blur-sm">
         <div className="min-w-0">
           <DemoBadge />
-          <h2 className="mt-2 text-lg leading-6 font-semibold">Demo kit</h2>
+          <h2 className="mt-2 text-lg leading-6 font-semibold">Sample kit</h2>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            Fictional people and sample PDFs for presenting Keycade.
+            Example profiles and documents for exploring Keycade.
           </p>
         </div>
-        <Button size="icon-sm" variant="ghost" aria-label="Hide demo kit" onClick={close}>
+        <Button size="icon-sm" variant="ghost" aria-label="Hide sample kit" onClick={close}>
           <PanelRightClose aria-hidden="true" />
         </Button>
       </header>
@@ -410,7 +422,7 @@ function DemoKitPanel({
         <section aria-labelledby={`${id}-scenario`} className="space-y-3">
           <DemoStepHeading id={`${id}-scenario`} step={1} title="Choose a scenario" />
           <label htmlFor={`${id}-select`} className="sr-only">
-            Demo scenario
+            Scenario
           </label>
           <NativeSelect
             id={`${id}-select`}
@@ -420,11 +432,13 @@ function DemoKitPanel({
           >
             {demoScenarios.map((item) => (
               <option key={item.id} value={item.id}>
-                {item.title}
+                {workflowText(item.title)}
               </option>
             ))}
           </NativeSelect>
-          <p className="text-xs leading-5 text-muted-foreground">{scenario.description}</p>
+          <p className="text-xs leading-5 text-muted-foreground">
+            {workflowText(scenario.description)}
+          </p>
           <KitDisclosure
             title="Walk through the app"
             meta={`${scenario.steps.length} steps`}
@@ -439,7 +453,7 @@ function DemoKitPanel({
                   >
                     {index + 1}
                   </span>
-                  <span className="min-w-0">{step}</span>
+                  <span className="min-w-0">{workflowText(step)}</span>
                 </li>
               ))}
             </ol>
@@ -460,7 +474,7 @@ function DemoKitPanel({
             </dl>
             <KitDisclosure title="Business setup details" className="border-t">
               <dl className="divide-y">
-                <CopyValue label="Synthetic EIN" value={scenario.business.ein} />
+                <CopyValue label="EIN" value={scenario.business.ein} />
                 <CopyValue label="Industry code" value={scenario.business.industryCode} />
                 <CopyValue label="Requested amount" value={scenario.business.requestedAmount} />
                 <CopyValue label="Loan purpose" value={scenario.business.purpose} />
@@ -483,11 +497,7 @@ function DemoKitPanel({
                       name={`guarantor ${index + 1} ownership`}
                       value={`${person.ownershipPercent}%`}
                     />
-                    <CopyValue
-                      label="Synthetic SSN"
-                      name={`guarantor ${index + 1} synthetic SSN`}
-                      value={person.ssn}
-                    />
+                    <CopyValue label="SSN" name={`guarantor ${index + 1} SSN`} value={person.ssn} />
                   </PersonValues>
                 ))}
                 <PersonValues role="Adviser" person={scenario.adviser} />
@@ -530,7 +540,7 @@ function DemoKitPanel({
             return (
               <article
                 key={document.id}
-                aria-label={document.title}
+                aria-label={workflowText(document.title)}
                 draggable
                 onDragStart={(event) => {
                   event.dataTransfer.effectAllowed = "copy";
@@ -547,7 +557,9 @@ function DemoKitPanel({
                     className="mt-1 size-4 shrink-0 text-muted-foreground group-hover/document:text-foreground"
                   />
                   <div className="min-w-0 space-y-1">
-                    <h4 className="text-sm leading-6 font-medium">{document.title}</h4>
+                    <h4 className="text-sm leading-6 font-medium">
+                      {workflowText(document.title)}
+                    </h4>
                     <p className="text-xs break-all text-muted-foreground">{document.fileName}</p>
                     <div className="flex flex-wrap gap-1.5 pt-1">
                       <KitTag tone={tag.tone}>
@@ -558,7 +570,9 @@ function DemoKitPanel({
                     </div>
                   </div>
                 </div>
-                <p className="text-xs leading-5 text-muted-foreground">{document.summary}</p>
+                <p className="text-xs leading-5 text-muted-foreground">
+                  {workflowText(document.summary)}
+                </p>
                 {pdfBusiness !== businessName && (
                   <p className="text-xs leading-5">
                     PDF business: <span className="font-medium">{pdfBusiness}</span>
@@ -566,18 +580,19 @@ function DemoKitPanel({
                 )}
                 {document.subject === "guarantor" && (
                   <p className="text-xs leading-5 text-muted-foreground">
-                    Sample identity: {scenario.guarantors[0]?.name}. Verify the intended private
-                    task; this PDF does not change its fictional person to match the task owner.
+                    Sample identity: {workflowName(scenario.guarantors[0]?.name)}. Verify the
+                    intended private task; this PDF does not change its person to match the task
+                    owner.
                   </p>
                 )}
                 <div className="flex gap-2">
                   <Button
                     size="sm"
-                    aria-label={`Upload ${document.title}`}
+                    aria-label={`Upload ${workflowText(document.title)}`}
                     disabled={!uploadTarget || uploadTarget.subject !== document.subject}
                     onClick={() => {
                       uploadTarget?.upload(document);
-                      setMessage(`${document.title} sent to the upload area.`);
+                      setMessage(`${workflowText(document.title)} sent to the upload area.`);
                     }}
                   >
                     <Upload aria-hidden="true" /> Upload
@@ -585,7 +600,7 @@ function DemoKitPanel({
                   <Button
                     size="sm"
                     variant="outline"
-                    aria-label={`Download ${document.title}`}
+                    aria-label={`Download ${workflowText(document.title)}`}
                     onClick={() => {
                       const file = createDemoDocumentFile(document, businessName);
                       const url = URL.createObjectURL(file);
@@ -608,10 +623,7 @@ function DemoKitPanel({
       </div>
       <footer className="flex items-start gap-2 border-t px-4 py-4 text-xs leading-5 text-muted-foreground">
         <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
-        <p>
-          Checks and document suggestions are simulated. Bank staff make the demo review decision.
-          Signatures and funding are simulated.
-        </p>
+        <p>Use these examples to explore the application workflow.</p>
       </footer>
     </div>
   );

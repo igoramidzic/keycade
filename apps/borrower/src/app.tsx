@@ -20,6 +20,7 @@ import {
   IdentityPortal,
 } from "@keycade/ui/components/identity-portal";
 import { cn } from "@keycade/ui/lib/utils";
+import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
@@ -94,7 +95,7 @@ export function BorrowerApp({ confirmation }: { confirmation: Confirmation }) {
               <EmptyState
                 titleAs="h1"
                 icon={FileQuestion}
-                title="Synthetic Business Credit is unavailable"
+                title="Business Credit is unavailable"
                 description="Please try again later or continue an existing application."
                 action={
                   <Link className={buttonVariants()} to={`/?bank=${encodeURIComponent(bankSlug)}`}>
@@ -108,14 +109,19 @@ export function BorrowerApp({ confirmation }: { confirmation: Confirmation }) {
                 cardId="sign-in"
                 confirmation={confirmation}
                 bankSlug={bankSlug}
-                bankName={catalog.data.bank.name}
+                bankName={workflowName(catalog.data.bank.name)}
                 intent={starting ? "start" : "resume"}
                 // Sign-in returns to /setup, which reopens the saved step.
                 returnPath={location.pathname.replace(
                   /^(\/applications\/[0-9a-f-]{36}\/setup)\/[a-z-]+$/i,
                   "$1",
                 )}
-                aside={<SignInWelcome starting={starting} bankName={catalog.data.bank.name} />}
+                aside={
+                  <SignInWelcome
+                    starting={starting}
+                    bankName={workflowName(catalog.data.bank.name)}
+                  />
+                }
                 onApplicationCreated={(id) =>
                   navigate(applicationPath(id, bankSlug, true), { replace: true })
                 }
@@ -198,7 +204,7 @@ function SignInWelcome({ starting, bankName }: { starting: boolean; bankName: st
               <point.icon aria-hidden="true" className="size-5" />
             </span>
             <span className="min-w-0">
-              <span className="block font-medium">{point.title}</span>
+              <span className="block font-medium">{workflowText(point.title)}</span>
               <span className="mt-0.5 block text-sm leading-6 text-muted-foreground">
                 {point.text}
               </span>
@@ -226,7 +232,7 @@ function AccountControls({
         <div className="min-w-0 space-y-0.5">
           <p className="max-w-[15rem] truncate text-xs font-medium">{session.user.email}</p>
           <Badge variant="secondary" className="h-5">
-            {session.authenticationMethod === "demo" ? "Demo access" : "Email verified"}
+            {session.authenticationMethod === "demo" ? "Signed in" : "Email verified"}
           </Badge>
         </div>
       </div>
@@ -237,7 +243,7 @@ function AccountControls({
             className={buttonVariants({ variant: "ghost", size: "sm" })}
           >
             <Inbox aria-hidden="true" />
-            Demo inbox
+            Inbox
           </Link>
         )}
         <ReminderPreferences key={`${session.bank.id}:${session.user.email}`} session={session} />
@@ -324,7 +330,7 @@ function Workspace({
                   <Alert variant="warning">
                     <AlertTitle>You’re signed in to another bank</AlertTitle>
                     <AlertDescription>
-                      Sign out to start an application at {targetCatalog.bank.name}.
+                      Sign out to start an application at {workflowName(targetCatalog.bank.name)}.
                     </AlertDescription>
                   </Alert>
                 ) : (

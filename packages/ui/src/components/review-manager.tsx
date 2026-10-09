@@ -19,6 +19,7 @@ import {
   ReviewActionForm,
   type ReviewActionInput,
 } from "@keycade/ui/components/review-action-form";
+import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
 import { ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -57,12 +58,12 @@ const statusDescriptions: Record<Status, string> = {
   in_review:
     "The bank is reviewing the current submission. A staff member must deliberately record the next step.",
   approved:
-    "The bank recorded a simulated approval. Closing requirements and recorded funding are separate steps.",
+    "The bank recorded an approval. Closing requirements and recorded funding are separate steps.",
   declined:
-    "The bank recorded a simulated decline. This application is closed; its history remains available.",
+    "The bank recorded a decline. This application is closed; its history remains available.",
   closing:
     "This application is completing its closing requirements. Approval alone does not record funding.",
-  funded: "Simulated funding was recorded. This review history remains available.",
+  funded: "Funding was recorded. This review history remains available.",
   withdrawn:
     "This application was withdrawn. Pending work that no longer applies is cancelled, and saved history remains available.",
 };
@@ -194,9 +195,9 @@ export function ReviewManager({
             : next === "request-information"
               ? "The application was returned for information. Previous submissions remain available."
               : next === "approve"
-                ? "Simulated approval recorded. Funding has not been recorded."
+                ? "Approval recorded. Funding has not been recorded."
                 : next === "decline"
-                  ? "Simulated decline recorded."
+                  ? "Decline recorded."
                   : "Application withdrawn.",
       );
     } catch (failure) {
@@ -352,14 +353,14 @@ export function ReviewManager({
                 </a>
                 {checkHref && (
                   <a href={checkHref} className="underline underline-offset-4">
-                    Review simulated checks
+                    Review checks
                   </a>
                 )}
               </div>
             )}
             <p className="text-xs leading-5 text-muted-foreground">
-              Simulated review · Checks and document suggestions never approve or decline an
-              application automatically.
+              Review · Checks and document suggestions never approve or decline an application
+              automatically.
             </p>
           </CardContent>
         </Card>
@@ -395,7 +396,7 @@ export function ReviewManager({
                         <div>
                           <dt className="text-muted-foreground">Business</dt>
                           <dd className="mt-1 break-words">
-                            {submission.facts.businessName ?? "Not recorded"}
+                            {workflowName(submission.facts.businessName ?? "Not recorded")}
                           </dd>
                         </div>
                         <div>
@@ -408,7 +409,9 @@ export function ReviewManager({
                         </div>
                         <div>
                           <dt className="text-muted-foreground">Product</dt>
-                          <dd className="mt-1 break-words">{submission.facts.productName}</dd>
+                          <dd className="mt-1 break-words">
+                            {workflowText(submission.facts.productName)}
+                          </dd>
                         </div>
                         <div>
                           <dt className="text-muted-foreground">Industry</dt>
@@ -456,7 +459,9 @@ export function ReviewManager({
                       </time>
                     </div>
                     {(event.publicReason || event.reasonCode) && (
-                      <p>{event.publicReason ?? reasonLabel(event.reasonCode ?? "")}</p>
+                      <p>
+                        {workflowText(event.publicReason ?? reasonLabel(event.reasonCode ?? ""))}
+                      </p>
                     )}
                     {event.action === "approve" && approvedAmount && (
                       <p>Approved amount: {amount(approvedAmount)}</p>

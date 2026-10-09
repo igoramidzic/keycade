@@ -55,14 +55,14 @@ export async function paceHostedRequests(context: BrowserContext) {
 /** Confirm a message through its intended identity's UI without exposing the bearer to Node. */
 export async function confirmHostedInboxMessage(page: Page, subject: string) {
   const message = page
-    .getByRole("list", { name: "Simulated messages" })
+    .getByRole("list", { name: "Messages" })
     .getByRole("button")
     .filter({ hasText: subject })
     .filter({ hasText: "Ready" })
     .first();
   await expect(message).toBeVisible({ timeout: 120_000 });
   await message.click();
-  const detail = page.getByRole("region", { name: "Selected simulated message" });
+  const detail = page.getByRole("region", { name: "Selected message" });
   await expect(detail).toBeVisible();
   expect(await detail.evaluate((node) => !/#token=[a-f0-9]{64}/.test(node.textContent ?? ""))).toBe(
     true,

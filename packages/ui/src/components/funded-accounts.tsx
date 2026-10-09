@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@keycade/ui/components/card";
+import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
 
 export type FundedAccountData = {
   id: string;
@@ -41,12 +42,11 @@ export function FundedAccountCard({
         <CardHeader>
           <div className="flex flex-wrap items-start justify-between gap-2">
             <CardTitle>
-              <h3>{account.productName}</h3>
+              <h3>{workflowText(account.productName)}</h3>
             </CardTitle>
-            <Badge variant="secondary">Simulated</Badge>
           </div>
           <CardDescription className="break-words">
-            {account.businessName} · Account {account.id.slice(-8)}
+            {workflowName(account.businessName)} · Account {account.id.slice(-8)}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
@@ -73,8 +73,8 @@ export function FundedAccountCard({
             </div>
           </dl>
           <p className="text-xs leading-5 text-muted-foreground">
-            This is a single simulated funding record. No money was moved. It does not represent an
-            outstanding balance, available credit, or repayment schedule.
+            This funding record does not represent an outstanding balance, available credit, or
+            repayment schedule.
           </p>
           {applicationHref && (
             <a href={applicationHref} className={buttonVariants({ variant: "outline" })}>
@@ -100,9 +100,7 @@ export function FundedAccounts({
     <section aria-label="Funded accounts" className="space-y-5 pt-5">
       <div className="space-y-2">
         <h2 className="text-xl font-semibold tracking-tight">Funded accounts</h2>
-        <p className="text-sm text-muted-foreground">
-          Recorded simulated funding, grouped by business.
-        </p>
+        <p className="text-sm text-muted-foreground">Recorded funding, grouped by business.</p>
       </div>
       {accounts.length === 0 ? (
         <p className="text-sm text-muted-foreground">
@@ -115,7 +113,7 @@ export function FundedAccounts({
             aria-label={`Funded accounts for ${items[0]?.businessName}`}
             className="space-y-3"
           >
-            <h3 className="break-words font-medium">{items[0]?.businessName}</h3>
+            <h3 className="break-words font-medium">{workflowName(items[0]?.businessName)}</h3>
             <div className="grid items-start gap-4 lg:grid-cols-2">
               {items.map((account) => (
                 <FundedAccountCard

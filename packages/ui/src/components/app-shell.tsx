@@ -78,12 +78,7 @@ export function AppFooter({ children }: { children?: ReactNode }) {
           "flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-5 text-xs leading-5 text-muted-foreground",
         )}
       >
-        {children ?? (
-          <p>
-            Synthetic lending demo · Use fictional information only. No real credit decisions or
-            money movement.
-          </p>
-        )}
+        {children ?? <p>Keycade · Business lending</p>}
       </div>
     </footer>
   );

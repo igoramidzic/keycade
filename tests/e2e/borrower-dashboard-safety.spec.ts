@@ -3,6 +3,7 @@ import { readEnvironment } from "@keycade/config/server";
 import type { ParticipantsWorkspace, TasksView } from "@keycade/contracts";
 import { expect, type Page, test } from "@playwright/test";
 import { workflowApi } from "./closing-helpers";
+import { fillSignInEmail } from "./identity-helpers";
 
 const env = readEnvironment();
 const borrower = `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
@@ -15,8 +16,8 @@ test.setTimeout(90_000);
 
 async function signIn(page: Page, origin: string, email: string) {
   await page.goto(origin);
-  await page.getByLabel("Email address", { exact: true }).fill(email);
-  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+  await fillSignInEmail(page, email);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
     page.getByRole("heading", {
       name: origin === staff ? "Applications" : "Your applications",
@@ -25,15 +26,15 @@ async function signIn(page: Page, origin: string, email: string) {
   ).toBeVisible();
 }
 async function openKit(page: Page) {
-  const kit = page.getByLabel("Demo scenario kit", { exact: true });
+  const kit = page.getByLabel("Sample scenario kit", { exact: true });
   if (!(await kit.isVisible()))
-    await page.getByRole("button", { name: "Show demo kit", exact: true }).click();
+    await page.getByRole("button", { name: "Show sample kit", exact: true }).click();
   await expect(kit).toBeVisible();
   return kit;
 }
 async function closeKit(page: Page) {
-  const kit = page.getByLabel("Demo scenario kit", { exact: true });
-  await kit.getByRole("button", { name: "Hide demo kit", exact: true }).click();
+  const kit = page.getByLabel("Sample scenario kit", { exact: true });
+  await kit.getByRole("button", { name: "Hide sample kit", exact: true }).click();
   await expect(kit).not.toBeVisible();
 }
 
@@ -61,9 +62,7 @@ test("a denied task mutation immediately clears the entire cached application da
   await expect(
     page.getByRole("complementary", { name: "Application details", exact: true }),
   ).toHaveCount(0);
-  await expect(
-    page.getByRole("heading", { name: "Synthetic Cedar Workshop", exact: true }),
-  ).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Cedar Workshop", exact: true })).toHaveCount(0);
   await expect(page.locator('[id^="task-answer-"]')).toHaveCount(0);
   await expect(page.getByText("$10,000", { exact: true })).toHaveCount(0);
   await page.unroute(pattern);

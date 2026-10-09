@@ -279,13 +279,13 @@ export function CreateApplication() {
             <div className="space-y-4">
               <h2 className="text-sm font-medium">Prefill answers (optional)</h2>
               <p className="text-sm text-muted-foreground">
-                Add any details you already know for Synthetic Business Credit. The borrower will
-                confirm these answers and finish the remaining setup questions.
+                Add any details you already know for Business Credit. The borrower will confirm
+                these answers and finish the remaining setup questions.
               </p>
               <AnswerFields answers={answers} setAnswers={setAnswers} disabled={busy || pending} />
             </div>
             <p className="text-sm text-muted-foreground">
-              A simulated continuation email will invite the borrower to this application.
+              A continuation email will invite the borrower to this application.
             </p>
             {Boolean(error) && <ErrorNotice error={error} />}
             {Boolean(error) && pending && (

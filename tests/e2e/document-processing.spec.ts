@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { readEnvironment } from "@keycade/config/server";
 import { syntheticDocumentPdf } from "@keycade/integrations/document-fixtures";
 import { expect, type Page, test } from "@playwright/test";
+import { fillSignInEmail } from "./identity-helpers";
 
 const env = readEnvironment();
 const borrower = `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
@@ -12,8 +13,8 @@ test.setTimeout(90_000);
 
 async function signIn(page: Page, origin: string, email: string) {
   await page.goto(origin);
-  await page.getByLabel("Email address", { exact: true }).fill(email);
-  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+  await fillSignInEmail(page, email);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
     page.getByRole("heading", {
       name: origin === staff ? "Applications" : "Your applications",
@@ -59,7 +60,7 @@ test("borrower tax uploads appear in grouped tabs with unverified suggestions an
   });
   await expect(
     tax.document.getByRole("heading", {
-      name: "Suggested fields · Simulated, unverified",
+      name: "Suggested fields ·, unverified",
       exact: true,
     }),
   ).toBeVisible();
@@ -178,11 +179,11 @@ test("staff category correction retains original statement suggestions and corre
     "Synthetic review identifies this version as a business registration attachment.",
   );
   await expect(
-    statement.document.getByRole("region", { name: "Simulated interpretation runs", exact: true }),
+    statement.document.getByRole("region", { name: "Interpretation runs", exact: true }),
   ).toContainText("Original suggestion: Bank statements");
   await statement.document.getByRole("button", { name: "Interpret again", exact: true }).click();
   await expect(
-    statement.document.getByRole("region", { name: "Simulated interpretation runs", exact: true }),
+    statement.document.getByRole("region", { name: "Interpretation runs", exact: true }),
   ).toContainText("Run 2 · Suggested category ready", { timeout: 25_000 });
   await expect(statement.document).toContainText("Staff category: Business/legal");
   await expect(statement.document).toContainText("Original suggestion: Bank statements");
@@ -213,7 +214,7 @@ test("failed interpretation preserves download and retry records an additional s
     .click();
   await transient.document.getByText("Interpretation history", { exact: true }).click();
   const history = transient.document.getByRole("region", {
-    name: "Simulated interpretation runs",
+    name: "Interpretation runs",
     exact: true,
   });
   await expect(history).toContainText("Run 1 · Interpretation failed");

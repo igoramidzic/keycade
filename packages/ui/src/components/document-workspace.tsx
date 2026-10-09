@@ -22,6 +22,7 @@ import { DocumentInfo } from "@keycade/ui/components/document-info";
 import { DocumentPreview } from "@keycade/ui/components/document-preview";
 import { NativeSelect } from "@keycade/ui/components/native-select";
 import { displayDocumentField } from "@keycade/ui/lib/document-field-display";
+import { workflowText } from "@keycade/ui/lib/workflow-text";
 import { ChevronRight } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
@@ -136,7 +137,7 @@ export function DocumentWorkspace({
               {version?.metadata.displayName ?? version?.fileName ?? "Document unavailable"}
             </h2>
             <p id={`${titleId}-description`} className="text-xs text-muted-foreground">
-              Private document workspace · Simulated analysis and human review
+              Private document workspace · analysis and human review
             </p>
             {version && (
               <p className="break-all text-xs text-muted-foreground">
@@ -194,7 +195,7 @@ export function DocumentWorkspace({
                   disabled={busy}
                   onClick={() => void act(() => retryScan(version.id))}
                 >
-                  Retry simulated scan
+                  Retry scan
                 </Button>
               )}
             </div>
@@ -208,9 +209,9 @@ export function DocumentWorkspace({
               <section aria-label="Document analysis" className="space-y-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="font-medium">Analysis</h3>
-                  <Badge variant="secondary">Simulated</Badge>
+
                   <Badge variant={run?.state === "failed" ? "destructive" : "outline"}>
-                    {run?.state.replaceAll("_", " ") ?? "Awaiting simulated scan"}
+                    {run?.state.replaceAll("_", " ") ?? "Awaiting scan"}
                   </Badge>
                   {historical && <Badge variant="outline">Historical analysis</Badge>}
                 </div>
@@ -251,15 +252,15 @@ export function DocumentWorkspace({
                 )}
                 {run && ["queued", "processing"].includes(run.state) && (
                   <p role="status" className="text-sm text-muted-foreground">
-                    Simulated analysis is {run.state === "queued" ? "queued" : "in progress"}. You
-                    can close this workspace; processing continues and its saved status appears when
-                    you return.
+                    Analysis is {run.state === "queued" ? "queued" : "in progress"}. You can close
+                    this workspace; processing continues and its saved status appears when you
+                    return.
                   </p>
                 )}
                 {run?.state === "failed" && (
                   <p className="text-sm text-muted-foreground">
-                    Simulated analysis failed. The clean original file remains available. Retry is
-                    offered when the current version is eligible.
+                    Analysis failed. The clean original file remains available. Retry is offered
+                    when the current version is eligible.
                   </p>
                 )}
                 {result ? (
@@ -268,12 +269,12 @@ export function DocumentWorkspace({
                       <p className="font-medium">Document overview</p>
                       <p>
                         Suggested type: {documentCategoryLabels[result.category]} ·{" "}
-                        {Math.round(result.confidence * 100)}% simulated confidence.
+                        {Math.round(result.confidence * 100)}% confidence.
                       </p>
                       <p>
                         {result.needsReview
                           ? "Review the source and warnings before relying on these suggestions."
-                          : "The simulated interpretation produced the suggestions below. Human review is required before they become application facts."}
+                          : "The interpretation produced the suggestions below. Human review is required before they become application facts."}
                       </p>
                       {result.comparedApplicationBusinessName && (
                         <p>
@@ -290,10 +291,12 @@ export function DocumentWorkspace({
                             className="space-y-1 rounded-lg border p-3 text-sm"
                           >
                             <p className="font-medium">
-                              {finding.title} ·{" "}
+                              {workflowText(finding.title)} ·{" "}
                               {finding.severity === "clear" ? "Clear" : "Review needed"}
                             </p>
-                            <p className="whitespace-pre-wrap break-words">{finding.detail}</p>
+                            <p className="whitespace-pre-wrap break-words">
+                              {workflowText(finding.detail)}
+                            </p>
                           </div>
                         ))}
                       </div>
@@ -324,7 +327,7 @@ export function DocumentWorkspace({
                                 key={field.key}
                                 className="space-y-1 border-b pb-3 last:border-0 last:pb-0"
                               >
-                                <dt className="font-medium">{field.label}</dt>
+                                <dt className="font-medium">{workflowText(field.label)}</dt>
                                 <dd className="whitespace-pre-wrap break-words">
                                   {field.kind === "money"
                                     ? documentMoney(
@@ -389,15 +392,13 @@ export function DocumentWorkspace({
                     disabled={busy}
                     onClick={() => void act(() => retryProcessing(version.id))}
                   >
-                    {run?.state === "failed"
-                      ? "Retry simulated analysis"
-                      : "Run simulated analysis"}
+                    {run?.state === "failed" ? "Retry analysis" : "Run analysis"}
                   </Button>
                 )}
                 <p className="text-xs leading-5 text-muted-foreground">
                   Suggested review: compare the business, fiscal period and source values, resolve
-                  warnings, then review financial fields explicitly. Simulated findings do not
-                  verify authenticity, complete a requirement or approve a loan.
+                  warnings, then review financial fields explicitly. Findings do not verify
+                  authenticity, complete a requirement or approve a loan.
                 </p>
               </section>
               {factsError ? (
@@ -483,7 +484,7 @@ export function DocumentWorkspace({
                       Details revision {entry.revision} · {entry.displayName ?? version.fileName}
                     </p>
                     <p className="whitespace-pre-wrap break-words">
-                      {entry.description ?? "No description"}
+                      {workflowText(entry.description ?? "No description")}
                     </p>
                     {entry.expectedPeriod && (
                       <p>

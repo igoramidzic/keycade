@@ -42,8 +42,8 @@ export function ReminderPreferences({ session }: { session: AuthenticatedSession
       <CollapsibleContent>
         <div className="mt-2 space-y-3 rounded-xl border bg-popover p-4 text-popover-foreground shadow-lg sm:absolute sm:top-full sm:right-0 sm:z-40 sm:w-80">
           <p className="text-xs leading-5 text-muted-foreground">
-            Optional demo reminders for unfinished applications. Sign-in links and requested
-            invitations are separate.
+            Optional reminders for unfinished applications. Sign-in links and requested invitations
+            are separate.
           </p>
           {preferences.error && (
             <ErrorNotice error={preferences.error} onRetry={() => void preferences.refetch()} />
@@ -84,7 +84,7 @@ export function ReminderPreferences({ session }: { session: AuthenticatedSession
                     setSaved(false);
                   }}
                 />
-                Send me demo reminders
+                Send me reminders
               </label>
               <Button
                 type="submit"

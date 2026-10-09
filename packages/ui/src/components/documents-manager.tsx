@@ -35,6 +35,7 @@ import {
   readDemoImportDrag,
   sameDemoImportContext,
 } from "@keycade/ui/lib/demo-import-transfer";
+import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
 import { ChevronRight, FileUp } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
@@ -99,10 +100,10 @@ function status(version: DocumentVersionData) {
   if (version.uploadState === "abandoned") return "Upload cancelled";
   if (version.uploadState === "staged") return "Upload unfinished";
   return {
-    pending: "Simulated scan pending",
-    clean: "Simulated scan clean",
-    blocked: "Blocked by simulated scan",
-    error: "Simulated scan failed",
+    pending: "Scan pending",
+    clean: "Scan clean",
+    blocked: "Blocked by scan",
+    error: "Scan failed",
   }[version.scanState];
 }
 
@@ -205,8 +206,8 @@ export function DocumentsManager({
     if (document.subject !== demoSubject) {
       setError(
         document.subject === "guarantor"
-          ? "Open the guarantor’s private task to upload this personal demo document."
-          : "Open application Documents or a business task to upload this business demo document.",
+          ? "Open the guarantor’s private task to upload this personal sample document."
+          : "Open application Documents or a business task to upload this business sample document.",
       );
       return;
     }
@@ -219,7 +220,7 @@ export function DocumentsManager({
     if (!active || !demoKit?.uploadsEnabled) return;
     if (demoSubject !== "business") {
       setError(
-        "Open application Documents or a business task to upload this business demo document.",
+        "Open application Documents or a business task to upload this business sample document.",
       );
       return;
     }
@@ -404,8 +405,7 @@ export function DocumentsManager({
           <h2>{taskId ? "Task documents" : "Documents"}</h2>
         </CardTitle>
         <CardDescription>
-          Use synthetic documents only. Files stay private and quarantined until their simulated
-          scan is clean.
+          Files stay private and quarantined until their scan is complete.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -434,7 +434,7 @@ export function DocumentsManager({
                   </option>
                   {data.uploadTasks.map((task) => (
                     <option key={task.id} value={task.id}>
-                      {task.title}
+                      {workflowText(task.title)}
                     </option>
                   ))}
                 </NativeSelect>
@@ -463,14 +463,14 @@ export function DocumentsManager({
                   if (preview) demoImportUpload.current(preview);
                   else
                     setError(
-                      "This imported demo preview is unavailable. Import the text file again.",
+                      "This imported import preview is unavailable. Import the text file again.",
                     );
                 } else if (event.dataTransfer.types.includes(demoDocumentMime)) {
                   setDragging(false);
                   const sample = readDemoDocumentDrag(event.dataTransfer);
                   if (!sample) {
                     setError(
-                      "This demo document is unavailable. Drag a PDF from the demo kit again.",
+                      "This sample document is unavailable. Drag a PDF from the Sample kit again.",
                     );
                     return;
                   }
@@ -525,7 +525,9 @@ export function DocumentsManager({
                   aria-label={`Upload ${entry.file.name}`}
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="min-w-0 break-all text-sm font-medium">{entry.file.name}</p>
+                    <p className="min-w-0 break-all text-sm font-medium">
+                      {workflowName(entry.file.name)}
+                    </p>
                     <span className="text-xs text-muted-foreground">
                       {fileSize(entry.file.size)}
                     </span>
@@ -648,8 +650,8 @@ export function DocumentsManager({
             })}
           </div>
           <p className="text-xs text-muted-foreground">
-            Categories and counts include only documents you can access. Suggested categories and
-            fields are simulated.
+            Categories and counts include only documents you can access. Review suggested categories
+            and fields before accepting them.
           </p>
           <div
             role="tabpanel"
@@ -721,14 +723,13 @@ export function DocumentsManager({
                             disabled={Boolean(action)}
                             onClick={() => void perform(version.id, () => retryScan(version.id))}
                           >
-                            Retry simulated scan
+                            Retry scan
                           </Button>
                         )}
                       </div>
                       {!version.canDownload && (
                         <p className="text-xs text-muted-foreground">
-                          Download is unavailable until this file is present and its simulated scan
-                          is clean.
+                          Download is unavailable until this file is present and its scan is clean.
                         </p>
                       )}
                       {version.processing && (
@@ -811,8 +812,7 @@ export function DocumentsManager({
           </div>
         </section>
         <p className="text-xs leading-5 text-muted-foreground">
-          Simulated scanning is for this demo and is not a production malware scanner. Uploading a
-          file does not verify its contents or approve your application.
+          Uploading a file does not verify its contents or approve your application.
         </p>
       </CardContent>
     </Card>

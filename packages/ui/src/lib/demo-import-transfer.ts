@@ -20,7 +20,7 @@ export function createDemoImportFile(fixture: DemoImportFixture): File {
   const recipe = demoImportRecipes.find(
     (item) => item.id === fixture.recipeId && item.version === fixture.recipeVersion,
   );
-  if (!recipe) throw new Error("This demo recipe is unavailable. Import the text file again.");
+  if (!recipe) throw new Error("This recipe is unavailable. Import the text file again.");
   return new File([new Uint8Array(createDemoImportPdf(recipe.id, fixture))], recipe.fileName, {
     type: "application/pdf",
   });

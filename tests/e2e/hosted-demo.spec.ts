@@ -4,6 +4,7 @@ import { readEnvironment } from "@keycade/config/server";
 import { syntheticDocumentPdf } from "@keycade/integrations/document-fixtures";
 import { expect, type Page, test } from "@playwright/test";
 import { paceHostedRequests } from "./hosted-helpers";
+import { fillSignInEmail, requestAccessEmail } from "./identity-helpers";
 import { completeAddressAndSkipOptional } from "./setup-helpers";
 
 const env = readEnvironment();
@@ -44,25 +45,24 @@ async function api<T>(
 }
 async function requestLink(page: Page, email: string, start = false) {
   await page.goto(`${borrower}${start ? "/apply" : "/"}?bank=bank-a`);
-  await page.getByLabel("Email address", { exact: true }).fill(email);
-  await page.getByRole("button", { name: "Use an email link instead", exact: true }).click();
-  await page
-    .getByRole("button", { name: start ? "Start application" : "Send sign-in link", exact: true })
-    .click();
-  await expect(page.getByText("Check your inbox", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Open demo inbox", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Demo inbox", exact: true })).toBeVisible();
+  await expect(page.getByLabel("Email address", { exact: true })).toBeVisible();
+  await requestAccessEmail(page, email, start);
+  await page.goto(`${borrower}/?bank=bank-a`);
+  await fillSignInEmail(page, email);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await page.getByRole("link", { name: "Inbox", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Inbox", exact: true })).toBeVisible();
 }
 async function confirmInboxMessage(page: Page, subject: string) {
   const item = page
-    .getByRole("list", { name: "Simulated messages" })
+    .getByRole("list", { name: "Messages" })
     .getByRole("button")
     .filter({ hasText: subject })
     .filter({ hasText: "Ready" })
     .first();
   await expect(item).toBeVisible({ timeout: 120_000 });
   await item.click();
-  const detail = page.getByRole("region", { name: "Selected simulated message" });
+  const detail = page.getByRole("region", { name: "Selected message" });
   expect(await detail.evaluate((node) => !/#token=[a-f0-9]{64}/.test(node.textContent ?? ""))).toBe(
     true,
   );
@@ -77,8 +77,8 @@ async function confirmInboxMessage(page: Page, subject: string) {
 }
 async function demoSignIn(page: Page, origin: string, email: string) {
   await page.goto(`${origin}/?bank=bank-a`);
-  await page.getByLabel("Email address", { exact: true }).fill(email);
-  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+  await fillSignInEmail(page, email);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
     page.getByRole("heading", {
       name: origin === staff ? "Applications" : "Your applications",
@@ -195,7 +195,7 @@ test("hosted synthetic borrower resumes setup, invites a scoped collaborator, an
     await officer.goto(section(staff, "participants"));
     await officer.getByRole("button", { name: "Invite participant", exact: true }).click();
     const invite = officer.getByRole("dialog", { name: "Invite a collaborator", exact: true });
-    await invite.getByLabel("Email address", { exact: true }).fill(adviserEmail);
+    await fillSignInEmail(invite, adviserEmail);
     await invite.getByRole("radio", { name: "Adviser", exact: true }).check();
     await expect(invite).toContainText("Access: Assigned tasks and permitted documents.");
     await invite.getByRole("checkbox", { name: title, exact: true }).check();
@@ -205,7 +205,7 @@ test("hosted synthetic borrower resumes setup, invites a scoped collaborator, an
     ).toBeVisible();
     await officer.goto("about:blank");
     await demoSignIn(adviser, borrower, adviserEmail);
-    await adviser.getByRole("link", { name: "Demo inbox", exact: true }).click();
+    await adviser.getByRole("link", { name: "Inbox", exact: true }).click();
     await confirmInboxMessage(adviser, "Your application invitation");
     await adviser.getByRole("button", { name: "Accept invitation", exact: true }).click();
     await expect(adviser.getByRole("heading", { name: "Tasks", exact: true })).toBeVisible();
@@ -228,13 +228,13 @@ test("hosted synthetic borrower resumes setup, invites a scoped collaborator, an
       .selectOption(source.currentVersionId);
     await officer.getByLabel(new RegExp(applicantEmail.replaceAll(".", "\\."))).check();
     await officer.getByLabel(new RegExp(adviserEmail.replaceAll(".", "\\."))).check();
-    await officer.getByRole("button", { name: "Create simulated request", exact: true }).click();
+    await officer.getByRole("button", { name: "Create request", exact: true }).click();
     const envelope = officer.getByRole("region", {
       name: `Signature request ${title}`,
       exact: true,
     });
     await envelope.getByRole("button", { name: "Send request", exact: true }).click();
-    await expect(envelope.getByText("Sent in demo", { exact: true })).toBeVisible({
+    await expect(envelope.getByText("Sent", { exact: true })).toBeVisible({
       timeout: 120_000,
     });
     await officer.goto("about:blank");
@@ -246,13 +246,9 @@ test("hosted synthetic borrower resumes setup, invites a scoped collaborator, an
         name: `Signature request ${title}`,
         exact: true,
       });
-      await expect(
-        request.getByRole("button", { name: "Sign in demo", exact: true }),
-      ).toBeDisabled();
-      await request
-        .getByLabel("I understand this is a simulated signature with no legal effect.")
-        .check();
-      await request.getByRole("button", { name: "Sign in demo", exact: true }).click();
+      await expect(request.getByRole("button", { name: "Sign", exact: true })).toBeDisabled();
+      await request.getByLabel("I have reviewed the document and am ready to sign.").check();
+      await request.getByRole("button", { name: "Sign", exact: true }).click();
       await expect(
         request.getByText(signer === page ? "Partially signed" : "Completed", { exact: true }),
       ).toBeVisible();
@@ -260,7 +256,7 @@ test("hosted synthetic borrower resumes setup, invites a scoped collaborator, an
     }
     const signed = adviser.getByRole("region", { name: `Signature request ${title}`, exact: true });
     const download = adviser.waitForEvent("download");
-    await signed.getByRole("button", { name: "Download simulated artifact", exact: true }).click();
+    await signed.getByRole("button", { name: "Download artifact", exact: true }).click();
     const artifact = await download;
     const path = await artifact.path();
     if (!path) throw new Error("Hosted synthetic artifact download is missing.");
@@ -279,16 +275,16 @@ test("hosted synthetic borrower resumes setup, invites a scoped collaborator, an
       "Hosted acceptance: both intended signers completed and synthetic artifact downloaded.",
     );
     await noOverflow(adviser);
-    await adviser.getByRole("link", { name: "Demo inbox", exact: true }).click();
+    await adviser.getByRole("link", { name: "Inbox", exact: true }).click();
     const used = adviser
-      .getByRole("list", { name: "Simulated messages" })
+      .getByRole("list", { name: "Messages" })
       .getByRole("button")
       .filter({ hasText: "Review your simulated signature request" });
     await expect(used).toContainText("Used");
     await used.click();
     await expect(
       adviser
-        .getByRole("region", { name: "Selected simulated message" })
+        .getByRole("region", { name: "Selected message" })
         .getByText("This confirmation link is no longer available.", { exact: false }),
     ).toBeVisible();
     await expect(

@@ -19,6 +19,7 @@ import {
   participantRoleLabels,
   participantScopeLabel,
 } from "@keycade/ui/components/participants-manager";
+import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router";
@@ -140,7 +141,8 @@ export function InvitationAcceptance({ session }: { session: AuthenticatedSessio
           <h1 className="text-2xl">Application invitation</h1>
         </CardTitle>
         <CardDescription>
-          {data.bankName} · {data.businessName ?? "Business application"}
+          {workflowName(data.bankName)} ·{" "}
+          {workflowName(data.businessName ?? "Business application")}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -163,8 +165,8 @@ export function InvitationAcceptance({ session }: { session: AuthenticatedSessio
           <Alert>
             <AlertTitle>Verify your email to accept</AlertTitle>
             <AlertDescription>
-              Demo sign-in does not verify an email address. Open your invitation email in the local
-              inbox and confirm the sign-in link, then return here to accept.
+              Open your invitation in your inbox and confirm the sign-in link, then return here to
+              accept.
             </AlertDescription>
           </Alert>
         )}

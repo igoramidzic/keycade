@@ -21,6 +21,7 @@ import {
   type TaskInputKind,
 } from "@keycade/ui/components/secure-task-input";
 import { textareaClassName } from "@keycade/ui/components/textarea";
+import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
 import { cn } from "cn";
 import {
   Check,
@@ -360,9 +361,9 @@ export function TasksManager({
         groups
           .filter((group) => group.tasks.length > 0)
           .map((group) => (
-            <section key={group.title} className="space-y-3" aria-label={group.title}>
+            <section key={group.title} className="space-y-3" aria-label={workflowText(group.title)}>
               <div className="flex items-center justify-between gap-3">
-                <h3 className="text-sm font-semibold">{group.title}</h3>
+                <h3 className="text-sm font-semibold">{workflowText(group.title)}</h3>
                 <span className="text-xs text-muted-foreground tabular-nums">
                   {group.tasks.filter(done).length}/
                   {group.tasks.filter((task) => task.state !== "cancelled").length} complete
@@ -431,7 +432,7 @@ export function TasksManager({
                         <h4>
                           <CollapsibleTrigger
                             id={`task-toggle-${task.id}`}
-                            aria-label={task.title}
+                            aria-label={workflowText(task.title)}
                             aria-describedby={`task-status-${task.id}`}
                             className={cn(
                               "flex w-full items-center gap-3.5 px-4 py-3.5 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:opacity-50 sm:px-5",
@@ -460,7 +461,7 @@ export function TasksManager({
                                   task.state === "cancelled" && "text-muted-foreground",
                                 )}
                               >
-                                {task.title}
+                                {workflowText(task.title)}
                               </span>
                               <span
                                 id={`task-status-${task.id}`}
@@ -506,8 +507,13 @@ export function TasksManager({
                           aria-labelledby={`task-toggle-${task.id}`}
                         >
                           {(expanded || closing === task.id) && (
-                            // A closing task stays visible for the animation but cannot be used.
-                            <div className="border-t pb-1" inert={!expanded || undefined}>
+                            // A closing task stays visible for the animation but is neither usable
+                            // nor announced.
+                            <div
+                              className="border-t pb-1"
+                              inert={!expanded || undefined}
+                              aria-hidden={!expanded || undefined}
+                            >
                               {pendingSelection && (
                                 <div
                                   ref={confirmRef}
@@ -628,8 +634,7 @@ export function TasksManager({
         </p>
       )}
       <p className="text-xs leading-5 text-muted-foreground">
-        Simulated requirements · Use fictional information only. Saving answers does not submit or
-        approve this application.
+        Saving answers does not submit or approve this application.
       </p>
     </div>
   );
@@ -745,7 +750,7 @@ function TaskDetail({
   return (
     <div className="space-y-4 p-4 sm:p-5">
       {kind !== "answer" && kind !== "tax_authorization" && (
-        <p className="text-sm leading-6 text-foreground/90">{task.description}</p>
+        <p className="text-sm leading-6 text-foreground/90">{workflowText(task.description)}</p>
       )}
       {(error || stale) && (
         <Alert variant="destructive" role="alert">
@@ -772,15 +777,15 @@ function TaskDetail({
       {task.inputKind === "signature" ? (
         <div className="space-y-3 text-sm">
           <p>
-            This task is managed by a simulated signature request. All intended signers must sign
-            its current document before it can be completed.
+            This task is managed by a signature request. All intended signers must sign its current
+            document before it can be completed.
           </p>
           {signatureHref && (
             <a
               className="font-medium underline underline-offset-4"
               href={signatureHref(task.signatureEnvelopeId ?? null)}
             >
-              View simulated signature request
+              View signature request
             </a>
           )}
         </div>
@@ -830,9 +835,7 @@ function TaskDetail({
               onChange={(event) => setAnswer(event.target.value)}
             >
               <option value="">Choose an answer</option>
-              <option value="confirmed">
-                I confirm readiness to provide fictional information
-              </option>
+              <option value="confirmed">I confirm readiness to provide information</option>
               <option value="needs_help">I need help with this confirmation</option>
             </NativeSelect>
           ) : (
@@ -926,7 +929,7 @@ function TaskDetail({
                     )
                     .map((person) => (
                       <option key={person.id} value={person.id}>
-                        {person.displayName}
+                        {workflowName(person.displayName)}
                       </option>
                     ))}
                 </NativeSelect>
@@ -1040,14 +1043,14 @@ function TaskDetail({
               <p className="leading-6 text-muted-foreground">{task.reason}</p>
             </div>
             {kind === "answer" && choiceAnswer && (
-              <p className="leading-6 text-muted-foreground">{task.description}</p>
+              <p className="leading-6 text-muted-foreground">{workflowText(task.description)}</p>
             )}
             <p className="text-xs leading-5 text-muted-foreground">
               {task.source === "manual" ? "Staff requested" : "Product requirement"} ·{" "}
               {task.required ? "Required" : "Optional"} · {assigneeName}
               {task.visibility === "private" && " · Owner private"}
               <br />
-              Use fictional details only. Never enter real EINs, SSNs, or other identifiers.
+              Provide the details requested for this task.
             </p>
             {task.answers.length > 0 && (
               <div className="space-y-3">
@@ -1243,7 +1246,7 @@ function ManualTask({
                 <option value="">Unassigned</option>
                 {data.assignees.map((person) => (
                   <option key={person.id} value={person.id}>
-                    {person.displayName}
+                    {workflowName(person.displayName)}
                   </option>
                 ))}
               </NativeSelect>

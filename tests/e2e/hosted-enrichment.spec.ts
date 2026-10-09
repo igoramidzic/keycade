@@ -9,6 +9,7 @@ import {
 import { setupFixtureSteps } from "../setup-fixture";
 import { workflowApi } from "./closing-helpers";
 import { paceHostedRequests } from "./hosted-helpers";
+import { fillSignInEmail } from "./identity-helpers";
 
 const env = readEnvironment();
 const borrower = env.KEYCADE_E2E_BORROWER_ORIGIN ?? "";
@@ -23,10 +24,8 @@ test("hosted synthetic identifiers drive authorized business and tax simulations
   await paceHostedRequests(context);
   const nonce = randomUUID().slice(0, 8);
   await page.goto(`${borrower}/?bank=bank-a`);
-  await page
-    .getByLabel("Email address", { exact: true })
-    .fill(`hosted-enrichment-${nonce}@example.test`);
-  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+  await fillSignInEmail(page, `hosted-enrichment-${nonce}@example.test`);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Your applications", exact: true })).toBeVisible();
   // Park the dashboard while protected browser requests prepare only this new synthetic record.
   await page.goto(`${borrower}/api/ready`);

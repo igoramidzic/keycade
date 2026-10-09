@@ -4,6 +4,7 @@ import type { DocumentsView, TasksView } from "@keycade/contracts";
 import { syntheticDocumentPdf } from "@keycade/integrations/document-fixtures";
 import { expect, test } from "@playwright/test";
 import { workflowApi } from "./closing-helpers";
+import { fillSignInEmail } from "./identity-helpers";
 
 const env = readEnvironment();
 const borrower = `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
@@ -17,8 +18,8 @@ test("sidebar file drops use the general application target and expose scan and 
   page,
 }) => {
   await page.goto(borrower);
-  await page.getByLabel("Email address", { exact: true }).fill("borrower@example.test");
-  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+  await fillSignInEmail(page, "borrower@example.test");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Your applications", exact: true })).toBeVisible();
   await page.goto(`${borrower}${base}?bank=bank-a`);
   await page.getByRole("button", { name: "Describe your business", exact: true }).click();
@@ -57,13 +58,13 @@ test("sidebar file drops use the general application target and expose scan and 
   const saved = sidebar.getByRole("list", { name: "Recent other documents", exact: true });
   const scanned = saved.getByRole("listitem").filter({ hasText: scanName });
   const processed = saved.getByRole("listitem").filter({ hasText: processingName });
-  await expect(scanned).toContainText("Simulated scan failed", { timeout: 25_000 });
-  await expect(processed).toContainText("Simulated processing failed", { timeout: 25_000 });
-  await scanned.getByRole("button", { name: "Retry simulated scan", exact: true }).click();
-  await expect(scanned).toContainText(/Simulated processing complete|Ready for lender review/, {
+  await expect(scanned).toContainText("Scan failed", { timeout: 25_000 });
+  await expect(processed).toContainText("Processing failed", { timeout: 25_000 });
+  await scanned.getByRole("button", { name: "Retry scan", exact: true }).click();
+  await expect(scanned).toContainText(/Processing complete|Ready for lender review/, {
     timeout: 25_000,
   });
-  await processed.getByRole("button", { name: "Retry simulated processing", exact: true }).click();
+  await processed.getByRole("button", { name: "Retry processing", exact: true }).click();
   await expect
     .poll(
       async () => {
@@ -75,7 +76,7 @@ test("sidebar file drops use the general application target and expose scan and 
       { timeout: 25_000 },
     )
     .toBe(2);
-  await expect(processed).toContainText("Simulated processing failed", { timeout: 25_000 });
+  await expect(processed).toContainText("Processing failed", { timeout: 25_000 });
   const result = await workflowApi<DocumentsView>(page, "GET", `${base}/documents`);
   for (const name of [scanName, processingName]) {
     const matching = result.documents.filter((document) => document.versions[0]?.fileName === name);

@@ -16,6 +16,7 @@ import {
 } from "../../packages/contracts/src/demo-import";
 import { setupFixtureSteps } from "../setup-fixture";
 import { workflowApi } from "./closing-helpers";
+import { fillSignInEmail } from "./identity-helpers";
 
 const env = readEnvironment();
 const borrower = `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
@@ -28,8 +29,8 @@ test.setTimeout(120_000);
 
 async function signIn(page: Page, origin = staff, email = "officer-a@example.test") {
   await page.goto(origin);
-  await page.getByLabel("Email address", { exact: true }).fill(email);
-  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+  await fillSignInEmail(page, email);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
     page.getByRole("heading", {
       name: origin === staff ? "Applications" : "Your applications",
@@ -349,13 +350,13 @@ test("v2 business and loan details, current and finished items, and scenario con
   await expect(stages).toContainText("Completed");
   await expect(page.getByRole("link", { name: "View full activity", exact: true })).toBeVisible();
 
-  const kit = page.getByLabel("Demo scenario kit", { exact: true });
+  const kit = page.getByLabel("Sample scenario kit", { exact: true });
   if (!(await kit.isVisible()))
-    await page.getByRole("button", { name: "Show demo kit", exact: true }).click();
+    await page.getByRole("button", { name: "Show sample kit", exact: true }).click();
   await expect(kit).toBeVisible();
   if (isMobile)
     await expect(
-      page.getByRole("dialog", { name: "Demo scenario kit", exact: true }),
+      page.getByRole("dialog", { name: "Sample scenario kit", exact: true }),
     ).toBeVisible();
   else {
     const kitBox = await kit.boundingBox();
@@ -363,7 +364,7 @@ test("v2 business and loan details, current and finished items, and scenario con
     if (!kitBox || !profileBox) throw new Error("Expected visible overview and demo regions.");
     expect(profileBox.x + profileBox.width).toBeLessThanOrEqual(kitBox.x + 1);
   }
-  await kit.getByRole("button", { name: "Hide demo kit", exact: true }).click();
+  await kit.getByRole("button", { name: "Hide sample kit", exact: true }).click();
   await expect(kit).not.toBeVisible();
   await noOverflow(page);
   await page.screenshot({

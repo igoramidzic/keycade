@@ -1,7 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { readEnvironment } from "@keycade/config/server";
 import { expect, type Page, test } from "@playwright/test";
-import { messages, openLink, waitForLink } from "./identity-helpers";
+import {
+  fillSignInEmail,
+  messages,
+  openLink,
+  requestAccessEmail,
+  waitForLink,
+} from "./identity-helpers";
 import { removeAccess } from "./participant-helpers";
 
 const env = readEnvironment();
@@ -15,8 +21,8 @@ test.setTimeout(90_000);
 
 async function signIn(page: Page, origin: string, email: string, bankSlug = "bank-a") {
   await page.goto(`${origin}/?bank=${bankSlug}`);
-  await page.getByLabel("Email address", { exact: true }).fill(email);
-  await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
+  await fillSignInEmail(page, email);
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
     page.getByRole("heading", {
       name: origin === staff ? "Applications" : "Your applications",
@@ -98,7 +104,7 @@ test("only the lender invites a lawyer, selects their tasks, and removes the act
   await expect(invite).toContainText("Access: Assigned tasks and permitted documents.");
   await invite.getByRole("checkbox", { name: taskTitle, exact: true }).check();
   await expect(invite.getByRole("checkbox", { name: /Describe your business/ })).not.toBeChecked();
-  await invite.getByLabel("Email address", { exact: true }).fill(email);
+  await fillSignInEmail(invite, email);
   await invite.getByRole("button", { name: "Send invitation", exact: true }).click();
   await expect(invite).toBeHidden();
   await expect(page.getByRole("status").filter({ hasText: "Invitation saved." })).toBeVisible();
@@ -191,7 +197,7 @@ test("staff records an owner without an account, then grants separate owner acce
   });
   const previous = new Set((await messages()).map((message) => message.ID));
   const invite = await openInvite(page);
-  await invite.getByLabel("Email address", { exact: true }).fill(email);
+  await fillSignInEmail(invite, email);
   await invite.getByRole("radio", { name: "Owner", exact: true }).check();
   await expect(invite).toContainText("Access: Assigned tasks and permitted documents.");
   await invite.getByRole("button", { name: "Send invitation", exact: true }).click();
@@ -229,7 +235,7 @@ test("direct invitation recovery preserves its bank and destination and rejects 
   await signIn(page, staff, "officer-b@example.test", "bank-b");
   await page.goto(`${staff}/applications/${bankBApplicationId}/participants?bank=bank-b`);
   const invite = await openInvite(page);
-  await invite.getByLabel("Email address", { exact: true }).fill(email);
+  await fillSignInEmail(invite, email);
   await invite.getByRole("button", { name: "Send invitation", exact: true }).click();
   await expect(page.getByRole("status").filter({ hasText: "Invitation saved." })).toBeVisible();
   const invitation = (await people(page, bankBApplicationId)).invitations.find(
@@ -246,11 +252,8 @@ test("direct invitation recovery preserves its bank and destination and rejects 
   ) {
     const previous = new Set((await messages()).map((message) => message.ID));
     await recipient.goto(url);
-    await expect(recipient.getByText("Synthetic Bank B", { exact: true }).first()).toBeVisible();
-    await recipient.getByLabel("Email address", { exact: true }).fill(recipientEmail);
-    await recipient.getByRole("button", { name: "Use an email link instead", exact: true }).click();
-    await recipient.getByRole("button", { name: "Send sign-in link", exact: true }).click();
-    await expect(recipient.getByText("Check your inbox", { exact: true })).toBeVisible();
+    await expect(recipient.getByText("Bank B", { exact: true }).first()).toBeVisible();
+    await requestAccessEmail(recipient, recipientEmail);
     await openLink(recipient, await waitForLink(borrower, recipientEmail, previous));
     await recipient.getByRole("button", { name: "Confirm and sign in", exact: true }).click();
     await expect(recipient).toHaveURL(

@@ -816,7 +816,27 @@ export function createIdentityService(
       };
     });
   }
+  // Public picker for explicitly enabled synthetic access only. Never enumerate real identities.
+  async function listDemoStaffAccounts(bankSlug: string) {
+    const accounts = await db
+      .select({ email: users.email, role: bankMemberships.role })
+      .from(bankMemberships)
+      .innerJoin(banks, eq(banks.id, bankMemberships.bankId))
+      .innerJoin(users, eq(users.id, bankMemberships.userId))
+      .where(
+        and(
+          eq(banks.slug, bankSlug),
+          eq(banks.synthetic, true),
+          eq(users.synthetic, true),
+          eq(bankMemberships.synthetic, true),
+          isNull(bankMemberships.revokedAt),
+        ),
+      )
+      .orderBy(users.email);
+    return { accounts };
+  }
   return {
+    listDemoStaffAccounts,
     signInDemo,
     requestAccessLink,
     prepareDelivery,
