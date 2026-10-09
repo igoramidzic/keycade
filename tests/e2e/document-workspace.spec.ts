@@ -366,7 +366,7 @@ test("preview loading and failure stay recoverable and clean Blob resources are 
       await route.fulfill({
         status: 503,
         json: {
-          error: { code: "UNAVAILABLE", message: "Synthetic preview transfer interrupted." },
+          error: { code: "UNAVAILABLE", message: "Preview transfer interrupted." },
         },
       });
     } else await route.continue();
@@ -376,9 +376,7 @@ test("preview loading and failure stay recoverable and clean Blob resources are 
     const preview = dialog.getByRole("region", { name: "Document preview", exact: true });
     await expect(preview.getByRole("status")).toContainText("Loading private preview");
     release();
-    await expect(preview.getByRole("alert")).toContainText(
-      "Synthetic preview transfer interrupted",
-    );
+    await expect(preview.getByRole("alert")).toContainText("Preview transfer interrupted");
     await expect(
       dialog.getByRole("region", { name: "Document analysis", exact: true }),
     ).toContainText("2023-01-01");
@@ -506,9 +504,12 @@ test("selected financial review is atomic, corrections preserve suggestions and 
     if (!value) throw new Error(`Missing synthetic ${key} candidate.`);
     return value;
   };
-  const revenue = candidate("revenue");
-  const adjusted = candidate("adjusted_net_income");
-  const ordinary = candidate("ordinary_income");
+  const revenue = { ...candidate("revenue"), label: "Suggested Revenue / net sales" };
+  const adjusted = {
+    ...candidate("adjusted_net_income"),
+    label: "Suggested Explicit adjusted net income",
+  };
+  const ordinary = { ...candidate("ordinary_income"), label: "Suggested Ordinary business income" };
   for (const field of [revenue, adjusted, ordinary])
     await review.getByRole("checkbox", { name: `Select ${field.label}`, exact: true }).check();
   await review

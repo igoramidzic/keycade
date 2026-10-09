@@ -19,7 +19,7 @@ import {
 import { and, desc, eq, inArray, lt, or, type SQL, sql } from "drizzle-orm";
 import { type Actor, requireApplicantPortalAccess } from "./authorization.js";
 import { checkIsVisible } from "./checks.js";
-import { documentIsVisible } from "./documents.js";
+import { documentVisibleWithTask } from "./documents.js";
 import { DomainError, deny } from "./errors.js";
 import { signatureSignerEligible } from "./signatures.js";
 import { taskIsVisible } from "./tasks.js";
@@ -131,9 +131,17 @@ export function createActivityService(db: Database) {
             .select()
             .from(documents)
             .where(and(eq(documents.bankId, bankId), eq(documents.applicationId, applicationId)));
-          const fileIds: string[] = [];
-          for (const file of files)
-            if (await documentIsVisible(tx, actor, access, file)) fileIds.push(file.id);
+          const tasksById = new Map(tasks.map((task) => [task.id, task]));
+          const fileIds = files
+            .filter((file) =>
+              documentVisibleWithTask(
+                actor,
+                access,
+                file,
+                file.taskId ? tasksById.get(file.taskId) : undefined,
+              ),
+            )
+            .map((file) => file.id);
           const versions = fileIds.length
             ? await tx
                 .select({ id: documentVersions.id })

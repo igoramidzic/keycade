@@ -10,8 +10,8 @@ import {
   documents,
   documentVersions,
 } from "@keycade/db";
-import { and, desc, eq } from "drizzle-orm";
-import { type Actor, type ApplicationAccess, type QueryDatabase } from "./authorization.js";
+import { desc, eq } from "drizzle-orm";
+import { type Actor, type ApplicationAccess } from "./authorization.js";
 import { taskIsVisible } from "./tasks.js";
 
 type Version = typeof documentVersions.$inferSelect;
@@ -103,12 +103,16 @@ export async function enqueueDocumentProcessing(
 }
 
 /** Machine matches remain suggestions and are projected through the reader's current task scope. */
-export async function readDocumentProcessing(
-  db: QueryDatabase,
+export function projectDocumentProcessing(
   actor: Actor,
   access: ApplicationAccess,
   document: Document,
   version: Version,
+  rows: {
+    runs: (typeof documentProcessingRuns.$inferSelect)[];
+    overrides: (typeof documentCategoryOverrides.$inferSelect)[];
+    tasks: (typeof applicationTasks.$inferSelect)[];
+  },
   options: {
     writable: boolean;
     closed: boolean;
@@ -116,18 +120,9 @@ export async function readDocumentProcessing(
     metadataEditable: boolean;
   },
 ) {
-  const runs = await db
-    .select()
-    .from(documentProcessingRuns)
-    .where(eq(documentProcessingRuns.versionId, version.id))
-    .orderBy(desc(documentProcessingRuns.generation));
+  const { runs, overrides } = rows;
   const latest = runs[0];
   if (!latest) return null;
-  const overrides = await db
-    .select()
-    .from(documentCategoryOverrides)
-    .where(eq(documentCategoryOverrides.versionId, version.id))
-    .orderBy(desc(documentCategoryOverrides.revision));
   const result = latest.stale ? null : latest.result;
   const comparisonStale =
     latest.lastErrorCode === "stale_business_name" ||
@@ -137,17 +132,7 @@ export async function readDocumentProcessing(
     version.uploadState === "uploaded" &&
     version.scanState === "clean" &&
     !options.closed;
-  const tasks = result
-    ? await db
-        .select()
-        .from(applicationTasks)
-        .where(
-          and(
-            eq(applicationTasks.bankId, document.bankId),
-            eq(applicationTasks.applicationId, document.applicationId),
-          ),
-        )
-    : [];
+  const tasks = result ? rows.tasks : [];
   const matches = tasks.filter((task) => {
     if (task.state === "cancelled" || !taskIsVisible(actor, access, task)) return false;
     if (document.visibility === "private" && task.subjectUserId !== document.subjectUserId)

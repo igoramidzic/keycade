@@ -50,6 +50,8 @@ The requested [account picker and product wording](tasks/D07-account-picker-and-
 
 The requested [lender queue performance follow-up](tasks/D04-hosted-performance.md#lender-queue-and-focus-refresh--october-9-2026) is **complete locally; publication pending**. Live logs confirm 7.57–7.91-second application reads. The same-data SQL replay falls from 350 to 8 statements with identical task progress. Quiet session checks remove focus-driven page spinners, and both portals show a neutral state during reload verification. Validation covers 429 unit tests, 27 affected PostgreSQL tests, 14 desktop/mobile cases, all typechecks, lint, portal builds and native API/portal dry runs.
 
+The requested [Overview and SQL follow-up](tasks/D04-hosted-performance.md#overview-and-evidence-sql--october-9-2026) is **complete locally; publication pending**: Overview falls from 79 to 17 statements and Documents from 55 to 16 on the same hosted synthetic data with identical response hashes. Batched evidence, scoped Activity and redundant check-insert fixes pass 491 PostgreSQL and 429 unit tests, all types/lint and the native API dry run. All 30 selected desktop/mobile cases pass, including corrected neutral-copy test expectations. Final affected PostgreSQL/HTTP rechecks pass 75 cases; this change has not been published.
+
 ## Agreed outcome
 
 Build a bank-operated business lending platform with a mock bank website, a borrower application/dashboard, and a bank staff console. Support multiple businesses, participants, applications, and eventual loan accounts. Ask for email first, progressively collect information, and use passwordless access. Simulate outside services with visible delays and reliable background processing.

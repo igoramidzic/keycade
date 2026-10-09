@@ -27,6 +27,7 @@ import { and, desc, eq } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { type Actor, type QueryDatabase, requireApplicationAccess } from "./authorization.js";
 import { lockCheckApplication } from "./checks.js";
+import { type DocumentEvidence, groupEvidence, readDocumentEvidence } from "./document-evidence.js";
 import { documentNameComparisonIsStale } from "./document-processing.js";
 import { documentIsVisible } from "./documents.js";
 import { DomainError, deny } from "./errors.js";
@@ -98,40 +99,32 @@ function reviewDto(row: Review): FinancialFactReview {
 }
 
 /** Caller must already hold application access. This only projects immutable rows and current source state. */
-export async function readApplicationFinancialFacts(db: QueryDatabase, app: App) {
+export async function readApplicationFinancialFacts(
+  db: QueryDatabase,
+  app: App,
+  evidence?: DocumentEvidence,
+) {
   // Transactions share one pg client, so await queries rather than queueing concurrent work.
   const historyRows = await db
     .select()
     .from(financialFactReviews)
     .where(scope(financialFactReviews, app))
     .orderBy(desc(financialFactReviews.reviewedAt), desc(financialFactReviews.id));
-  const documentRows = await db.select().from(documents).where(scope(documents, app));
-  const versionRows = await db.select().from(documentVersions).where(scope(documentVersions, app));
-  const runs = await db
-    .select()
-    .from(documentProcessingRuns)
-    .where(scope(documentProcessingRuns, app))
-    .orderBy(desc(documentProcessingRuns.generation));
-  const overrides = await db
-    .select()
-    .from(documentCategoryOverrides)
-    .where(scope(documentCategoryOverrides, app))
-    .orderBy(desc(documentCategoryOverrides.revision));
-  const metadata = await db
-    .select()
-    .from(documentMetadataRevisions)
-    .where(scope(documentMetadataRevisions, app))
-    .orderBy(desc(documentMetadataRevisions.revision));
+  const sourceRows = evidence ?? (await readDocumentEvidence(db, app.bankId, app.id));
+  const versionsByDocument = groupEvidence(sourceRows.versions, (row) => row.documentId);
+  const runsByVersion = groupEvidence(sourceRows.runs, (row) => row.versionId);
+  const overridesByVersion = groupEvidence(sourceRows.overrides, (row) => row.versionId);
+  const metadataByVersion = groupEvidence(sourceRows.metadata, (row) => row.versionId);
   const history = historyRows.map(reviewDto);
-  const sources = documentRows.flatMap((document) => {
-    const version = versionRows.find(
-      (item) => item.documentId === document.id && item.version === document.currentVersion,
-    );
+  const sources = sourceRows.documents.flatMap((document) => {
+    const version = versionsByDocument
+      .get(document.id)
+      ?.find((item) => item.version === document.currentVersion);
     if (!version) return [];
-    const run = runs.find((item) => item.versionId === version.id);
+    const run = runsByVersion.get(version.id)?.[0];
     if (!run) return [];
-    const override = overrides.find((item) => item.versionId === version.id);
-    const meta = metadata.find((item) => item.versionId === version.id);
+    const override = overridesByVersion.get(version.id)?.[0];
+    const meta = metadataByVersion.get(version.id)?.[0];
     const parsed = documentInterpretationResultSchema.safeParse(run.result);
     const result = parsed.success ? parsed.data : null;
     const printedBusinessNames =
@@ -279,6 +272,21 @@ export async function readApplicationFinancialFacts(db: QueryDatabase, app: App)
   return { facts, history, candidates };
 }
 
+/** Caller has verified current staff access and a synthetic application under its lock. */
+export async function readFinancialFactsView(
+  tx: QueryDatabase,
+  app: App,
+  evidence?: DocumentEvidence,
+): Promise<FinancialFactsView> {
+  return financialFactsViewSchema.parse({
+    applicationId: app.id,
+    applicationRevision: app.revision,
+    canReview: editable(app),
+    simulated: true,
+    ...(await readApplicationFinancialFacts(tx, app, evidence)),
+  });
+}
+
 export function createFinancialFactsService(
   db: Pick<Database, "transaction">,
   options: { clock?: () => Date } = {},
@@ -290,19 +298,10 @@ export function createFinancialFactsService(
     if (actor.kind !== "user" || access.kind !== "staff" || !app.synthetic) return deny();
     return { app, access, userId: actor.userId };
   }
-  async function view(tx: Tx, app: App): Promise<FinancialFactsView> {
-    return financialFactsViewSchema.parse({
-      applicationId: app.id,
-      applicationRevision: app.revision,
-      canReview: editable(app),
-      simulated: true,
-      ...(await readApplicationFinancialFacts(tx, app)),
-    });
-  }
   async function read(actor: Actor, bankId: string, applicationId: string) {
     return db.transaction(async (tx) => {
       const { app } = await context(tx, actor, bankId, applicationId);
-      return view(tx, app);
+      return readFinancialFactsView(tx, app);
     });
   }
   async function review(
@@ -371,7 +370,7 @@ export function createFinancialFactsService(
           ),
         );
       if (!version || !run) return deny();
-      const before = await view(tx, app);
+      const before = await readFinancialFactsView(tx, app);
       const decisions = data.decisions.map((decision) => {
         const candidate = before.candidates.find(
           (item) =>
@@ -462,7 +461,7 @@ export function createFinancialFactsService(
         createdAt: now,
       });
       // No current task/check rule consumes these facts. Future dependent rules must add invalidation here.
-      const response = await view(tx, updated);
+      const response = await readFinancialFactsView(tx, updated);
       await tx.insert(financialFactCommands).values({
         bankId,
         applicationId,

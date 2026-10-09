@@ -141,3 +141,49 @@ The user additionally reported the login-page flash during authenticated reloads
 Acceptance: delayed session and staff-membership responses must never expose the sign-in card or protected content; valid sessions resume their workspace; confirmed anonymous sessions show login; failed checks offer retry without assuming anonymous access. Both borrower and staff portals are covered.
 
 Final follow-up validation: **14/14 desktop/mobile cases** passed across `session-loading.spec.ts` and `request-efficiency.spec.ts`, zero skipped/failed, in `.local/e2e-QXmUZ9`. All 12 workspace/root typechecks, lint (**424 files** plus boundaries), and Cloudflare-mode lender/borrower builds pass. The 429-unit/27-PostgreSQL performance checkpoint above remains applicable to the unchanged request/domain behavior. API, lender and borrower native dry runs pass on the final code. Deployment remains pending.
+
+## Overview and evidence SQL — October 9, 2026
+
+Status: Done locally — implementation, SQL comparisons, PostgreSQL/HTTP and desktop/mobile acceptance verified. This follow-up retains D04's dependencies. Publication and public endpoint remeasurement remain pending.
+
+The user also reported a two-to-three-second Overview request and asked for a broader SQL audit. Cloudflare request telemetry sampled during this investigation includes Overview durations of **1,972, 3,426 and 4,193 ms**, alongside many subsecond requests. These historical samples span applications/deployments and are not a controlled comparison. Recent `staff-applications` logs contain **200 and 228 ms** handler durations after the earlier queue work; this does not establish a new queue percentile or a same-fixture hosted benchmark.
+
+### Cause and implementation
+
+Overview previously opened nested financial-facts and document service transactions. It repeated application locking and staff/demo authorization, fetched the same evidence twice, and then fetched tasks again. The shared Documents reader issued version, interpretation, override, metadata, uploader and task queries inside document/version loops. The latency came from serial database round trips; there is no artificial delay in these reads.
+
+- Overview now verifies current application/staff/demo access once under the application lock and reuses one request-local evidence snapshot for both projections. Staff membership revocation, bank boundaries and synthetic-application checks still execute on every request. No authorization or private responses are cached across requests.
+- Documents batches versions, processing histories, category overrides, metadata and names. Already-loaded task rows drive visibility, replacement permissions and interpretation suggestions. Participant visibility is applied before evidence loading and again during projection; private evidence, reassignment and staff-only metadata remain guarded. Full historical versions and immutable financial-source semantics are retained.
+- Financial-facts uses the same scoped evidence loader and indexed in-memory groups. Overview avoids its duplicate fetch entirely; standalone financial reads remain constant in query count and empty applications skip empty evidence-table queries.
+- Participant Activity uses its existing visible task snapshot to determine document access instead of querying each linked task again.
+- Check/Loan Footprint reconciliation still invalidates stale runs and creates new generations, but skips an `INSERT ... ON CONFLICT DO NOTHING` when it already found the current generation under the application lock. This removes needless statements from unchanged task, readiness, review, closing, check and staff-workspace refreshes.
+- Safe API timing logs now distinguish Overview, financial-facts and Activity without logging identifiers or response contents. No migration, dependency, connection-limit, placement or query-cache change is required.
+
+### Controlled database comparison
+
+The original and revised functions ran on the same hosted synthetic application with **seven documents and seven versions**, using an outer transaction deliberately rolled back after each call. The scripts record only counts, timings, table groups and response hashes. Every compared response hash matched, including financial facts and the wider workspace reads.
+
+| Read | Before SQL statements | After SQL statements | Before direct DB elapsed | After direct DB elapsed |
+| --- | ---: | ---: | ---: | ---: |
+| Overview | 79 | 17 | 4,178 ms | 858 ms |
+| Documents | 55 | 16 | 2,884 ms | 760 ms |
+| Financial facts | 15 | 15 | 789 ms | 712 ms |
+
+Counts include diagnostic `BEGIN`/`ROLLBACK` and nested-service savepoints. Ordinary Overview and Documents transactions use **15 and 14 statements**, respectively, for a populated demo/staff fixture. These counts remain constant as the fixture grows from one document/version to **nine documents and 17 versions**, verified against real PostgreSQL. These are direct database replays from this host, **not deployed Worker HTTP timings**. Timing differences include network variation; statement elimination is the controlled result.
+
+The wider same-application audit found staff Workspace **40 → 38**, Tasks **42 → 40**, Checks **29 → 27**, Readiness **41 → 39**, Review **45 → 43**, Closing **45 → 43**, and staff Activity **10 → 10** statements (with the same diagnostic transaction overhead). The two-statement reduction comes from existing fraud/Footprint runs no longer attempting duplicate inserts. Participant Activity's per-document task reads are independently covered by the new scoped-history test.
+
+The remaining expensive path is application-wide workflow reconciliation and readiness evaluation. Tasks/Readiness/Review/Closing still reload policy, participant and check inputs, including per-check input/history queries, under an application update lock. Multiple simultaneous reads can therefore queue behind one another. Further batching of per-check inputs/history can reduce round trips while preserving reconciliation. Those reads currently repair missing or stale workflow state, so removing reconciliation entirely requires a separate, validated move to complete mutation-driven materialization; this follow-up does not remove those correctness checks or claim all SQL inefficiency is eliminated. Current document/version/history predicates have supporting scope or version/revision indexes; the demonstrated problem was request amplification, not evidence of a missing index requiring a migration.
+
+A final replay after retaining PostgreSQL document ordering produced the same counts and response hashes: Overview **809 ms**, Documents **822 ms**, and financial facts **708 ms**. Read-only `EXPLAIN (ANALYZE, BUFFERS)` on the scoped evidence queries measured **0.034–0.086 ms execution** and **0.070–0.127 ms planning**. Documents and financial history used scope/history indexes; metadata used its version/revision index. PostgreSQL chose sequential scans for the tiny 18-row version/processing tables, which completed in under 0.1 ms. These samples support round-trip reduction rather than adding indexes speculatively.
+
+Private diagnostic scripts and aggregate results are `.local/overview-query-audit.mjs`, `.local/overview-query-{before,after,final}.json`, `.local/overview-plan-audit.mjs`, `.local/workspace-query-audit.mjs`, and `.local/workspace-query-{before,after}.json`. They keep connection values and data private and roll back all reconciliation. No business command or external provider action was committed.
+
+### Acceptance
+
+- Keep Overview/Documents statement counts bounded as logical documents and historical versions grow; project the same tax grouping, metadata, accepted/rejected/stale facts and source provenance.
+- Preserve staff, synthetic-bank, participant, private-resource, assignment, revocation and setup guards. Preserve current/stale check generation behavior and transactional retry semantics.
+- Verify scoped Activity without per-document task queries and unchanged check refreshes without duplicate inserts.
+- Run real PostgreSQL, unit, types/lint, relevant desktop/mobile journeys and the native API Worker dry run. Record public Worker performance only after a requested deployment.
+
+Validation: **491 PostgreSQL tests in 50 suites**, **429 unit tests in 40 files**, all **12 workspace/root typechecks**, lint (**425 files** plus browser boundaries), and the native API Worker dry run pass. The final document-ordering refinement also passes **75 affected PostgreSQL/HTTP tests in seven suites** and a fresh native Worker dry run. **30 distinct desktop/mobile browser cases pass** across lender Overview, document workspace and restricted collaborator upload/revocation. The combined run (`.local/e2e-m5LePS`) passed 26 cases and found four stale expectations left by the existing neutral-copy change: adviser task title, temporary Overview/preview errors, and suggested financial labels. Those fixtures/locators were corrected; all four desktop reruns pass in `.local/e2e-lpzJUf` and `.local/e2e-JyJNNp`, and their mobile equivalents pass in the combined run. No skipped or flaky cases remain. Final lint and `git diff --check` pass. No production code was published.

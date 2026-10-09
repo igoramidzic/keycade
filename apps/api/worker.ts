@@ -51,7 +51,7 @@ export default {
       const pathname = new URL(request.url).pathname;
       const resource =
         pathname.match(
-          /\/(session|tasks|documents|readiness|review|portal|checks|closing|options|accounts)(?:\/|$)/,
+          /\/(session|tasks|documents|readiness|review|portal|checks|closing|options|accounts|overview|financial-facts|activity)(?:\/|$)/,
         )?.[1] ?? (/\/staff\/applications$/.test(pathname) ? "staff-applications" : "other");
       console.info({
         event: "api.request",

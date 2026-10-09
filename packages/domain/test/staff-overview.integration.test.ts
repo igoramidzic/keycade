@@ -5,6 +5,7 @@ import {
   applicationParticipants,
   applicationSetups,
   applications,
+  applicationTasks,
   bankMemberships,
   documentProcessingRuns,
   documents,
@@ -13,11 +14,13 @@ import {
 import { seedIds as ids, seedDatabase } from "@keycade/db/seed";
 import { createTestDatabase } from "@keycade/db/testing";
 import { and, eq } from "drizzle-orm";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import pg from "pg";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   type Actor,
   createDocumentsService,
   createFinancialFactsService,
+  createTasksService,
   readStaffOverview,
 } from "../src/index.js";
 
@@ -180,6 +183,81 @@ const overview = (applicationId: string, actor: Actor = officer, bankId: string 
   readStaffOverview(database.db, actor, bankId, applicationId);
 
 describe("lender overview on PostgreSQL", () => {
+  it("keeps overview and document SQL bounded as documents and version history grow", async () => {
+    const app = await fixture();
+    const demo: Actor = { ...officer, demoBankId: ids.bankA };
+    const taskView = await createTasksService(database.db).read(demo, app.bankId, app.id);
+    const task = taskView.tasks.find((task) => task.visibility === "shared");
+    if (!task) throw new Error("Missing shared task");
+    const first = await source(app);
+    await database.db
+      .update(documents)
+      .set({ taskId: task.id })
+      .where(eq(documents.id, first.documentId));
+    const measure = async (read: () => Promise<unknown>, ceiling: number) => {
+      const spy = vi.spyOn(pg.Client.prototype, "query");
+      try {
+        await read();
+        const statements = spy.mock.calls.map(([query]: unknown[]) =>
+          typeof query === "string" ? query : (query as { text: string }).text,
+        );
+        expect(statements.length).toBeLessThanOrEqual(ceiling);
+        expect(statements.some((query) => /^(insert|update|delete|savepoint)\b/i.test(query))).toBe(
+          false,
+        );
+        // All evidence tables and tasks are loaded once per request, including historical versions.
+        for (const table of [
+          "documents",
+          "document_versions",
+          "document_processing_runs",
+          "document_category_overrides",
+          "document_metadata_revisions",
+          "application_tasks",
+        ])
+          expect(statements.filter((query) => query.includes(`from "${table}"`))).toHaveLength(1);
+        return statements.length;
+      } finally {
+        spy.mockRestore();
+      }
+    };
+    const reads = [
+      { read: () => overview(app.id, demo), ceiling: 15 },
+      {
+        read: () => createDocumentsService(database.db).list(demo, app.bankId, app.id),
+        ceiling: 14,
+      },
+    ];
+    const initial = [];
+    for (const { read, ceiling } of reads) initial.push(await measure(read, ceiling));
+    for (let i = 0; i < 8; i++) {
+      const added = await source(app, "business-tax-return-2024");
+      await database.db
+        .update(documents)
+        .set({ taskId: task.id })
+        .where(eq(documents.id, added.documentId));
+      await source(app, "business-tax-return-2025", first.documentId);
+    }
+    for (const [i, { read, ceiling }] of reads.entries())
+      expect(await measure(read, ceiling)).toBe(initial[i]);
+    const view = await overview(app.id, demo);
+    expect(view.taxDocuments).toMatchObject({ documentCount: 9, versionCount: 17 });
+    expect(
+      view.taxDocuments.documents.find((document) => document.documentId === first.documentId)
+        ?.versionCount,
+    ).toBe(9);
+    const detail = await createDocumentsService(database.db).list(demo, app.bankId, app.id);
+    expect(detail.documents).toHaveLength(9);
+    expect(
+      detail.documents.every((document) =>
+        document.versions.every((version) => version.processing?.history.length === 1),
+      ),
+    ).toBe(true);
+    expect(
+      (await database.db.select().from(applicationTasks).where(eq(applicationTasks.id, task.id)))[0]
+        ?.state,
+    ).toBe(task.state);
+  });
+
   it("counts logical business tax documents separately from history and distinct accepted periods", async () => {
     const app = await fixture();
     const returns = [];

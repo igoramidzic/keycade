@@ -528,7 +528,7 @@ test("Overview loading and temporary aggregate failures recover without losing e
     await route.fulfill({
       status: 503,
       json: {
-        error: { code: "UNAVAILABLE", message: "Synthetic overview temporarily unavailable." },
+        error: { code: "UNAVAILABLE", message: "Overview temporarily unavailable." },
       },
     });
   });
@@ -538,9 +538,7 @@ test("Overview loading and temporary aggregate failures recover without losing e
       page.getByRole("status").filter({ hasText: "Loading financial overview and evidence" }),
     ).toBeVisible();
     release();
-    await expect(page.getByRole("alert")).toContainText(
-      "Synthetic overview temporarily unavailable",
-    );
+    await expect(page.getByRole("alert")).toContainText("Overview temporarily unavailable");
     await expect(page.getByRole("link", { name: "Documents", exact: true })).toBeVisible();
     await page.unroute(pattern);
     await page.getByRole("button", { name: "Try again", exact: true }).click();

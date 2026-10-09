@@ -26,7 +26,8 @@ import {
   createTasksService,
 } from "@keycade/domain";
 import { and, eq } from "drizzle-orm";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import pg from "pg";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { processCheckJobs, processCheckRun } from "./check-jobs.js";
 import type { CheckProviderRequest } from "./check-provider.js";
 import { type Clock, ProviderError } from "./provider.js";
@@ -174,6 +175,25 @@ async function run(id: string, subject: string | null = null) {
   return current(id, subject);
 }
 describe("identity checks and stage readiness on PostgreSQL", () => {
+  it("reuses current runs without attempting inserts on unchanged workspace refreshes", async () => {
+    const { id } = await app(2);
+    const before = await service().read(officer, ids.bankA, id);
+    const rows = await database.db.select().from(checkRuns).where(eq(checkRuns.applicationId, id));
+    const spy = vi.spyOn(pg.Client.prototype, "query");
+    try {
+      expect(await service().read(officer, ids.bankA, id)).toEqual(before);
+      const statements = spy.mock.calls.map(([query]: unknown[]) =>
+        typeof query === "string" ? query : (query as { text: string }).text,
+      );
+      expect(statements.some((query) => /^insert into "check_runs"/i.test(query))).toBe(false);
+    } finally {
+      spy.mockRestore();
+    }
+    expect(
+      await database.db.select().from(checkRuns).where(eq(checkRuns.applicationId, id)),
+    ).toEqual(rows);
+  });
+
   it("keeps missing identifiers waiting without adding submission blockers and separates closing", async () => {
     const { id } = await app(2);
     const view = await service().read(officer, ids.bankA, id);

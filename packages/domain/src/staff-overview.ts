@@ -1,10 +1,10 @@
 import { type StaffTaxDocument, staffOverviewSchema } from "@keycade/contracts";
-import { applicationTasks, type Database } from "@keycade/db";
-import { and, eq } from "drizzle-orm";
-import { type Actor, requireApplicationAccess, requireBankStaff } from "./authorization.js";
+import { type Database } from "@keycade/db";
+import { type Actor, requireApplicationAccess } from "./authorization.js";
 import { lockCheckApplication } from "./checks.js";
-import { createDocumentsService } from "./documents.js";
-import { createFinancialFactsService } from "./financial-facts.js";
+import { projectApplicationDocuments, readDocumentWorkspace } from "./documents.js";
+import { deny } from "./errors.js";
+import { readFinancialFactsView } from "./financial-facts.js";
 
 /** Reuses document access and financial-source policy in one locked application snapshot. */
 export async function readStaffOverview(
@@ -15,16 +15,12 @@ export async function readStaffOverview(
 ) {
   return db.transaction(async (tx) => {
     const app = await lockCheckApplication(tx, bankId, applicationId);
-    await requireBankStaff(tx, actor, bankId);
-    await requireApplicationAccess(tx, actor, bankId, applicationId);
-    const financialFacts = await createFinancialFactsService(tx).read(actor, bankId, applicationId);
-    const visible = await createDocumentsService(tx).list(actor, bankId, applicationId);
-    const tasks = await tx
-      .select({ id: applicationTasks.id, state: applicationTasks.state })
-      .from(applicationTasks)
-      .where(
-        and(eq(applicationTasks.bankId, bankId), eq(applicationTasks.applicationId, applicationId)),
-      );
+    const access = await requireApplicationAccess(tx, actor, bankId, applicationId);
+    if (actor.kind !== "user" || access.kind !== "staff" || !app.synthetic) return deny();
+    const snapshot = await readDocumentWorkspace(tx, actor, access, app);
+    const financialFacts = await readFinancialFactsView(tx, app, snapshot.evidence);
+    const visible = projectApplicationDocuments(actor, access, app, snapshot);
+    const tasks = new Map(snapshot.tasks.map((task) => [task.id, task]));
     const documents: StaffTaxDocument[] = visible.documents.flatMap((document) => {
       // Personal tax records must never inflate the business tax-document group.
       if (document.subjectUserId || document.visibility === "private") return [];
@@ -82,7 +78,7 @@ export async function readStaffOverview(
                   ? ("rejected" as const)
                   : ("waiting_for_review" as const),
           taskId: document.taskId,
-          taskEvidenceState: tasks.find((task) => task.id === document.taskId)?.state ?? null,
+          taskEvidenceState: (document.taskId ? tasks.get(document.taskId)?.state : null) ?? null,
           scanState: version.scanState,
           processingState: document.processingState,
           classificationStale,

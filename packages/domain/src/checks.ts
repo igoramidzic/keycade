@@ -519,6 +519,7 @@ export async function reconcileFootprint(tx: Tx, app: App, requestId: string, no
     inputs = await currentCheckInputs(tx, app, check);
   }
   await staleRuns(tx, check.id, inputs.fingerprint, now);
+  if (old && !old.stale) return;
   await tx
     .insert(checkRuns)
     .values({
@@ -637,6 +638,8 @@ export async function reconcileChecks(
       inputs = await currentCheckInputs(tx, app, check);
     }
     await staleRuns(tx, check.id, inputs.fingerprint, now);
+    // The application lock serializes generations. An existing current run needs no insert.
+    if (previousGeneration && !previousGeneration.stale) continue;
     await tx
       .insert(checkRuns)
       .values({

@@ -15,7 +15,8 @@ import {
 import { seedIds as ids, seedDatabase } from "@keycade/db/seed";
 import { createTestDatabase } from "@keycade/db/testing";
 import { and, eq } from "drizzle-orm";
-import { afterAll, beforeAll, expect, it } from "vitest";
+import pg from "pg";
+import { afterAll, beforeAll, expect, it, vi } from "vitest";
 import {
   type Actor,
   createActivityService,
@@ -148,6 +149,55 @@ it("filters private and unassigned histories before pagination without exposing 
     /PRIVATE-NOTE|private@example|Synthetic confidential|secret answer/,
   );
 });
+it("loads linked-task document activity in a bounded batch and honors reassignment", async () => {
+  const f = await fixture();
+  const assigned = f.tasks.find((task) => task.visibility === "assigned")!;
+  const privateTask = f.tasks.find((task) => task.visibility === "private")!;
+  const files = await database.db
+    .insert(documents)
+    .values(
+      Array.from({ length: 12 }, () => ({
+        bankId: ids.bankA,
+        applicationId: f.id,
+        taskId: assigned.id,
+        visibility: "shared" as const,
+        createdByUserId: ids.borrower,
+      })),
+    )
+    .returning();
+  for (const file of files) await event(f.id, "document.upload_finished", "document", file.id);
+  const [hidden] = await database.db
+    .insert(documents)
+    .values({
+      bankId: ids.bankA,
+      applicationId: f.id,
+      taskId: privateTask.id,
+      visibility: "private",
+      subjectUserId: ids.borrower,
+      createdByUserId: ids.borrower,
+    })
+    .returning();
+  await event(f.id, "document.upload_finished", "document", hidden!.id);
+  const spy = vi.spyOn(pg.Client.prototype, "query");
+  try {
+    const view = await activity().list(adviser, ids.bankA, f.id);
+    expect(view.entries).toHaveLength(12);
+    const statements = spy.mock.calls.map(([query]: unknown[]) =>
+      typeof query === "string" ? query : (query as { text: string }).text,
+    );
+    expect(statements.filter((query) => query.includes('from "application_tasks"'))).toHaveLength(
+      1,
+    );
+  } finally {
+    spy.mockRestore();
+  }
+  await database.db
+    .update(applicationTasks)
+    .set({ assigneeParticipantId: null })
+    .where(eq(applicationTasks.id, assigned.id));
+  expect((await activity().list(adviser, ids.bankA, f.id)).entries).toEqual([]);
+});
+
 it("keeps a stable microsecond-aware cursor without skips or duplicates on tied timestamps", async () => {
   const f = await fixture();
   const a = await event(f.id, "application.created", "application", f.id);

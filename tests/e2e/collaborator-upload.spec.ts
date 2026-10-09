@@ -96,7 +96,7 @@ test("an invited adviser uploads assigned evidence without private access and lo
   ).documents.find((document) => document.taskId === privateTask.id);
   if (!privateDocument?.currentVersionId) throw new Error("Synthetic private evidence is missing.");
   expect(privateDocument).toMatchObject({ visibility: "private", subjectUserId: applicant.userId });
-  const assignedTitle = `Provide synthetic adviser evidence ${randomUUID().slice(0, 8)}`;
+  const assignedTitle = `Provide adviser evidence ${randomUUID().slice(0, 8)}`;
   const created = await workflowApi<TasksView>(officer, "POST", `${base}/tasks`, {
     idempotencyKey: randomUUID(),
     title: assignedTitle,

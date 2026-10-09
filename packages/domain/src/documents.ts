@@ -36,10 +36,11 @@ import {
   type ResourceScopePolicy,
   requireApplicantPortalAccess,
 } from "./authorization.js";
+import { groupEvidence, readDocumentEvidence } from "./document-evidence.js";
 import {
   documentNameComparisonIsStale,
   enqueueDocumentProcessing,
-  readDocumentProcessing,
+  projectDocumentProcessing,
 } from "./document-processing.js";
 import { DomainError, deny } from "./errors.js";
 import { hashIdentityCredential } from "./identity.js";
@@ -92,13 +93,30 @@ export async function documentIsVisible(
   access: ApplicationAccess,
   document: Document,
 ): Promise<boolean> {
+  const task =
+    document.taskId && access.kind === "participant"
+      ? await taskFor(db, document.bankId, document.applicationId, document.taskId)
+      : undefined;
+  return documentVisibleWithTask(actor, access, document, task);
+}
+/** The task must be loaded in the same authorized application snapshot as the document. */
+export function documentVisibleWithTask(
+  actor: Actor,
+  access: ApplicationAccess,
+  document: Document,
+  task?: Task,
+): boolean {
   if (actor.kind !== "user") return false;
-  let effective = access;
-  if (document.taskId && access.kind === "participant") {
-    const task = await taskFor(db, document.bankId, document.applicationId, document.taskId);
-    if (task && taskIsVisible(actor, access, task))
-      effective = { ...access, documentIds: [...(access.documentIds ?? []), document.id] };
-  }
+  const effective =
+    document.taskId &&
+    access.kind === "participant" &&
+    task &&
+    task.id === document.taskId &&
+    task.bankId === document.bankId &&
+    task.applicationId === document.applicationId &&
+    taskIsVisible(actor, access, task)
+      ? { ...access, documentIds: [...(access.documentIds ?? []), document.id] }
+      : access;
   return participantResourceAllowed({
     actorUserId: actor.userId,
     access: effective,
@@ -161,6 +179,191 @@ export async function validateDocumentGrants(
     )
       return deny();
   }
+}
+
+function documentWritableWithTask(
+  actor: Actor,
+  access: ApplicationAccess,
+  document: Document,
+  status: string,
+  task?: Task,
+) {
+  if (closed.has(status)) return false;
+  if (document.taskId) return !!task && mayUploadTask(actor, access, task, status);
+  return (
+    editable(status) &&
+    (access.kind === "staff" ||
+      (access.kind === "participant" &&
+        access.scope === "full" &&
+        document.visibility === "shared"))
+  );
+}
+
+/** Caller owns the application lock and has verified portal access in this transaction. */
+export async function readDocumentWorkspace(
+  db: QueryDatabase,
+  actor: Actor,
+  access: ApplicationAccess,
+  app: typeof applications.$inferSelect,
+) {
+  const tasks = await db
+    .select()
+    .from(applicationTasks)
+    .where(and(eq(applicationTasks.bankId, app.bankId), eq(applicationTasks.applicationId, app.id)))
+    .orderBy(asc(applicationTasks.createdAt));
+  const tasksById = new Map(tasks.map((task) => [task.id, task]));
+  const evidence = await readDocumentEvidence(db, app.bankId, app.id, {
+    visible: (document) =>
+      documentVisibleWithTask(
+        actor,
+        access,
+        document,
+        document.taskId ? tasksById.get(document.taskId) : undefined,
+      ),
+    includeMetadata: access.kind === "staff",
+  });
+  const userIds =
+    access.kind === "staff"
+      ? [
+          ...new Set([
+            ...evidence.versions.map((version) => version.uploadedByUserId),
+            ...evidence.documents.flatMap((document) =>
+              document.subjectUserId ? [document.subjectUserId] : [],
+            ),
+          ]),
+        ]
+      : [];
+  const people = userIds.length
+    ? await db
+        .select({ id: users.id, name: users.displayName })
+        .from(users)
+        .where(inArray(users.id, userIds))
+    : [];
+  return { evidence, tasks, names: new Map(people.map((person) => [person.id, person.name])) };
+}
+
+/** Pure projection: resource rules and task capabilities are shared with document commands. */
+export function projectApplicationDocuments(
+  actor: Actor,
+  access: ApplicationAccess,
+  app: typeof applications.$inferSelect,
+  snapshot: Awaited<ReturnType<typeof readDocumentWorkspace>>,
+  limits = {
+    maxFileBytes: 25 * 1024 * 1024,
+    maxBatchFiles: 10,
+    allowedMimeTypes: [...documentMimeTypes],
+  },
+) {
+  const { evidence, tasks, names } = snapshot;
+  const tasksById = new Map(tasks.map((task) => [task.id, task]));
+  const versionsByDocument = groupEvidence(evidence.versions, (row) => row.documentId);
+  const runsByVersion = groupEvidence(evidence.runs, (row) => row.versionId);
+  const overridesByVersion = groupEvidence(evidence.overrides, (row) => row.versionId);
+  const metadataByVersion = groupEvidence(evidence.metadata, (row) => row.versionId);
+  const result = [];
+  for (const document of evidence.documents) {
+    // Filter again at projection so supplied snapshots cannot widen resource scope.
+    const linkedTask = document.taskId ? tasksById.get(document.taskId) : undefined;
+    if (!documentVisibleWithTask(actor, access, document, linkedTask)) continue;
+    const versions = versionsByDocument.get(document.id) ?? [];
+    const writable = documentWritableWithTask(actor, access, document, app.status, linkedTask);
+    const versionViews = [];
+    for (const version of versions) {
+      const metadataHistory =
+        access.kind === "staff" ? (metadataByVersion.get(version.id) ?? []) : [];
+      const metadata = metadataHistory[0];
+      const uploader = access.kind === "staff" ? names.get(version.uploadedByUserId) : null;
+      versionViews.push({
+        ...version,
+        createdAt: version.createdAt.toISOString(),
+        uploadedAt: version.uploadedAt?.toISOString() ?? null,
+        uploadedByUserId: access.kind === "staff" ? version.uploadedByUserId : null,
+        uploadedByName: uploader ?? null,
+        metadata: {
+          revision: metadata?.revision ?? 0,
+          analysisRevision: metadata?.analysisRevision ?? 0,
+          displayName: metadata?.displayName ?? null,
+          description: metadata?.description ?? null,
+          expectedPeriod: metadata?.expectedPeriod ?? null,
+          history: metadataHistory.map((row) => ({
+            ...row,
+            createdAt: row.createdAt.toISOString(),
+          })),
+        },
+        canDownload: version.uploadState === "uploaded" && version.scanState === "clean",
+        canRetryScan:
+          writable &&
+          version.uploadState === "uploaded" &&
+          version.scanState === "error" &&
+          version.version === document.currentVersion,
+        processing: projectDocumentProcessing(
+          actor,
+          access,
+          document,
+          version,
+          {
+            runs: runsByVersion.get(version.id) ?? [],
+            overrides: overridesByVersion.get(version.id) ?? [],
+            tasks,
+          },
+          {
+            writable: writable || access.kind === "staff",
+            closed: closed.has(app.status),
+            businessName: app.businessName,
+            metadataEditable: editable(app.status),
+          },
+        ),
+      });
+    }
+    const subject =
+      access.kind === "staff" && document.subjectUserId ? names.get(document.subjectUserId) : null;
+    const currentProcessing = versionViews.find(
+      (version) => version.version === document.currentVersion,
+    )?.processing;
+    result.push({
+      ...document,
+      applicationBusinessName: access.kind === "staff" ? app.businessName : null,
+      businessId: access.kind === "staff" ? app.businessId : null,
+      subjectDisplayName: subject ?? null,
+      writtenResponsePolicy:
+        access.kind === "staff" && linkedTask
+          ? linkedTask.visibility === "private" ||
+            linkedTask.stableKey.startsWith("tax-document-readiness:")
+            ? "Only confirmed or needs_help responses are supported. Do not enter identifiers."
+            : "The linked requirement accepts a written response, subject to lender evidence review."
+          : null,
+      canEditMetadata: access.kind === "staff" && editable(app.status),
+      currentVersionId:
+        versions.find((version) => version.version === document.currentVersion)?.id ?? null,
+      canReplace: writable,
+      category: currentProcessing?.manualCategory ?? currentProcessing?.category ?? "other",
+      processingState: currentProcessing?.state ?? null,
+      canCorrectCategory: currentProcessing?.canCorrectCategory ?? false,
+      versions: versionViews,
+    });
+  }
+  return documentsViewSchema.parse({
+    applicationId: app.id,
+    simulation: true,
+    canUpload:
+      editable(app.status) &&
+      (access.kind === "staff" || (access.kind === "participant" && access.scope === "full")),
+    demoImportContext:
+      app.synthetic &&
+      app.businessName &&
+      ((editable(app.status) &&
+        (access.kind === "staff" || (access.kind === "participant" && access.scope === "full"))) ||
+        tasks.some(
+          (task) => task.visibility !== "private" && mayUploadTask(actor, access, task, app.status),
+        ))
+        ? { businessName: app.businessName, applicationRevision: app.revision }
+        : null,
+    uploadTasks: tasks
+      .filter((task) => mayUploadTask(actor, access, task, app.status))
+      .map(({ id, title }) => ({ id, title })),
+    limits,
+    documents: result,
+  });
 }
 
 export function createDocumentsService(
@@ -227,18 +430,10 @@ export function createDocumentsService(
     document: Document,
     status: string,
   ) {
-    if (closed.has(status)) return false;
-    if (document.taskId) {
-      const task = await taskFor(tx, document.bankId, document.applicationId, document.taskId);
-      return !!task && mayUploadTask(actor, access, task, status);
-    }
-    return (
-      editable(status) &&
-      (access.kind === "staff" ||
-        (access.kind === "participant" &&
-          access.scope === "full" &&
-          document.visibility === "shared"))
-    );
+    const task = document.taskId
+      ? await taskFor(tx, document.bankId, document.applicationId, document.taskId)
+      : undefined;
+    return documentWritableWithTask(actor, access, document, status, task);
   }
   async function loadVersion(
     tx: Tx,
@@ -319,136 +514,8 @@ export function createDocumentsService(
   async function list(actor: Actor, bankId: string, applicationId: string) {
     return db.transaction(async (tx) => {
       const { app, access } = await context(tx, actor, bankId, applicationId);
-      const rows = await tx
-        .select()
-        .from(documents)
-        .where(and(eq(documents.bankId, bankId), eq(documents.applicationId, applicationId)))
-        .orderBy(desc(documents.createdAt));
-      const tasks = await tx
-        .select()
-        .from(applicationTasks)
-        .where(
-          and(
-            eq(applicationTasks.bankId, bankId),
-            eq(applicationTasks.applicationId, applicationId),
-          ),
-        )
-        .orderBy(asc(applicationTasks.createdAt));
-      const result = [];
-      for (const document of rows) {
-        if (!(await documentIsVisible(tx, actor, access, document))) continue;
-        const versions = await tx
-          .select()
-          .from(documentVersions)
-          .where(eq(documentVersions.documentId, document.id))
-          .orderBy(desc(documentVersions.version));
-        const writable = await canWrite(tx, actor, access, document, app.status);
-        const versionViews = [];
-        const linkedTask = tasks.find((task) => task.id === document.taskId);
-        for (const version of versions) {
-          const metadataHistory =
-            access.kind === "staff"
-              ? await tx
-                  .select()
-                  .from(documentMetadataRevisions)
-                  .where(eq(documentMetadataRevisions.versionId, version.id))
-                  .orderBy(desc(documentMetadataRevisions.revision))
-              : [];
-          const metadata = metadataHistory[0];
-          const [uploader] =
-            access.kind === "staff"
-              ? await tx
-                  .select({ name: users.displayName })
-                  .from(users)
-                  .where(eq(users.id, version.uploadedByUserId))
-              : [];
-          versionViews.push({
-            ...version,
-            createdAt: version.createdAt.toISOString(),
-            uploadedAt: version.uploadedAt?.toISOString() ?? null,
-            uploadedByUserId: access.kind === "staff" ? version.uploadedByUserId : null,
-            uploadedByName: uploader?.name ?? null,
-            metadata: {
-              revision: metadata?.revision ?? 0,
-              analysisRevision: metadata?.analysisRevision ?? 0,
-              displayName: metadata?.displayName ?? null,
-              description: metadata?.description ?? null,
-              expectedPeriod: metadata?.expectedPeriod ?? null,
-              history: metadataHistory.map((row) => ({
-                ...row,
-                createdAt: row.createdAt.toISOString(),
-              })),
-            },
-            canDownload: version.uploadState === "uploaded" && version.scanState === "clean",
-            canRetryScan:
-              writable &&
-              version.uploadState === "uploaded" &&
-              version.scanState === "error" &&
-              version.version === document.currentVersion,
-            processing: await readDocumentProcessing(tx, actor, access, document, version, {
-              writable: writable || access.kind === "staff",
-              closed: closed.has(app.status),
-              businessName: app.businessName,
-              metadataEditable: editable(app.status),
-            }),
-          });
-        }
-        const [subject] =
-          access.kind === "staff" && document.subjectUserId
-            ? await tx
-                .select({ name: users.displayName })
-                .from(users)
-                .where(eq(users.id, document.subjectUserId))
-            : [];
-        const currentProcessing = versionViews.find(
-          (version) => version.version === document.currentVersion,
-        )?.processing;
-        result.push({
-          ...document,
-          applicationBusinessName: access.kind === "staff" ? app.businessName : null,
-          businessId: access.kind === "staff" ? app.businessId : null,
-          subjectDisplayName: subject?.name ?? null,
-          writtenResponsePolicy:
-            access.kind === "staff" && linkedTask
-              ? linkedTask.visibility === "private" ||
-                linkedTask.stableKey.startsWith("tax-document-readiness:")
-                ? "Only confirmed or needs_help responses are supported. Do not enter identifiers."
-                : "The linked requirement accepts a written response, subject to lender evidence review."
-              : null,
-          canEditMetadata: access.kind === "staff" && editable(app.status),
-          currentVersionId:
-            versions.find((version) => version.version === document.currentVersion)?.id ?? null,
-          canReplace: writable,
-          category: currentProcessing?.manualCategory ?? currentProcessing?.category ?? "other",
-          processingState: currentProcessing?.state ?? null,
-          canCorrectCategory: currentProcessing?.canCorrectCategory ?? false,
-          versions: versionViews,
-        });
-      }
-      return documentsViewSchema.parse({
-        applicationId,
-        simulation: true,
-        canUpload:
-          editable(app.status) &&
-          (access.kind === "staff" || (access.kind === "participant" && access.scope === "full")),
-        demoImportContext:
-          app.synthetic &&
-          app.businessName &&
-          ((editable(app.status) &&
-            (access.kind === "staff" ||
-              (access.kind === "participant" && access.scope === "full"))) ||
-            tasks.some(
-              (task) =>
-                task.visibility !== "private" && mayUploadTask(actor, access, task, app.status),
-            ))
-            ? { businessName: app.businessName, applicationRevision: app.revision }
-            : null,
-        uploadTasks: tasks
-          .filter((task) => mayUploadTask(actor, access, task, app.status))
-          .map(({ id, title }) => ({ id, title })),
-        limits,
-        documents: result,
-      });
+      const snapshot = await readDocumentWorkspace(tx, actor, access, app);
+      return projectApplicationDocuments(actor, access, app, snapshot, limits);
     });
   }
   async function beginUpload(
