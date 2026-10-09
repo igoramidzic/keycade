@@ -103,7 +103,7 @@ export function IdentityAvatar({ email, className }: { email: string; className?
     <span
       aria-hidden="true"
       className={cn(
-        "flex size-9 shrink-0 items-center justify-center rounded-full bg-brand-soft text-xs font-semibold text-brand",
+        "flex size-9 shrink-0 items-center justify-center rounded-full bg-info-soft text-xs font-semibold text-info",
         className,
       )}
     >

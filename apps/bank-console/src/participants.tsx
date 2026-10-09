@@ -1,4 +1,4 @@
-import { participantsWorkspaceSchema, tasksViewSchema } from "@keycade/contracts";
+import { participantsWorkspaceSchema, tasksViewSchema, taskViewSchema } from "@keycade/contracts";
 import { ParticipantsManager } from "@keycade/ui/components/participants-manager";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, useStaffApi } from "./api";
@@ -46,7 +46,10 @@ export function ApplicationParticipants({ applicationId }: { applicationId: stri
               task.inputKind !== "signature",
           )
           .map((task) => ({
-            ...task,
+            id: task.id,
+            title: task.title,
+            revision: task.revision,
+            assigneeParticipantId: task.assigneeParticipantId,
             assigneeName:
               tasks.data?.assignees.find((person) => person.id === task.assigneeParticipantId)
                 ?.displayName ?? null,
@@ -57,6 +60,23 @@ export function ApplicationParticipants({ applicationId }: { applicationId: stri
           ? error.message
           : "We couldn’t connect. Your entries are still here; please try again."
       }
+      assignTasks={async (changes) => {
+        try {
+          // Each assignment is its own revision-checked command; stop at the first failure.
+          for (const { taskId, ...body } of changes)
+            await api.participantRequest(
+              `/applications/${applicationId}/tasks/${taskId}/assignment`,
+              taskViewSchema,
+              { method: "PATCH", body },
+            );
+        } finally {
+          await Promise.all([
+            client.invalidateQueries({ queryKey: ["staff-tasks", applicationId] }),
+            client.invalidateQueries({ queryKey: ["staff-workspace", applicationId] }),
+            client.invalidateQueries({ queryKey }),
+          ]);
+        }
+      }}
       mutate={async (path, body) => {
         await client.cancelQueries({ queryKey });
         const updated = await api.participantRequest(

@@ -399,10 +399,10 @@ function ApplicationUpload({
                 }}
                 className={cn(
                   "flex flex-col items-center rounded-xl border-2 border-dashed px-4 py-6 text-center transition-colors",
-                  dragging ? "border-brand bg-brand-soft/60" : "border-border bg-muted/30",
+                  dragging ? "border-info bg-info-soft/60" : "border-border bg-muted/30",
                 )}
               >
-                <span className="flex size-10 items-center justify-center rounded-full bg-brand-soft text-brand">
+                <span className="flex size-10 items-center justify-center rounded-full bg-info-soft text-info">
                   <CloudUpload aria-hidden="true" className="size-5" />
                 </span>
                 <p className="mt-3 text-sm font-medium">Drop PDF or image files here</p>
@@ -474,7 +474,7 @@ function ApplicationUpload({
                     </div>
                     {(entry.state === "preparing" || entry.state === "uploading") && (
                       <progress
-                        className="block h-1.5 w-full appearance-none overflow-hidden rounded-full bg-muted [&::-moz-progress-bar]:bg-brand [&::-webkit-progress-bar]:bg-muted [&::-webkit-progress-value]:bg-brand [&::-webkit-progress-value]:transition-[width]"
+                        className="block h-1.5 w-full appearance-none overflow-hidden rounded-full bg-muted [&::-moz-progress-bar]:bg-info [&::-webkit-progress-bar]:bg-muted [&::-webkit-progress-value]:bg-info [&::-webkit-progress-value]:transition-[width]"
                         max={100}
                         value={entry.percent}
                         aria-label={`Upload progress for ${entry.file.name}`}
@@ -558,7 +558,7 @@ function ApplicationUpload({
             )}
             <Link
               to={documentsHref}
-              className="inline-flex items-center gap-1 text-sm font-medium text-brand underline-offset-4 hover:underline"
+              className="inline-flex items-center gap-1 text-sm font-medium text-info underline-offset-4 hover:underline"
             >
               View documents
               <ArrowRight aria-hidden="true" className="size-3.5" />

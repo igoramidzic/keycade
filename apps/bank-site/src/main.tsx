@@ -258,7 +258,7 @@ function BankSite() {
                   className="relative flex flex-col rounded-xl border border-border bg-card p-6 shadow-xs"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+                    <span className="flex size-10 items-center justify-center rounded-lg bg-info text-info-foreground">
                       <step.icon aria-hidden="true" className="size-5" />
                     </span>
                     <span
@@ -278,7 +278,7 @@ function BankSite() {
 
         <section aria-labelledby="ready-title" className="py-20 sm:py-24">
           <div className={container}>
-            <div className="relative overflow-hidden rounded-2xl bg-primary px-6 py-12 text-primary-foreground shadow-lg sm:px-12 sm:py-14">
+            <div className="relative overflow-hidden rounded-2xl bg-brand-strong px-6 py-12 text-brand-foreground shadow-lg sm:px-12 sm:py-14">
               <div
                 aria-hidden="true"
                 className="pointer-events-none absolute -top-24 -right-16 size-72 rounded-full bg-[radial-gradient(closest-side,color-mix(in_oklch,white_22%,transparent),transparent)]"
@@ -291,7 +291,7 @@ function BankSite() {
                   >
                     Ready when you are.
                   </h2>
-                  <p className="mt-3 text-base leading-7 text-primary-foreground/80">
+                  <p className="mt-3 text-base leading-7 text-brand-foreground/80">
                     A few simple questions to get started. No password needed — and you can pause
                     and return along the way.
                   </p>
@@ -381,8 +381,8 @@ function ApplicationPreview() {
             <p className="text-xs font-medium text-muted-foreground">Requested amount</p>
             <p className="mt-1 text-3xl font-semibold tracking-tight tabular-nums">$250,000</p>
           </div>
-          <span className="inline-flex h-6 items-center gap-1.5 rounded-full bg-brand-soft px-2.5 text-xs font-medium text-brand">
-            <span className="size-1.5 rounded-full bg-brand" />
+          <span className="inline-flex h-6 items-center gap-1.5 rounded-full bg-info-soft px-2.5 text-xs font-medium text-info">
+            <span className="size-1.5 rounded-full bg-info" />
             In progress
           </span>
         </div>
@@ -415,14 +415,14 @@ function ApplicationPreview() {
                   className={cn(
                     "relative flex size-6 shrink-0 items-center justify-center rounded-full border",
                     stage.state === "done" && "border-success bg-success text-white",
-                    stage.state === "current" && "border-brand bg-brand-soft",
+                    stage.state === "current" && "border-info bg-info-soft",
                     stage.state === "next" && "border-border bg-card",
                   )}
                 >
                   {stage.state === "done" ? (
                     <Check className="size-3.5" strokeWidth={3} />
                   ) : stage.state === "current" ? (
-                    <span className="size-2 rounded-full bg-brand" />
+                    <span className="size-2 rounded-full bg-info" />
                   ) : null}
                 </span>
                 <span
@@ -450,7 +450,7 @@ function ApplicationPreview() {
         </div>
       </div>
       <div className="absolute -top-5 -right-3 hidden items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium shadow-md sm:flex">
-        <Clock3 className="size-3.5 text-brand" />2 tasks need your action
+        <Clock3 className="size-3.5 text-info" />2 tasks need your action
       </div>
     </div>
   );

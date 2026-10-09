@@ -11,6 +11,7 @@ import {
 } from "@keycade/contracts";
 import { Alert, AlertDescription, AlertTitle } from "@keycade/ui/components/alert";
 import { Button, buttonVariants } from "@keycade/ui/components/button";
+import { CurrencyInput, wholeDollars } from "@keycade/ui/components/currency-input";
 import { useDemoApplication } from "@keycade/ui/components/demo-kit";
 import { LoadingState } from "@keycade/ui/components/empty-state";
 import { FundingPurposeIcon } from "@keycade/ui/components/funding-purpose-icon";
@@ -32,10 +33,10 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { ApiError, decimalAmount, formatAmount, request } from "./api";
 import { answerKey, rememberAnswer, unsavedAnswer } from "./unsaved-answers";
-import { applicationPath, ErrorNotice } from "./workspace-ui";
+import { applicationPath, ErrorNotice, setupStepFromSlug, setupStepPath } from "./workspace-ui";
 
 async function searchIndustries(query: string) {
   const catalog = await import("@keycade/contracts/industry-search");
@@ -91,15 +92,16 @@ const helpText: Partial<Record<ApplicationSetupStep, string>> = {
   business_name: "Use the name registered for your business, as it appears on official documents.",
   business_address: "Where your business operates. We use this to confirm the lending area.",
   industry: "Search in plain language, like “dental office” or “bakery”.",
-  website: "Optional. Share a public website if your business has one.",
-  amount: "Enter the amount you’d like to request. You can discuss changes with your lender.",
+  website: "Optional. Enter a website like example.com. You can leave off https://.",
+  amount:
+    "Enter the amount you’d like to request in whole dollars. You can discuss changes with your lender.",
   other_purpose: "Optional. A short description helps your lender understand your plans.",
   review: "Check your answers before finishing setup. You can edit any of them.",
 };
 function fieldValue(data: ApplicationSetup, step: ApplicationSetupStep): string {
   if (step === "business_name") return data.businessName ?? "";
   if (step === "business_address") return JSON.stringify(data.businessAddress ?? blankAddress);
-  if (step === "amount") return data.requestedAmount ?? "";
+  if (step === "amount") return data.requestedAmount ? wholeDollars(data.requestedAmount) : "";
   if (step === "purpose") return JSON.stringify(data.fundingPurposes);
   if (step === "industry") return data.industryCode ?? "";
   if (step === "website") return data.website ?? "";
@@ -185,6 +187,7 @@ function WizardForm({
   const [latestValue, setLatestValue] = useState<string | null>(null);
   const recoveryKey = answerKey(session.bank.id, session.user.email, applicationId);
   const navigate = useNavigate();
+  const urlStep = setupStepFromSlug(useParams().step);
   const queryClient = useQueryClient();
   const finishKey = useRef({ revision: 0, key: crypto.randomUUID() });
   const heading = useRef<HTMLHeadingElement>(null);
@@ -221,8 +224,41 @@ function WizardForm({
     optionalSteps.includes(step) &&
     (step === "business_ein" ? saved.businessEin.present : Boolean(fieldValue(saved, step)));
   const inputDisabled = busy || (hasOptionalValue && !replacing);
+  const stepUrl = (key: ApplicationSetupStep) =>
+    setupStepPath(applicationId, session.bank.slug, key === "product" ? "amount" : key);
+  // A step can be opened by URL once it has been reached: any earlier step, any answered or
+  // skipped step, and the first step after an unbroken run of settled questions.
+  const settled = (key: ApplicationSetupStep) =>
+    saved.completedSteps.includes(key) || saved.skippedSteps.includes(key);
+  const reachable = (key: ApplicationSetupStep) =>
+    steps.includes(key) &&
+    (steps.indexOf(key) <= position ||
+      settled(key) ||
+      steps.slice(0, steps.indexOf(key)).every(settled));
+  const routed = useRef(false);
   useEffect(() => {
-    heading.current?.focus();
+    // Each saved step has its own address. A step change made here becomes a history entry.
+    if (urlStep === step) {
+      routed.current = true;
+      return;
+    }
+    if (!routed.current && urlStep) return;
+    navigate(stepUrl(step), { replace: !routed.current });
+    routed.current = true;
+  }, [step]);
+  useEffect(() => {
+    // Browser back/forward, reloads and typed addresses move the saved step when allowed.
+    if (!urlStep || urlStep === step || busy) return;
+    routed.current = true;
+    if (reachable(urlStep)) {
+      void save(urlStep, "edit").then((moved) => {
+        if (!moved) navigate(stepUrl(step), { replace: true });
+      });
+    } else navigate(stepUrl(step), { replace: true });
+  }, [urlStep]);
+  useEffect(() => {
+    window.scrollTo({ top: 0 });
+    heading.current?.focus({ preventScroll: true });
   }, [step]);
   useEffect(() => {
     // EIN deliberately never enters the recovery cache or any browser persistence.
@@ -302,7 +338,7 @@ function WizardForm({
     target: ApplicationSetupStep,
     mode: "continue" | "back" | "later" | "skip" | "edit" | "clear",
   ) {
-    if (busy) return;
+    if (busy) return false;
     form.clearErrors();
     setError(null);
     let body: SaveApplicationSetup;
@@ -353,7 +389,7 @@ function WizardForm({
       form.setError("value", {
         message: error instanceof Error ? error.message : "Please check your answer.",
       });
-      return;
+      return false;
     }
     setBusy(true);
     try {
@@ -382,8 +418,10 @@ function WizardForm({
         await queryClient.invalidateQueries({ queryKey: ["applications"] });
         navigate(`/?bank=${encodeURIComponent(session.bank.slug)}`, { state: { saved: true } });
       }
+      return true;
     } catch (error) {
       showError(error);
+      return false;
     } finally {
       setBusy(false);
     }
@@ -495,14 +533,14 @@ function WizardForm({
                           className={cn(
                             "flex size-5 shrink-0 items-center justify-center rounded-full border",
                             state === "complete" && "border-success bg-success text-white",
-                            state === "current" && "border-brand bg-brand-soft",
+                            state === "current" && "border-info bg-info-soft",
                             state === "skipped" && "border-border bg-muted text-muted-foreground",
                           )}
                         >
                           {state === "complete" ? (
                             <Check className="size-3" strokeWidth={3} />
                           ) : state === "current" ? (
-                            <span className="size-1.5 rounded-full bg-brand" />
+                            <span className="size-1.5 rounded-full bg-info" />
                           ) : state === "skipped" ? (
                             <Minus className="size-3" />
                           ) : null}
@@ -540,7 +578,7 @@ function WizardForm({
         </div>
         <progress
           aria-label="Setup progress"
-          className="mb-6 block h-1.5 w-full appearance-none overflow-hidden rounded-full bg-border [&::-moz-progress-bar]:rounded-full [&::-moz-progress-bar]:bg-brand [&::-webkit-progress-bar]:bg-border [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:bg-brand [&::-webkit-progress-value]:transition-[width] [&::-webkit-progress-value]:duration-500"
+          className="mb-6 block h-1.5 w-full appearance-none overflow-hidden rounded-full bg-border [&::-moz-progress-bar]:rounded-full [&::-moz-progress-bar]:bg-info [&::-webkit-progress-bar]:bg-border [&::-webkit-progress-value]:rounded-full [&::-webkit-progress-value]:bg-info [&::-webkit-progress-value]:transition-[width] [&::-webkit-progress-value]:duration-500"
           value={position + 1}
           max={steps.length}
         />
@@ -559,7 +597,7 @@ function WizardForm({
                 Back
               </Button>
             ) : (
-              <p className="eyebrow text-brand">{sectionOf(step)}</p>
+              <p className="eyebrow text-info">{sectionOf(step)}</p>
             )}
             <h1
               ref={heading}
@@ -624,7 +662,7 @@ function WizardForm({
                             type="button"
                             variant="ghost"
                             size="sm"
-                            className="-mr-2 shrink-0 text-brand"
+                            className="-mr-2 shrink-0 text-info"
                             disabled={busy}
                             aria-label={`Edit ${questions[key === "product" ? "amount" : key].label.toLowerCase()}`}
                             onClick={() => void save(key, "edit")}
@@ -704,9 +742,9 @@ function WizardForm({
                         {fundingPurposeOptions.map((option) => (
                           <label
                             key={option.id}
-                            className="group/purpose flex cursor-pointer items-center gap-3.5 rounded-xl border bg-card p-3.5 transition-colors hover:border-foreground/25 has-checked:border-brand has-checked:bg-brand-soft/60 has-checked:ring-1 has-checked:ring-brand has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring"
+                            className="group/purpose flex cursor-pointer items-center gap-3.5 rounded-xl border bg-card p-3.5 transition-colors hover:border-foreground/25 has-checked:border-info has-checked:bg-info-soft/60 has-checked:ring-1 has-checked:ring-info has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring"
                           >
-                            <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted transition-colors group-has-checked/purpose:bg-brand [&_svg]:size-5 [&_svg]:text-muted-foreground group-has-checked/purpose:[&_svg]:text-primary-foreground">
+                            <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted transition-colors group-has-checked/purpose:bg-info [&_svg]:size-5 [&_svg]:text-muted-foreground group-has-checked/purpose:[&_svg]:text-info-foreground">
                               <FundingPurposeIcon id={option.id} />
                             </span>
                             <span className="min-w-0 flex-1 text-sm font-medium">
@@ -714,7 +752,7 @@ function WizardForm({
                             </span>
                             <input
                               type="checkbox"
-                              className="size-5 shrink-0 accent-primary"
+                              className="size-5 shrink-0 accent-info"
                               checked={purposes.includes(option.id)}
                               onChange={(event) =>
                                 form.setValue(
@@ -749,55 +787,48 @@ function WizardForm({
                           describedBy={answerDescription}
                           disabled={inputDisabled}
                         />
+                      ) : step === "amount" ? (
+                        <CurrencyInput
+                          id="setup-answer"
+                          aria-label={question.label}
+                          className="h-12 pl-8 text-base font-medium md:text-base"
+                          prefixClassName="left-3.5 text-base font-medium"
+                          value={value}
+                          onValueChange={(digits) =>
+                            form.setValue("value", digits, { shouldDirty: true })
+                          }
+                          aria-invalid={Boolean(failedField)}
+                          aria-describedby={answerDescription}
+                          disabled={inputDisabled}
+                        />
                       ) : (
-                        <div className="relative">
-                          {step === "amount" && (
-                            <span
-                              aria-hidden="true"
-                              className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-base font-medium text-muted-foreground"
-                            >
-                              $
-                            </span>
-                          )}
-                          <Input
-                            id="setup-answer"
-                            aria-label={question.label}
-                            {...form.register("value")}
-                            className={cn(
-                              "h-12 text-base md:text-base",
-                              step === "amount" && "pl-8 font-medium tabular-nums",
-                            )}
-                            type={
-                              step === "business_ein"
-                                ? "password"
-                                : step === "website"
-                                  ? "url"
-                                  : "text"
-                            }
-                            inputMode={
-                              step === "amount"
-                                ? "decimal"
-                                : step === "business_ein"
-                                  ? "numeric"
-                                  : "text"
-                            }
-                            autoComplete={step === "business_name" ? "organization" : "off"}
-                            maxLength={
-                              step === "business_name"
-                                ? 200
-                                : step === "website"
-                                  ? 2048
-                                  : step === "other_purpose"
-                                    ? 500
-                                    : step === "business_ein"
-                                      ? 10
-                                      : 21
-                            }
-                            aria-invalid={Boolean(failedField)}
-                            aria-describedby={answerDescription}
-                            disabled={inputDisabled}
-                          />
-                        </div>
+                        <Input
+                          id="setup-answer"
+                          aria-label={question.label}
+                          {...form.register("value")}
+                          className="h-12 text-base md:text-base"
+                          type={
+                            step === "business_ein"
+                              ? "password"
+                              : step === "website"
+                                ? "url"
+                                : "text"
+                          }
+                          inputMode={step === "business_ein" ? "numeric" : "text"}
+                          autoComplete={step === "business_name" ? "organization" : "off"}
+                          maxLength={
+                            step === "business_name"
+                              ? 200
+                              : step === "website"
+                                ? 2048
+                                : step === "other_purpose"
+                                  ? 500
+                                  : 10
+                          }
+                          aria-invalid={Boolean(failedField)}
+                          aria-describedby={answerDescription}
+                          disabled={inputDisabled}
+                        />
                       )}
                       {step === "business_ein" && (
                         <p
@@ -810,24 +841,6 @@ function WizardForm({
                             000000007. Never enter a real EIN or SSN. You can skip this question.
                           </span>
                         </p>
-                      )}
-                      {step === "website" && (
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border bg-muted/40 px-3 py-2.5 text-sm text-muted-foreground">
-                          <p>
-                            {saved.industryCode
-                              ? `${industryByCode(saved.industryCode)?.title ?? "Industry"} · NAICS ${saved.industryCode}`
-                              : "Industry not provided"}
-                          </p>
-                          <Button
-                            type="button"
-                            variant="link"
-                            className="h-auto px-0"
-                            disabled={busy}
-                            onClick={() => void save("industry", "edit")}
-                          >
-                            Edit industry
-                          </Button>
-                        </div>
                       )}
                       {step === "amount" && selectedProduct && (
                         <p id="answer-help" className="text-xs leading-5 text-muted-foreground">
@@ -932,11 +945,7 @@ function WizardForm({
                   )}
                 </>
               )}
-              <p
-                role="status"
-                aria-live="polite"
-                className="text-xs text-muted-foreground empty:hidden"
-              >
+              <p role="status" aria-live="polite" className="sr-only">
                 {busy ? "Saving…" : null}
               </p>
               {step === "review" && (
@@ -947,9 +956,15 @@ function WizardForm({
                 </p>
               )}
               <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center">
-                <Button type="submit" size="lg" disabled={busy} className="sm:min-w-40">
-                  {busy ? "Saving…" : step === "review" ? "Finish setup" : "Continue"}
-                  {!busy && <ArrowRight aria-hidden="true" data-icon="inline-end" />}
+                <Button
+                  loading={busy}
+                  type="submit"
+                  size="lg"
+                  disabled={busy}
+                  className="sm:min-w-40"
+                >
+                  {step === "review" ? "Finish setup" : "Continue"}
+                  <ArrowRight aria-hidden="true" data-icon="inline-end" />
                 </Button>
                 {optionalSteps.includes(step) && (
                   <Button

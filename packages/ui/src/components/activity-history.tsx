@@ -60,8 +60,8 @@ export function ActivityHistory({
         </ol>
       )}
       {more && (
-        <Button type="button" variant="outline" disabled={busy} onClick={loadMore}>
-          {busy ? "Loading…" : "Load earlier activity"}
+        <Button loading={busy} type="button" variant="outline" disabled={busy} onClick={loadMore}>
+          Load earlier activity
         </Button>
       )}
     </section>

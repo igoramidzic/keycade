@@ -70,7 +70,7 @@ export function ReminderPreferences({ session }: { session: AuthenticatedSession
             <label className="flex items-start gap-2.5 font-medium">
               <input
                 type="checkbox"
-                className="mt-1 size-4 accent-primary"
+                className="mt-1 size-4 accent-info"
                 checked={draft ?? preferences.data.remindersEnabled}
                 disabled={busy}
                 onChange={(event) => {

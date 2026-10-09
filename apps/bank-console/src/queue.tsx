@@ -240,7 +240,7 @@ export function ApplicationQueue() {
                       <div className="col-span-2 min-w-0 space-y-1 lg:col-span-1">
                         <Link
                           to={`/applications/${item.id}/overview${bankQuery}${bankQuery ? "&" : "?"}queue=${encodeURIComponent(params.toString())}`}
-                          className="block font-semibold break-words text-foreground underline-offset-4 hover:text-brand hover:underline"
+                          className="block font-semibold break-words text-foreground underline-offset-4 hover:text-info hover:underline"
                         >
                           {item.businessName ?? "Untitled application"}
                         </Link>

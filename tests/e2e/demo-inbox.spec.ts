@@ -169,7 +169,7 @@ test("email-started application resumes its saved setup through a fresh simulate
   await expect(page.getByLabel("Requested amount", { exact: true })).toHaveValue(
     /23,?000(?:\.00)?/,
   );
-  expect(new URL(page.url()).pathname).toBe(`/applications/${applicationId}/setup`);
+  expect(new URL(page.url()).pathname).toBe(`/applications/${applicationId}/setup/amount`);
   expect(starts).toBe(1);
   await noOverflow(page);
   if (!hosted)

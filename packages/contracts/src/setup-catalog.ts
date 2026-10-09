@@ -49,7 +49,14 @@ export const businessWebsiteSchema = z
   .string()
   .trim()
   .max(2048)
-  .url()
+  .overwrite((value) =>
+    // Only infer HTTPS for a domain, never for an explicit scheme or credentials.
+    /^(?:[^\s./:@?#\\]+\.)+[^\s./:@?#\\]+(?::\d+)?(?:[/?#]|$)/u.test(value)
+      ? `https://${value}`
+      : value,
+  )
+  .max(2048)
+  .url("Enter a website like example.com or https://example.com.")
   .refine((value) => {
     try {
       const url = new URL(value);

@@ -91,3 +91,23 @@ Validation, using the repository's pinned Node 24 runtime:
 ## V2 hosted deployment follow-up — October 8, 2026
 
 The officer-created handoff and V2-05 overview are included in the five-Worker release at `75b1f96`. [V2-08 hosted acceptance](../v2/04-delivery-and-validation.md#v2-08--hosted-parity-and-deployment-slice) verifies officer-prefilled unfinished setup, lender document review, financial history and scoped access denials. The earlier local record remains the evidence for the full queue/handoff matrix. All behavior remains simulated.
+
+### Prefilled answers modal — October 8, 2026
+
+Done — implemented and validated locally October 8, 2026.
+
+The requested **Edit prefilled answers** action opens a native modal dialog above the overview. It uses the existing design-system modal styling, an accessible title/description, a viewport-bounded scrolling form, background scroll locking and focus return to the triggering button. Escape and both Close controls dismiss it; dismissal stays disabled during a save. Existing answer validation, conflict recovery, saved feedback and borrower-confirmation requirements remain intact. No task dependencies change.
+
+Acceptance: verify modal opening on desktop/mobile, keyboard focus and Escape dismissal, both Close controls, saved-answer persistence after reopening, and the existing officer-to-borrower confirmation journey.
+
+Validation: bank-console `tsc --noEmit` and Vite production build pass; targeted Biome checks pass. The existing nonblocking bundle-size warning remains. The isolated `staff-workspace.spec.ts --grep 'staff creates and updates a prefilled draft'` journey passes on desktop and mobile (2 passed, no failures/skips/flakes), including actual modal state, initial focus, Escape/Close dismissal and focus return, saved answers after reopening, and the emailed borrower completing setup. Evidence: `.local/e2e-nSM3Wc/summary.json`. Checks used the repository's pinned Node 24 runtime directly; the browser runner required sandbox escalation to reach local PostgreSQL and launch its owned processes. No hosted deployment was performed.
+
+### Overview task list — October 8, 2026
+
+Done — implemented and validated locally October 8, 2026. At the user's request, Overview embeds the same interactive task list as the Tasks tab at the top of its main column, above Application stages and Uploaded evidence, beside the assignment, borrower and activity panels. Officers can open, review and add tasks without leaving Overview. The Tasks tab, stage summaries and all task permissions are unchanged; no dependencies change.
+
+Validation (shared with the other October 8 UI follow-ups in this change):
+
+- `pnpm lint` (Biome and browser/server boundaries), root `tsc --noEmit` including `tests/`, and the shared UI, bank-console, borrower and bank-site typechecks pass. `pnpm test`: **425 unit tests** pass. All three web Vite builds pass (existing large-chunk warnings remain).
+- `pnpm test:e2e` with `participants`, `collaborator-upload`, `staff-workspace`, `borrower-workspace`, `intake`, `demo-inbox` and `lender-overview-v2` (`.local/e2e-utpAIY`): **74 desktop/mobile cases — 65 passed, 8 skipped, 1 failed, 0 flaky**. The skips are the eight `demo-inbox` cases, which run only when `DEMO_INBOX_ENABLED=true`. The failure was the mobile *queue loading and service failure* case: by then the combined run had created 55 applications, pushing the seeded Synthetic Cedar Workshop off the first queue page. Rerun alone, it passed on desktop and mobile (2/2, `.local/e2e-ouo2wc`).
+- Browser inspection against the local stack at 1280px and 375px (no horizontal overflow). All four `lender-overview-v2` cases and the staff workspace journeys pass with the task list on Overview; the desktop overview layout was checked. No hosted deployment was performed.

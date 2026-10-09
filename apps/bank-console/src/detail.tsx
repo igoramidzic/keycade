@@ -153,7 +153,7 @@ export function ApplicationDetail() {
             <div className="rounded-xl border bg-card shadow-xs">
               <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-5 p-5 sm:p-6">
                 <div className="flex min-w-0 items-start gap-4">
-                  <span className="hidden size-12 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand sm:flex">
+                  <span className="hidden size-12 shrink-0 items-center justify-center rounded-xl bg-info-soft text-info sm:flex">
                     <Building2 aria-hidden="true" className="size-6" />
                   </span>
                   <div className="min-w-0 space-y-2.5">
@@ -198,7 +198,7 @@ export function ApplicationDetail() {
                     className={cn(
                       "relative inline-flex h-12 shrink-0 items-center rounded-t-md px-2.5 text-[0.9375rem] font-medium whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring",
                       selected === value
-                        ? "text-foreground after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full after:bg-primary"
+                        ? "text-foreground after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:rounded-full after:bg-info"
                         : "text-muted-foreground hover:text-foreground",
                     )}
                   >
@@ -457,8 +457,8 @@ function Assignment({
               Assignment saved.
             </p>
           )}
-          <Button type="submit" variant="outline" disabled={busy}>
-            {busy ? "Saving…" : "Save assignment"}
+          <Button loading={busy} type="submit" variant="outline" disabled={busy}>
+            Save assignment
           </Button>
         </form>
       </CardContent>
@@ -573,8 +573,8 @@ function Notes({
                 Internal note added.
               </p>
             )}
-            <Button type="submit" disabled={busy || !body.trim()}>
-              {busy ? "Saving…" : "Add note"}
+            <Button loading={busy} type="submit" disabled={busy || !body.trim()}>
+              Add note
             </Button>
           </form>
         </CardContent>
@@ -678,8 +678,8 @@ function EditNote({
         clear={() => setError(null)}
       />
       <div className="flex gap-3">
-        <Button type="submit" disabled={busy || !body.trim()}>
-          {busy ? "Saving…" : "Save note"}
+        <Button loading={busy} type="submit" disabled={busy || !body.trim()}>
+          Save note
         </Button>
         <Button type="button" variant="outline" disabled={busy} onClick={close}>
           Cancel

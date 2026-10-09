@@ -184,13 +184,34 @@ test("staff creates and updates a prefilled draft, then the emailed borrower con
   await expect(page.getByRole("status").filter({ hasText: "Assignment saved." })).toBeVisible();
   await page.reload();
   await expect(page.getByLabel("Assigned officer", { exact: true })).toHaveValue(ids.officer);
-  await page.getByRole("button", { name: "Edit prefilled answers", exact: true }).click();
+  const editPrefill = page.getByRole("button", { name: "Edit prefilled answers", exact: true });
+  await editPrefill.click();
+  const prefillDialog = page.getByRole("dialog", { name: "Prefilled answers", exact: true });
+  await expect(prefillDialog).toBeVisible();
+  expect(await prefillDialog.evaluate((element) => element.matches(":modal"))).toBe(true);
+  await expect(
+    prefillDialog.getByRole("button", { name: "Close prefilled answers" }),
+  ).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(prefillDialog).toHaveCount(0);
+  await expect(editPrefill).toBeFocused();
+  await editPrefill.click();
+  await noOverflow(page);
   await expect(page.getByLabel("Legal business name", { exact: true })).toHaveValue(businessName);
   await page.getByRole("checkbox", { name: "Working capital", exact: true }).check();
   await page.getByRole("button", { name: "Save prefilled answers", exact: true }).click();
   await expect(
     page.getByRole("status").filter({ hasText: "Prefilled answers saved." }),
   ).toBeVisible();
+  await prefillDialog.getByRole("button", { name: "Close editor", exact: true }).click();
+  await expect(prefillDialog).toHaveCount(0);
+  await expect(editPrefill).toBeFocused();
+  await editPrefill.click();
+  await expect(
+    prefillDialog.getByRole("checkbox", { name: "Working capital", exact: true }),
+  ).toBeChecked();
+  await prefillDialog.getByRole("button", { name: "Close prefilled answers" }).click();
+  await expect(prefillDialog).toHaveCount(0);
   await expect(
     page.getByText("Equipment purchase, Working capital", { exact: true }),
   ).toBeVisible();
@@ -216,7 +237,9 @@ test("staff creates and updates a prefilled draft, then the emailed borrower con
     await openLink(borrowerPage, link);
     await borrowerPage.getByRole("button", { name: "Confirm and sign in", exact: true }).click();
     await expect(borrowerPage).toHaveURL(
-      (url) => url.origin === borrower && url.pathname === `/applications/${applicationId}/setup`,
+      (url) =>
+        url.origin === borrower &&
+        url.pathname === `/applications/${applicationId}/setup/business-name`,
     );
     await expect(borrowerPage.getByLabel("Legal business name", { exact: true })).toHaveValue(
       businessName,
@@ -346,7 +369,8 @@ test("staff email-only creation recovers a lost response without duplicating the
     await openLink(borrowerPage, link);
     await borrowerPage.getByRole("button", { name: "Confirm and sign in", exact: true }).click();
     await expect(borrowerPage).toHaveURL(
-      (url) => url.origin === borrower && url.pathname === `/applications/${draft.id}/setup`,
+      (url) =>
+        url.origin === borrower && url.pathname === `/applications/${draft.id}/setup/business-name`,
     );
     await expect(borrowerPage.getByLabel("Legal business name", { exact: true })).toHaveValue("");
     expect(await api<Setup>(borrowerPage, "GET", `/${draft.id}/setup`)).toMatchObject({
@@ -384,7 +408,7 @@ test("invalid optional prefill creates no draft or invitation before the officer
   );
   await expect(page.getByLabel("Borrower email", { exact: true })).toBeEnabled();
   await expect(page.getByLabel("Legal business name", { exact: true })).toHaveValue(businessName);
-  await expect(page.getByLabel("Requested amount (USD)", { exact: true })).toHaveValue("7500001");
+  await expect(page.getByLabel("Requested amount (USD)", { exact: true })).toHaveValue("7,500,001");
   expect(successfulCreations).toHaveLength(0);
   expect(await applicationsForEmail(page, email)).toBe(0);
   expect(
@@ -496,13 +520,14 @@ test("staff workspace sections stay scoped and explain unavailable capabilities"
     page.getByRole("heading", { name: "People with portal access", exact: true }),
   ).toBeVisible();
   await expect(page.getByText("borrower@example.test", { exact: true }).first()).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "Invite a collaborator", exact: true }),
-  ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Save owner", exact: true })).toBeVisible();
-  await expect(page.getByLabel("Role", { exact: true })).toHaveValue("adviser");
-  await expect(page.getByLabel("Access scope", { exact: true })).toHaveValue("assigned");
+  await expect(page.getByRole("button", { name: "Record owner", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Invite participant", exact: true }).click();
+  const invite = page.getByRole("dialog", { name: "Invite a collaborator", exact: true });
+  await expect(invite.getByRole("radio", { name: "Adviser", exact: true })).toBeChecked();
+  await expect(invite).toContainText("Access: Assigned tasks and permitted documents.");
   await noOverflow(page);
+  await invite.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(invite).toBeHidden();
   await page.getByRole("link", { name: "Tasks", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Tasks", exact: true })).toBeVisible();
   for (const section of [

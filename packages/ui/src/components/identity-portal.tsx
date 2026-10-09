@@ -457,7 +457,7 @@ export function IdentityPortal({
     <Card id={cardId} className="mx-auto h-fit w-full max-w-lg shadow-md">
       <CardHeader className="gap-3">
         <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
-          <span className="flex size-9 items-center justify-center rounded-lg bg-brand-soft text-brand">
+          <span className="flex size-9 items-center justify-center rounded-lg bg-info-soft text-info">
             <ScreenIcon aria-hidden="true" className="size-4.5" />
           </span>
           <span className="text-sm font-medium text-foreground">{bankName}</span>
@@ -512,25 +512,9 @@ export function IdentityPortal({
                   : "Requesting access won’t start a new application."}
               </p>
             </div>
-            <Button type="submit" size="lg" disabled={busy} className="w-full">
-              {busy ? (
-                <LoaderCircle aria-hidden="true" className="animate-spin" />
-              ) : useDemo ? (
-                <LockKeyhole aria-hidden="true" />
-              ) : (
-                <Mail aria-hidden="true" />
-              )}
-              {isStarting
-                ? busy
-                  ? "Starting application…"
-                  : "Start application"
-                : useDemo
-                  ? busy
-                    ? "Signing in…"
-                    : "Sign in to demo"
-                  : busy
-                    ? "Requesting link…"
-                    : "Send sign-in link"}
+            <Button loading={busy} type="submit" size="lg" disabled={busy} className="w-full">
+              {useDemo ? <LockKeyhole aria-hidden="true" /> : <Mail aria-hidden="true" />}
+              {isStarting ? "Start application" : useDemo ? "Sign in to demo" : "Send sign-in link"}
             </Button>
             {session.demoSignInEnabled && (
               <Button
@@ -561,13 +545,14 @@ export function IdentityPortal({
             </p>
             {session.demoInboxEnabled && (
               <Button
+                loading={busy}
                 size="lg"
                 disabled={busy}
                 className="w-full"
                 onClick={() => void openDemoInbox()}
               >
                 <Inbox aria-hidden="true" />
-                {busy ? "Opening demo inbox…" : "Open demo inbox"}
+                Open demo inbox
               </Button>
             )}
 
@@ -591,8 +576,14 @@ export function IdentityPortal({
               Continue only if you requested this email. Confirming signs you in on this browser and
               uses the link once.
             </p>
-            <Button size="lg" onClick={() => void confirmLink()} disabled={busy} className="w-full">
-              {busy ? "Confirming…" : "Confirm and sign in"}
+            <Button
+              loading={busy}
+              size="lg"
+              onClick={() => void confirmLink()}
+              disabled={busy}
+              className="w-full"
+            >
+              Confirm and sign in
             </Button>
           </div>
         )}
@@ -640,8 +631,8 @@ export function IdentityPortal({
                 This session uses demo access. It does not verify ownership of the email address.
               </p>
             )}
-            <Button variant="outline" onClick={() => void logout()} disabled={busy}>
-              {busy ? "Signing out…" : "Sign out"}
+            <Button loading={busy} variant="outline" onClick={() => void logout()} disabled={busy}>
+              Sign out
             </Button>
           </div>
         )}

@@ -234,6 +234,7 @@ export function ReviewActionForm({
       </label>
       <div className="flex flex-wrap gap-2">
         <Button
+          loading={busy}
           type="submit"
           disabled={
             locked ||
@@ -242,7 +243,7 @@ export function ReviewActionForm({
             (requiresTasks && taskIds.length === 0)
           }
         >
-          {busy ? "Saving…" : buttonLabels[action]}
+          {buttonLabels[action]}
         </Button>
         <Button type="button" variant="outline" disabled={busy} onClick={cancel}>
           Cancel

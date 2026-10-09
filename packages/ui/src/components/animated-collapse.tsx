@@ -30,9 +30,7 @@ export function AnimatedCollapse({
     if (open) {
       setMounted(true);
       // Paint the collapsed state once so the grid row can transition to its full height.
-      const frame = requestAnimationFrame(() =>
-        requestAnimationFrame(() => setExpanded(true)),
-      );
+      const frame = requestAnimationFrame(() => requestAnimationFrame(() => setExpanded(true)));
       return () => cancelAnimationFrame(frame);
     }
     setExpanded(false);

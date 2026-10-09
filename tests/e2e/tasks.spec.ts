@@ -294,6 +294,10 @@ test("staff requests a task, borrower submits, staff returns changes and complet
     await expect(
       applicant.getByRole("status").filter({ hasText: "Answer submitted" }),
     ).toBeVisible();
+    await applicant.screenshot({
+      path: testInfo.outputPath("synthetic-borrower-task-submitted.png"),
+      fullPage: true,
+    });
 
     await page.reload();
     await page.getByRole("button", { name: title, exact: true }).click();

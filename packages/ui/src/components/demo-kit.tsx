@@ -4,17 +4,22 @@ import {
   demoDocumentBusinessName,
   demoScenarios,
 } from "@keycade/contracts/demo-scenarios";
-import { Badge } from "@keycade/ui/components/badge";
 import { Button } from "@keycade/ui/components/button";
+import { DemoBadge, DemoDestination, DemoStepHeading } from "@keycade/ui/components/demo-kit-parts";
 import { DemoTextImporter } from "@keycade/ui/components/demo-text-importer";
 import { NativeSelect } from "@keycade/ui/components/native-select";
 import { createDemoDocumentFile, demoDocumentMime } from "@keycade/ui/lib/demo-document-transfer";
 import type { DemoImportPreview } from "@keycade/ui/lib/demo-import-transfer";
 import { preferredDemoUploadTarget } from "@keycade/ui/lib/demo-upload-targets";
+import { cn } from "cn";
 import {
+  Check,
+  ChevronDown,
   Copy,
   Download,
+  FlaskConical,
   GripVertical,
+  Info,
   PanelRightClose,
   PanelRightOpen,
   Upload,
@@ -50,6 +55,8 @@ type DemoKitContextValue = {
 };
 const DemoKitContext = createContext<DemoKitContextValue | null>(null);
 const selectionKey = "keycade.demo-scenario.v1";
+/** Every kit surface uses the charcoal demo console palette (see `.demo-kit` in globals.css). */
+const kitTheme = "dark demo-kit bg-background text-foreground";
 
 export function useDemoKit() {
   return useContext(DemoKitContext);
@@ -154,8 +161,18 @@ export function DemoKitProvider({ children }: { children: ReactNode }) {
     <DemoKitContext.Provider value={context}>
       <div style={{ paddingRight: desktop ? (expanded ? 340 : 56) : 0 }}>
         {!desktop && (
-          <div className="flex items-center justify-between gap-3 border-b border-indigo-200 bg-indigo-50 px-5 py-3 text-indigo-950">
-            <span className="text-xs font-medium">Fictional demo kit</span>
+          <div
+            className={cn(
+              kitTheme,
+              "flex items-center justify-between gap-3 border-b px-4 py-2.5 sm:px-5",
+            )}
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <DemoBadge />
+              <span className="truncate text-xs text-muted-foreground max-sm:hidden">
+                Fictional data only
+              </span>
+            </span>
             <Button
               ref={mobileToggle}
               size="sm"
@@ -174,20 +191,37 @@ export function DemoKitProvider({ children }: { children: ReactNode }) {
         expanded ? (
           <aside
             aria-label="Demo scenario kit"
-            className="fixed inset-y-0 right-0 z-20 w-[340px] overflow-y-auto border-l border-indigo-200 bg-indigo-50 text-indigo-950"
+            className={cn(
+              kitTheme,
+              "fixed inset-y-0 right-0 z-20 w-[340px] overflow-y-auto overscroll-contain border-l",
+            )}
           >
             {panel}
           </aside>
         ) : (
-          <div className="fixed inset-y-0 right-0 z-20 w-14 border-l border-indigo-200 bg-indigo-50 p-2 text-indigo-950">
+          <div
+            className={cn(
+              kitTheme,
+              "fixed inset-y-0 right-0 z-20 flex w-14 flex-col items-center border-l py-3",
+            )}
+          >
             <Button
-              size="icon"
               variant="ghost"
               aria-label="Show demo kit"
               aria-expanded={false}
               onClick={() => setExpanded(true)}
+              className="h-auto flex-col gap-3 px-2 py-3 text-muted-foreground"
             >
               <PanelRightOpen aria-hidden="true" />
+              <span
+                aria-hidden="true"
+                className="flex size-6 items-center justify-center rounded-full bg-demo-accent text-demo-accent-foreground"
+              >
+                <FlaskConical className="size-3.5" />
+              </span>
+              <span aria-hidden="true" className="text-xs font-semibold [writing-mode:vertical-rl]">
+                Demo kit
+              </span>
             </Button>
           </div>
         )
@@ -197,7 +231,10 @@ export function DemoKitProvider({ children }: { children: ReactNode }) {
           aria-label="Demo scenario kit"
           onCancel={closeMobile}
           onClose={closeMobile}
-          className="fixed inset-y-0 right-0 left-auto m-0 h-dvh max-h-none w-[min(100%,380px)] max-w-none overflow-y-auto border-l border-indigo-200 bg-indigo-50 p-0 text-indigo-950 backdrop:bg-black/30"
+          className={cn(
+            kitTheme,
+            "fixed inset-y-0 right-0 left-auto m-0 h-dvh max-h-none w-[min(100%,380px)] max-w-none overflow-y-auto overscroll-contain border-l p-0 backdrop:bg-black/50",
+          )}
         >
           {panel}
         </dialog>
@@ -206,34 +243,127 @@ export function DemoKitProvider({ children }: { children: ReactNode }) {
   );
 }
 
-function CopyValue({ label, value }: { label: string; value: string }) {
-  const [message, setMessage] = useState("");
+/** Short, scannable name for what each sample PDF demonstrates once processed. */
+const outcomeTags: Record<DemoDocument["outcome"], { label: string; tone: string }> = {
+  clear: { label: "No issues expected", tone: "bg-success" },
+  name_mismatch: { label: "Name mismatch", tone: "bg-warning" },
+  cash_flow: { label: "Cash-flow flag", tone: "bg-warning" },
+  low_confidence: { label: "Low confidence", tone: "bg-warning" },
+  scan_blocked: { label: "Quarantined", tone: "bg-danger" },
+  processing_transient: { label: "Retries, then succeeds", tone: "bg-info" },
+  processing_error: { label: "Interpretation fails", tone: "bg-danger" },
+  unknown: { label: "Unclassified", tone: "bg-muted-foreground" },
+};
+
+function KitTag({ tone, children }: { tone?: string; children: ReactNode }) {
   return (
-    <div className="flex items-start justify-between gap-2">
-      <div className="min-w-0">
-        <dt className="text-xs text-indigo-800">{label}</dt>
-        <dd className="mt-0.5 break-words text-sm">{value}</dd>
-        {message && (
-          <p role="status" className="text-xs">
-            {message}
-          </p>
-        )}
-      </div>
-      <Button
-        size="icon-xs"
-        variant="ghost"
-        aria-label={`Copy ${label}`}
-        onClick={async () => {
-          try {
-            await navigator.clipboard.writeText(value);
-            setMessage("Copied.");
-          } catch {
-            setMessage("Select and copy this value.");
-          }
-        }}
-      >
-        <Copy aria-hidden="true" />
-      </Button>
+    <span className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs">
+      {tone && <span aria-hidden="true" className={cn("size-1.5 rounded-full", tone)} />}
+      {children}
+    </span>
+  );
+}
+
+function KitDisclosure({
+  title,
+  meta,
+  className,
+  children,
+}: {
+  title: string;
+  meta?: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <details className={cn("group/kit-disclosure", className)}>
+      <summary className="disclosure flex items-center justify-between gap-2 px-3 py-2.5 text-sm font-medium outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset">
+        {title}
+        <span className="flex items-center gap-2 text-xs font-normal text-muted-foreground">
+          {meta}
+          <ChevronDown
+            aria-hidden="true"
+            className="size-4 transition-transform group-open/kit-disclosure:rotate-180"
+          />
+        </span>
+      </summary>
+      <div className="px-3 pb-3">{children}</div>
+    </details>
+  );
+}
+
+function CopyValue({
+  label,
+  value,
+  name = label,
+}: {
+  label: string;
+  value: string;
+  /** Distinguishes repeated labels, such as each person's email, in the copy button's name. */
+  name?: string;
+}) {
+  const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
+  useEffect(() => {
+    if (state !== "copied") return;
+    const timer = window.setTimeout(() => setState("idle"), 1500);
+    return () => window.clearTimeout(timer);
+  }, [state]);
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 py-2">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="col-start-1 text-sm break-words">
+        {value}
+        <span
+          role="status"
+          className={state === "failed" ? "block text-xs text-warning" : "sr-only"}
+        >
+          {state === "copied" ? "Copied." : state === "failed" ? "Select and copy this value." : ""}
+        </span>
+      </dd>
+      <dd className="col-start-2 row-span-2 row-start-1">
+        <Button
+          size="icon-sm"
+          variant="ghost"
+          aria-label={`Copy ${name}`}
+          className="text-muted-foreground"
+          onClick={async () => {
+            try {
+              await navigator.clipboard.writeText(value);
+              setState("copied");
+            } catch {
+              setState("failed");
+            }
+          }}
+        >
+          {state === "copied" ? (
+            <Check aria-hidden="true" className="text-success" />
+          ) : (
+            <Copy aria-hidden="true" />
+          )}
+        </Button>
+      </dd>
+    </div>
+  );
+}
+
+function PersonValues({
+  role,
+  person,
+  children,
+}: {
+  role: string;
+  person: { name: string; email: string };
+  children?: ReactNode;
+}) {
+  const lower = role.toLowerCase();
+  return (
+    <div className="rounded-md border px-3 pt-2.5">
+      <h4 className="text-xs font-semibold">{role}</h4>
+      <dl className="divide-y">
+        <CopyValue label="Name" name={`${lower} name`} value={person.name} />
+        <CopyValue label="Email" name={`${lower} email`} value={person.email} />
+        {children}
+      </dl>
     </div>
   );
 }
@@ -253,191 +383,229 @@ function DemoKitPanel({
   uploadTarget: DemoUploadTarget | null;
   close: () => void;
 }) {
-  const selectId = useId();
+  const id = useId();
   const [message, setMessage] = useState("");
   return (
-    <div className="space-y-6 p-5">
-      <div className="sticky -top-5 z-10 -mx-5 flex items-start justify-between gap-3 border-b border-indigo-200 bg-indigo-50 px-5 py-4">
-        <div>
-          <Badge variant="outline" className="border-indigo-200 text-indigo-900">
-            Demo only
-          </Badge>
-          <h2 className="mt-2 text-lg font-semibold">Scenario kit</h2>
-          <p className="mt-1 text-xs leading-5 text-indigo-800">
-            Fictional people and PDFs for demonstrating the app.
+    <div className="flex min-h-full flex-col">
+      <header className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b bg-background/95 px-4 py-4 backdrop-blur-sm">
+        <div className="min-w-0">
+          <DemoBadge />
+          <h2 className="mt-2 text-lg leading-6 font-semibold">Demo kit</h2>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            Fictional people and sample PDFs for presenting Keycade.
           </p>
         </div>
         <Button size="icon-sm" variant="ghost" aria-label="Hide demo kit" onClick={close}>
           <PanelRightClose aria-hidden="true" />
         </Button>
-      </div>
-      <div className="space-y-2">
-        <label htmlFor={selectId} className="text-sm font-medium">
-          Demo scenario
-        </label>
-        <NativeSelect
-          id={selectId}
-          value={scenario.id}
-          className="w-full bg-white/70"
-          onChange={(event) => select(event.target.value)}
-        >
-          {demoScenarios.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.title}
-            </option>
-          ))}
-        </NativeSelect>
-        <p className="text-xs leading-5 text-indigo-800">{scenario.description}</p>
-      </div>
-      <section aria-label="Demo business" className="space-y-3">
-        <dl>
-          <CopyValue label="Business name" value={businessName} />
-        </dl>
-        <details className="group">
-          <summary className="cursor-pointer text-sm font-medium">Business setup details</summary>
-          <dl className="mt-3 space-y-3">
-            <CopyValue label="Synthetic EIN" value={scenario.business.ein} />
-            <CopyValue label="Industry code" value={scenario.business.industryCode} />
-            <CopyValue label="Requested amount" value={scenario.business.requestedAmount} />
-            <CopyValue label="Loan purpose" value={scenario.business.purpose} />
-          </dl>
+      </header>
+      <div className="flex-1 space-y-8 px-4 py-5">
+        <section aria-labelledby={`${id}-scenario`} className="space-y-3">
+          <DemoStepHeading id={`${id}-scenario`} step={1} title="Choose a scenario" />
+          <label htmlFor={`${id}-select`} className="sr-only">
+            Demo scenario
+          </label>
+          <NativeSelect
+            id={`${id}-select`}
+            value={scenario.id}
+            className="w-full"
+            onChange={(event) => select(event.target.value)}
+          >
+            {demoScenarios.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.title}
+              </option>
+            ))}
+          </NativeSelect>
+          <p className="text-xs leading-5 text-muted-foreground">{scenario.description}</p>
+          <KitDisclosure
+            title="Walk through the app"
+            meta={`${scenario.steps.length} steps`}
+            className="overflow-hidden rounded-lg border bg-card"
+          >
+            <ol className="space-y-3 pt-1">
+              {scenario.steps.map((step, index) => (
+                <li key={step} className="flex gap-2.5 text-xs leading-5">
+                  <span
+                    aria-hidden="true"
+                    className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted font-medium tabular-nums"
+                  >
+                    {index + 1}
+                  </span>
+                  <span className="min-w-0">{step}</span>
+                </li>
+              ))}
+            </ol>
+          </KitDisclosure>
+        </section>
+
+        <section aria-labelledby={`${id}-details`} className="space-y-3">
+          <DemoStepHeading
+            id={`${id}-details`}
+            step={2}
+            title="Copy details into forms"
+            hint="Paste these into the borrower sign-in and setup questions."
+          />
+          <div className="overflow-hidden rounded-lg border bg-card">
+            <dl className="divide-y px-3">
+              <CopyValue label="Business name" value={businessName} />
+              <CopyValue label="Client email" value={scenario.client.email} />
+            </dl>
+            <KitDisclosure title="Business setup details" className="border-t">
+              <dl className="divide-y">
+                <CopyValue label="Synthetic EIN" value={scenario.business.ein} />
+                <CopyValue label="Industry code" value={scenario.business.industryCode} />
+                <CopyValue label="Requested amount" value={scenario.business.requestedAmount} />
+                <CopyValue label="Loan purpose" value={scenario.business.purpose} />
+              </dl>
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                In the secure EIN task, choose 000000001 for the formatted sample value.
+              </p>
+            </KitDisclosure>
+            <KitDisclosure
+              title="Client and collaborators"
+              meta={`${scenario.guarantors.length + 2} people`}
+              className="border-t"
+            >
+              <div className="space-y-3">
+                <PersonValues role="Client" person={scenario.client} />
+                {scenario.guarantors.map((person, index) => (
+                  <PersonValues key={person.email} role={`Guarantor ${index + 1}`} person={person}>
+                    <CopyValue
+                      label="Ownership"
+                      name={`guarantor ${index + 1} ownership`}
+                      value={`${person.ownershipPercent}%`}
+                    />
+                    <CopyValue
+                      label="Synthetic SSN"
+                      name={`guarantor ${index + 1} synthetic SSN`}
+                      value={person.ssn}
+                    />
+                  </PersonValues>
+                ))}
+                <PersonValues role="Adviser" person={scenario.adviser} />
+                <p className="text-xs leading-5 text-muted-foreground">
+                  These are sample identities. Ownership and portal permissions are separate; add
+                  people and assign access through the application. In secure SSN tasks, choose
+                  000000001 for the formatted sample value.
+                </p>
+              </div>
+            </KitDisclosure>
+          </div>
+        </section>
+
+        <section aria-labelledby={`${id}-documents`} className="space-y-3">
+          <DemoStepHeading
+            id={`${id}-documents`}
+            step={3}
+            title="Add sample PDFs"
+            hint="Drag a card onto an upload area, or press Upload."
+          />
+          <DemoDestination ready={Boolean(uploadTarget)}>
+            {uploadTarget
+              ? `Upload destination: ${uploadTarget.label}.`
+              : "Open Documents or an uploadable task to enable Upload."}
+          </DemoDestination>
           {applicationSelected && (
-            <p className="mt-3 text-xs leading-5 text-indigo-800">
+            <p className="text-xs leading-5 text-muted-foreground">
               PDFs use this application’s saved business name. The review scenario deliberately
               includes a different name on one document.
             </p>
           )}
-        </details>
-      </section>
-      <section aria-label="Demo people" className="space-y-3">
-        <p className="text-xs leading-5 text-indigo-800">
-          Client: {scenario.client.name} · {scenario.guarantors.length} sample guarantor
-          {scenario.guarantors.length === 1 ? "" : "s"} · {scenario.adviser.name} advises.
-        </p>
-        <details>
-          <summary className="cursor-pointer text-sm font-medium">Client and collaborators</summary>
-          <dl className="mt-3 space-y-3">
-            <CopyValue label="Client name" value={scenario.client.name} />
-            <CopyValue label="Client email" value={scenario.client.email} />
-            <CopyValue label="Adviser name" value={scenario.adviser.name} />
-            <CopyValue label="Adviser email" value={scenario.adviser.email} />
-            {scenario.guarantors.map((person, index) => (
-              <div key={person.email} className="space-y-3 rounded-lg border border-indigo-200 p-3">
-                <CopyValue label={`Guarantor ${index + 1} name`} value={person.name} />
-                <CopyValue label={`Guarantor ${index + 1} email`} value={person.email} />
-                <CopyValue
-                  label={`Guarantor ${index + 1} ownership`}
-                  value={`${person.ownershipPercent}%`}
-                />
-                <CopyValue label={`Guarantor ${index + 1} synthetic SSN`} value={person.ssn} />
-              </div>
-            ))}
-          </dl>
-          <p className="mt-3 text-xs leading-5 text-indigo-800">
-            These are sample identities. Ownership and portal permissions are separate; add people
-            and assign access through the application. In secure EIN and SSN tasks, choose 000000001
-            for the formatted sample values above.
-          </p>
-        </details>
-      </section>
-      <DemoTextImporter uploadTarget={uploadTarget} />
-      <section aria-label="Demo documents" className="space-y-3">
-        <h3 className="text-sm font-semibold">Drag a PDF into the upload area</h3>
-        <p className="text-xs leading-5 text-indigo-800">
-          Download saves a sample PDF. Upload uses the open, authorized document area. For personal
-          evidence, open the guarantor’s private task.
-        </p>
-        <p className="text-xs leading-5 text-indigo-800">
-          {uploadTarget
-            ? `Upload destination: ${uploadTarget.label}.`
-            : "Open Documents or an uploadable task to enable Upload."}
-        </p>
-        {message && (
-          <p role="status" className="text-xs">
-            {message}
-          </p>
-        )}
-        {scenario.documents.map((document) => (
-          <article
-            key={document.id}
-            aria-label={document.title}
-            draggable
-            onDragStart={(event) => {
-              event.dataTransfer.effectAllowed = "copy";
-              event.dataTransfer.setData(
-                demoDocumentMime,
-                JSON.stringify({ id: document.id, businessName }),
-              );
-            }}
-            className="space-y-3 rounded-lg border border-indigo-200 bg-white/75 p-3"
-          >
-            <div className="flex items-start gap-2">
-              <GripVertical aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-indigo-700" />
-              <div className="min-w-0">
-                <h4 className="text-sm font-medium">{document.title}</h4>
-                <p className="mt-1 break-all text-xs text-indigo-800">{document.fileName}</p>
-              </div>
-            </div>
-            <p className="text-xs leading-5">
-              <span className="font-medium">Expected: </span>
-              {document.summary}
+          {message && (
+            <p role="status" className="text-xs">
+              {message}
             </p>
-            <p className="text-xs text-indigo-800">
-              PDF business: {demoDocumentBusinessName(document, businessName)}
-            </p>
-            {document.subject === "guarantor" && (
-              <p className="text-xs leading-5 text-indigo-800">
-                Sample identity: {scenario.guarantors[0]?.name}. Verify the intended private task;
-                this PDF does not change its fictional person to match the task owner.
-              </p>
-            )}
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                aria-label={`Download ${document.title}`}
-                onClick={() => {
-                  const file = createDemoDocumentFile(document, businessName);
-                  const url = URL.createObjectURL(file);
-                  const anchor = window.document.createElement("a");
-                  anchor.href = url;
-                  anchor.download = document.fileName;
-                  anchor.click();
-                  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+          )}
+          {scenario.documents.map((document) => {
+            const tag = outcomeTags[document.outcome];
+            const pdfBusiness = demoDocumentBusinessName(document, businessName);
+            return (
+              <article
+                key={document.id}
+                aria-label={document.title}
+                draggable
+                onDragStart={(event) => {
+                  event.dataTransfer.effectAllowed = "copy";
+                  event.dataTransfer.setData(
+                    demoDocumentMime,
+                    JSON.stringify({ id: document.id, businessName }),
+                  );
                 }}
+                className="group/document cursor-grab space-y-3 rounded-lg border bg-card p-3 transition-colors hover:border-foreground/30 active:cursor-grabbing"
               >
-                <Download aria-hidden="true" /> Download
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                aria-label={`Upload ${document.title}`}
-                disabled={!uploadTarget || uploadTarget.subject !== document.subject}
-                onClick={() => {
-                  uploadTarget?.upload(document);
-                  setMessage(`${document.title} sent to the upload area.`);
-                }}
-              >
-                <Upload aria-hidden="true" /> Upload
-              </Button>
-            </div>
-          </article>
-        ))}
-      </section>
-      <section aria-label="Demo walkthrough" className="space-y-3">
-        <details>
-          <summary className="cursor-pointer text-sm font-semibold">Walk through the app</summary>
-          <ol className="mt-3 list-decimal space-y-3 pl-4 text-xs leading-5 text-indigo-800">
-            {scenario.steps.map((step) => (
-              <li key={step}>{step}</li>
-            ))}
-          </ol>
-        </details>
-        <p className="text-xs leading-5 text-indigo-800">
+                <div className="flex items-start gap-2">
+                  <GripVertical
+                    aria-hidden="true"
+                    className="mt-1 size-4 shrink-0 text-muted-foreground group-hover/document:text-foreground"
+                  />
+                  <div className="min-w-0 space-y-1">
+                    <h4 className="text-sm leading-6 font-medium">{document.title}</h4>
+                    <p className="text-xs break-all text-muted-foreground">{document.fileName}</p>
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      <KitTag tone={tag.tone}>
+                        <span className="sr-only">Expected result: </span>
+                        {tag.label}
+                      </KitTag>
+                      {document.subject === "guarantor" && <KitTag>Private guarantor task</KitTag>}
+                    </div>
+                  </div>
+                </div>
+                <p className="text-xs leading-5 text-muted-foreground">{document.summary}</p>
+                {pdfBusiness !== businessName && (
+                  <p className="text-xs leading-5">
+                    PDF business: <span className="font-medium">{pdfBusiness}</span>
+                  </p>
+                )}
+                {document.subject === "guarantor" && (
+                  <p className="text-xs leading-5 text-muted-foreground">
+                    Sample identity: {scenario.guarantors[0]?.name}. Verify the intended private
+                    task; this PDF does not change its fictional person to match the task owner.
+                  </p>
+                )}
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    aria-label={`Upload ${document.title}`}
+                    disabled={!uploadTarget || uploadTarget.subject !== document.subject}
+                    onClick={() => {
+                      uploadTarget?.upload(document);
+                      setMessage(`${document.title} sent to the upload area.`);
+                    }}
+                  >
+                    <Upload aria-hidden="true" /> Upload
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    aria-label={`Download ${document.title}`}
+                    onClick={() => {
+                      const file = createDemoDocumentFile(document, businessName);
+                      const url = URL.createObjectURL(file);
+                      const anchor = window.document.createElement("a");
+                      anchor.href = url;
+                      anchor.download = document.fileName;
+                      anchor.click();
+                      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+                    }}
+                  >
+                    <Download aria-hidden="true" /> Download
+                  </Button>
+                </div>
+              </article>
+            );
+          })}
+        </section>
+
+        <DemoTextImporter step={4} uploadTarget={uploadTarget} />
+      </div>
+      <footer className="flex items-start gap-2 border-t px-4 py-4 text-xs leading-5 text-muted-foreground">
+        <Info aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+        <p>
           Checks and document suggestions are simulated. Bank staff make the demo review decision.
           Signatures and funding are simulated.
         </p>
-      </section>
+      </footer>
     </div>
   );
 }

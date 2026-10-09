@@ -110,7 +110,11 @@ export function BorrowerApp({ confirmation }: { confirmation: Confirmation }) {
                 bankSlug={bankSlug}
                 bankName={catalog.data.bank.name}
                 intent={starting ? "start" : "resume"}
-                returnPath={location.pathname}
+                // Sign-in returns to /setup, which reopens the saved step.
+                returnPath={location.pathname.replace(
+                  /^(\/applications\/[0-9a-f-]{36}\/setup)\/[a-z-]+$/i,
+                  "$1",
+                )}
                 aside={<SignInWelcome starting={starting} bankName={catalog.data.bank.name} />}
                 onApplicationCreated={(id) =>
                   navigate(applicationPath(id, bankSlug, true), { replace: true })
@@ -332,7 +336,7 @@ function Workspace({
               }
             />
             <Route
-              path="/applications/:applicationId/setup"
+              path="/applications/:applicationId/setup/:step?"
               element={<ApplicationRoute session={session} setup controls={controls} />}
             />
             <Route
@@ -402,7 +406,7 @@ function StartApplication({ session }: { session: AuthenticatedSession }) {
   }
   return (
     <section className="mx-auto w-full max-w-2xl rounded-2xl border bg-card p-6 shadow-md sm:p-10">
-      <span className="flex size-12 items-center justify-center rounded-xl bg-brand-soft text-brand">
+      <span className="flex size-12 items-center justify-center rounded-xl bg-info-soft text-info">
         <LayoutList aria-hidden="true" className="size-6" />
       </span>
       <h1 className="mt-6 text-2xl font-semibold tracking-tight sm:text-[1.75rem]">
@@ -421,9 +425,9 @@ function StartApplication({ session }: { session: AuthenticatedSession }) {
         </div>
       )}
       <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-        <Button size="lg" disabled={busy} onClick={() => void start()}>
-          {busy ? "Starting…" : "Start application"}
-          {!busy && <ArrowRight aria-hidden="true" data-icon="inline-end" />}
+        <Button loading={busy} size="lg" disabled={busy} onClick={() => void start()}>
+          Start application
+          <ArrowRight aria-hidden="true" data-icon="inline-end" />
         </Button>
         <Link
           className={buttonVariants({ variant: "outline", size: "lg" })}

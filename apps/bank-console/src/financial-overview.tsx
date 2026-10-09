@@ -101,7 +101,7 @@ function MetricCard({
             {latest.businessSnapshot.businessName}
           </span>
         )}
-        <span className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-brand">
+        <span className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-info">
           {expanded ? "Hide period history" : "View period history"}
           <ChevronDown
             aria-hidden="true"

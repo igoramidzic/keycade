@@ -26,7 +26,7 @@ import { checkIsVisible, checkPasses, currentCheckInputs, lockCheckApplication }
 import { type ClosingReadContext, closingRequirementBlockers } from "./closing-policy.js";
 import { deny } from "./errors.js";
 import { createSignatureEvidenceReader } from "./signatures.js";
-import { taskPasses, taskStages } from "./task-rules.js";
+import { taskAwaitingReview, taskPasses, taskStages } from "./task-rules.js";
 import { reconcileTasks, taskIsVisible } from "./tasks.js";
 
 type Tx = DatabaseTransaction;
@@ -149,6 +149,10 @@ export async function evaluateReadiness(
           review.taskRevision === task.revision &&
           review.reason.trim().length > 0,
       );
+    // Work the client completed counts as done for their submission; only the lender's
+    // approval (and later stages) waits for the lender to review it.
+    const awaitingReview = taskAwaitingReview(task) && clean;
+    if (awaitingReview && visibility) continue;
     if (
       !taskPasses(task) ||
       !waiverCurrent ||
@@ -158,7 +162,9 @@ export async function evaluateReadiness(
       add(
         "task",
         task.id,
-        task.stage,
+        awaitingReview && taskStages.indexOf(task.stage) < taskStages.indexOf("approval")
+          ? "approval"
+          : task.stage,
         task.title,
         !waiverCurrent
           ? "waiver_not_current"
@@ -166,9 +172,11 @@ export async function evaluateReadiness(
             ? "signature_evidence_not_current"
             : !clean
               ? "current_document_not_ready"
-              : task.state === "completed"
-                ? "current_evidence_not_reviewed"
-                : "requirement_unfinished",
+              : awaitingReview
+                ? "awaiting_lender_review"
+                : task.state === "completed"
+                  ? "current_evidence_not_reviewed"
+                  : "requirement_unfinished",
       );
   }
   const checks = await tx

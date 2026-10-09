@@ -6,6 +6,7 @@ import { syntheticDocumentPdf } from "@keycade/integrations/document-fixtures";
 import { type BrowserContext, expect as baseExpect, type Page, test } from "@playwright/test";
 import { workflowApi } from "./closing-helpers";
 import { messages, openLink, waitForLink } from "./identity-helpers";
+import { participantCard, removeAccess } from "./participant-helpers";
 
 const env = readEnvironment();
 const borrower = `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
@@ -235,10 +236,7 @@ test("an invited adviser uploads assigned evidence without private access and lo
     });
 
     await officer.goto(url(staff, "participants"));
-    const participant = officer
-      .getByRole("listitem")
-      .filter({ hasText: email })
-      .filter({ has: officer.getByRole("button", { name: "Remove access", exact: true }) });
+    const participant = participantCard(officer, email);
     // Finish the officer's paced workspace load before queuing the borrower's reads.
     await expect(participant).toBeVisible();
     testInfo.annotations.push({
@@ -255,7 +253,7 @@ test("an invited adviser uploads assigned evidence without private access and lo
     await expect(
       adviser.getByRole("listitem", { name: `Document ${fileName}`, exact: true }),
     ).toBeVisible();
-    await participant.getByRole("button", { name: "Remove access", exact: true }).click();
+    await removeAccess(officer, email);
     await expect(
       officer.getByRole("status").filter({ hasText: "Participant access removed." }),
     ).toBeVisible();

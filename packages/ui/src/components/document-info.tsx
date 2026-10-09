@@ -246,8 +246,13 @@ export function DocumentInfo({
                 onChange={(event) => setReason(event.target.value)}
               />
             </label>
-            <Button type="submit" size="sm" disabled={busy || !dirty || !reason.trim()}>
-              {busy ? "Saving…" : "Save document details"}
+            <Button
+              loading={busy}
+              type="submit"
+              size="sm"
+              disabled={busy || !dirty || !reason.trim()}
+            >
+              Save document details
             </Button>
           </form>
         </details>

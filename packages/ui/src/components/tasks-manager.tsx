@@ -18,10 +18,10 @@ import {
 import { textareaClassName } from "@keycade/ui/components/textarea";
 import { cn } from "cn";
 import {
+  Check,
   ChevronDown,
   Circle,
   CircleAlert,
-  CircleCheck,
   CircleDot,
   CircleMinus,
   Clock3,
@@ -355,23 +355,29 @@ export function TasksManager({
                   const actionable =
                     task.state === "open" &&
                     (task.canEdit || task.canSubmit || Boolean(task.secureInput?.canEdit));
+                  // Finished work is solid green; work the client has handed to the lender is
+                  // pale green. Staff see submitted work as their own blue review action.
                   const tone =
                     task.state === "completed" || task.state === "waived"
-                      ? "success"
+                      ? "complete"
                       : task.state === "submitted"
-                        ? "info"
+                        ? staffView
+                          ? "info"
+                          : "success"
                         : task.state === "needs_changes"
                           ? "warning"
                           : task.state === "cancelled"
                             ? "muted"
                             : actionable || staffView
-                              ? "brand"
+                              ? "info"
                               : "muted";
                   const StatusIcon =
                     task.state === "completed" || task.state === "waived"
-                      ? CircleCheck
+                      ? Check
                       : task.state === "submitted"
-                        ? Clock3
+                        ? staffView
+                          ? Clock3
+                          : Check
                         : task.state === "needs_changes"
                           ? CircleAlert
                           : task.state === "cancelled"
@@ -392,7 +398,7 @@ export function TasksManager({
                       key={task.id}
                       className={cn(
                         "overflow-hidden rounded-xl border bg-card shadow-xs transition-colors",
-                        expanded ? "border-brand/35 shadow-sm" : "hover:border-foreground/20",
+                        expanded ? "border-info/35 shadow-sm" : "hover:border-foreground/20",
                         task.state === "cancelled" && "bg-muted/40",
                       )}
                     >
@@ -415,14 +421,17 @@ export function TasksManager({
                             aria-hidden="true"
                             className={cn(
                               "flex size-9 shrink-0 items-center justify-center rounded-full",
+                              tone === "complete" && "bg-success text-white",
                               tone === "success" && "bg-success-soft text-success",
                               tone === "info" && "bg-info-soft text-info",
                               tone === "warning" && "bg-warning-soft text-warning",
-                              tone === "brand" && "bg-brand-soft text-brand",
                               tone === "muted" && "bg-muted text-muted-foreground",
                             )}
                           >
-                            <StatusIcon className="size-[1.125rem]" />
+                            <StatusIcon
+                              className="size-[1.125rem]"
+                              strokeWidth={StatusIcon === Check ? 2.75 : 2}
+                            />
                           </span>
                           <span className="min-w-0 flex-1 space-y-1">
                             <span
@@ -440,10 +449,9 @@ export function TasksManager({
                               <span
                                 className={cn(
                                   "font-medium",
-                                  tone === "success" && "text-success",
+                                  (tone === "complete" || tone === "success") && "text-success",
                                   tone === "info" && "text-info",
                                   tone === "warning" && "text-warning",
-                                  tone === "brand" && "text-brand",
                                 )}
                               >
                                 {!staffView && task.state === "open"
@@ -790,11 +798,12 @@ function TaskDetail({
           <div className="flex flex-wrap gap-2">
             {task.canEdit && (
               <Button
+                loading={busy}
                 type="submit"
                 variant="outline"
                 disabled={busy || !answer.trim() || !dirty || stale}
               >
-                {busy ? "Saving…" : "Save answer"}
+                Save answer
               </Button>
             )}
             {task.canSubmit && (
@@ -1192,15 +1201,19 @@ function ManualTask({
           <label className="flex items-center gap-2.5 text-sm font-medium">
             <input
               type="checkbox"
-              className="size-4 accent-primary"
+              className="size-4 accent-info"
               checked={required}
               disabled={busy}
               onChange={(event) => setRequired(event.target.checked)}
             />
             Required at this stage
           </label>
-          <Button type="submit" disabled={busy || !title.trim() || !description.trim()}>
-            {busy ? "Adding…" : "Create task"}
+          <Button
+            loading={busy}
+            type="submit"
+            disabled={busy || !title.trim() || !description.trim()}
+          >
+            Create task
           </Button>
         </form>
       </CardContent>

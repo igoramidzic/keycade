@@ -3,11 +3,10 @@ import { cn } from "cn";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
-export type StatusTone = "neutral" | "brand" | "info" | "success" | "warning" | "danger";
+export type StatusTone = "neutral" | "info" | "success" | "warning" | "danger";
 
 const toneVariant = {
   neutral: "secondary",
-  brand: "brand",
   info: "info",
   success: "success",
   warning: "warning",
@@ -16,7 +15,6 @@ const toneVariant = {
 
 const dotColor: Record<StatusTone, string> = {
   neutral: "bg-muted-foreground/70",
-  brand: "bg-brand",
   info: "bg-info",
   success: "bg-success",
   warning: "bg-warning",
@@ -52,7 +50,6 @@ export function StatusPill({
 
 const textColor: Record<StatusTone, string> = {
   neutral: "text-foreground",
-  brand: "text-brand",
   info: "text-info",
   success: "text-success",
   warning: "text-warning",
@@ -95,7 +92,7 @@ export function applicationStatusTone(status: string): StatusTone {
       return "info";
     case "collecting_information":
     case "closing":
-      return "brand";
+      return "info";
     default:
       return "neutral";
   }

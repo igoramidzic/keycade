@@ -224,7 +224,7 @@ test("bank apply, saved edits, browser loss, and explicit completion use the sam
   await page.getByRole("button", { name: "Continue setup", exact: true }).click();
 
   await page.goto(`${borrower}/applications/${original.id}`);
-  await expect(page).toHaveURL(`${borrower}/applications/${original.id}/setup?bank=bank-a`);
+  await expect(page).toHaveURL(`${borrower}/applications/${original.id}/setup/purpose?bank=bank-a`);
   await expect(
     page.getByRole("checkbox", { name: "Equipment purchase", exact: true }),
   ).toBeVisible();
@@ -346,7 +346,7 @@ test("failed saves retain edits and stale revisions require an explicit recovera
   await page.getByRole("button", { name: "Back", exact: true }).click();
   await expect(page.getByLabel("Website", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Skip for now", exact: true }).click();
-  await expect(page.getByLabel("Requested amount", { exact: true })).toHaveValue("42000.00");
+  await expect(page.getByLabel("Requested amount", { exact: true })).toHaveValue("42,000");
 });
 
 test("email start, expired-link recovery, and fresh links resume the same draft after storage loss", async ({
@@ -463,7 +463,7 @@ test("a staff-prefilled draft requires the applicant to review and explicitly fi
   ).toBeVisible();
   expect((await setup(page)).setupStatus).toBe("in_progress");
   await page.goto(`${borrower}/applications/${draft.id}`);
-  await expect(page).toHaveURL(`${borrower}/applications/${draft.id}/setup?bank=bank-a`);
+  await expect(page).toHaveURL(`${borrower}/applications/${draft.id}/setup/review?bank=bank-a`);
   await page.getByRole("button", { name: "Finish setup", exact: true }).click();
   await expect(page.getByText("Initial setup complete", { exact: true })).toBeVisible();
 });
@@ -497,16 +497,16 @@ test("session recovery keeps unsaved answers and another signed-in account canno
   await page.route("**/api/v1/auth/logout", (route) => route.abort());
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("sign you out");
-  await expect(page.getByLabel("Requested amount", { exact: true })).toHaveValue("37500");
+  await expect(page.getByLabel("Requested amount", { exact: true })).toHaveValue("37,500");
   await page.unroute("**/api/v1/auth/logout");
   await signOutThroughApi(page);
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(page.getByRole("button", { name: "Sign in again", exact: true })).toBeVisible();
-  await expect(page.getByLabel("Requested amount", { exact: true })).toHaveValue("37500");
+  await expect(page.getByLabel("Requested amount", { exact: true })).toHaveValue("37,500");
   await page.getByRole("button", { name: "Sign in again", exact: true }).click();
   await page.getByLabel("Email address", { exact: true }).fill(email);
   await page.getByRole("button", { name: "Sign in to demo", exact: true }).click();
-  await expect(page.getByLabel("Requested amount", { exact: true })).toHaveValue("37500");
+  await expect(page.getByLabel("Requested amount", { exact: true })).toHaveValue("37,500");
   expect((await setup(page)).requestedAmount).toBeNull();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(page.getByRole("checkbox", { name: "Working capital", exact: true })).toBeVisible();
@@ -616,12 +616,12 @@ test("optional EIN, website and Other detail persist safely and require delibera
   await page.getByRole("button", { name: "Skip for now", exact: true }).click();
   expect((await setup(page)).businessEin.present).toBe(true);
   await page.getByRole("button", { name: "Skip for now", exact: true }).click();
-  await expect(page.getByText("Industry not provided", { exact: true })).toBeVisible();
+  await expect(page.getByText("Industry not provided", { exact: true })).toHaveCount(0);
   await page.getByLabel("Website", { exact: true }).fill("javascript:alert(1)");
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(page.getByRole("alert")).toBeVisible();
   expect((await setup(page)).website).toBeNull();
-  await answer(page, "Website", "https://demo.example.test", "Requested amount");
+  await answer(page, "Website", "demo.example.test", "Requested amount");
   await page.getByRole("button", { name: "Back", exact: true }).click();
   await expect(page.getByLabel("Website", { exact: true })).toHaveValue(
     "https://demo.example.test/",

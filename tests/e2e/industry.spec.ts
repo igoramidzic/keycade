@@ -61,9 +61,11 @@ test("industry search supports keyboard selection, exact persistence, no match a
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(page.getByRole("heading", { name: "What is your business website?" })).toBeVisible();
   expect(await savedIndustry(page)).toMatchObject({ code: "621210", version: "2022" });
+  await expect(page.getByText(/NAICS 621210/)).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Edit industry", exact: true })).toHaveCount(0);
   await page.reload();
   await page.getByLabel("Website", { exact: true }).fill("https://unsaved.example.test");
-  await page.getByRole("button", { name: "Edit industry", exact: true }).click();
+  await page.getByRole("button", { name: "Back", exact: true }).click();
   await page.getByRole("button", { name: "Replace saved industry", exact: true }).click();
   await trigger.click();
   await search.fill("zzzxxyykkqq");
@@ -86,9 +88,9 @@ test("industry search supports keyboard selection, exact persistence, no match a
   await expect(page.getByRole("heading", { name: "What is your business website?" })).toBeVisible();
   expect(await savedIndustry(page)).toMatchObject({ code: "621210", version: "2022" });
   await expect(page.getByLabel("Website", { exact: true })).toHaveValue(
-    "https://unsaved.example.test",
+    "https://unsaved.example.test/",
   );
-  await page.getByRole("button", { name: "Edit industry", exact: true }).click();
+  await page.getByRole("button", { name: "Back", exact: true }).click();
   await page.getByRole("button", { name: "Clear saved industry", exact: true }).click();
   expect(await savedIndustry(page)).toMatchObject({ code: null, version: null });
   expect((await savedIndustry(page)).skipped).toContain("industry");

@@ -13,7 +13,7 @@
  *
  * shadcn/ui components read the semantic variables below. Keep color decisions here so
  * every workspace (bank site, borrower portal and bank console) shares one palette:
- * a neutral canvas, KeyBank-inspired red primary actions with charcoal text, and
+ * a neutral canvas, KeyBank-inspired red branding and primary buttons, blue statuses with charcoal text, and
  * paired strong/soft semantic tones for statuses. Every text/background pairing meets
  * WCAG AA contrast (4.5:1 or better) on cards and the page canvas.
  */
@@ -50,6 +50,7 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-primary-strong: var(--primary-strong);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -59,6 +60,7 @@
   /* Design-system extensions: elevated canvas, brand tint and semantic status tones. */
   --color-canvas: var(--canvas);
   --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
   --color-brand-soft: var(--brand-soft);
   --color-brand-strong: var(--brand-strong);
   --color-success: var(--success);
@@ -68,11 +70,15 @@
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
   --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
   --color-info-soft: var(--info-soft);
   --color-demo: var(--demo);
   --color-demo-foreground: var(--demo-foreground);
   --color-demo-muted: var(--demo-muted);
   --color-demo-border: var(--demo-border);
+  --color-demo-raised: var(--demo-raised);
+  --color-demo-accent: var(--demo-accent);
+  --color-demo-accent-foreground: var(--demo-accent-foreground);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -96,10 +102,12 @@
   --card-foreground: #262626;
   --popover: #ffffff;
   --popover-foreground: #262626;
-  /* KeyBank reference: #b30000 buttons, #cc0000 headings; darker hover and soft selection. */
+  /* Red primary buttons; independent blue info tokens for routine state and selection. */
   --primary: #b30000;
+  --primary-strong: #900000;
   --primary-foreground: #ffffff;
   --brand: #cc0000;
+  --brand-foreground: #ffffff;
   --brand-soft: #fff0f0;
   --brand-strong: #900000;
   --secondary: #f0f0f0;
@@ -111,7 +119,7 @@
   --destructive: oklch(0.54 0.2 27);
   --border: #e2e2e2;
   --input: #cccccc;
-  --ring: #b30000;
+  --ring: var(--info);
   /* Status tones: strong text/icon color paired with a soft fill */
   --success: oklch(0.5 0.115 155);
   --success-soft: oklch(0.965 0.035 158);
@@ -119,14 +127,21 @@
   --warning-soft: oklch(0.97 0.045 85);
   --danger: oklch(0.54 0.2 27);
   --danger-soft: oklch(0.965 0.02 20);
-  --info: oklch(0.5 0.14 250);
-  --info-soft: oklch(0.965 0.022 245);
-  /* Demo tooling stays visibly separate from the product surfaces */
-  --demo: oklch(0.965 0.028 285);
-  --demo-foreground: oklch(0.33 0.12 285);
-  --demo-muted: oklch(0.42 0.1 285);
-  --demo-border: oklch(0.88 0.05 285);
-  --chart-1: var(--brand);
+  --info: #005ea8;
+  --info-foreground: #ffffff;
+  --info-soft: #edf6ff;
+  /*
+   * Demo tooling is a charcoal console in every theme, so simulation controls never read as
+   * product UI. The amber accent marks demo-only affordances (badge, step numbers).
+   */
+  --demo: #1c1c1c;
+  --demo-raised: #262626;
+  --demo-foreground: #ededed;
+  --demo-muted: #b3b3b3;
+  --demo-border: oklch(1 0 0 / 12%);
+  --demo-accent: #f5c04a;
+  --demo-accent-foreground: #1c1c1c;
+  --chart-1: var(--info);
   --chart-2: oklch(0.62 0.12 230);
   --chart-3: oklch(0.6 0.11 175);
   --chart-4: oklch(0.7 0.13 75);
@@ -134,10 +149,10 @@
   --radius: 0.625rem;
   --sidebar: #fafafa;
   --sidebar-foreground: var(--foreground);
-  --sidebar-primary: var(--primary);
-  --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: var(--brand-soft);
-  --sidebar-accent-foreground: var(--brand-strong);
+  --sidebar-primary: var(--info);
+  --sidebar-primary-foreground: var(--info-foreground);
+  --sidebar-accent: var(--info-soft);
+  --sidebar-accent-foreground: var(--info);
   --sidebar-border: var(--border);
   --sidebar-ring: var(--ring);
 }
@@ -151,8 +166,10 @@
   --popover: #262626;
   --popover-foreground: #fafafa;
   --primary: #ff7770;
+  --primary-strong: #ffa6a1;
   --primary-foreground: #171717;
   --brand: #ff8a84;
+  --brand-foreground: #171717;
   --brand-soft: #451d1d;
   --brand-strong: #ffa6a1;
   --secondary: #333333;
@@ -164,32 +181,51 @@
   --destructive: oklch(0.7 0.17 25);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 16%);
-  --ring: #ff7770;
+  --ring: var(--info);
   --success: oklch(0.76 0.13 158);
   --success-soft: oklch(0.3 0.05 160);
   --warning: oklch(0.8 0.12 80);
   --warning-soft: oklch(0.32 0.05 75);
   --danger: oklch(0.72 0.16 25);
   --danger-soft: oklch(0.32 0.06 25);
-  --info: oklch(0.76 0.11 245);
-  --info-soft: oklch(0.3 0.05 250);
-  --demo: oklch(0.27 0.05 285);
-  --demo-foreground: oklch(0.92 0.04 285);
-  --demo-muted: oklch(0.82 0.05 285);
-  --demo-border: oklch(0.4 0.07 285);
-  --chart-1: var(--brand);
+  --info: #8bc7ff;
+  --info-foreground: #171717;
+  --info-soft: #17334d;
+  --chart-1: var(--info);
   --chart-2: oklch(0.7 0.11 230);
   --chart-3: oklch(0.7 0.11 175);
   --chart-4: oklch(0.78 0.12 75);
   --chart-5: #a3a3a3;
   --sidebar: var(--background);
   --sidebar-foreground: var(--foreground);
-  --sidebar-primary: var(--primary);
-  --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: var(--brand-soft);
-  --sidebar-accent-foreground: var(--brand-strong);
+  --sidebar-primary: var(--info);
+  --sidebar-primary-foreground: var(--info-foreground);
+  --sidebar-accent: var(--info-soft);
+  --sidebar-accent-foreground: var(--info);
   --sidebar-border: var(--border);
   --sidebar-ring: var(--ring);
+}
+
+/*
+ * Scope for demo tooling. Pair it with `dark` (`className="dark demo-kit"`): `dark` switches the
+ * shadcn primitives to their dark variants and this maps the semantic tokens onto the demo
+ * console palette. Primary buttons become light so kit actions never borrow brand red.
+ */
+.demo-kit {
+  color-scheme: dark;
+  --background: var(--demo);
+  --foreground: var(--demo-foreground);
+  --card: var(--demo-raised);
+  --card-foreground: var(--demo-foreground);
+  --popover: var(--demo-raised);
+  --popover-foreground: var(--demo-foreground);
+  --muted: oklch(1 0 0 / 7%);
+  --muted-foreground: var(--demo-muted);
+  --border: var(--demo-border);
+  --input: oklch(1 0 0 / 20%);
+  --primary: var(--demo-foreground);
+  --primary-strong: #ffffff;
+  --primary-foreground: var(--demo);
 }
 
 @layer base {
@@ -212,7 +248,7 @@
     text-wrap: balance;
   }
   ::selection {
-    background-color: color-mix(in oklch, var(--brand) 22%, transparent);
+    background-color: color-mix(in oklch, var(--info) 22%, transparent);
   }
 }
 

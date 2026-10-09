@@ -54,10 +54,10 @@ Historical upgrade tests now seed explicit old-schema SQL fixtures rather than i
 ### Try it locally
 
 1. For an initialized checkout, run `pnpm db:migrate` and `pnpm db:seed`, then `pnpm dev`.
-2. Sign in at the bank console as `officer-a@example.test`, open Synthetic Cedar Workshop, and choose **Participants**. Send an **Adviser (lawyer or accountant)** invitation to a fictional `example.test` address, selecting their **Tasks to complete**.
+2. Sign in at the bank console as `officer-a@example.test`, open Synthetic Cedar Workshop, and choose **Participants**. Choose **Invite participant**, pick **Adviser**, enter a fictional `example.test` address and select their **Tasks to complete**.
 3. Open that recipient's message in the local Mailpit inbox, confirm sign-in, review the assigned scope, and choose **Accept invitation**. The collaborator sees only this application's limited summary and permitted People information.
-4. Back in the lender's browser, remove the collaborator's access. Requests from their already-open session are now denied. Test **Resend invitation** and **Revoke invitation** on a pending invitation.
-5. Sign in to the bank console as `officer-a@example.test`, open **Participants**, and record an owner. This creates no user account. Send a separate owner invitation only when portal access is intended.
+4. Back in the lender's browser, open the collaborator's card menu (⋯) and choose **Remove access**, then confirm. Requests from their already-open session are now denied. A pending invitation's card menu offers **Resend invitation** and **Revoke invitation**; an active participant's menu also offers **Edit assigned tasks**.
+5. Sign in to the bank console as `officer-a@example.test`, open **Participants**, and choose **Record owner**. This creates no user account. Send a separate owner invitation only when portal access is intended.
 
 Task assignments/evidence adapters remain T12/T13. Hosted simulated email remains unavailable and invitation create/resend returns an explicit 503 without partial writes. No hosted migration or deployment was performed.
 
@@ -84,3 +84,21 @@ At this local checkpoint, hosted deployment was not included and migration 0020 
 ## V2 hosted deployment follow-up — October 8, 2026
 
 The lender-only invitation implementation and migration 0020 are included in the five-Worker release at `75b1f96`; all 25 migrations are applied. [V2-08 hosted acceptance](../v2/04-delivery-and-validation.md#v2-08--hosted-parity-and-deployment-slice) verifies simulated inbox access and unrelated-applicant denials. The invitation/assignment matrix above remains locally verified and was not rerun as part of this smaller hosted slice. Existing borrower-issued pending invitations still need lender renewal; previously accepted memberships remain unchanged.
+
+### Participants cards, menus and modals — October 8, 2026
+
+Done — implemented and validated locally October 8, 2026, at the user's request to make adding, editing and removing participants simpler.
+
+- **People with portal access** is a wrapping grid of cards: initials, name, email, role, access scope and (for the lender) open-task count. Pending and expired invitations appear as dashed cards with delivery status. Past access and accepted/revoked invitations move into a collapsed **Past access and invitations** history.
+- Each card has a “⋯” menu (**Actions for …**). Participants: **Edit assigned tasks** (lender) and **Remove access**. Invitations: **Resend invitation** and **Revoke invitation**. Owners: **Link to participant** and **Mark relationship inactive**/**Restore relationship**.
+- **Invite participant**, **Record owner**, **Link to participant** and **Edit assigned tasks** open modal dialogs that keep entries after a failed save; **Remove access** and **Revoke invitation** confirm first. Role is chosen from described Adviser/Owner/Applicant administrator options, and the implied access scope is stated instead of a disabled select.
+- **Edit assigned tasks** offers the same unfinished, non-private, non-signature tasks as invitations and applies changes through the existing revision-checked `PATCH …/tasks/:taskId/assignment` command, stopping at the first failure and refreshing tasks and participants. Checking a task replaces its assignee; unchecking unassigns it.
+- The client People page shares the component; it still has no invitation controls. No backend contract, permission, schema or dependency change.
+
+Acceptance: open and cancel the invite dialog; invite with selected tasks; accept and remove access through the card menu and confirmation; record an owner in its dialog; keep the client view free of invitation controls; no overflow on desktop or mobile.
+
+Validation (shared with the other October 8 UI follow-ups in this change):
+
+- `pnpm lint` (Biome and browser/server boundaries), root `tsc --noEmit` including `tests/`, and the shared UI, bank-console, borrower and bank-site typechecks pass. `pnpm test`: **425 unit tests** pass. All three web Vite builds pass (existing large-chunk warnings remain).
+- `pnpm test:e2e` with `participants`, `collaborator-upload`, `staff-workspace`, `borrower-workspace`, `intake`, `demo-inbox` and `lender-overview-v2` (`.local/e2e-utpAIY`): **74 desktop/mobile cases — 65 passed, 8 skipped, 1 failed, 0 flaky**. The skips are the eight `demo-inbox` cases, which run only when `DEMO_INBOX_ENABLED=true`. The failure was the mobile *queue loading and service failure* case: by then the combined run had created 55 applications, pushing the seeded Synthetic Cedar Workshop off the first queue page. Rerun alone, it passed on desktop and mobile (2/2, `.local/e2e-ouo2wc`).
+- Browser inspection against the local stack at 1280px and 375px (no horizontal overflow). The card grid, menus, invite and edit-tasks dialogs, focus return to the triggering control and the mobile layout were checked. All six participant journeys and both collaborator-upload journeys pass with the menu-and-confirm removal flow (`tests/e2e/participant-helpers.ts`). The hosted invitation step in `hosted-demo.spec.ts` was updated but not run (hosted-only). No hosted deployment was performed.

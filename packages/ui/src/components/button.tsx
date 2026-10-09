@@ -1,4 +1,5 @@
 import { Button as ButtonPrimitive } from "@base-ui/react/button";
+import { Spinner } from "@keycade/ui/components/spinner";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "cn";
 
@@ -7,7 +8,7 @@ const buttonClasses = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground shadow-xs hover:bg-brand-strong",
+        default: "bg-primary text-primary-foreground shadow-xs hover:bg-primary-strong",
         outline:
           "border-input bg-card text-foreground shadow-xs hover:border-foreground/20 hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:bg-input/30 dark:hover:bg-input/50",
         secondary:
@@ -16,7 +17,7 @@ const buttonClasses = cva(
           "text-foreground hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50",
         destructive:
           "bg-danger-soft text-danger hover:bg-[color-mix(in_oklch,var(--danger-soft),var(--danger)_10%)] focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40",
-        link: "text-brand underline-offset-4 hover:underline",
+        link: "text-info underline-offset-4 hover:underline",
       },
       size: {
         default:
@@ -41,18 +42,44 @@ const buttonClasses = cva(
 /** Button classes with Tailwind conflicts resolved, so link-buttons can override sizing. */
 const buttonVariants = (props?: Parameters<typeof buttonClasses>[0]) => cn(buttonClasses(props));
 
+/**
+ * `loading` disables the button and swaps its visible content for a spinner. The label stays
+ * in place (transparent) so the width and accessible name never change while work is in flight.
+ */
 function Button({
   className,
   variant = "default",
   size = "default",
+  loading = false,
+  disabled,
+  children,
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants> & { loading?: boolean }) {
   return (
     <ButtonPrimitive
       data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
+      data-loading={loading || undefined}
+      aria-busy={loading || undefined}
+      disabled={disabled || loading}
+      className={cn(
+        buttonVariants({ variant, size, className }),
+        loading && "relative disabled:opacity-100",
+      )}
       {...props}
-    />
+    >
+      {loading ? (
+        <>
+          <span className="inline-flex min-w-0 items-center justify-[inherit] gap-[inherit] opacity-0">
+            {children}
+          </span>
+          <span aria-hidden="true" className="absolute inset-0 flex items-center justify-center">
+            <Spinner role={undefined} aria-label={undefined} />
+          </span>
+        </>
+      ) : (
+        children
+      )}
+    </ButtonPrimitive>
   );
 }
 

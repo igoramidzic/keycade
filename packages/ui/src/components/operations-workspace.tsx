@@ -227,13 +227,14 @@ export function OperationsWorkspace({
                       </div>
                     ) : (
                       <Button
+                        loading={busy === item.id}
                         key={action}
                         type="button"
                         variant="outline"
                         disabled={!!busy}
                         onClick={() => void act(item, action)}
                       >
-                        {busy === item.id ? "Requesting…" : "Retry operation"}
+                        Retry operation
                       </Button>
                     ),
                   )}

@@ -32,6 +32,18 @@ The requested [readable default typography](v2/04-delivery-and-validation.md#rea
 
 The requested [KeyBank palette follow-up](tasks/D06-design-system-redesign.md#keybank-palette-follow-up--october-8-2026) is complete locally: shared red accents, charcoal text and neutral white/gray surfaces replace sapphire across all four interfaces. All three web builds, 10 desktop/mobile smoke tests and light/dark brand/neutral contrast checks pass. The broader D06 redesign remains in progress.
 
+The [blue action/status refinement](tasks/D06-design-system-redesign.md#blue-action-and-status-follow-up--october-8-2026) is complete locally: routine actions and current states use blue while KeyBank branding stays red. All three web builds, four affected typechecks, 22 isolated desktop/mobile browser cases, Biome and light/dark contrast checks pass.
+
+The [primary-button clarification](tasks/D06-design-system-redesign.md#red-primary-buttons-with-blue-status--october-8-2026) is complete locally: red primary buttons are restored while routine application status and selection stay blue. Three web builds, four affected typechecks, eight isolated desktop/mobile cases and contrast checks pass.
+
+The requested [charcoal demo kit](tasks/D06-design-system-redesign.md#charcoal-demo-kit--october-8-2026) is complete locally: the demo sidebar is a charcoal “Demo only” console organized as numbered steps, with the upload destination and expected sample outcomes visible up front. Three web builds, three typechecks, Biome and 44 isolated desktop/mobile kit cases pass.
+
+The [website-step refinement](v2/04-delivery-and-validation.md#website-entry-and-focused-question--october-8-2026) is complete locally: bare domains normalize to HTTPS, and the website question no longer repeats the saved NAICS selection. Validation passes 81 contract tests, one targeted PostgreSQL persistence case, six desktop/mobile cases, affected typechecks and the borrower build.
+
+The requested [prefilled answers modal](tasks/T10-bank-workspace.md#prefilled-answers-modal--october-8-2026) is complete locally: the editor opens above the overview in a scrolling modal with keyboard dismissal and focus return. Both desktop/mobile staff journeys, bank-console typecheck/build and targeted Biome checks pass.
+
+The requested [participants redesign](tasks/T11-participants.md#participants-cards-menus-and-modals--october-8-2026) is complete locally: lender Participants shows people and invitations as cards with “⋯” action menus, invite/owner/link/edit-tasks dialogs and confirmed removal. [Overview now includes the task list](tasks/T10-bank-workspace.md#overview-task-list--october-8-2026). Buttons show an [in-button spinner](tasks/D06-design-system-redesign.md#dialogs-menus-and-in-button-spinners--october-8-2026) instead of “Saving…” text. Setup has [per-step URLs and whole-dollar amount entry](v2/04-delivery-and-validation.md#whole-dollar-amounts-and-addressable-setup-steps--october-8-2026). Lint, all affected typechecks, 425 unit tests and three web builds pass. Of 74 isolated desktop/mobile cases, 65 passed and 8 opt-in inbox cases were skipped. One queue case failed only from data accumulated across the combined run, then passed when rerun alone.
+
 ## Agreed outcome
 
 Build a bank-operated business lending platform with a mock bank website, a borrower application/dashboard, and a bank staff console. Support multiple businesses, participants, applications, and eventual loan accounts. Ask for email first, progressively collect information, and use passwordless access. Simulate outside services with visible delays and reliable background processing.

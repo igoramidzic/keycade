@@ -157,7 +157,7 @@ function LoanFootprintDialog({
         <header className="flex shrink-0 items-start gap-3 border-b p-4 sm:px-6 sm:py-5">
           <span
             aria-hidden="true"
-            className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand"
+            className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-info-soft text-info"
           >
             <MapPin className="size-5" />
           </span>
@@ -246,11 +246,12 @@ function LoanFootprintDialog({
           <div className="flex flex-wrap gap-2">
             {check.canRefresh && run && input && (
               <Button
+                loading={busy}
                 variant="outline"
                 disabled={busy || unavailable}
                 onClick={() => void refresh()}
               >
-                {busy ? "Requesting refresh…" : "Refresh Loan Footprint"}
+                Refresh Loan Footprint
               </Button>
             )}
             <Button
@@ -329,7 +330,7 @@ function FootprintMap({
         />
         <span
           aria-hidden="true"
-          className="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-primary shadow-md ring-4 ring-primary/25"
+          className="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-info shadow-md ring-4 ring-info/25"
           style={{ left: `${point.left}%`, top: `${point.top}%` }}
         />
       </div>

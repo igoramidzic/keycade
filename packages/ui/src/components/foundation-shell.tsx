@@ -219,14 +219,15 @@ export function FoundationShell({
                       : "A service is unavailable. Try refreshing the checks in a moment."}
                 </p>
                 <Button
+                  loading={checking}
                   variant="outline"
                   size="sm"
                   className="mt-5"
                   disabled={checking}
                   onClick={() => void refresh()}
                 >
-                  <RefreshCw aria-hidden="true" className={checking ? "animate-spin" : undefined} />
-                  {checking ? "Checking…" : "Refresh checks"}
+                  <RefreshCw aria-hidden="true" />
+                  Refresh checks
                 </Button>
               </CardContent>
             </Card>

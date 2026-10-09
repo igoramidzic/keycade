@@ -22,20 +22,20 @@ export function BrandMark({
         width="32"
         height="32"
         rx="9"
-        className={tone === "brand" ? "fill-primary" : "fill-primary-foreground"}
+        className={tone === "brand" ? "fill-brand" : "fill-brand-foreground"}
       />
       <g
         fill="none"
         strokeLinecap="round"
         strokeLinejoin="round"
-        className={tone === "brand" ? "stroke-primary-foreground" : "stroke-primary"}
+        className={tone === "brand" ? "stroke-brand-foreground" : "stroke-brand"}
       >
         <path d="M10 23.5v-7.25a6 6 0 0 1 12 0v7.25" strokeWidth="2.4" />
         <path d="M7.5 23.5h17" strokeWidth="2.4" />
       </g>
       <path
         d="M14.4 7.2h3.2l-.65 3.6h-1.9z"
-        className={tone === "brand" ? "fill-primary-foreground" : "fill-primary"}
+        className={tone === "brand" ? "fill-brand-foreground" : "fill-brand"}
       />
     </svg>
   );

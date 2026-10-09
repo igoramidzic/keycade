@@ -37,7 +37,7 @@ Dependencies: T07, T08, T15. Primary areas: setup contracts/domain, Drizzle migr
 ### Scope
 
 - Extend the versioned setup definition with required business legal name and structured business address, optional business taxpayer identification number (EIN), optional website, existing optional NAICS selection, and illustrated multi-select funding purposes.
-- Retain email-first access, one simple question per screen, server-saved Back/Continue/Skip progress, review/correction and explicit completion. Present the selected NAICS code and title with website/business details; it is a classification code, not a numeric score.
+- Retain email-first access, one simple question per screen, server-saved Back/Continue/Skip progress, review/correction and explicit completion. Present the selected NAICS code and title in its dedicated question, setup review and business details; keep the website question focused on its own answer. Accept and normalize bare website domains to HTTPS; it is a classification code, not a numeric score.
 - Add stable purpose codes and a versioned catalog. Preserve historical raw purpose text; do not infer new selected categories from ambiguous old prose. Retain the fixed Synthetic Business Credit product and amount validation.
 - Route optional EIN through the existing encrypted identifier service using a narrow, authenticated pre-setup business-EIN command. Authorize only the full applicant administrator for that application and same-bank staff. Do not relax the general setup gate or personal-identifier access, store EIN in setup JSON, or imply tax authorization.
 - Preserve completed legacy applications and historical decisions. Migrate unfinished setup to the new definition without losing acknowledged answers; collect newly required missing fields before completion. Synchronize staff prefill and resume labels with the new definition.
@@ -385,3 +385,35 @@ Completed October 8, 2026, for documentation only:
 - Independent consistency review resolved V2-04's initial dependency on V2-05's grouping UI, separated US eligibility from coordinate availability, and replaced the obsolete production-demo rejection policy with the established D03 rule.
 - A local Markdown path/heading validator checked **246 links across 43 planning documents**, with **zero errors**. Task dependency review found no cycles; V2-01 is the next default task and V2-03 can proceed independently. All eight tasks remain Not started with Not run implementation validation.
 - `git diff --check` passed. No application code or schema changed; application builds, runtime tests and deployment were not run for this documentation-only request.
+
+## Website entry and focused question — October 8, 2026
+
+The user reported that a bare domain was rejected and questioned the NAICS summary under Website. The shared website contract now accepts domains without a scheme, normalizes them to HTTPS, and retains HTTP/HTTPS-only, no-credentials and length validation. The website screen no longer repeats industry/NAICS; the dedicated industry question, final review and business summaries retain that saved answer. Back still saves and returns to industry. This supersedes V2-01’s earlier website-step industry-summary requirement; dependencies and persisted schema are unchanged.
+
+Acceptance: bare domains advance and persist canonically across resume; invalid URLs still fail without erasing input; industry choices remain saved and editable, and the website screen shows no repeated classification.
+
+Done locally — October 8, 2026. Validation:
+
+- `node_modules/.bin/vitest run packages/contracts --exclude '**/*.integration.test.ts'`: 81 contract tests pass, including kualia.com, www, paths/queries, ports, explicit HTTP/HTTPS, idempotent normalization and rejected malformed/credential URLs.
+- Targeted `setup.integration.test.ts` persistence case (keeps address revisions, normalized websites…): 1 PostgreSQL case passes; 32 unrelated cases intentionally filtered. The case now supplies a bare uppercase domain directly to the service and checks canonical persistence and explicit clear.
+- `node_modules/.bin/tsx scripts/e2e.ts tests/e2e/industry.spec.ts tests/e2e/intake.spec.ts --grep 'industry search|optional EIN, website'`: 6 isolated desktop/mobile cases pass, no skips/failures/flaky cases. Covers invalid URL correction to a bare domain, save/resume/clear, absence of the website-step industry row, Back to industry with website preservation, saved industry selection/clear and keyboard search/retry.
+- Contracts and borrower typechecks pass; borrower Vite production build passes with the existing large-chunk warning. Biome passes for the six changed source/test files; `git diff --check` passes.
+
+No schema migration or hosted deployment was performed.
+
+## Whole-dollar amounts and addressable setup steps — October 8, 2026
+
+The user asked for a currency display with comma separators and whole numbers when entering a requested amount, for each setup step to be its own page that can be reloaded, and for each new step to scroll to the top.
+
+- The setup amount question and the staff prefill form use the shared `CurrencyInput`: a `$` prefix, thousands separators while typing, a caret that stays with the typed digits, and whole dollars only (cents and other characters are ignored). The contract still stores two-decimal USD strings, product limits are still validated, and a saved `42000.00` reopens as `42,000`.
+- Each setup question has its own route, `/applications/:id/setup/<step>` (`business-name`, `business-address`, `business-ein`, `industry`, `website`, `amount`, `purpose`, `other-purpose`, `review`). `/setup` and application deep links open the saved step. Continue, Back, Skip and Edit add a history entry for the new step.
+- Reload keeps the current question. Browser back/forward and typed step addresses save the move as an edit only to questions already reached (earlier questions, answered or skipped questions, or the first question after settled ones); anything else, or a failed move, returns to the saved step. Unsaved answers stay in the existing per-tab recovery cache; unsaved EIN values still never persist.
+- Every step change scrolls to the top and focuses the question heading without a second scroll. Sign-in recovery still returns to `/setup`, which reopens the saved step, so return-path validation is unchanged.
+
+Acceptance: formatted whole-dollar entry and persistence; per-step URLs through the whole wizard; reload, back/forward and unreached-step redirects; focus and scroll position on step changes; existing setup, intake, resume and officer-handoff journeys.
+
+Done locally — October 8, 2026. Validation (shared with the other October 8 UI follow-ups in this change):
+
+- `pnpm lint` (Biome and browser/server boundaries), root `tsc --noEmit` including `tests/`, and the shared UI, bank-console, borrower and bank-site typechecks pass. `pnpm test`: **425 unit tests** pass. All three web Vite builds pass (existing large-chunk warnings remain).
+- `pnpm test:e2e` with `participants`, `collaborator-upload`, `staff-workspace`, `borrower-workspace`, `intake`, `demo-inbox` and `lender-overview-v2` (`.local/e2e-utpAIY`): **74 desktop/mobile cases — 65 passed, 8 skipped, 1 failed, 0 flaky**. The skips are the eight `demo-inbox` cases, which run only when `DEMO_INBOX_ENABLED=true`. The failure was the mobile *queue loading and service failure* case: by then the combined run had created 55 applications, pushing the seeded Synthetic Cedar Workshop off the first queue page. Rerun alone, it passed on desktop and mobile (2/2, `.local/e2e-ouo2wc`).
+- Browser inspection against the local stack at 1280px and 375px (no horizontal overflow). Intake, borrower-workspace and staff handoff journeys now assert step URLs (`/setup/purpose`, `/setup/review`, `/setup/amount`, `/setup/business-name`) and comma-formatted whole-dollar values (`42,000`, `37,500`, `12,345`, `7,500,001`). In a fresh synthetic draft, the following were checked by hand: every step URL; Continue, browser Back and Forward; reload; a typed unreached `/setup/review` returning to the saved step; scroll position 0 with heading focus after each step; and the caret staying in place mid-number edits (`12,505,000`). The updated `/setup/amount` assertions in `demo-inbox.spec.ts` (opt-in) and `hosted-demo.spec.ts` (hosted-only) were not run. No schema migration or hosted deployment was performed.

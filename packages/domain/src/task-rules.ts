@@ -171,6 +171,7 @@ export type ProgressTask = {
   evidenceRevision: number;
   reviewedEvidenceRevision: number | null;
 };
+/** Lender-reviewed (or waived) current evidence: the bar for approval, checks and closing. */
 export function taskPasses(task: ProgressTask) {
   return (
     task.state === "waived" ||
@@ -179,12 +180,20 @@ export function taskPasses(task: ProgressTask) {
       task.reviewedEvidenceRevision === task.evidenceRevision)
   );
 }
+/** The assignee completed this evidence; it now waits only for optional lender review. */
+export function taskAwaitingReview(task: ProgressTask) {
+  return task.state === "submitted" && task.evidenceRevision > 0;
+}
+/** Completed from the client's point of view: progress and the client's submission gate. */
+export function taskDone(task: ProgressTask) {
+  return taskPasses(task) || taskAwaitingReview(task);
+}
 export function calculateTaskProgress(tasks: readonly ProgressTask[]): TaskProgress {
   const count = (items: readonly ProgressTask[]) => ({
     total: items.length,
-    completed: items.filter(taskPasses).length,
+    completed: items.filter(taskDone).length,
     required: items.filter((x) => x.required).length,
-    requiredCompleted: items.filter((x) => x.required && taskPasses(x)).length,
+    requiredCompleted: items.filter((x) => x.required && taskDone(x)).length,
   });
   const current = tasks.filter((task) => task.state !== "cancelled");
   return {

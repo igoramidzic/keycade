@@ -77,8 +77,13 @@ export function DemoInbox({
             address.
           </CardDescription>
         </div>
-        <Button variant="outline" disabled={refreshing || busy} onClick={refresh}>
-          {refreshing ? "Refreshing…" : "Refresh inbox"}
+        <Button
+          loading={refreshing}
+          variant="outline"
+          disabled={refreshing || busy}
+          onClick={refresh}
+        >
+          Refresh inbox
         </Button>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -132,8 +137,8 @@ export function DemoInbox({
             <h2 className="text-base font-semibold">{selected.subject}</h2>
             <p className="whitespace-pre-wrap break-words text-sm leading-6">{selected.text}</p>
             {selected.state === "available" ? (
-              <Button disabled={busy} onClick={() => void read(selected.id, true)}>
-                {busy ? "Opening…" : "Open confirmation"}
+              <Button loading={busy} disabled={busy} onClick={() => void read(selected.id, true)}>
+                Open confirmation
               </Button>
             ) : (
               <p className="text-sm text-muted-foreground">

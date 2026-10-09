@@ -330,20 +330,17 @@ export function ApplicationList({
                         </div>
                         <div className="flex items-center justify-end border-t bg-muted/40 px-6 py-3.5">
                           <Button
+                            loading={busy === application.id}
                             disabled={busy !== null}
                             variant={
                               application.nextDestination === "closed" ? "outline" : "default"
                             }
                             onClick={() => void open(application)}
                           >
-                            {busy === application.id
-                              ? "Opening…"
-                              : application.nextDestination === "setup"
-                                ? "Continue setup"
-                                : "Open application"}
-                            {busy !== application.id && (
-                              <ArrowRight aria-hidden="true" data-icon="inline-end" />
-                            )}
+                            {application.nextDestination === "setup"
+                              ? "Continue setup"
+                              : "Open application"}
+                            <ArrowRight aria-hidden="true" data-icon="inline-end" />
                           </Button>
                         </div>
                       </Card>
@@ -360,11 +357,12 @@ export function ApplicationList({
       )}
       {list.hasNextPage && (
         <Button
+          loading={list.isFetchingNextPage}
           variant="outline"
           disabled={list.isFetchingNextPage}
           onClick={() => void list.fetchNextPage()}
         >
-          {list.isFetchingNextPage ? "Loading more…" : "Show more applications"}
+          Show more applications
         </Button>
       )}
       {list.data && !list.error && <AccountList session={session} />}
@@ -617,7 +615,7 @@ function SidePanel({
 }
 
 const quietLink =
-  "inline-flex items-center gap-1 text-sm font-medium text-brand underline-offset-4 hover:underline";
+  "inline-flex items-center gap-1 text-sm font-medium text-info underline-offset-4 hover:underline";
 
 function ApplicationPortal({
   session,

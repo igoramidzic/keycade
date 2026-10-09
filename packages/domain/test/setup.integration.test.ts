@@ -1432,7 +1432,7 @@ describe("v2 setup answers, acknowledgments and compatibility", () => {
         expectedRevision: draft.revision,
         answers: {
           businessAddress: { ...businessAddress, countryCode: "ca" },
-          website: "https://EXAMPLE.TEST",
+          website: "EXAMPLE.TEST",
           fundingPurposes: ["other", "equipment_purchase"],
           purposeCatalogVersion: "2026-01",
           otherPurposeDetail: "Synthetic lab expansion",

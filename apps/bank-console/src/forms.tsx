@@ -15,10 +15,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@keycade/ui/components/card";
+import { CurrencyInput, wholeDollars } from "@keycade/ui/components/currency-input";
 import { FundingPurposeIcon } from "@keycade/ui/components/funding-purpose-icon";
 import { Input } from "@keycade/ui/components/input";
 import { useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useRef, useState } from "react";
+import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { ApiError, decimalAmount, useStaffApi } from "./api";
 import { ErrorNotice, Field } from "./ui";
@@ -39,7 +40,7 @@ type Answers = {
 function initialAnswers(workspace?: StaffWorkspace): Answers {
   return {
     businessName: workspace?.businessName ?? "",
-    requestedAmount: workspace?.requestedAmount ?? "",
+    requestedAmount: workspace?.requestedAmount ? wholeDollars(workspace.requestedAmount) : "",
     website: workspace?.website ?? "",
     line1: workspace?.businessAddress?.line1 ?? "",
     line2: workspace?.businessAddress?.line2 ?? "",
@@ -117,12 +118,11 @@ function AnswerFields({
           />
         </Field>
         <Field id="requested-amount" label="Requested amount (USD)">
-          <Input
+          <CurrencyInput
             id="requested-amount"
-            inputMode="decimal"
             value={answers.requestedAmount}
             disabled={disabled}
-            onChange={(event) => setAnswers({ ...answers, requestedAmount: event.target.value })}
+            onValueChange={(requestedAmount) => setAnswers({ ...answers, requestedAmount })}
           />
         </Field>
       </div>
@@ -167,11 +167,11 @@ function AnswerFields({
           {fundingPurposeOptions.map((option) => (
             <label
               key={option.id}
-              className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 has-checked:border-primary has-checked:bg-muted"
+              className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 has-checked:border-info has-checked:bg-muted"
             >
               <input
                 type="checkbox"
-                className="size-4 accent-primary"
+                className="size-4 accent-info"
                 disabled={disabled}
                 checked={answers.fundingPurposes.includes(option.id)}
                 onChange={(event) =>
@@ -295,12 +295,8 @@ export function CreateApplication() {
               </p>
             )}
             <div className="flex flex-wrap gap-3">
-              <Button type="submit" disabled={busy}>
-                {busy
-                  ? "Creating and inviting…"
-                  : pending
-                    ? "Retry creation and invitation"
-                    : "Create and invite borrower"}
+              <Button loading={busy} type="submit" disabled={busy}>
+                {pending ? "Retry creation and invitation" : "Create and invite borrower"}
               </Button>
               <Link to={`/${bankQuery}`} className={buttonVariants({ variant: "outline" })}>
                 {pending ? "Back to applications" : "Cancel"}
@@ -324,6 +320,23 @@ export function PrefillForm({
   onCancel: () => void;
 }) {
   const api = useStaffApi();
+  const dialog = useRef<HTMLDialogElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
+  const id = useId();
+  useEffect(() => {
+    const element = dialog.current;
+    if (!element) return;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    element.showModal();
+    closeButton.current?.focus();
+    return () => {
+      element.close();
+      document.body.style.overflow = overflow;
+      if (previous?.isConnected) previous.focus();
+    };
+  }, []);
   const [answers, setAnswers] = useState<Answers>(() => initialAnswers(workspace));
   const [baseRevision, setBaseRevision] = useState(workspace.revision);
   const [currentStep, setCurrentStep] = useState(workspace.setup.currentStep);
@@ -360,47 +373,73 @@ export function PrefillForm({
     }
   }
   return (
-    <form onSubmit={(event) => void submit(event)} className="space-y-5 rounded-xl border p-5">
-      <h3 className="font-medium">Prefilled answers</h3>
-      <p className="text-sm text-muted-foreground">
-        The borrower must confirm these answers. Saving does not complete setup. Leave a field empty
-        to keep its saved answer.
-      </p>
-      <AnswerFields answers={answers} setAnswers={setAnswers} disabled={busy} />
-      {Boolean(error) && <ErrorNotice error={error} />}
-      {error instanceof ApiError && error.status === 409 && (
-        <Button
-          type="button"
-          variant="outline"
-          disabled={busy}
-          onClick={async () => {
-            try {
-              const latest = await onReload();
-              setAnswers(initialAnswers(latest));
-              setBaseRevision(latest.revision);
-              setCurrentStep(latest.setup.currentStep);
-              setError(null);
-            } catch (nextError) {
-              setError(nextError);
-            }
-          }}
-        >
-          Reload saved record and replace edits
-        </Button>
-      )}
-      {saved && (
-        <p role="status" className="text-sm">
-          Prefilled answers saved. Setup still requires borrower confirmation.
+    <dialog
+      ref={dialog}
+      aria-labelledby={`${id}-title`}
+      aria-describedby={`${id}-description`}
+      onCancel={(event) => {
+        event.preventDefault();
+        if (!busy) onCancel();
+      }}
+      className="fixed inset-0 m-auto max-h-[90dvh] w-[calc(100%-1rem)] max-w-2xl overflow-y-auto overscroll-contain rounded-2xl border bg-background p-0 text-foreground shadow-lg backdrop:bg-foreground/40 backdrop:backdrop-blur-[2px] sm:w-[calc(100%-3rem)]"
+    >
+      <form onSubmit={(event) => void submit(event)} className="space-y-5 p-5 sm:p-6">
+        <div className="flex items-start justify-between gap-4">
+          <h2 id={`${id}-title`} className="text-lg font-semibold tracking-tight">
+            Prefilled answers
+          </h2>
+          <Button
+            ref={closeButton}
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            onClick={onCancel}
+            aria-label="Close prefilled answers"
+          >
+            Close
+          </Button>
+        </div>
+        <p id={`${id}-description`} className="text-sm text-muted-foreground">
+          The borrower must confirm these answers. Saving does not complete setup. Leave a field
+          empty to keep its saved answer.
         </p>
-      )}
-      <div className="flex flex-wrap gap-3">
-        <Button type="submit" disabled={busy}>
-          {busy ? "Saving…" : "Save prefilled answers"}
-        </Button>
-        <Button type="button" variant="outline" disabled={busy} onClick={onCancel}>
-          Close editor
-        </Button>
-      </div>
-    </form>
+        <AnswerFields answers={answers} setAnswers={setAnswers} disabled={busy} />
+        {Boolean(error) && <ErrorNotice error={error} />}
+        {error instanceof ApiError && error.status === 409 && (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={busy}
+            onClick={async () => {
+              try {
+                const latest = await onReload();
+                setAnswers(initialAnswers(latest));
+                setBaseRevision(latest.revision);
+                setCurrentStep(latest.setup.currentStep);
+                setError(null);
+              } catch (nextError) {
+                setError(nextError);
+              }
+            }}
+          >
+            Reload saved record and replace edits
+          </Button>
+        )}
+        {saved && (
+          <p role="status" className="text-sm">
+            Prefilled answers saved. Setup still requires borrower confirmation.
+          </p>
+        )}
+        <div className="flex flex-wrap gap-3">
+          <Button loading={busy} type="submit" disabled={busy}>
+            Save prefilled answers
+          </Button>
+          <Button type="button" variant="outline" disabled={busy} onClick={onCancel}>
+            Close editor
+          </Button>
+        </div>
+      </form>
+    </dialog>
   );
 }

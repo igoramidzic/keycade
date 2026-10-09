@@ -200,7 +200,7 @@ export function DocumentFinancialReview({
                   <label className="flex items-start gap-2 font-medium">
                     <input
                       type="checkbox"
-                      className="mt-1 size-4 accent-primary"
+                      className="mt-1 size-4 accent-info"
                       checked={Boolean(selection)}
                       disabled={!data.canReview || !live.canReview}
                       onChange={(event) => {
@@ -321,7 +321,7 @@ export function DocumentFinancialReview({
                         <label className="flex items-start gap-2">
                           <input
                             type="checkbox"
-                            className="mt-1 size-4 accent-primary"
+                            className="mt-1 size-4 accent-info"
                             checked={selection.replace}
                             onChange={(event) =>
                               update(candidate.fieldKey, { replace: event.target.checked })
@@ -353,10 +353,11 @@ export function DocumentFinancialReview({
                 applying.
               </p>
               <Button
+                loading={busy}
                 type="submit"
                 disabled={busy || !allowed || !replacementConfirmed || !reason.trim()}
               >
-                {busy ? "Applying…" : "Apply selected values"}
+                Apply selected values
               </Button>
             </div>
           )}

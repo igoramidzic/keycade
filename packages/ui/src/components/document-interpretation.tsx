@@ -286,16 +286,13 @@ export function DocumentInterpretation({
       )}
       {processing.canRetry && (
         <Button
+          loading={busy}
           size="sm"
           variant="outline"
           disabled={busy}
           onClick={() => void act(retry, "Simulated interpretation queued again.")}
         >
-          {busy
-            ? "Working…"
-            : processing.state === "failed"
-              ? "Retry interpretation"
-              : "Interpret again"}
+          {processing.state === "failed" ? "Retry interpretation" : "Interpret again"}
         </Button>
       )}
       {processing.canCorrectCategory && (
@@ -349,8 +346,8 @@ export function DocumentInterpretation({
               This changes the displayed category for this version. The original suggestion and
               correction history remain available.
             </p>
-            <Button type="submit" size="sm" disabled={busy || !reason.trim()}>
-              {busy ? "Saving…" : "Save staff category"}
+            <Button loading={busy} type="submit" size="sm" disabled={busy || !reason.trim()}>
+              Save staff category
             </Button>
           </form>
         </details>

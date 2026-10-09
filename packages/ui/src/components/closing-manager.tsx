@@ -229,8 +229,12 @@ export function ClosingManager({
               </dl>
             )}
             {current.capabilities.startClosing && (
-              <Button disabled={busy || stale} onClick={() => void perform("start", null)}>
-                {busy ? "Starting closing…" : "Start closing"}
+              <Button
+                loading={busy}
+                disabled={busy || stale}
+                onClick={() => void perform("start", null)}
+              >
+                Start closing
               </Button>
             )}
             {current.package && (
@@ -433,10 +437,11 @@ function FundingForm({
         movement.
       </label>
       <Button
+        loading={busy}
         type="submit"
         disabled={busy || stale || !allowed || !confirmed || !reference.trim() || !fundedOn}
       >
-        {busy ? "Recording funding…" : "Record simulated funding"}
+        Record simulated funding
       </Button>
     </form>
   );

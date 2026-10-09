@@ -179,7 +179,7 @@ test("editing separate drafts preserves each saved step and completion opens onl
   await card(page, first.id).getByRole("button", { name: "Continue setup", exact: true }).click();
   await completeAddressAndSkipOptional(page);
   await expect(page.getByLabel("Requested amount", { exact: true })).toHaveValue("");
-  await page.getByLabel("Requested amount", { exact: true }).fill("12345.67");
+  await page.getByLabel("Requested amount", { exact: true }).fill("12345");
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(
     page.getByRole("checkbox", { name: "Equipment purchase", exact: true }),
@@ -189,7 +189,7 @@ test("editing separate drafts preserves each saved step and completion opens onl
   await card(page, second.id).getByRole("button", { name: "Continue setup", exact: true }).click();
   await completeAddressAndSkipOptional(page);
   await expect(page.getByLabel("Requested amount", { exact: true })).toHaveValue("");
-  await page.getByLabel("Requested amount", { exact: true }).fill("76543.21");
+  await page.getByLabel("Requested amount", { exact: true }).fill("76543");
   await page.getByRole("button", { name: "Continue later", exact: true }).click();
   await expect(
     page.getByRole("status").filter({ hasText: "Your progress is saved." }),
@@ -199,7 +199,7 @@ test("editing separate drafts preserves each saved step and completion opens onl
     page.getByRole("checkbox", { name: "Equipment purchase", exact: true }),
   ).toBeChecked();
   await page.getByRole("button", { name: "Back", exact: true }).click();
-  await expect(page.getByLabel("Requested amount", { exact: true })).toHaveValue(/12,?345\.67/);
+  await expect(page.getByLabel("Requested amount", { exact: true })).toHaveValue("12,345");
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await page.getByRole("checkbox", { name: "Equipment purchase", exact: true }).check();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
@@ -208,21 +208,21 @@ test("editing separate drafts preserves each saved step and completion opens onl
   await expect(page).toHaveURL(applicationUrl(first.id));
   await expect(page.getByText("Initial setup complete", { exact: true })).toBeVisible();
   expect(await api<Setup>(page, "GET", `/${first.id}/setup`)).toMatchObject({
-    requestedAmount: "12345.67",
+    requestedAmount: "12345.00",
     fundingPurposes: ["equipment_purchase"],
     setupStatus: "completed",
   });
   expect(await api<Setup>(page, "GET", `/${second.id}/setup`)).toMatchObject({
-    requestedAmount: "76543.21",
+    requestedAmount: "76543.00",
     purpose: null,
     currentStep: "amount",
     setupStatus: "in_progress",
   });
   await page.goto(applicationUrl(second.id, "tasks"));
-  await expect(page).toHaveURL(applicationUrl(second.id, "setup"));
-  await expect(page.getByLabel("Requested amount", { exact: true })).toHaveValue(/76,?543\.21/);
+  await expect(page).toHaveURL(applicationUrl(second.id, "setup/amount"));
+  await expect(page.getByLabel("Requested amount", { exact: true })).toHaveValue("76,543");
   await page.reload();
-  await expect(page.getByLabel("Requested amount", { exact: true })).toHaveValue(/76,?543\.21/);
+  await expect(page.getByLabel("Requested amount", { exact: true })).toHaveValue("76,543");
   await page.goto(applicationUrl(first.id, "setup"));
   await expect(page).toHaveURL(applicationUrl(first.id));
   await expect(page.getByText("Initial setup complete", { exact: true })).toBeVisible();

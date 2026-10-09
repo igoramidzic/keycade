@@ -195,10 +195,11 @@ export function InvitationAcceptance({ session }: { session: AuthenticatedSessio
           </Alert>
         ) : (
           <Button
+            loading={busy}
             disabled={busy || !data.canAccept || session.authenticationMethod !== "email_link"}
             onClick={() => void accept()}
           >
-            {busy ? "Accepting…" : "Accept invitation"}
+            Accept invitation
           </Button>
         )}
         {Boolean(error) && <ErrorNotice error={error} />}

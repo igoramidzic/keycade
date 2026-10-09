@@ -131,7 +131,7 @@ test("hosted synthetic borrower resumes setup, invites a scoped collaborator, an
   await expect(page.getByLabel("Requested amount", { exact: true })).toHaveValue(
     /32,?000(?:\.00)?/,
   );
-  expect(new URL(page.url()).pathname).toBe(`/applications/${applicationId}/setup`);
+  expect(new URL(page.url()).pathname).toBe(`/applications/${applicationId}/setup/amount`);
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await page.getByRole("checkbox", { name: "Equipment purchase", exact: true }).check();
   await page.getByRole("button", { name: "Continue", exact: true }).click();
@@ -193,11 +193,13 @@ test("hosted synthetic borrower resumes setup, invites a scoped collaborator, an
     console.log("Hosted acceptance: private synthetic PDF uploaded and scan completed.");
 
     await officer.goto(section(staff, "participants"));
-    await officer.getByLabel("Email address", { exact: true }).fill(adviserEmail);
-    await officer.getByLabel("Role", { exact: true }).selectOption("adviser");
-    await expect(officer.getByLabel("Access scope", { exact: true })).toHaveValue("assigned");
-    await officer.getByLabel(title, { exact: true }).check();
-    await officer.getByRole("button", { name: "Send invitation", exact: true }).click();
+    await officer.getByRole("button", { name: "Invite participant", exact: true }).click();
+    const invite = officer.getByRole("dialog", { name: "Invite a collaborator", exact: true });
+    await invite.getByLabel("Email address", { exact: true }).fill(adviserEmail);
+    await invite.getByRole("radio", { name: "Adviser", exact: true }).check();
+    await expect(invite).toContainText("Access: Assigned tasks and permitted documents.");
+    await invite.getByRole("checkbox", { name: title, exact: true }).check();
+    await invite.getByRole("button", { name: "Send invitation", exact: true }).click();
     await expect(
       officer.getByRole("status").filter({ hasText: "Invitation saved." }),
     ).toBeVisible();

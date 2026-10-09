@@ -96,12 +96,13 @@ export function DocumentPreview({
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="mr-auto text-sm font-medium">Private file preview</h3>
         <Button
+          loading={downloading}
           size="sm"
           variant="outline"
           disabled={!version.canDownload || downloading}
           onClick={() => void save()}
         >
-          {downloading ? "Downloading…" : "Download document"}
+          Download document
         </Button>
       </div>
       {version.canDownload && (

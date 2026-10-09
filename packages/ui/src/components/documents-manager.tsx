@@ -472,7 +472,7 @@ export function DocumentsManager({
                   demoUpload.current(sample.document);
                 } else addFiles(Array.from(event.dataTransfer.files));
               }}
-              className={`rounded-lg border-2 border-dashed p-5 text-center ${dragging ? "border-primary bg-muted" : "border-border"}`}
+              className={`rounded-lg border-2 border-dashed p-5 text-center ${dragging ? "border-info bg-muted" : "border-border"}`}
             >
               <FileUp className="mx-auto mb-3 size-6 text-muted-foreground" aria-hidden="true" />
               <p className="mb-3 text-sm">Drop files here or choose files to upload</p>

@@ -38,6 +38,7 @@ import { formatAmount, useStaffApi } from "./api";
 import { useApplicationDocuments } from "./documents";
 import { FinancialOverview } from "./financial-overview";
 import { LoanFootprintItem } from "./loan-footprint";
+import { ApplicationTasks } from "./tasks";
 import { ErrorNotice, Loading, statusLabels } from "./ui";
 
 export function ApplicationOverview({
@@ -106,7 +107,7 @@ export function ApplicationOverview({
                     href={workspace.website}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="break-all text-brand underline underline-offset-4"
+                    className="break-all text-info underline underline-offset-4"
                   >
                     {workspace.website}
                   </a>
@@ -175,6 +176,9 @@ export function ApplicationOverview({
       )}
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="min-w-0 space-y-6">
+          <section aria-label="Tasks" className="min-w-0">
+            <ApplicationTasks applicationId={workspace.id} />
+          </section>
           <ApplicationStages workspace={workspace} href={href} />
           {overview.data && !overview.error && (
             <TaxEvidence
@@ -469,7 +473,7 @@ function ApplicationStages({
                           <div className="min-w-0 space-y-0.5">
                             <Link
                               to={`${href("tasks")}${href("tasks").includes("?") ? "&" : "?"}task=${task.id}`}
-                              className="font-medium break-words text-foreground underline-offset-4 hover:text-brand hover:underline"
+                              className="font-medium break-words text-foreground underline-offset-4 hover:text-info hover:underline"
                             >
                               {task.title}
                             </Link>
@@ -522,7 +526,7 @@ function ApplicationStages({
                           <div className="min-w-0 space-y-0.5">
                             <Link
                               to={href("checks")}
-                              className="font-medium break-words text-foreground underline-offset-4 hover:text-brand hover:underline"
+                              className="font-medium break-words text-foreground underline-offset-4 hover:text-info hover:underline"
                             >
                               {check.title}
                             </Link>
@@ -539,14 +543,14 @@ function ApplicationStages({
                     {stage === "submission" && (
                       <a
                         href="#business-tax-evidence"
-                        className="inline-flex items-center gap-1 font-medium text-brand underline-offset-4 hover:underline"
+                        className="inline-flex items-center gap-1 font-medium text-info underline-offset-4 hover:underline"
                       >
                         Inspect uploaded business tax evidence
                       </a>
                     )}
                     <Link
                       to={href(stage === "closing" ? "closing" : "review")}
-                      className="inline-flex items-center gap-1 font-medium text-brand underline-offset-4 hover:underline"
+                      className="inline-flex items-center gap-1 font-medium text-info underline-offset-4 hover:underline"
                     >
                       {stage === "closing" ? "Open closing workflow" : "Open review workflow"}
                       <ArrowRight aria-hidden="true" className="size-3.5" />
@@ -600,7 +604,7 @@ function RecentHistory({ applicationId, href }: { applicationId: string; href: s
                 )}
                 <span
                   aria-hidden="true"
-                  className="relative mt-1.5 size-2.5 shrink-0 rounded-full border-2 border-brand bg-card"
+                  className="relative mt-1.5 size-2.5 shrink-0 rounded-full border-2 border-info bg-card"
                 />
                 <div className="min-w-0">
                   <p className="break-words">{entry.description}</p>

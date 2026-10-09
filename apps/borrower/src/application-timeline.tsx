@@ -18,7 +18,7 @@ function StepMarker({ state }: { state: ProgressStep["state"] }) {
       className={cn(
         "relative z-10 flex size-6 shrink-0 items-center justify-center rounded-full border bg-card",
         state === "complete" && "border-success bg-success text-white",
-        state === "current" && "border-brand bg-brand-soft ring-4 ring-brand-soft/60",
+        state === "current" && "border-info bg-info-soft ring-4 ring-info-soft/60",
         state === "previous" && "border-border bg-muted text-muted-foreground",
         state === "stopped" && "border-border bg-muted text-muted-foreground",
       )}
@@ -26,7 +26,7 @@ function StepMarker({ state }: { state: ProgressStep["state"] }) {
       {state === "complete" ? (
         <Check className="size-3.5" strokeWidth={3} />
       ) : state === "current" ? (
-        <span className="size-2 rounded-full bg-brand" />
+        <span className="size-2 rounded-full bg-info" />
       ) : state === "previous" ? (
         <History className="size-3" />
       ) : state === "stopped" ? (
