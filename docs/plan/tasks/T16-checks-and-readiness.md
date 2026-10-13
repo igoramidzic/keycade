@@ -1,5 +1,7 @@
 # T16 — Identity/fraud checks and application readiness
 
+October 12 lending follow-up — **planned, not implemented**: [L03](../lending/04-delivery-and-validation.md#l03-workflow-routing-and-product-diligence) adds separate program/entity/guarantor diligence and exposure-aware routing; [L08](../lending/04-delivery-and-validation.md#l08-facility-closing-and-collateral-clearance) adds facility closing gates. Their acceptance must preserve explicit applicability, current-input fences, original findings and hard-stop/waiver distinctions. Simulated checks still cannot approve credit. This task's completed evidence covers its original checks only.
+
 V2 amendment — October 8, 2026, **implemented and verified locally**: [V2-06](../v2/04-delivery-and-validation.md#v2-06--simulated-loan-footprint), after V2-01's address contract, adds informational Loan Footprint with a mock map and revision-bound country result. Its acceptance requires US clear, non-US not clear, missing input unknown, stale-address rejection and no new readiness gate. [V2-04](../v2/04-delivery-and-validation.md#v2-04--document-workspace-and-reviewed-financial-facts) adds provenance-aware financial changes and invalidation only for genuinely dependent rules. Existing human decisions and mandatory check policies remain.
 
 Dependencies: T12, T14, T15. Read [domain](../03-domain-and-access.md) and [job behavior](../04-integrations-and-jobs.md).

@@ -1,8 +1,14 @@
 # Domain, lifecycle, and access rules
 
-This is the target model, not a requirement to create every table in T03. Add each feature's records and migration in its owning task.
+This describes the baseline domain and its invariants. The October 12 [financing structure model](lending/02-products-and-restructuring.md#proposed-domain-model) is the new target for product choice, multiple facilities and restructuring; L01–L10 are not implemented. Add each feature's records and migration in its owning task.
 
 The [v2 data contracts](v2/03-data-and-simulation.md) were planned on October 8, 2026; V2-01–V2-06 data contracts are implemented locally; V2-07 integrated local acceptance is complete and V2-08 hosted acceptance is complete. They extend the validated baseline with versioned setup fields, reviewed application financial facts, evidence projections and simulated geography; see [delivery and validation](v2/04-delivery-and-validation.md).
+
+## Planned financing structure extension
+
+An application will contain versioned financing requests and structures, with stable facility identities, per-facility product/terms/uses, shared underwriting and package approval, explicit offer acceptance, facility closing and per-facility initial funding/accounts. The current one-product and one-account fields below describe legacy behavior. Keep original submissions, decisions, signatures, funding and command receipts immutable and readable through additive mappings.
+
+Material restructuring will use an explicit hold and successor review/offer/closing versions, including after approval or signing. Serialize amendments with funding and forbid changes to funded facilities. Package exposure governs approval authority even when split across facilities. See [stage rules](lending/02-products-and-restructuring.md#restructuring-by-stage), [monetary invariants](lending/02-products-and-restructuring.md#monetary-invariants) and [aggregate status](lending/02-products-and-restructuring.md#decisions-and-aggregate-status). Those planned commands do not exist yet; baseline guards remain active until replaced and verified.
 
 ## Core entities
 
@@ -35,7 +41,7 @@ Use an explicit application participant grant for every non-staff reader. Do not
 
 ## Initial setup state and completion
 
-Every new application starts with setup `in_progress`, including staff-created drafts. Assign the bank’s latest active Synthetic Business Credit (`business-credit`) version on creation; clients cannot select another product or change an assigned version. Retain product/version storage for configured limits and historical requirements, not borrower choice. Legacy `product` step keys resolve to `amount` in the current wizard. Persist the step-definition version, stable current-step key, completed/skipped steps, and an optimistic revision alongside canonical answers. Save answers and progress transactionally; optional skips are explicit, required questions cannot be skipped, and changed answers invalidate dependent step validation where needed. Resume reads this server state after authorization, never just a browser step index. Use committed migrations and synthetic fixtures in T07.
+Every new application starts with setup `in_progress`, including staff-created drafts. The implemented baseline assigns the bank’s latest active Synthetic Business Credit (`business-credit`) version on creation and prohibits client product changes; legacy `product` step keys resolve to `amount`. L01/L02 replaces that target with a saved product preference, independent total need and versioned lender facilities while retaining actual legacy product versions. Persist the step-definition version, stable current-step key, completed/skipped steps, and an optimistic revision alongside canonical answers. Save answers and progress transactionally; optional skips are explicit, required questions cannot be skipped, and changed answers invalidate dependent step validation where needed. Resume reads this server state after authorization, never just a browser step index. Use committed migrations and synthetic fixtures.
 
 An applicant administrator explicitly finishes setup through a revision-checked, idempotent domain command. Validate required answers against the application's setup-definition version and product configuration. The v2 definition requires business legal name, structured business address, the fixed product, exact requested amount, and at least one valid funding-purpose selection; website, business EIN/TIN, and industry may remain unresolved. Record `completed`, actor/time, audit and any job intent in the same transaction as the transition to `collecting_information`. Pre-filled staff answers still require applicant confirmation. Failed saves, invalid answers, and concurrent stale completion requests cannot partially complete setup.
 
@@ -63,7 +69,7 @@ Optional business EIN/TIN capture during v2 setup is a narrow exception to the g
 | `closing` | `funded` | Staff records simulated funding after all closing gates pass; one linked account. |
 | Any nonterminal state above | `withdrawn` | Applicant administrator or authorized staff, with reason; cancel pending reminders/work that no longer applies. |
 
-`funded`, `declined`, and `withdrawn` are terminal in this release. A new request uses a new application. Material applicant edits are allowed in `draft`, `collecting_information`, and `needs_information`; submitted/reviewed/approved snapshots are locked. Staff returns an in-review application to `needs_information` to request edits. Reopening approved or closing terms is deferred; do not silently mutate them. Closing-specific tasks remain editable in `closing`.
+`funded`, `declined`, and `withdrawn` are terminal in the baseline. A new request uses a new application. Material applicant edits are allowed in `draft`, `collecting_information`, and `needs_information`; submitted/reviewed/approved snapshots are locked. Staff returns an in-review application to `needs_information` to request edits. Reopening approved or closing terms is unavailable in the baseline; L02/L06 will add the explicit amendment workflow described above. Never silently mutate them. Closing-specific tasks remain editable in `closing`.
 
 Each submission freezes its application facts, business facts, applicable requirements, and references to specific identifier/document/check versions. A shared business profile is a source for editable drafts, not a live pointer that rewrites submitted facts. Editing that profile through application B must not change application A's submission/decision inputs or reveal A's existence. Drafts explicitly adopt newer shared facts with revision checks. Sensitive snapshots use encrypted version references rather than copying raw identifiers into ordinary JSON.
 
@@ -122,7 +128,7 @@ All rows assume the same bank and an authorized application scope. “Assigned s
 | Submit application | Yes | No by default | No | On behalf, explicitly recorded |
 | Approve/decline/fund | No | No | No | Demo officer/admin role |
 
-The prototype gives active bank officers bank-wide application access; assignee is a workflow field, not a security boundary. Bank administrators additionally manage staff membership through seed/admin tooling. More granular staff teams and separate approval authority limits are later product decisions.
+The baseline gives active bank officers bank-wide application access; assignee is a workflow field, not a security boundary. Bank administrators additionally manage staff membership through seed/admin tooling. Planned L05/L09 adds separate approval and funding authority; membership or assignment alone will not confer those capabilities. More granular staff teams remain deferred.
 
 Authorization applies to lists, counts, search, activity, direct record URLs, API calls, uploads, downloads, exports, retries, and subscriptions/polling. Reject cross-application evidence links. Enforce current membership on every request, including requests from sessions created before revocation. Do not issue durable public document URLs.
 

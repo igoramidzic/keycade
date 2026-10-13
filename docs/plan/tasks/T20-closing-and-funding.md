@@ -1,5 +1,7 @@
 # T20 — Closing conditions and recorded simulated funding
 
+October 12 lending follow-up — **planned, not implemented**: [L08](../lending/04-delivery-and-validation.md#l08-facility-closing-and-collateral-clearance) and [L09](../lending/04-delivery-and-validation.md#l09-controlled-funding-for-multiple-facilities) replace one package/account per application with versioned facility closing and one initial funding/account per supported term facility. Acceptance includes release authority, partial package status, funding/amendment races, legacy receipt replay and per-facility uniqueness. The original one-event-per-application limit below remains current code, not the new target. Repeated draws, balances and servicing remain deferred.
+
 Dependencies: T17, T19. Read [product boundaries](../01-product.md#first-release-boundaries).
 
 ## Outcome

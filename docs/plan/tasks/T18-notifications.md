@@ -1,5 +1,7 @@
 # T18 — Event notifications and application reminders
 
+October 12 lending follow-up — **planned, not implemented**: [L07](../lending/04-delivery-and-validation.md#l07-application-clocks-and-decision-notices), after L06, adds receipt/completeness clocks and specific versioned synthetic notices. Validate original event preservation across restructuring, deadlines independent of internal SLAs, reviewed reasons, immutable artifacts, failed-delivery visibility and deduplicated simulated inbox delivery. Reminders in this completed task are not decision-notice compliance.
+
 Dependencies: T05, T06, T09, T11, T12. Read [notification rules](../04-integrations-and-jobs.md#signatures-and-notifications).
 
 ## Outcome

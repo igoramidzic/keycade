@@ -1,5 +1,7 @@
 # Keycade implementation plan
 
+**Latest planning update — October 13, 2026:** the [business lending research and expansion plan](lending/README.md) covers bank workflows, 19 product types/variants, current gaps and L01–L10. The user's October 12 follow-up replaces the fixed-product target with borrower product choice and lender restructuring of a financing request into multiple facilities, including $5M SBA 7(a) plus $4M conventional financing. **Implementation is Not started.** Start the next lending build with L01, then L02. Historical completion records below apply to the prior scope. [R01](tasks/R01-lending-workflow-research.md) tracks documentation validation.
+
 **V2-08 — [hosted parity](v2/04-delivery-and-validation.md#v2-08--hosted-parity-and-deployment-slice) is complete, October 8, 2026. All V2-01–V2-08 tasks are complete.** The combined v2 demo is deployed through all five native Workers at `75b1f96`. Validation passes **419 unit tests, 484 PostgreSQL cases, all 12 workspace builds/typechecks, five Worker builds and six distinct hosted desktop cases**. The hosted slice verifies setup/resume and EIN masking, protected imports/R2 bytes, explicit financial review, Loan Footprint, stale/replay handling and scoped denial. All 25 migrations are applied; repeat execution changes nothing and preserves existing synthetic records. V2-07 retains the broader **136-case desktop/mobile** local acceptance record.
 
 V2-06 delivered the informational, address-bound Loan Footprint dialog; its [task record](v2/04-delivery-and-validation.md#v2-06--simulated-loan-footprint) retains that checkpoint's validation evidence.
@@ -69,6 +71,7 @@ The user confirmed that the first version ends at approval and funding. Ongoing 
 5. [Development and testing](05-development-and-testing.md)
 6. [Decisions and sources](06-decisions-and-sources.md)
 7. [Requirement-to-task map](07-requirements-map.md)
+8. [Lending workflow and product expansion](lending/README.md), then the selected L-task and its linked references
 
 ## How to use a task
 
@@ -79,6 +82,24 @@ Create tables and packages when the owning task needs them; the architecture tre
 Use `Not started`, `In progress`, `Blocked — reason`, or `Done — evidence`. After completion, add the date, relevant commands and results, and remaining limitations to the task's implementation record. Dependencies mean the referenced acceptance criteria have passed, not simply that files exist.
 
 ## Backlog
+
+### Lending workflow and product expansion
+
+The [product and restructuring contract](lending/02-products-and-restructuring.md) is the new target. [Delivery and validation](lending/04-delivery-and-validation.md) owns the detailed acceptance criteria. New requirements extend the completed baseline rather than retroactively changing its validation status.
+
+| ID | Task | Depends on | Status |
+| --- | --- | --- | --- |
+| R01 | [Bank workflow research and implementation plan](tasks/R01-lending-workflow-research.md) | Baseline/V2 source inspection | Done — [documentation validated October 13](tasks/R01-lending-workflow-research.md#validation-record) |
+| L01 | [Product catalog and financing structure foundation](lending/04-delivery-and-validation.md#l01-product-catalog-and-financing-structure-foundation) | T03, T07, T12, T19, T20, V2-01 | Not started |
+| L02 | [Product choice and lender restructuring](lending/04-delivery-and-validation.md#l02-product-choice-and-lender-restructuring) | L01, T08, T10, T11, T17 | Not started |
+| L03 | [Workflow routing and product diligence](lending/04-delivery-and-validation.md#l03-workflow-routing-and-product-diligence) | L02, T12, T15, T16 | Not started |
+| L04 | [Underwriting workspace and credit memo](lending/04-delivery-and-validation.md#l04-underwriting-workspace-and-credit-memo) | L03, V2-04, V2-05 | Not started |
+| L05 | [Credit authority and package decisions](lending/04-delivery-and-validation.md#l05-credit-authority-and-package-decisions) | L04, T19 | Not started |
+| L06 | [Offers and approval amendments](lending/04-delivery-and-validation.md#l06-offers-and-approval-amendments) | L05, T17, T19 | Not started |
+| L07 | [Application clocks and decision notices](lending/04-delivery-and-validation.md#l07-application-clocks-and-decision-notices) | L06, T18, D03 | Not started |
+| L08 | [Facility closing and collateral clearance](lending/04-delivery-and-validation.md#l08-facility-closing-and-collateral-clearance) | L03, L06, T17, T20 | Not started |
+| L09 | [Controlled funding for multiple facilities](lending/04-delivery-and-validation.md#l09-controlled-funding-for-multiple-facilities) | L05, L07, L08, T20 | Not started |
+| L10 | [Connected scenarios and hosted acceptance](lending/04-delivery-and-validation.md#l10-connected-scenarios-and-hosted-acceptance) | L01–L09, D03, V2-08 | Not started |
 
 ### Active version 2 backlog
 

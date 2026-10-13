@@ -1,5 +1,7 @@
 # Version 2 — Borrower tasks and lender application records
 
+The October 12 [lending expansion](../lending/README.md) is the subsequent product target: selectable loan types and versioned multi-facility restructuring replace v2's fixed-product assumption. L01–L10 are Not started. The v2 experience and validation below remain the implemented baseline; the new work preserves its setup, document and access guarantees.
+
 Planning date: October 8, 2026. **V2-01–V2-07 complete locally; V2-08 hosted parity complete.** This backlog follows the user's twelve Cascading AI reference images and written instructions. V2-07 verifies the combined borrower/lender experience with **410 unit tests, 479 distinct PostgreSQL cases, all 12 builds/typechecks and 136 distinct desktop/mobile browser cases**. It also repairs setup-session recovery and verifies repeat initialization/legacy upgrades. V2-08 verifies the actual hosted slice with 419 unit tests, 484 PostgreSQL cases, five successful native builds, six distinct hosted desktop cases and preserved records across a 25-migration repeat no-op.
 
 Start with [screenshot findings](01-screenshot-findings.md), then [experience requirements](02-experience-spec.md), [data and simulation contracts](03-data-and-simulation.md), and [delivery tasks and validation](04-delivery-and-validation.md). Read the [existing plan](../README.md) and its architecture/access rules as well. All eight planned v2 tasks are complete; further implementation should follow a newly scoped user request.

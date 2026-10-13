@@ -1,5 +1,17 @@
 # Decisions, assumptions, and reference sources
 
+## Lending products and restructuring — October 12, 2026
+
+The user requested additional research into small/medium/large business lending through funding, documentation of missing bank steps and instructions for subsequent implementation. The follow-up explicitly requests selectable loan types, research into 10–20 other types, a small initial implementation set, and the ability to change amounts/products and split financing after an application starts. The stated example is a $9M SBA request restructured into $5M SBA plus $4M of another product.
+
+This supersedes the [fixed Synthetic Business Credit decision](#fixed-synthetic-business-credit--october-7-2026) as the target, along with the single-product/single-account application assumption and the indefinite deferral of pre-funding approved-term amendments. Completed baseline records remain historical evidence; no code changed in this research deliverable, completed October 13.
+
+The [lending plan](lending/README.md) defines an application as the overall financing request, with versioned facilities, sources/uses, package underwriting/approval, customer offer acceptance, facility closing and initial funding. L01–L10 are Not started. Start with L01 and L02; preserve legacy snapshots and account/receipt identities through additive migrations. Material restructuring requires a hold and new approval/acceptance; funded records never become editable origination drafts.
+
+Proposed defaults, rather than new user mandates: three initial term-loan families (SBA 7(a), conventional business and equipment); configurable size/complexity routing; conservative whole-package reapproval after material changes; and one initial disbursement per term facility with explicit package funding dependencies. Rates/maturities and debt-service assumptions are origination inputs only. Servicing, real providers, real SBA submissions and real movement of money remain excluded. D07 neutral product wording and backend simulation markers remain current.
+
+The [workflow sources](lending/01-bank-workflows.md#primary-source-register) and [product sources](lending/02-products-and-restructuring.md#sources-and-policy-maintenance) were accessed October 12. The June 2026 OCC lending handbook supports distinct underwriting, authority and administration responsibilities. SBA Policy Notice 5000-879058, effective July 4, 2026, requires distinguishing individual 7(a) limits from coordinated 7(a)/504 financing; no $9M single 7(a) eligibility is implied. Program rules, bank policies and demo assumptions must be separately versioned. Public bank product pages are examples, not private bank-policy evidence.
+
 ## Shorter borrower task cards — October 8, 2026
 
 The user found expanded tasks too long and wordy, questioned the per-task “Task documents” section beside the sidebar uploader and asked that finished tasks keep their place. The user also confirmed that the task list should sit directly on the page with each task as its own card, not inside an outer Tasks card. Task rows now keep a fixed stage-then-creation order for borrowers and staff; state no longer reorders them. Answer tasks use their stored question as the field label. Reason, requirement source, assignee, fictional-data reminder and history move into one collapsed “Details and history” section. Stored requirement text is unchanged; existing applications keep their snapshots.
@@ -129,15 +141,15 @@ These do not block starting T01. Use documented demo defaults until a task genui
 
 | Question | Demo default | Needed before |
 | --- | --- | --- |
-| Exact credit products, amount limits, eligibility and required evidence? | Versioned fictional working-capital/term-loan and commercial-facility templates; no implied regulatory thresholds. | Real product configuration. |
+| Exact credit products, amount limits, eligibility and required evidence? | October 12 target: three initial families and a 19-entry reference catalog; separately version program constraints and bank demo policies. | L01–L03; any newly supported product. |
 | Which beneficial-owner details/authorization language are required? | Synthetic configurable tasks; no claim of legally sufficient thresholds or consent. | Collecting real applicant data. |
 | Should borrowers fill fields before verifying email? | Verify first to avoid provisional unauthenticated editing permissions. | Changing intake UX. |
-| Who may approve/fund and what amount requires additional authorization? | Bank officer/admin in the demo, fully audited. | A real bank pilot. |
-| What disclosures and decline notices are required? | Clearly fictional demo copy and a recorded decision reason. | A real bank pilot. |
+| Who may approve/fund and what amount requires additional authorization? | Existing officer/admin baseline; L05/L09 add explicit package authority and separate release controls with configurable demo limits. | L05/L09 implementation. |
+| What disclosures and decline notices are required? | Existing generic demo reasons; L07 adds dated, specific synthetic notices under versioned policy, without claiming legal completeness. | L07 implementation. |
 | Which identity, tax, OCR, signature, email, and core banking providers? | Typed fake adapters and Mailpit. | Live provider work. |
 | Bank SSO protocol and external create API authentication? | Domain service ready for adapters; no external partner endpoint. | SSO/partner API milestone. |
 | Cloudflare topology, PostgreSQL host, private storage, keys, backups and monitoring? | Cloudflare is the deployment target; Workers/resources have not been provisioned. Local Podman and synthetic data remain the initial test environment. Evaluate Workers static assets/API adapter, managed PostgreSQL with Hyperdrive, Queues/Workflows, and R2 in a dedicated deployment slice. | Before any Cloudflare deployment. |
-| How should signed/approved terms be amended? | Lock terms after review; no approved-term amendment workflow. | Supporting amendments/refinancing. |
+| How should signed/approved terms be amended? | October 12 target: versioned pre-funding restructuring with holds, reapproval, reacceptance and replacement signing; funded records stay immutable. | L02, L06, L08. |
 | Detailed servicing behavior? | Separate later plan for accounting, schedules, repayment/draws, reconciliation, collections, and reporting. | Servicing implementation. |
 
 ## Reference-product caveat
