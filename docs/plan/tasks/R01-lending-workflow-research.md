@@ -33,7 +33,7 @@ External sources were read on October 12, 2026; the research used the June 2026 
 Completed October 13, 2026:
 
 - Inspected baseline contracts, domain services and database constraints at `d69b44a`; the gap analysis links to the relevant implementation files rather than claiming that historical plans prove missing functionality.
-- An inline Python documentation check passed for all 25 changed/new Markdown files: 365 local links resolved, heading fragments existed, 45 reference-style citations had definitions, and new files had clean whitespace/final newlines.
+- An inline Python documentation check passed for all 25 changed/new Markdown files: 366 local links resolved, heading fragments existed, 45 reference-style citations had definitions, and new files had clean whitespace/final newlines.
 - A separate consistency check passed: the plan index and delivery table have the same ten L-tasks/dependencies/statuses, the dependency graph is acyclic, and each task has an outcome and validation criteria. All remain Not started.
 - Confirmed 19 numbered product entries, three proposed initial families and 12 connected acceptance scenarios, including the $9M split, changed total, post-approval amendments and partial funding.
 - `git diff --check` passed. Changes are documentation/agent instructions only; application tests, migrations and deployments were not run. This record completes research acceptance, not L01–L10 implementation acceptance.
