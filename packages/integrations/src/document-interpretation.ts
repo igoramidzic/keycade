@@ -2,8 +2,8 @@ import {
   type DocumentFinding,
   type DocumentInterpretationResult,
   documentInterpretationResultSchema,
-} from "@keycade/contracts";
-import { type DemoImportFixture, demoImportBusinessName } from "@keycade/contracts/demo-import";
+} from "@keylend/contracts";
+import { type DemoImportFixture, demoImportBusinessName } from "@keylend/contracts/demo-import";
 import {
   demoDocumentFixture,
   demoImportDocumentFixture,
@@ -197,7 +197,7 @@ export async function interpretSyntheticDocument(
       throw new ProviderError("transient_error", true);
     if (imported)
       return documentInterpretationResultSchema.parse({
-        provider: "keycade-document-interpretation-v1",
+        provider: "keylend-document-interpretation-v1",
         simulated: true,
         runId: request.runId,
         versionId: request.versionId,
@@ -206,7 +206,7 @@ export async function interpretSyntheticDocument(
       });
     if (demo)
       return documentInterpretationResultSchema.parse({
-        provider: "keycade-document-interpretation-v1",
+        provider: "keylend-document-interpretation-v1",
         simulated: true,
         runId: request.runId,
         versionId: request.versionId,
@@ -217,7 +217,7 @@ export async function interpretSyntheticDocument(
     const statement = scenario === "clean-statement" || scenario === "processing-transient";
     const lowConfidence = scenario === "low-confidence";
     return documentInterpretationResultSchema.parse({
-      provider: "keycade-document-interpretation-v1",
+      provider: "keylend-document-interpretation-v1",
       simulated: true,
       runId: request.runId,
       versionId: request.versionId,

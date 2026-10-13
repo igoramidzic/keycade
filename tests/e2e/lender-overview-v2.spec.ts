@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { readEnvironment } from "@keycade/config/server";
+import { readEnvironment } from "@keylend/config/server";
 import type {
   ApplicationSetup,
   DocumentsView,
@@ -8,7 +8,7 @@ import type {
   ReviewFinancialFacts,
   TasksView,
   TaskView,
-} from "@keycade/contracts";
+} from "@keylend/contracts";
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import {
   createDemoImportPdf,
@@ -40,7 +40,7 @@ async function signIn(page: Page, origin = staff, email = "officer-a@example.tes
 }
 
 async function openSection(page: Page, applicationId: string, section = "overview") {
-  await page.goto(`${staff}/applications/${applicationId}/${section}?bank=bank-a`);
+  await page.goto(`${staff}/applications/${applicationId}/${section}?bank=keybank`);
   await expect(
     page.getByRole("heading", {
       name: section === "documents" ? "Documents" : "Business profile",
@@ -533,7 +533,7 @@ test("Overview loading and temporary aggregate failures recover without losing e
     });
   });
   try {
-    await page.goto(`${staff}/applications/${seededApplication}/overview?bank=bank-a`);
+    await page.goto(`${staff}/applications/${seededApplication}/overview?bank=keybank`);
     await expect(
       page.getByRole("status").filter({ hasText: "Loading financial overview and evidence" }),
     ).toBeVisible();

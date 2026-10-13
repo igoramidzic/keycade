@@ -43,7 +43,7 @@ describe("private checks contract", () => {
   });
   it("rejects arbitrary provider findings and identifiers", () => {
     const data = {
-      provider: "keycade-checks-v1",
+      provider: "keylend-checks-v1",
       simulated: true,
       kind: "identity",
       operationId: "10000000-0000-4000-8000-000000000001",
@@ -62,7 +62,7 @@ describe("private checks contract", () => {
 
 it("requires address-bound footprint evidence and rejects mismatched country eligibility", () => {
   const data = {
-    provider: "keycade-checks-v1",
+    provider: "keylend-checks-v1",
     simulated: true,
     kind: "loan_footprint",
     operationId: "10000000-0000-4000-8000-000000000001",

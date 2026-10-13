@@ -1,6 +1,6 @@
-import "@keycade/ui/styles.css";
-import { DemoKitProvider } from "@keycade/ui/components/demo-kit";
-import { captureConfirmation } from "@keycade/ui/components/identity-portal";
+import "@keylend/ui/styles.css";
+import { DemoKitProvider } from "@keylend/ui/components/demo-kit";
+import { captureConfirmation } from "@keylend/ui/components/identity-portal";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";

@@ -7,7 +7,7 @@ import {
   type DemoImportContext,
   demoImportMaxBytes,
   demoImportMaxFiles,
-} from "@keycade/contracts/demo-import";
+} from "@keylend/contracts/demo-import";
 import {
   applicationParticipants,
   applications,
@@ -15,14 +15,14 @@ import {
   documentProcessingRuns,
   documents,
   documentVersions,
-} from "@keycade/db";
-import { seedIds as ids, seedDatabase } from "@keycade/db/seed";
-import { createTestDatabase } from "@keycade/db/testing";
-import { createTasksService } from "@keycade/domain";
-import { syntheticDocumentPdf } from "@keycade/integrations/document-fixtures";
-import { processDocumentInterpretations } from "@keycade/integrations/document-processing";
-import { processDocumentScans } from "@keycade/integrations/document-scan";
-import { createLocalDocumentStorage } from "@keycade/integrations/document-storage-local";
+} from "@keylend/db";
+import { seedIds as ids, seedDatabase } from "@keylend/db/seed";
+import { createTestDatabase } from "@keylend/db/testing";
+import { createTasksService } from "@keylend/domain";
+import { syntheticDocumentPdf } from "@keylend/integrations/document-fixtures";
+import { processDocumentInterpretations } from "@keylend/integrations/document-processing";
+import { processDocumentScans } from "@keylend/integrations/document-scan";
+import { createLocalDocumentStorage } from "@keylend/integrations/document-storage-local";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildServer } from "../src/server.js";
@@ -35,8 +35,8 @@ const csrf = "synthetic-demo-import-csrf-0123456789012345";
 const base = `/api/v1/banks/${ids.bankA}/applications/${ids.applicationSmall}/documents`;
 beforeAll(async () => {
   database = await createTestDatabase();
-  await seedDatabase(database.connectionString);
-  directory = await mkdtemp(path.join(tmpdir(), "keycade-demo-import-http-"));
+  await seedDatabase(database.connectionString, { isolationFixtures: true });
+  directory = await mkdtemp(path.join(tmpdir(), "keylend-demo-import-http-"));
   await createTasksService(database.db).read(
     { kind: "user", userId: ids.borrower },
     ids.bankA,

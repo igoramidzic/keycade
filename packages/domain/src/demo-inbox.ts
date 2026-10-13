@@ -2,7 +2,7 @@ import {
   type DemoInboxMessageSummary,
   demoInboxMessageSchema,
   demoInboxViewSchema,
-} from "@keycade/contracts";
+} from "@keylend/contracts";
 import {
   accessDeliveryRequests,
   applicantContacts,
@@ -16,7 +16,7 @@ import {
   loginTokens,
   notifications,
   users,
-} from "@keycade/db";
+} from "@keylend/db";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import type { Actor } from "./authorization.js";
 import type { DemoInboxCipher } from "./demo-inbox-cipher.js";

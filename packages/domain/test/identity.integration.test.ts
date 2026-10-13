@@ -9,9 +9,9 @@ import {
   loginTokens,
   sessions,
   users,
-} from "@keycade/db";
-import { seedDatabase, seedIds } from "@keycade/db/seed";
-import { createTestDatabase } from "@keycade/db/testing";
+} from "@keylend/db";
+import { seedDatabase, seedIds } from "@keylend/db/seed";
+import { createTestDatabase } from "@keylend/db/testing";
 import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -30,7 +30,7 @@ const origin = "http://localhost:3001";
 const staffOrigin = "http://localhost:3002";
 beforeAll(async () => {
   database = await createTestDatabase();
-  await seedDatabase(database.connectionString);
+  await seedDatabase(database.connectionString, { isolationFixtures: true });
 }, 30_000);
 afterAll(async () => {
   await database?.cleanup();
@@ -61,7 +61,7 @@ async function request(
   const portal = options.portal ?? "borrower";
   const response = await service.requestAccessLink({
     email: options.email ?? `${randomUUID()}@example.test`,
-    bankSlug: options.bankSlug ?? "bank-a",
+    bankSlug: options.bankSlug ?? "keybank",
     portal,
     returnPath: options.returnPath ?? "/",
     origin: options.origin ?? (portal === "staff" ? staffOrigin : origin),
@@ -484,7 +484,7 @@ describe("identity input normalization", () => {
 describe("synthetic demo sign-in", () => {
   const input = (overrides: Partial<Parameters<IdentityService["signInDemo"]>[0]> = {}) => ({
     email: `${randomUUID()}@example.test`,
-    bankSlug: "bank-a",
+    bankSlug: "keybank",
     portal: "borrower" as const,
     origin,
     returnPath: "/",

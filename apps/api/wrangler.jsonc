@@ -12,7 +12,7 @@
       "invocation_logs": false
     }
   },
-  "name": "keycade-api",
+  "name": "keylend-api",
   "workers_dev": true,
   "compatibility_flags": ["nodejs_compat"],
   "hyperdrive": [
@@ -24,7 +24,7 @@
   "services": [
     {
       "binding": "JOBS",
-      "service": "keycade-jobs"
+      "service": "keylend-jobs"
     }
   ],
   "ratelimits": [
@@ -38,10 +38,10 @@
     }
   ],
   "vars": {
-    "ALLOWED_ORIGINS": "https://keycade-bank-site.kualia.workers.dev,https://keycade-borrower.kualia.workers.dev,https://keycade-bank-console.kualia.workers.dev",
+    "ALLOWED_ORIGINS": "https://keylend-bank-site.kualia.workers.dev,https://keylend-borrower.kualia.workers.dev,https://keylend-bank-console.kualia.workers.dev",
     "DEMO_INBOX_ENABLED": "true",
-    "BORROWER_ORIGIN": "https://keycade-borrower.kualia.workers.dev",
-    "STAFF_ORIGIN": "https://keycade-bank-console.kualia.workers.dev"
+    "BORROWER_ORIGIN": "https://keylend-borrower.kualia.workers.dev",
+    "STAFF_ORIGIN": "https://keylend-bank-console.kualia.workers.dev"
   },
   "r2_buckets": [
     {

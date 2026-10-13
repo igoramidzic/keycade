@@ -3,9 +3,9 @@ import {
   participantsWorkspaceSchema,
   signaturesViewSchema,
   tasksViewSchema,
-} from "@keycade/contracts";
-import { SignaturesManager } from "@keycade/ui/components/signatures-manager";
-import { downloadSignatureArtifact } from "@keycade/ui/lib/signature-download";
+} from "@keylend/contracts";
+import { SignaturesManager } from "@keylend/ui/components/signatures-manager";
+import { downloadSignatureArtifact } from "@keylend/ui/lib/signature-download";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, useStaffApi } from "./api";
 import { ErrorNotice, Loading } from "./ui";

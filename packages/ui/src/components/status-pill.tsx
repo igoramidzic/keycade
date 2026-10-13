@@ -1,4 +1,4 @@
-import { Badge } from "@keycade/ui/components/badge";
+import { Badge } from "@keylend/ui/components/badge";
 import { cn } from "cn";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";

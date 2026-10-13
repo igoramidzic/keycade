@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { readEnvironment } from "@keycade/config/server";
+import { readEnvironment } from "@keylend/config/server";
 import { expect, type Page, test } from "@playwright/test";
 import { fillSignInEmail } from "./identity-helpers";
 
@@ -7,7 +7,7 @@ const env = readEnvironment();
 const borrower = `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
 const staff = `http://127.0.0.1:${env.BANK_CONSOLE_PORT ?? 3002}`;
 const small = "60000000-0000-4000-8000-000000000001";
-const tasksUrl = (origin: string) => `${origin}/applications/${small}/tasks?bank=bank-a`;
+const tasksUrl = (origin: string) => `${origin}/applications/${small}/tasks?bank=keybank`;
 test.use({ trace: "off", screenshot: "off", video: "off", actionTimeout: 15_000 });
 test.setTimeout(90_000);
 
@@ -98,7 +98,7 @@ test("application dashboard keeps tasks beside details on desktop and stacks the
   page,
 }, testInfo) => {
   await signIn(page, borrower, "borrower@example.test");
-  for (const url of [tasksUrl(borrower), `${borrower}/applications/${small}?bank=bank-a`]) {
+  for (const url of [tasksUrl(borrower), `${borrower}/applications/${small}?bank=keybank`]) {
     if (page.url() !== url) await page.goto(url);
     const taskPanel = page.getByRole("region", { name: "Application tasks", exact: true });
     const details = page.getByRole("complementary", { name: "Application details", exact: true });

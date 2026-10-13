@@ -1,7 +1,7 @@
-import { readinessViewSchema } from "@keycade/contracts";
-import { ReadinessPanel } from "@keycade/ui/components/checks-manager";
-import type { AuthenticatedSession } from "@keycade/ui/components/identity-portal";
-import { readinessRefreshInterval } from "@keycade/ui/lib/refresh-policy";
+import { readinessViewSchema } from "@keylend/contracts";
+import { ReadinessPanel } from "@keylend/ui/components/checks-manager";
+import type { AuthenticatedSession } from "@keylend/ui/components/identity-portal";
+import { readinessRefreshInterval } from "@keylend/ui/lib/refresh-policy";
 import { useQuery } from "@tanstack/react-query";
 import { ApiError, request } from "./api";
 import { ErrorNotice, Loading } from "./workspace-ui";

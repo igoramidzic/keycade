@@ -15,9 +15,9 @@ import {
   signatureSendOutbox,
   taskSignaturePolicies,
   users,
-} from "@keycade/db";
-import { seedIds as ids, seedDatabase } from "@keycade/db/seed";
-import { createTestDatabase } from "@keycade/db/testing";
+} from "@keylend/db";
+import { seedIds as ids, seedDatabase } from "@keylend/db/seed";
+import { createTestDatabase } from "@keylend/db/testing";
 import {
   type Actor,
   applyVerifiedSignatureEvent,
@@ -26,7 +26,7 @@ import {
   createSignaturesService,
   createTasksService,
   signatureTaskEvidenceCurrent,
-} from "@keycade/domain";
+} from "@keylend/domain";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { dispatchNotifications } from "./notification-jobs.js";
@@ -55,7 +55,7 @@ const work = (extra: Parameters<typeof processSignatureJobs>[1] = {}) =>
   processSignatureJobs(database.db, { clock, delayMs: 0, retryBaseMs: 100, ...extra });
 beforeAll(async () => {
   database = await createTestDatabase();
-  await seedDatabase(database.connectionString);
+  await seedDatabase(database.connectionString, { isolationFixtures: true });
 }, 30000);
 afterAll(async () => database?.cleanup());
 async function participant(userId = ids.borrower) {

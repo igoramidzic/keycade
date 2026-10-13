@@ -7,7 +7,7 @@ interface __BaseEnv_JobsBindings {
   SIMULATION_DELAY_MS: "2000";
   PROVIDER_DEADLINE_MS: "60000";
   DEMO_INBOX_ENABLED: "true";
-  BORROWER_ORIGIN: "https://keycade-borrower.kualia.workers.dev";
+  BORROWER_ORIGIN: "https://keylend-borrower.kualia.workers.dev";
   REMINDER_FIRST_DELAY_MS: "86400000";
   REMINDER_SECOND_DELAY_MS: "259200000";
   ENCRYPTION_KEY: string;

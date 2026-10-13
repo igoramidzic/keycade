@@ -1,4 +1,4 @@
-import type { ApplicationPortal } from "@keycade/contracts";
+import type { ApplicationPortal } from "@keylend/contracts";
 
 export type ProgressStep = {
   key: string;

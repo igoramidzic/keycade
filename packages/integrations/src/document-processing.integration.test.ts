@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { createDemoDocumentPdf, demoDocuments } from "@keycade/contracts/demo-scenarios";
+import { createDemoDocumentPdf, demoDocuments } from "@keylend/contracts/demo-scenarios";
 import {
   applicationParticipants,
   applications,
@@ -14,15 +14,15 @@ import {
   documents,
   documentVersions,
   users,
-} from "@keycade/db";
-import { seedIds as ids, seedDatabase } from "@keycade/db/seed";
-import { createTestDatabase } from "@keycade/db/testing";
+} from "@keylend/db";
+import { seedIds as ids, seedDatabase } from "@keylend/db/seed";
+import { createTestDatabase } from "@keylend/db/testing";
 import {
   type Actor,
   createApplicationService,
   createDocumentsService,
   enqueueDocumentProcessing,
-} from "@keycade/domain";
+} from "@keylend/domain";
 import { and, desc, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { documentDigest } from "./document-content.js";
@@ -53,8 +53,8 @@ const service = () => createDocumentsService(database.db, { clock: () => now, sc
 const options = { clock, delayMs: 0, deadlineMs: 60_000, retryBaseMs: 100 };
 beforeAll(async () => {
   database = await createTestDatabase();
-  await seedDatabase(database.connectionString);
-  directory = await mkdtemp(join(tmpdir(), "keycade-processing-"));
+  await seedDatabase(database.connectionString, { isolationFixtures: true });
+  directory = await mkdtemp(join(tmpdir(), "keylend-processing-"));
 }, 30_000);
 afterAll(async () => {
   await database?.cleanup();

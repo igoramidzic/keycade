@@ -33,7 +33,7 @@ export const integrationStatus = pgEnum("integration_status", [
   "cancelled",
 ]);
 export type DemoResult = {
-  provider: "keycade-demo-v1";
+  provider: "keylend-demo-v1" | "keycade-demo-v1";
   simulated: true;
   outcome: "complete" | "waiting_for_input";
   operationId: string;

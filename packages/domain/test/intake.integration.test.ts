@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { banks, loanProducts } from "@keycade/db";
-import { createTestDatabase } from "@keycade/db/testing";
+import { banks, loanProducts } from "@keylend/db";
+import { createTestDatabase } from "@keylend/db/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { readPublicIntake } from "../src/index.js";
 
@@ -11,7 +11,7 @@ const latestProductId = randomUUID();
 beforeAll(async () => {
   database = await createTestDatabase();
   await database.db.insert(banks).values([
-    { id: bankId, slug: "catalog-bank", name: "Synthetic Catalog Bank", synthetic: true },
+    { id: bankId, slug: "keybank", name: "Keybank", synthetic: true },
     { id: otherBankId, slug: "other-bank", name: "Other Synthetic Bank", synthetic: true },
     { slug: "empty-bank", name: "Empty Synthetic Bank", synthetic: true },
   ]);
@@ -36,8 +36,8 @@ afterAll(async () => database?.cleanup());
 
 describe("public intake product configuration", () => {
   it("returns only the latest active version per bank and exact product limits", async () => {
-    expect(await readPublicIntake(database.db, { bankSlug: "catalog-bank" })).toEqual({
-      bank: { id: bankId, slug: "catalog-bank", name: "Synthetic Catalog Bank", synthetic: true },
+    expect(await readPublicIntake(database.db, { bankSlug: "keybank" })).toEqual({
+      bank: { id: bankId, slug: "keybank", name: "Keybank", synthetic: true },
       products: [
         {
           id: latestProductId,
@@ -53,7 +53,9 @@ describe("public intake product configuration", () => {
   });
 
   it("distinguishes an empty catalog from an unknown bank without exposing private records", async () => {
-    expect((await readPublicIntake(database.db, { bankSlug: "empty-bank" })).products).toEqual([]);
+    await expect(readPublicIntake(database.db, { bankSlug: "empty-bank" })).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
     await expect(readPublicIntake(database.db, { bankSlug: "missing-bank" })).rejects.toMatchObject(
       {
         code: "NOT_FOUND",
@@ -71,8 +73,8 @@ describe("public intake product configuration", () => {
     for (const input of [
       { bankSlug: "Catalog Bank" },
       { bankSlug: "a".repeat(81) },
-      { bankSlug: "catalog-bank", bankId: otherBankId },
-      { bankSlug: "catalog-bank", productId: latestProductId },
+      { bankSlug: "keybank", bankId: otherBankId },
+      { bankSlug: "keybank", productId: latestProductId },
     ])
       await expect(readPublicIntake(database.db, input)).rejects.toMatchObject({
         code: "INVALID_INPUT",

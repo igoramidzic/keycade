@@ -3,10 +3,10 @@ import { closeSync, mkdirSync, mkdtempSync, openSync, readFileSync, writeFileSyn
 import net from "node:net";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
-import { projectRoot } from "@keycade/config/server";
-import { seedDatabase } from "@keycade/db/seed";
-import { createTestDatabase } from "@keycade/db/testing";
-import { initializeQueue } from "@keycade/integrations";
+import { projectRoot } from "@keylend/config/server";
+import { seedDatabase } from "@keylend/db/seed";
+import { createTestDatabase } from "@keylend/db/testing";
+import { initializeQueue } from "@keylend/integrations";
 import { assertLocalTarget, assertOwnedDatabase, localEnv, waitForDatabase } from "./local-lib";
 
 type Process = {
@@ -176,7 +176,7 @@ async function main() {
   let database: Awaited<ReturnType<typeof createTestDatabase>> | undefined;
   try {
     database = await createTestDatabase(local.DATABASE_URL);
-    await seedDatabase(database.connectionString);
+    await seedDatabase(database.connectionString, { isolationFixtures: true });
     await initializeQueue(database.connectionString);
     const [apiPort, bankPort, borrowerPort, staffPort] = await freePorts(4);
     const env = {
@@ -192,7 +192,7 @@ async function main() {
       PRIVATE_STORAGE_PATH: path.join(runDirectory, "uploads"),
       // Local browser tests always use the loopback URLs, including on CI hosts.
       WORKERS_CI: "0",
-      KEYCADE_DEPLOYMENT: "local",
+      KEYLEND_DEPLOYMENT: "local",
     };
     const config = path.join(runDirectory, "playwright.config.ts");
     writeFileSync(

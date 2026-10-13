@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { projectRoot } from "@keycade/config/server";
+import { projectRoot } from "@keylend/config/server";
 import { assertLocalTarget, assertOwnedDatabase, localEnv, waitForDatabase } from "./local-lib";
 
 async function main() {

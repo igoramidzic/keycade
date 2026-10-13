@@ -1,5 +1,5 @@
 {
-  "name": "@keycade/testing",
+  "name": "@keylend/testing",
   "private": true,
   "type": "module",
   "exports": {
@@ -10,10 +10,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@keycade/db": "workspace:*",
+    "@keylend/db": "workspace:*",
     "pg": "8.23.1"
   },
   "devDependencies": {
-    "@keycade/config": "workspace:*"
+    "@keylend/config": "workspace:*"
   }
 }

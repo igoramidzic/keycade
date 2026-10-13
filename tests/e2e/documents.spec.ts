@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { readEnvironment } from "@keycade/config/server";
-import { syntheticDocumentPdf } from "@keycade/integrations/document-fixtures";
+import { readEnvironment } from "@keylend/config/server";
+import { syntheticDocumentPdf } from "@keylend/integrations/document-fixtures";
 import { expect, type Page, test } from "@playwright/test";
 import { fillSignInEmail } from "./identity-helpers";
 
@@ -24,7 +24,7 @@ async function signIn(page: Page, origin: string, email: string) {
       exact: true,
     }),
   ).toBeVisible();
-  await page.goto(`${origin}/applications/${applicationId}/documents?bank=bank-a`);
+  await page.goto(`${origin}/applications/${applicationId}/documents?bank=keybank`);
   await expect(page.getByRole("heading", { name: "Documents", exact: true })).toBeVisible();
 }
 async function noOverflow(page: Page) {
@@ -244,7 +244,7 @@ test("shared tasks rely on the sidebar uploader, documents attach to a task from
   page,
 }) => {
   await signIn(page, borrower, "borrower@example.test");
-  await page.goto(`${borrower}/applications/${applicationId}/tasks?bank=bank-a`);
+  await page.goto(`${borrower}/applications/${applicationId}/tasks?bank=keybank`);
   await page.getByRole("button", { name: "Describe your business", exact: true }).click();
   await expect(page.locator('[id^="task-answer-"]')).toBeVisible();
   await expect(page.getByRole("heading", { name: "Task documents", exact: true })).toHaveCount(0);
@@ -257,7 +257,7 @@ test("shared tasks rely on the sidebar uploader, documents attach to a task from
     page.getByRole("region", { name: "Other document upload drop area", exact: true }),
   ).toBeVisible();
   const name = `synthetic-task-${randomUUID().slice(0, 8)}.pdf`;
-  await page.goto(`${borrower}/applications/${applicationId}/documents?bank=bank-a`);
+  await page.goto(`${borrower}/applications/${applicationId}/documents?bank=keybank`);
   await page
     .getByLabel("Attach to", { exact: true })
     .selectOption({ label: "Describe your business" });
@@ -275,7 +275,7 @@ test("shared tasks rely on the sidebar uploader, documents attach to a task from
       json: { error: { code: "FORBIDDEN", message: "Your document access changed." } },
     }),
   );
-  await page.goto(`${borrower}/applications/${applicationId}/documents?bank=bank-a`);
+  await page.goto(`${borrower}/applications/${applicationId}/documents?bank=keybank`);
   await expect(page.getByRole("alert")).toContainText("Your document access changed.");
   await expect(page.getByRole("region", { name: "Saved documents" })).toHaveCount(0);
   await page.unroute(pattern);

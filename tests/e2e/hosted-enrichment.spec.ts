@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { readEnvironment } from "@keycade/config/server";
+import { readEnvironment } from "@keylend/config/server";
 import { expect, test } from "@playwright/test";
 import {
   type ApplicationSetup,
@@ -12,8 +12,8 @@ import { paceHostedRequests } from "./hosted-helpers";
 import { fillSignInEmail } from "./identity-helpers";
 
 const env = readEnvironment();
-const borrower = env.KEYCADE_E2E_BORROWER_ORIGIN ?? "";
-test.skip(env.KEYCADE_E2E_HOSTED !== "true", "Explicit hosted acceptance is required.");
+const borrower = env.KEYLEND_E2E_BORROWER_ORIGIN ?? "";
+test.skip(env.KEYLEND_E2E_HOSTED !== "true", "Explicit hosted acceptance is required.");
 test.use({ trace: "off", screenshot: "off", video: "off", actionTimeout: 25000 });
 test.setTimeout(240000);
 
@@ -23,7 +23,7 @@ test("hosted synthetic identifiers drive authorized business and tax simulations
 }, testInfo) => {
   await paceHostedRequests(context);
   const nonce = randomUUID().slice(0, 8);
-  await page.goto(`${borrower}/?bank=bank-a`);
+  await page.goto(`${borrower}/?bank=keybank`);
   await fillSignInEmail(page, `hosted-enrichment-${nonce}@example.test`);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Your applications", exact: true })).toBeVisible();

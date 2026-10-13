@@ -21,7 +21,7 @@ L01–L02 are the next useful demonstration: choose a loan type, save/resume, th
 
 ## Shared implementation instructions
 
-Use the existing contracts → database/domain → both HTTP adapters → shared UI flow. Add schema incrementally with committed Drizzle migrations. Reuse tasks, private evidence, financial-fact review, signatures, outbox and audit services; do not build parallel copies of them. Match the Keycade design system and D07 neutral wording.
+Use the existing contracts → database/domain → both HTTP adapters → shared UI flow. Add schema incrementally with committed Drizzle migrations. Reuse tasks, private evidence, financial-fact review, signatures, outbox and audit services; do not build parallel copies of them. Match the KeyLend design system and D07 neutral wording.
 
 Every mutating command needs current bank/application/facility authorization, expected revision and actor-bound idempotency. Material mutations and their invalidation/notification intent commit together. Serialize restructuring and funding on the same application boundary. Never allow a legacy endpoint to skip new guards. Index scoped reads and retain bounded queue/overview queries under the existing D04 performance direction.
 

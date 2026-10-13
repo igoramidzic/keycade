@@ -1,5 +1,5 @@
-import type { Database } from "@keycade/db";
-import { type DemoInboxCipher, storeDemoInboxMessage } from "@keycade/domain";
+import type { Database } from "@keylend/db";
+import { type DemoInboxCipher, storeDemoInboxMessage } from "@keylend/domain";
 import { type AccessEmailAdapter, renderAccessEmail } from "./access-email.js";
 import { type Clock, systemClock } from "./provider.js";
 

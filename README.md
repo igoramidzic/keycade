@@ -1,6 +1,8 @@
-# Keycade
+# KeyLend
 
-Keycade is a synthetic bank-operated business lending demo, from initial application through human review, closing and one recorded funding event. It includes a mock bank website, a borrower portal and a bank staff console. **Every environment, including the public hosted URLs, is a simulation.** Use fictional people, businesses, documents and identifiers. Checks, document interpretation, signatures and funding make no real financial or identity determination; no money moves and no external email is sent.
+KeyLend is Keybank’s internal business lending tool. Keybank is the only supported bank; all environments remain synthetic demos.
+
+The application supports business lending from initial application through human review, closing and one recorded funding event. It includes a mock bank website, a borrower portal and a bank staff console. **Every environment, including the public hosted URLs, is a simulation.** Use fictional people, businesses, documents and identifiers. Checks, document interpretation, signatures and funding make no real financial or identity determination; no money moves and no external email is sent.
 
 The implementation includes resumable one-question setup, scoped collaborators and private tasks, private document uploads and interpretation, simulated checks, contextual notifications, review decisions, closing conditions, funded-account summaries, activity and operations diagnostics. [T22 integrated acceptance](docs/plan/tasks/T22-acceptance.md) is complete: all eight required journeys are covered, including clean initialization/restart, 140 core local browser cases and an actual hosted journey through recorded simulated funding. The [plan index](docs/plan/README.md) links feature validation and follow-up work.
 
@@ -100,13 +102,13 @@ Local `pnpm initialize` / `pnpm db:seed` inserts stable fixtures from `packages/
 
 | Identity | Local scope |
 | --- | --- |
-| `borrower@example.test` | Bank A: Cedar and Maple applications, two completed setups, a draft awaiting its v2 business address and a withdrawn draft |
-| `officer-a@example.test` | Bank A synthetic administrator |
-| `officer-b@example.test` | Bank B officer; use `?bank=bank-b` on the local portal |
-| `adviser@example.test` | Restricted assigned participation in the small Bank A application; no implied task grants |
+| `borrower@example.test` | Keybank: Cedar and Maple applications, two completed setups, a draft awaiting its v2 business address and a withdrawn draft |
+| `officer-a@example.test` | Keybank synthetic administrator |
+| `officer-b@example.test` | Isolation fixture officer; use `?bank=isolation-fixture` on the local portal |
+| `adviser@example.test` | Restricted assigned participation in the small Keybank application; no implied task grants |
 | `revoked-owner@example.test` | Revoked participation; sign-in does not restore access |
 
-The seed also includes an owner relationship with no portal account and an unshared application for an existing business. Amount fixtures cover $10,000, $5,000,000 and $7,500,000. No real identifiers, documents or funded accounts are seeded. Hosted preparation is smaller: Synthetic Bank A, its Business Credit product and `officer-a@example.test`; other demo borrowers and applications are created through the UI.
+The seed also includes an owner relationship with no portal account and an unshared application for an existing business. Amount fixtures cover $10,000, $5,000,000 and $7,500,000. No real identifiers, documents or funded accounts are seeded. Hosted preparation is smaller: Keybank, its Business Credit product and `officer-a@example.test`; other demo borrowers and applications are created through the UI.
 
 Document fixtures use registered content hashes, so renaming a file does not change its outcome:
 
@@ -157,10 +159,10 @@ Integration tests do not reset the development database. The maintainer probe `p
 
 | Surface | Hosted URL |
 | --- | --- |
-| Mock bank | https://keycade-bank-site.kualia.workers.dev |
-| Borrower portal | https://keycade-borrower.kualia.workers.dev |
-| Bank console | https://keycade-bank-console.kualia.workers.dev |
-| API readiness | https://keycade-api.kualia.workers.dev/api/ready |
+| Mock bank | https://keylend-bank-site.kualia.workers.dev |
+| Borrower portal | https://keylend-borrower.kualia.workers.dev |
+| Bank console | https://keylend-bank-console.kualia.workers.dev |
+| API readiness | https://keylend-api.kualia.workers.dev/api/ready |
 
 Use a new fictional `example.test` borrower or the provisioned synthetic staff identity `officer-a@example.test`. Hosted sign-in and message confirmation use **Demo inbox**, never a real mailbox. The hosted database is shared demo state; preserve existing records and use unique synthetic identities when testing.
 
@@ -173,9 +175,9 @@ GitHub Actions applies committed additive migrations; Workers never migrate or s
 Run the explicitly opted-in hosted acceptance suite without starting local services:
 
 ```sh
-KEYCADE_E2E_HOSTED=true DEMO_INBOX_ENABLED=true \
-KEYCADE_E2E_BORROWER_ORIGIN=https://keycade-borrower.kualia.workers.dev \
-KEYCADE_E2E_STAFF_ORIGIN=https://keycade-bank-console.kualia.workers.dev \
+KEYLEND_E2E_HOSTED=true DEMO_INBOX_ENABLED=true \
+KEYLEND_E2E_BORROWER_ORIGIN=https://keylend-borrower.kualia.workers.dev \
+KEYLEND_E2E_STAFF_ORIGIN=https://keylend-bank-console.kualia.workers.dev \
 pnpm exec playwright test --config=playwright.hosted.config.ts
 ```
 

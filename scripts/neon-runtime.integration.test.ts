@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { createTestDatabase } from "@keycade/db/testing";
+import { createTestDatabase } from "@keylend/db/testing";
 import { Client } from "pg";
 import { expect, test } from "vitest";
 import { configureRuntimeRole, runtimeRole } from "./neon-runtime-lib";

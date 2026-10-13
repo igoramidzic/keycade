@@ -11,7 +11,7 @@ import {
   signatureEnvelopes,
   signatureSigners,
   users,
-} from "@keycade/db";
+} from "@keylend/db";
 import { and, eq, isNull } from "drizzle-orm";
 import { type ApplicationAccess, participantResourceAllowed } from "./authorization.js";
 import { signatureInputCurrent, signatureSignerEligible } from "./signatures.js";

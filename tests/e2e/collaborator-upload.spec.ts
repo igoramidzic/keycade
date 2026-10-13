@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { readEnvironment } from "@keycade/config/server";
-import type { DocumentsView, ParticipantsWorkspace, TasksView, TaskView } from "@keycade/contracts";
-import { syntheticDocumentPdf } from "@keycade/integrations/document-fixtures";
+import { readEnvironment } from "@keylend/config/server";
+import type { DocumentsView, ParticipantsWorkspace, TasksView, TaskView } from "@keylend/contracts";
+import { syntheticDocumentPdf } from "@keylend/integrations/document-fixtures";
 import { type BrowserContext, expect as baseExpect, type Page, test } from "@playwright/test";
 import { workflowApi } from "./closing-helpers";
 import { fillSignInEmail, messages, openLink, waitForLink } from "./identity-helpers";
@@ -61,7 +61,7 @@ test("an invited adviser uploads assigned evidence without private access and lo
       : "60000000-0000-4000-8000-000000000002";
   const base = `/applications/${applicationId}`;
   const url = (origin: string, section: string, taskId?: string) =>
-    `${origin}${base}/${section}?bank=bank-a${taskId ? `&task=${taskId}` : ""}`;
+    `${origin}${base}/${section}?bank=keybank${taskId ? `&task=${taskId}` : ""}`;
   const people = await workflowApi<ParticipantsWorkspace>(officer, "GET", `${base}/participants`);
   const applicant = people.participants.find((person) => person.email === "borrower@example.test");
   if (!applicant) throw new Error("Synthetic applicant is missing.");
@@ -169,7 +169,9 @@ test("an invited adviser uploads assigned evidence without private access and lo
     const privateContent = `${base}/documents/versions/${privateDocument.currentVersionId}/content`;
     expect(await status(adviser, `${base}/tasks/${privateTask.id}`)).toBe(404);
     expect(await status(adviser, privateContent)).toBe(404);
-    await adviser.goto(`${borrower}/applications/60000000-0000-4000-8000-000000000003?bank=bank-a`);
+    await adviser.goto(
+      `${borrower}/applications/60000000-0000-4000-8000-000000000003?bank=keybank`,
+    );
     await expect(adviser.getByRole("alert")).toContainText("unavailable");
     await adviser.goto(url(borrower, "tasks", assigned.id));
     await expect(

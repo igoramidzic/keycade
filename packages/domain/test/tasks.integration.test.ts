@@ -8,9 +8,9 @@ import {
   loanProducts,
   productRequirementRules,
   users,
-} from "@keycade/db";
-import { seedIds as ids, seedDatabase } from "@keycade/db/seed";
-import { createTestDatabase } from "@keycade/db/testing";
+} from "@keylend/db";
+import { seedIds as ids, seedDatabase } from "@keylend/db/seed";
+import { createTestDatabase } from "@keylend/db/testing";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -31,7 +31,7 @@ const denied = { code: "NOT_FOUND", statusCode: 404 };
 const now = new Date("2026-10-07T12:00:00Z");
 beforeAll(async () => {
   database = await createTestDatabase();
-  await seedDatabase(database.connectionString);
+  await seedDatabase(database.connectionString, { isolationFixtures: true });
 }, 30_000);
 afterAll(async () => database?.cleanup());
 const service = () => createTasksService(database.db, { clock: () => now });

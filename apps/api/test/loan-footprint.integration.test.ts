@@ -4,7 +4,7 @@ import {
   type ChecksView,
   checksViewSchema,
   readinessViewSchema,
-} from "@keycade/contracts";
+} from "@keylend/contracts";
 import {
   applicationParticipants,
   applicationSetups,
@@ -12,11 +12,11 @@ import {
   bankMemberships,
   checkRuns,
   users,
-} from "@keycade/db";
-import { seedIds as ids, seedDatabase } from "@keycade/db/seed";
-import { createTestDatabase } from "@keycade/db/testing";
-import { createIdentifierCipher } from "@keycade/domain";
-import { processCheckRun } from "@keycade/integrations/check-jobs";
+} from "@keylend/db";
+import { seedIds as ids, seedDatabase } from "@keylend/db/seed";
+import { createTestDatabase } from "@keylend/db/testing";
+import { createIdentifierCipher } from "@keylend/domain";
+import { processCheckRun } from "@keylend/integrations/check-jobs";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { invokeCheckProvider } from "../../../packages/integrations/src/check-provider.js";
@@ -56,7 +56,7 @@ function gate() {
 
 beforeAll(async () => {
   database = await createTestDatabase();
-  await seedDatabase(database.connectionString);
+  await seedDatabase(database.connectionString, { isolationFixtures: true });
 }, 30000);
 afterAll(async () => database?.cleanup());
 

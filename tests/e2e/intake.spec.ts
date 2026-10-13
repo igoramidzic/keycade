@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { readEnvironment } from "@keycade/config/server";
+import { readEnvironment } from "@keylend/config/server";
 import { expect, type Page, test } from "@playwright/test";
 import {
   fillSignInEmail,
@@ -14,7 +14,7 @@ const env = readEnvironment();
 const bank = `http://127.0.0.1:${env.BANK_SITE_PORT ?? 3000}`;
 const borrower = `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
 const staff = `http://127.0.0.1:${env.BANK_CONSOLE_PORT ?? 3002}`;
-const apply = `${borrower}/apply?bank=bank-a`;
+const apply = `${borrower}/apply?bank=keybank`;
 
 // These journeys carry session credentials and, for email access, one-time bearer links.
 // Keep browser/network artifacts out of test reports, including on failure.
@@ -144,7 +144,7 @@ test("bank apply, saved edits, browser loss, and explicit completion use the sam
   await page.goto(bank);
   await page.getByRole("link", { name: "Apply for business financing", exact: true }).click();
   await expect(page).toHaveURL(apply);
-  await expect(page.getByText("Bank A", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Keybank", { exact: true }).first()).toBeVisible();
   await fillSignInEmail(page, email);
   await page.getByRole("button", { name: "Start application", exact: true }).click();
   await expect(page.getByLabel("Legal business name", { exact: true })).toBeVisible();
@@ -231,7 +231,9 @@ test("bank apply, saved edits, browser loss, and explicit completion use the sam
   await page.getByRole("button", { name: "Continue setup", exact: true }).click();
 
   await page.goto(`${borrower}/applications/${original.id}`);
-  await expect(page).toHaveURL(`${borrower}/applications/${original.id}/setup/purpose?bank=bank-a`);
+  await expect(page).toHaveURL(
+    `${borrower}/applications/${original.id}/setup/purpose?bank=keybank`,
+  );
   await expect(
     page.getByRole("checkbox", { name: "Equipment purchase", exact: true }),
   ).toBeVisible();
@@ -257,7 +259,7 @@ test("bank apply, saved edits, browser loss, and explicit completion use the sam
   await page.unroute("**/setup/finish");
   await page.getByRole("button", { name: "Finish setup", exact: true }).click();
   await expect(page.getByText("Initial setup complete", { exact: true })).toBeVisible();
-  await expect(page).toHaveURL(`${borrower}/applications/${original.id}?bank=bank-a`);
+  await expect(page).toHaveURL(`${borrower}/applications/${original.id}?bank=keybank`);
   expect(await api<Setup>(page, "GET", `/${original.id}/setup`)).toMatchObject({
     setupStatus: "completed",
     status: "collecting_information",
@@ -267,7 +269,7 @@ test("bank apply, saved edits, browser loss, and explicit completion use the sam
   await context.clearCookies();
   await demoSignIn(page, email);
   await page.getByRole("button", { name: "Open application", exact: true }).click();
-  await expect(page).toHaveURL(`${borrower}/applications/${original.id}?bank=bank-a`);
+  await expect(page).toHaveURL(`${borrower}/applications/${original.id}?bank=keybank`);
   expect(creations).toBe(1);
 });
 
@@ -285,7 +287,7 @@ test("failed saves retain edits and stale revisions require an explicit recovera
     await route.fetch(); // Persist the draft, then simulate losing its acknowledgment.
     return route.abort();
   });
-  await page.goto(`${borrower}/apply?bank=bank-a`);
+  await page.goto(`${borrower}/apply?bank=keybank`);
   await fillSignInEmail(page, email);
   await page.getByRole("button", { name: "Start application", exact: true }).click();
   await expect(page.getByRole("alert")).toBeVisible();
@@ -435,7 +437,7 @@ test("a staff-prefilled draft requires the applicant to review and explicitly fi
   await expect(page.getByRole("heading", { name: "Applications", exact: true })).toBeVisible();
   const draft = await api<Setup>(page, "POST", "", { email, idempotencyKey: randomUUID() });
   const catalog = await page.evaluate(async () =>
-    (await fetch("/api/v1/public/banks/bank-a/intake")).json(),
+    (await fetch("/api/v1/public/banks/keybank/intake")).json(),
   );
   const productId = catalog.products[0]?.id;
   if (!productId) throw new Error("Expected an available synthetic financing product.");
@@ -468,7 +470,7 @@ test("a staff-prefilled draft requires the applicant to review and explicitly fi
   ).toBeVisible();
   expect((await setup(page)).setupStatus).toBe("in_progress");
   await page.goto(`${borrower}/applications/${draft.id}`);
-  await expect(page).toHaveURL(`${borrower}/applications/${draft.id}/setup/review?bank=bank-a`);
+  await expect(page).toHaveURL(`${borrower}/applications/${draft.id}/setup/review?bank=keybank`);
   await page.getByRole("button", { name: "Finish setup", exact: true }).click();
   await expect(page.getByText("Initial setup complete", { exact: true })).toBeVisible();
 });
@@ -564,7 +566,7 @@ test("session recovery keeps unsaved answers and another signed-in account canno
           headers: { "Content-Type": "application/json", "x-csrf-token": session.csrfToken },
           body: JSON.stringify({
             email: otherEmail,
-            bankSlug: "bank-a",
+            bankSlug: "keybank",
             portal: "borrower",
             returnPath: "/",
           }),

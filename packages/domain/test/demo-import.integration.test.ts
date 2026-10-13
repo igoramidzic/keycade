@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { createDemoImportPdf } from "@keycade/contracts/demo-import";
+import { createDemoImportPdf } from "@keylend/contracts/demo-import";
 import {
   applicationParticipants,
   applications,
@@ -7,9 +7,9 @@ import {
   auditEvents,
   documents,
   documentVersions,
-} from "@keycade/db";
-import { seedIds as ids, seedDatabase } from "@keycade/db/seed";
-import { createTestDatabase } from "@keycade/db/testing";
+} from "@keylend/db";
+import { seedIds as ids, seedDatabase } from "@keylend/db/seed";
+import { createTestDatabase } from "@keylend/db/testing";
 import { and, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { type Actor, createDocumentsService } from "../src/index.js";
@@ -25,7 +25,7 @@ const sourceText =
 
 beforeAll(async () => {
   database = await createTestDatabase();
-  await seedDatabase(database.connectionString);
+  await seedDatabase(database.connectionString, { isolationFixtures: true });
 });
 afterAll(async () => database?.cleanup());
 

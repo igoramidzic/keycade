@@ -3,19 +3,19 @@ import {
   type FinancialFactsView,
   type ReviewFinancialFacts,
   reviewFinancialFactsSchema,
-} from "@keycade/contracts";
-import { Alert, AlertDescription, AlertTitle } from "@keycade/ui/components/alert";
-import { Badge } from "@keycade/ui/components/badge";
-import { Button } from "@keycade/ui/components/button";
+} from "@keylend/contracts";
+import { Alert, AlertDescription, AlertTitle } from "@keylend/ui/components/alert";
+import { Badge } from "@keylend/ui/components/badge";
+import { Button } from "@keylend/ui/components/button";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@keycade/ui/components/collapsible";
-import { Input } from "@keycade/ui/components/input";
-import { NativeSelect } from "@keycade/ui/components/native-select";
-import { Textarea } from "@keycade/ui/components/textarea";
-import { workflowText } from "@keycade/ui/lib/workflow-text";
+} from "@keylend/ui/components/collapsible";
+import { Input } from "@keylend/ui/components/input";
+import { NativeSelect } from "@keylend/ui/components/native-select";
+import { Textarea } from "@keylend/ui/components/textarea";
+import { workflowText } from "@keylend/ui/lib/workflow-text";
 import { ChevronRight } from "lucide-react";
 import { type FormEvent, useRef, useState } from "react";
 

@@ -134,7 +134,7 @@ describe("committed migration consistency", () => {
   let folder: string;
   let journalPath: string;
   beforeEach(() => {
-    folder = mkdtempSync(join(tmpdir(), "keycade-migration-plan-"));
+    folder = mkdtempSync(join(tmpdir(), "keylend-migration-plan-"));
     mkdirSync(join(folder, "meta"));
     journalPath = join(folder, "meta/_journal.json");
     writeFileSync(

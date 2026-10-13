@@ -1,8 +1,8 @@
-import { enrichmentViewSchema } from "@keycade/contracts";
-import { seedIds as ids, seedDatabase } from "@keycade/db/seed";
-import { createTestDatabase } from "@keycade/db/testing";
-import { createIdentifierCipher } from "@keycade/domain";
-import { processEnrichmentJobs } from "@keycade/integrations/enrichment-jobs";
+import { enrichmentViewSchema } from "@keylend/contracts";
+import { seedIds as ids, seedDatabase } from "@keylend/db/seed";
+import { createTestDatabase } from "@keylend/db/testing";
+import { createIdentifierCipher } from "@keylend/domain";
+import { processEnrichmentJobs } from "@keylend/integrations/enrichment-jobs";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildServer } from "../src/server.js";
 import { handleWorkerRequest } from "../src/worker-handler.js";
@@ -10,7 +10,7 @@ import { handleWorkerRequest } from "../src/worker-handler.js";
 let database: Awaited<ReturnType<typeof createTestDatabase>>;
 beforeAll(async () => {
   database = await createTestDatabase();
-  await seedDatabase(database.connectionString);
+  await seedDatabase(database.connectionString, { isolationFixtures: true });
 });
 afterAll(async () => database?.cleanup());
 const encryptionKey = "17".repeat(32);

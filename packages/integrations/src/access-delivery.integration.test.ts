@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { accessDeliveryRequests } from "@keycade/db";
-import { seedDatabase } from "@keycade/db/seed";
-import { createTestDatabase } from "@keycade/db/testing";
-import { createIdentityService } from "@keycade/domain";
+import { accessDeliveryRequests } from "@keylend/db";
+import { seedDatabase } from "@keylend/db/seed";
+import { createTestDatabase } from "@keylend/db/testing";
+import { createIdentityService } from "@keylend/domain";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { dispatchAccessDeliveries, processAccessDelivery } from "./access-delivery.js";
@@ -17,7 +17,7 @@ const clock: Clock = { now: () => new Date(time), sleep: async () => {} };
 const origin = "http://127.0.0.1:3001";
 beforeAll(async () => {
   database = await createTestDatabase();
-  await seedDatabase(database.connectionString);
+  await seedDatabase(database.connectionString, { isolationFixtures: true });
   await initializeQueue(database.connectionString);
   boss = createQueueClient(database.connectionString);
   await boss.start();
@@ -31,7 +31,7 @@ async function request() {
   const identity = createIdentityService(database.db, { clock: clock.now });
   await identity.requestAccessLink({
     email: `${requestId}@example.test`,
-    bankSlug: "bank-a",
+    bankSlug: "keybank",
     portal: "borrower",
     returnPath: "/",
     origin,

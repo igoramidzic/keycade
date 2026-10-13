@@ -1,7 +1,7 @@
-import type { ApplicationSetupStep } from "@keycade/contracts";
-import { Alert, AlertDescription, AlertTitle } from "@keycade/ui/components/alert";
-import { Button } from "@keycade/ui/components/button";
-import { LoadingState } from "@keycade/ui/components/empty-state";
+import type { ApplicationSetupStep } from "@keylend/contracts";
+import { Alert, AlertDescription, AlertTitle } from "@keylend/ui/components/alert";
+import { Button } from "@keylend/ui/components/button";
+import { LoadingState } from "@keylend/ui/components/empty-state";
 import { CircleAlert } from "lucide-react";
 import { ApiError, errorMessage } from "./api";
 

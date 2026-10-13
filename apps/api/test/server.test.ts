@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { publicApplicationSchema, staffApplicationSchema } from "@keycade/contracts";
-import { createDatabase } from "@keycade/db";
+import { publicApplicationSchema, staffApplicationSchema } from "@keylend/contracts";
+import { createDatabase } from "@keylend/db";
 import { afterEach, describe, expect, it } from "vitest";
 import { z } from "zod";
 import { buildServer, type ServerOptions } from "../src/server.js";
@@ -75,7 +75,7 @@ describe("HTTP foundation", () => {
       headers: { origin },
       payload: {
         email: "officer-a@example.test",
-        bankSlug: "bank-a",
+        bankSlug: "keybank",
         portal: "staff",
         returnPath: "/",
       },
@@ -240,7 +240,7 @@ describe("identity HTTP security", () => {
           headers: { origin: "http://localhost:3001" },
           payload: {
             email: "borrower@example.test",
-            bankSlug: "bank-a",
+            bankSlug: "keybank",
             portal: "staff",
             returnPath: "/",
           },
@@ -278,7 +278,7 @@ describe("identity HTTP security", () => {
       headers: { origin: "http://localhost:3001" },
       payload: {
         email: "synthetic@example.test",
-        bankSlug: "bank-a",
+        bankSlug: "keybank",
         idempotencyKey: "a".repeat(64),
       },
     });
@@ -294,7 +294,7 @@ it("keeps immediate demo sign-in disabled unless explicitly enabled by the runti
     headers: { origin: "http://localhost:3001" },
     payload: {
       email: "borrower@example.test",
-      bankSlug: "bank-a",
+      bankSlug: "keybank",
       portal: "borrower",
       returnPath: "/",
     },

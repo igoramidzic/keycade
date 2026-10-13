@@ -176,7 +176,7 @@ export default function DocumentPdfPreview({
           ref={text}
           role="region"
           aria-label={`PDF page text, page ${page}`}
-          className="keycade-pdf-text"
+          className="keylend-pdf-text"
         />
       </div>
     </div>

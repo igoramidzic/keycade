@@ -19,9 +19,9 @@ import {
   signatureEnvelopes,
   signatureSendOutbox,
   users,
-} from "@keycade/db";
-import { seedIds as ids, seedDatabase } from "@keycade/db/seed";
-import { createTestDatabase } from "@keycade/db/testing";
+} from "@keylend/db";
+import { seedIds as ids, seedDatabase } from "@keylend/db/seed";
+import { createTestDatabase } from "@keylend/db/testing";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -60,7 +60,7 @@ const approval = (expectedRevision: number) => ({
 });
 beforeAll(async () => {
   database = await createTestDatabase();
-  await seedDatabase(database.connectionString);
+  await seedDatabase(database.connectionString, { isolationFixtures: true });
 }, 30000);
 afterAll(async () => database?.cleanup());
 async function fixture(options: { draft?: boolean } = {}) {
@@ -146,7 +146,7 @@ async function clearChecks(id: string) {
       .set({
         status: "succeeded",
         result: {
-          provider: "keycade-checks-v1",
+          provider: "keylend-checks-v1",
           simulated: true,
           kind: check.kind,
           operationId: run.id,
@@ -748,7 +748,7 @@ describe("submission and deliberate review on PostgreSQL", () => {
       randomUUID(),
     );
     // Scanner/processor correctness is covered separately; prepare its typed clean result.
-    const { documentVersions } = await import("@keycade/db");
+    const { documentVersions } = await import("@keylend/db");
     await database.db
       .update(documentVersions)
       .set({ scanState: "clean" })

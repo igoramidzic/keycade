@@ -8,8 +8,8 @@ import {
   notifications,
   signatureNotificationOutbox,
   users,
-} from "@keycade/db";
-import { notificationSuppression, queueNotification } from "@keycade/domain";
+} from "@keylend/db";
+import { notificationSuppression, queueNotification } from "@keylend/domain";
 import { and, eq, inArray, isNull, lte } from "drizzle-orm";
 import { type Clock, systemClock } from "./provider.js";
 

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { readEnvironment } from "@keycade/config/server";
-import type { TasksView, TaskView } from "@keycade/contracts";
+import { readEnvironment } from "@keylend/config/server";
+import type { TasksView, TaskView } from "@keylend/contracts";
 import { expect, type Page, test } from "@playwright/test";
 import { fillSignInEmail } from "./identity-helpers";
 
@@ -51,7 +51,7 @@ for (const actor of ["borrower", "staff"] as const) {
     const origin = isBorrower ? borrower : staff;
     await signIn(page, origin, isBorrower ? "borrower@example.test" : "officer-a@example.test");
     await page.clock.install();
-    await page.goto(`${origin}/applications/${applicationId}/tasks?bank=bank-a`);
+    await page.goto(`${origin}/applications/${applicationId}/tasks?bank=keybank`);
     const initial = await tasksApi<TasksView>(page, "GET");
     const task = initial.tasks.find((item) => item.title === "Describe your business");
     if (!task) throw new Error("Synthetic business description task missing.");
@@ -152,7 +152,7 @@ test("stale task answers keep typed text until the borrower explicitly reloads t
   try {
     const applicant = await context.newPage();
     await signIn(applicant, borrower, "borrower@example.test");
-    await applicant.goto(`${borrower}/applications/${applicationId}/tasks?bank=bank-a`);
+    await applicant.goto(`${borrower}/applications/${applicationId}/tasks?bank=keybank`);
     await applicant.getByRole("button", { name: title, exact: true }).click();
     const answer = applicant.locator('[id^="task-answer-"]');
     await answer.fill("My unsaved fictional workshop description.");

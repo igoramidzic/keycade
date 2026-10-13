@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
-import { applications, auditEvents, type Database, documentVersions } from "@keycade/db";
-import { createDocumentsService, enqueueDocumentProcessing } from "@keycade/domain";
+import { applications, auditEvents, type Database, documentVersions } from "@keylend/db";
+import { createDocumentsService, enqueueDocumentProcessing } from "@keylend/domain";
 import { and, eq, isNull, lte, or, sql } from "drizzle-orm";
 import { type PrivateDocumentStorage, webByteSource } from "./document-content.js";
 import { demoDocumentFixture, documentFixtureScenario } from "./document-fixtures.js";
@@ -16,7 +16,7 @@ export async function simulateDocumentScan(
   const demo = demoDocumentFixture(sha256, options.businessName);
   return {
     simulated: true as const,
-    provider: "keycade-file-scan-v1" as const,
+    provider: "keylend-file-scan-v1" as const,
     state:
       scenario === "blocked" || demo?.document.outcome === "scan_blocked"
         ? ("blocked" as const)

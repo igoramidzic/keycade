@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { activityViewSchema, operationsViewSchema } from "@keycade/contracts";
-import { auditEvents } from "@keycade/db";
-import { seedIds as ids, seedDatabase } from "@keycade/db/seed";
-import { createTestDatabase } from "@keycade/db/testing";
+import { activityViewSchema, operationsViewSchema } from "@keylend/contracts";
+import { auditEvents } from "@keylend/db";
+import { seedIds as ids, seedDatabase } from "@keylend/db/seed";
+import { createTestDatabase } from "@keylend/db/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildServer } from "../src/server.js";
 import { handleWorkerRequest } from "../src/worker-handler.js";
@@ -13,7 +13,7 @@ const origin = "http://localhost:3001",
 const base = `/api/v1/banks/${ids.bankA}/applications/${ids.applicationSmall}`;
 beforeAll(async () => {
   database = await createTestDatabase();
-  await seedDatabase(database.connectionString);
+  await seedDatabase(database.connectionString, { isolationFixtures: true });
   await database.db.insert(auditEvents).values(
     Array.from({ length: 3 }, () => ({
       bankId: ids.bankA,

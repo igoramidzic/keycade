@@ -1,5 +1,5 @@
 import { Button as ButtonPrimitive } from "@base-ui/react/button";
-import { Spinner } from "@keycade/ui/components/spinner";
+import { Spinner } from "@keylend/ui/components/spinner";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "cn";
 

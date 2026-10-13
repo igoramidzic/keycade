@@ -1,10 +1,10 @@
-import { workflowText } from "@keycade/ui/lib/workflow-text";
-import "@keycade/ui/styles.css";
-import { Badge } from "@keycade/ui/components/badge";
-import { BrandMark } from "@keycade/ui/components/brand";
-import { buttonVariants } from "@keycade/ui/components/button";
-import { FundingPurposeIcon } from "@keycade/ui/components/funding-purpose-icon";
-import { cn } from "@keycade/ui/lib/utils";
+import { workflowText } from "@keylend/ui/lib/workflow-text";
+import "@keylend/ui/styles.css";
+import { Badge } from "@keylend/ui/components/badge";
+import { BrandMark } from "@keylend/ui/components/brand";
+import { buttonVariants } from "@keylend/ui/components/button";
+import { FundingPurposeIcon } from "@keylend/ui/components/funding-purpose-icon";
+import { cn } from "@keylend/ui/lib/utils";
 import {
   ArrowRight,
   Check,
@@ -19,12 +19,12 @@ import {
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
-declare const __KEYCADE_PUBLIC__: { borrowerUrl: string; bankConsoleUrl: string };
+declare const __KEYLEND_PUBLIC__: { borrowerUrl: string; bankConsoleUrl: string };
 
-const applyUrl = new URL("/apply", __KEYCADE_PUBLIC__.borrowerUrl);
-applyUrl.searchParams.set("bank", "bank-a");
-const resumeUrl = new URL("/", __KEYCADE_PUBLIC__.borrowerUrl);
-resumeUrl.searchParams.set("bank", "bank-a");
+const applyUrl = new URL("/apply", __KEYLEND_PUBLIC__.borrowerUrl);
+applyUrl.searchParams.set("bank", "keybank");
+const resumeUrl = new URL("/", __KEYLEND_PUBLIC__.borrowerUrl);
+resumeUrl.searchParams.set("bank", "keybank");
 
 const container = "mx-auto w-full max-w-6xl px-4 sm:px-8";
 
@@ -79,7 +79,7 @@ function BankSite() {
           >
             <BrandMark className="size-7 sm:size-8" />
             <span className="truncate text-[0.9375rem] font-semibold tracking-tight sm:text-[1.0625rem]">
-              Bank A
+              Keybank
             </span>
           </a>
           <nav aria-label="Main navigation" className="flex shrink-0 items-center gap-1">
@@ -140,7 +140,7 @@ function BankSite() {
                 A next step for your business.
               </h1>
               <p className="mt-6 max-w-xl text-lg leading-8 text-pretty text-muted-foreground">
-                Explore business financing with Bank A. Start with your email, tell us a little
+                Explore business financing with Keybank. Start with your email, tell us a little
                 about your business, and come back whenever you’re ready — your progress is saved
                 along the way.
               </p>
@@ -325,7 +325,7 @@ function BankSite() {
           <div className="max-w-md space-y-3">
             <p className="flex items-center gap-2 font-semibold tracking-tight">
               <BrandMark className="size-6" />
-              Bank A
+              Keybank
             </p>
             <p className="text-xs leading-5 text-muted-foreground">
               Business financing, from application to funding. Track your progress and return
@@ -333,7 +333,7 @@ function BankSite() {
             </p>
           </div>
           <a
-            href={__KEYCADE_PUBLIC__.bankConsoleUrl}
+            href={__KEYLEND_PUBLIC__.bankConsoleUrl}
             className="text-sm font-medium text-muted-foreground underline underline-offset-4 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4"
           >
             Bank staff sign-in

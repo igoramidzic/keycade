@@ -55,7 +55,7 @@ export const checkKindSchema = z.enum(["identity", "fraud", "loan_footprint"]);
 export const checkOutcomeSchema = z.enum(["clear", "needs_review", "unable_to_verify"]);
 export const checkResultSchema = z
   .strictObject({
-    provider: z.literal("keycade-checks-v1"),
+    provider: z.enum(["keylend-checks-v1", "keycade-checks-v1"]),
     simulated: z.literal(true),
     kind: checkKindSchema,
     operationId: z.string().uuid(),

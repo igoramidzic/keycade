@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { tasksViewSchema, taskViewSchema } from "@keycade/contracts";
-import { seedIds as ids, seedDatabase } from "@keycade/db/seed";
-import { createTestDatabase } from "@keycade/db/testing";
+import { tasksViewSchema, taskViewSchema } from "@keylend/contracts";
+import { seedIds as ids, seedDatabase } from "@keylend/db/seed";
+import { createTestDatabase } from "@keylend/db/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildServer } from "../src/server.js";
 import { handleWorkerRequest } from "../src/worker-handler.js";
@@ -9,7 +9,7 @@ import { handleWorkerRequest } from "../src/worker-handler.js";
 let database: Awaited<ReturnType<typeof createTestDatabase>>;
 beforeAll(async () => {
   database = await createTestDatabase();
-  await seedDatabase(database.connectionString);
+  await seedDatabase(database.connectionString, { isolationFixtures: true });
 }, 30_000);
 afterAll(async () => database?.cleanup());
 const origin = "http://localhost:3001";

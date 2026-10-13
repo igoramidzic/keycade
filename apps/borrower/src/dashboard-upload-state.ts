@@ -1,4 +1,4 @@
-import type { DocumentsView, DocumentVersion } from "@keycade/contracts";
+import type { DocumentsView, DocumentVersion } from "@keylend/contracts";
 
 /** The general upload area never projects personal or task-specific evidence. */
 export function generalUploadVersions(data: DocumentsView) {

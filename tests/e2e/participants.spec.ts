@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { readEnvironment } from "@keycade/config/server";
+import { readEnvironment } from "@keylend/config/server";
 import { expect, type Page, test } from "@playwright/test";
 import {
   fillSignInEmail,
@@ -19,7 +19,7 @@ const otherApplicationId = "60000000-0000-4000-8000-000000000003";
 test.use({ trace: "off", screenshot: "off", video: "off", actionTimeout: 15_000 });
 test.setTimeout(90_000);
 
-async function signIn(page: Page, origin: string, email: string, bankSlug = "bank-a") {
+async function signIn(page: Page, origin: string, email: string, bankSlug = "keybank") {
   await page.goto(`${origin}/?bank=${bankSlug}`);
   await fillSignInEmail(page, email);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
@@ -81,7 +81,7 @@ test("only the lender invites a lawyer, selects their tasks, and removes the act
   const email = `lawyer-browser-${randomUUID()}@example.test`;
   const previous = new Set((await messages()).map((message) => message.ID));
   await signIn(page, borrower, "borrower@example.test");
-  await page.goto(`${borrower}/applications/${applicationId}/people?bank=bank-a`);
+  await page.goto(`${borrower}/applications/${applicationId}/people?bank=keybank`);
   await expect(
     page.getByRole("heading", { name: "People with portal access", exact: true }),
   ).toBeVisible();
@@ -92,13 +92,13 @@ test("only the lender invites a lawyer, selects their tasks, and removes the act
   await noOverflow(page);
   await signIn(page, staff, "officer-a@example.test");
   const taskTitle = `Synthetic lawyer request ${randomUUID().slice(0, 8)}`;
-  await page.goto(`${staff}/applications/${applicationId}/tasks?bank=bank-a`);
+  await page.goto(`${staff}/applications/${applicationId}/tasks?bank=keybank`);
   await page.getByRole("button", { name: "Add task", exact: true }).click();
   await page.getByLabel("Task title", { exact: true }).fill(taskTitle);
   await page.getByLabel("Instructions", { exact: true }).fill("Provide a fictional legal summary.");
   await page.getByRole("button", { name: "Create task", exact: true }).click();
   await expect(page.getByRole("status").filter({ hasText: "Task added" })).toBeVisible();
-  await page.goto(`${staff}/applications/${applicationId}/participants?bank=bank-a`);
+  await page.goto(`${staff}/applications/${applicationId}/participants?bank=keybank`);
   const invite = await openInvite(page);
   await expect(invite.getByRole("radio", { name: "Adviser", exact: true })).toBeChecked();
   await expect(invite).toContainText("Access: Assigned tasks and permitted documents.");
@@ -143,13 +143,13 @@ test("only the lender invites a lawyer, selects their tasks, and removes the act
     await expect(
       recipient.getByRole("status").filter({ hasText: "Task completed." }),
     ).toBeVisible();
-    await recipient.goto(`${borrower}/applications/${applicationId}/people?bank=bank-a`);
+    await recipient.goto(`${borrower}/applications/${applicationId}/people?bank=keybank`);
     await expect(
       recipient.getByRole("heading", { name: "Invite a collaborator", exact: true }),
     ).toHaveCount(0);
     await expect(recipient.getByLabel("Owner name", { exact: true })).toHaveCount(0);
     await noOverflow(recipient);
-    await recipient.goto(`${borrower}/applications/${otherApplicationId}?bank=bank-a`);
+    await recipient.goto(`${borrower}/applications/${otherApplicationId}?bank=keybank`);
     await expect(recipient.getByRole("alert")).toContainText("unavailable");
     await page.reload();
     await removeAccess(page, email);
@@ -157,7 +157,7 @@ test("only the lender invites a lawyer, selects their tasks, and removes the act
       page.getByRole("status").filter({ hasText: "Participant access removed." }),
     ).toBeVisible();
     expect(await status(recipient)).toBe(404);
-    await recipient.goto(`${borrower}/applications/${applicationId}?bank=bank-a`);
+    await recipient.goto(`${borrower}/applications/${applicationId}?bank=keybank`);
     await expect(recipient.getByRole("alert")).toContainText("unavailable");
   } finally {
     await recipientContext.close();
@@ -171,7 +171,7 @@ test("staff records an owner without an account, then grants separate owner acce
   const ownerName = `Synthetic Owner ${randomUUID().slice(0, 8)}`;
   const email = `owner-browser-${randomUUID()}@example.test`;
   await signIn(page, staff, "officer-a@example.test");
-  await page.goto(`${staff}/applications/${applicationId}/participants?bank=bank-a`);
+  await page.goto(`${staff}/applications/${applicationId}/participants?bank=keybank`);
   await page.getByRole("button", { name: "Record owner", exact: true }).click();
   const owner = page.getByRole("dialog", { name: "Record an owner", exact: true });
   await expect(owner.getByLabel("Owner name", { exact: true })).toBeVisible();
@@ -232,8 +232,10 @@ test("direct invitation recovery preserves its bank and destination and rejects 
   const bankBApplicationId = "60000000-0000-4000-8000-000000000004";
   const email = `recovery-invite-${randomUUID()}@example.test`;
   const originalInbox = new Set((await messages()).map((message) => message.ID));
-  await signIn(page, staff, "officer-b@example.test", "bank-b");
-  await page.goto(`${staff}/applications/${bankBApplicationId}/participants?bank=bank-b`);
+  await signIn(page, staff, "officer-b@example.test", "isolation-fixture");
+  await page.goto(
+    `${staff}/applications/${bankBApplicationId}/participants?bank=isolation-fixture`,
+  );
   const invite = await openInvite(page);
   await fillSignInEmail(invite, email);
   await invite.getByRole("button", { name: "Send invitation", exact: true }).click();
@@ -248,16 +250,16 @@ test("direct invitation recovery preserves its bank and destination and rejects 
   async function authenticateAtInvitation(
     recipient: Page,
     recipientEmail: string,
-    url = `${borrower}${path}?bank=bank-b`,
+    url = `${borrower}${path}?bank=isolation-fixture`,
   ) {
     const previous = new Set((await messages()).map((message) => message.ID));
     await recipient.goto(url);
-    await expect(recipient.getByText("Bank B", { exact: true }).first()).toBeVisible();
+    await expect(recipient.getByText("Isolation fixture", { exact: true }).first()).toBeVisible();
     await requestAccessEmail(recipient, recipientEmail);
     await openLink(recipient, await waitForLink(borrower, recipientEmail, previous));
     await recipient.getByRole("button", { name: "Confirm and sign in", exact: true }).click();
     await expect(recipient).toHaveURL(
-      (url) => url.pathname === path && url.searchParams.get("bank") === "bank-b",
+      (url) => url.pathname === path && url.searchParams.get("bank") === "isolation-fixture",
     );
     expect(await status(recipient, "", bankBApplicationId)).toBe(404);
   }
@@ -292,10 +294,10 @@ test("direct invitation recovery preserves its bank and destination and rejects 
         await expect(recipient).toHaveURL(
           (url) =>
             url.pathname === `/applications/${bankBApplicationId}` &&
-            url.searchParams.get("bank") === "bank-b",
+            url.searchParams.get("bank") === "isolation-fixture",
         );
         expect(await status(recipient, "", bankBApplicationId)).toBe(200);
-        // Bank B participation cannot expose an application from Bank A.
+        // Isolation fixture participation cannot expose an application from Keybank.
         expect(await status(recipient)).toBe(404);
       }
       await noOverflow(recipient);

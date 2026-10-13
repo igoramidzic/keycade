@@ -1,5 +1,5 @@
 {
-  "name": "@keycade/db",
+  "name": "@keylend/db",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -24,7 +24,7 @@
     "pg": "8.23.1"
   },
   "devDependencies": {
-    "@keycade/config": "workspace:*",
+    "@keylend/config": "workspace:*",
     "@types/pg": "8.23.1",
     "drizzle-kit": "0.31.11"
   }

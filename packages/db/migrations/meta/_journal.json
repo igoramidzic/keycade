@@ -176,6 +176,13 @@
       "when": 1791483438641,
       "tag": "0024_curious_spencer_smythe",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1791882000000,
+      "tag": "0025_keylend_keybank",
+      "breakpoints": true
     }
   ]
 }

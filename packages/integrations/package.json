@@ -1,5 +1,5 @@
 {
-  "name": "@keycade/integrations",
+  "name": "@keylend/integrations",
   "private": true,
   "type": "module",
   "exports": {
@@ -26,16 +26,16 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@keycade/contracts": "workspace:*",
-    "@keycade/db": "workspace:*",
-    "@keycade/domain": "workspace:*",
+    "@keylend/contracts": "workspace:*",
+    "@keylend/db": "workspace:*",
+    "@keylend/domain": "workspace:*",
     "drizzle-orm": "0.45.3",
     "nodemailer": "10.0.15",
     "pg-boss": "12.37.0",
     "zod": "4.6.5"
   },
   "devDependencies": {
-    "@keycade/config": "workspace:*",
+    "@keylend/config": "workspace:*",
     "@types/nodemailer": "8.0.2",
     "@cloudflare/workers-types": "5.20261007.1"
   }

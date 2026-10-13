@@ -6,18 +6,18 @@ import {
   fundingPurposeCatalogVersion,
   fundingPurposeOptions,
   type StaffWorkspace,
-} from "@keycade/contracts";
-import { Button, buttonVariants } from "@keycade/ui/components/button";
+} from "@keylend/contracts";
+import { Button, buttonVariants } from "@keylend/ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@keycade/ui/components/card";
-import { CurrencyInput, wholeDollars } from "@keycade/ui/components/currency-input";
-import { FundingPurposeIcon } from "@keycade/ui/components/funding-purpose-icon";
-import { Input } from "@keycade/ui/components/input";
+} from "@keylend/ui/components/card";
+import { CurrencyInput, wholeDollars } from "@keylend/ui/components/currency-input";
+import { FundingPurposeIcon } from "@keylend/ui/components/funding-purpose-icon";
+import { Input } from "@keylend/ui/components/input";
 import { useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useEffect, useId, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { readEnvironment } from "@keycade/config/server";
-import type { ApplicationSetup, BusinessAddress, ChecksView } from "@keycade/contracts";
+import { readEnvironment } from "@keylend/config/server";
+import type { ApplicationSetup, BusinessAddress, ChecksView } from "@keylend/contracts";
 import { expect, type Page, test } from "@playwright/test";
 import { workflowApi } from "./closing-helpers";
 import { fillSignInEmail } from "./identity-helpers";
@@ -36,7 +36,7 @@ async function draft(page: Page, address?: BusinessAddress) {
 }
 
 async function open(page: Page, applicationId: string, section = "overview") {
-  await page.goto(`${staff}/applications/${applicationId}/${section}?bank=bank-a`);
+  await page.goto(`${staff}/applications/${applicationId}/${section}?bank=keybank`);
   const trigger = page.getByRole("button", { name: "Loan Footprint", exact: true });
   await expect(trigger).toBeVisible();
   await trigger.focus();

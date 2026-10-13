@@ -4,7 +4,7 @@ import {
   fundedAccountsViewSchema,
   signaturesViewSchema,
   tasksViewSchema,
-} from "@keycade/contracts";
+} from "@keylend/contracts";
 import {
   applicationParticipants,
   applicationSetups,
@@ -13,9 +13,9 @@ import {
   fundingRecords,
   loanAccounts,
   signatureArtifacts,
-} from "@keycade/db";
-import { seedIds as ids, seedDatabase } from "@keycade/db/seed";
-import { createTestDatabase } from "@keycade/db/testing";
+} from "@keylend/db";
+import { seedIds as ids, seedDatabase } from "@keylend/db/seed";
+import { createTestDatabase } from "@keylend/db/testing";
 import {
   type Actor,
   createChecksService,
@@ -23,9 +23,9 @@ import {
   createIdentifierCipher,
   createReviewService,
   createTasksService,
-} from "@keycade/domain";
-import { processCheckRun } from "@keycade/integrations/check-jobs";
-import { processSignatureJobs } from "@keycade/integrations/signatures-jobs";
+} from "@keylend/domain";
+import { processCheckRun } from "@keylend/integrations/check-jobs";
+import { processSignatureJobs } from "@keylend/integrations/signatures-jobs";
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildServer } from "../src/server.js";
@@ -41,7 +41,7 @@ const base = (id: string) => `/api/v1/banks/${ids.bankA}/applications/${id}`;
 const command = (expectedRevision: number) => ({ expectedRevision, idempotencyKey: randomUUID() });
 beforeAll(async () => {
   database = await createTestDatabase();
-  await seedDatabase(database.connectionString);
+  await seedDatabase(database.connectionString, { isolationFixtures: true });
 }, 30000);
 afterAll(async () => database?.cleanup());
 async function approvedFixture() {

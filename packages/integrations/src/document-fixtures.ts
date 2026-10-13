@@ -7,18 +7,21 @@ import {
   demoImportFixtureSchema,
   demoImportRecipe,
   demoImportRecipes,
-} from "@keycade/contracts/demo-import";
+} from "@keylend/contracts/demo-import";
 import {
   createDemoDocumentPdf,
   type DemoDocument,
   demoDocumentBusinessName,
   demoDocuments,
   demoScenarios,
-} from "@keycade/contracts/demo-scenarios";
+} from "@keylend/contracts/demo-scenarios";
 import { documentDigest } from "./document-content.js";
 
-export function syntheticDocumentPdf(scenario: string): Uint8Array {
-  const text = `KEYCADE SYNTHETIC DOCUMENT - ${scenario.replace(/[^a-z0-9 -]/gi, "")}`;
+export function syntheticDocumentPdf(
+  scenario: string,
+  branding: "KeyLend" | "Keycade" = "KeyLend",
+): Uint8Array {
+  const text = `${branding.toUpperCase()} SYNTHETIC DOCUMENT - ${scenario.replace(/[^a-z0-9 -]/gi, "")}`;
   const stream = `BT /F1 12 Tf 20 100 Td (${text}) Tj ET`;
   const objects = [
     "<< /Type /Catalog /Pages 2 0 R >>",
@@ -54,10 +57,11 @@ export const documentFixtureScenarios = [
 ] as const;
 export type DocumentFixtureScenario = (typeof documentFixtureScenarios)[number];
 const fixtures = new Map(
-  documentFixtureScenarios.map((scenario) => [
-    documentDigest(syntheticDocumentPdf(scenario)),
-    scenario,
-  ]),
+  documentFixtureScenarios.flatMap((scenario) =>
+    (["KeyLend", "Keycade"] as const).map(
+      (branding) => [documentDigest(syntheticDocumentPdf(scenario, branding)), scenario] as const,
+    ),
+  ),
 );
 export function documentFixtureScenario(sha256: string): DocumentFixtureScenario | "unregistered" {
   return fixtures.get(sha256) ?? "unregistered";
@@ -76,8 +80,22 @@ export function demoDocumentFixture(
     const names = new Set([scenario.business.name]);
     if (applicationBusinessName) names.add(applicationBusinessName);
     for (const name of names) {
-      if (documentDigest(createDemoDocumentPdf(document, name)) === sha256)
-        return { document, businessName: demoDocumentBusinessName(document, name) };
+      for (const branding of ["KeyLend", "Keycade"] as const) {
+        if (documentDigest(createDemoDocumentPdf(document, name, branding)) !== sha256) continue;
+        // Suggestions must still describe the original document, including its historical institution.
+        const matched =
+          branding === "Keycade"
+            ? {
+                ...document,
+                rows: document.rows.map((row) =>
+                  row.label === "Institution" && row.value === "Keybank"
+                    ? { ...row, value: "Keycade Fictional Bank" }
+                    : row,
+                ),
+              }
+            : document;
+        return { document: matched, businessName: demoDocumentBusinessName(matched, name) };
+      }
     }
   }
   return null;
@@ -96,7 +114,12 @@ export function demoImportDocumentFixture(
     const parsed = demoImportFixtureSchema.safeParse(input);
     if (!parsed.success) continue;
     const fixture = parsed.data;
-    if (documentDigest(createDemoImportPdf(fixture.recipeId, fixture)) === sha256) {
+    if (
+      (["KeyLend", "Keycade"] as const).some(
+        (branding) =>
+          documentDigest(createDemoImportPdf(fixture.recipeId, fixture, branding)) === sha256,
+      )
+    ) {
       return {
         recipe: demoImportRecipe(fixture.recipeId),
         fixture,

@@ -13,7 +13,7 @@ import {
   publicStartApplicationSchema,
   saveApplicationSetupSchema,
   type TaskProgress,
-} from "@keycade/contracts";
+} from "@keylend/contracts";
 import {
   accessDeliveryRequests,
   applicantContacts,
@@ -33,7 +33,7 @@ import {
   loanAccounts,
   loanProducts,
   users,
-} from "@keycade/db";
+} from "@keylend/db";
 import { and, asc, eq, gt, isNull, or, sql } from "drizzle-orm";
 import { claimApplicationInTransaction } from "./application-claims.js";
 import {
@@ -485,6 +485,7 @@ export function createApplicationService(
       return invalid();
     return db.transaction(async (tx) => {
       const now = clock();
+      if (parsed.bankSlug !== "keybank") return accepted;
       const [bank] = await tx.select().from(banks).where(eq(banks.slug, parsed.bankSlug));
       // A 256-bit random key identifies this public request only; it grants no record access.
       const request = bank

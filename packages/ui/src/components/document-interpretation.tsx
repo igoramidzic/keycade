@@ -1,13 +1,13 @@
-import { Alert, AlertDescription, AlertTitle } from "@keycade/ui/components/alert";
-import { Badge } from "@keycade/ui/components/badge";
-import { Button } from "@keycade/ui/components/button";
+import { Alert, AlertDescription, AlertTitle } from "@keylend/ui/components/alert";
+import { Badge } from "@keylend/ui/components/badge";
+import { Button } from "@keylend/ui/components/button";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@keycade/ui/components/collapsible";
-import { NativeSelect } from "@keycade/ui/components/native-select";
-import { workflowText } from "@keycade/ui/lib/workflow-text";
+} from "@keylend/ui/components/collapsible";
+import { NativeSelect } from "@keylend/ui/components/native-select";
+import { workflowText } from "@keylend/ui/lib/workflow-text";
 import { ChevronRight } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
 

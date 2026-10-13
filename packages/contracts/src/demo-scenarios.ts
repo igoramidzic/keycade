@@ -64,7 +64,7 @@ const taxRows = [
 ];
 const bankRows = [
   { label: "Statement period", value: "September 2026" },
-  { label: "Institution", value: "Keycade Fictional Bank" },
+  { label: "Institution", value: "Keybank" },
   { label: "Demo account reference", value: "DEMO-CEDAR-001" },
   { label: "Opening balance", value: "22000.00" },
   { label: "Deposits", value: "18000.00" },
@@ -198,7 +198,7 @@ export const demoScenarios: DemoScenario[] = [
         outcome: "cash_flow",
         rows: [
           { label: "Statement period", value: "September 2026" },
-          { label: "Institution", value: "Keycade Fictional Bank" },
+          { label: "Institution", value: "Keybank" },
           { label: "Demo account reference", value: "DEMO-CEDAR-002" },
           { label: "Opening balance", value: "25000.00" },
           { label: "Deposits", value: "8400.00" },
@@ -332,6 +332,7 @@ function wrap(value: string, length: number) {
 export function createDemoDocumentPdf(
   document: DemoDocument,
   businessName = business.name,
+  branding: "KeyLend" | "Keycade" = "KeyLend",
 ): Uint8Array {
   const commands: string[] = [];
   function text(
@@ -347,7 +348,7 @@ export function createDemoDocumentPdf(
     );
   }
   commands.push("0.93 0.94 0.98 rg 0 692 612 100 re f");
-  text("KEYCADE / SYNTHETIC DEMO", 44, 753, 12, true, "0.28 0.28 0.55");
+  text(`${branding.toUpperCase()} / SYNTHETIC DEMO`, 44, 753, 12, true, "0.28 0.28 0.55");
   text(document.title, 44, 718, 19, true);
   let y = 659;
   for (const line of wrap(demoDocumentBusinessName(document, businessName), 65)) {
@@ -359,7 +360,12 @@ export function createDemoDocumentPdf(
   for (const row of document.rows) {
     text(row.label.toUpperCase(), 44, y, 9, true, "0.42 0.44 0.49");
     y -= 18;
-    for (const line of wrap(row.value, 78)) {
+    for (const line of wrap(
+      branding === "Keycade" && row.label === "Institution" && row.value === "Keybank"
+        ? "Keycade Fictional Bank"
+        : row.value,
+      78,
+    )) {
       text(line, 44, y, 12);
       y -= 17;
     }
@@ -379,7 +385,7 @@ export function createDemoDocumentPdf(
     48,
     8,
   );
-  text(`Keycade sample: ${document.id} / page 1 of 1`, 44, 33, 8);
+  text(`${branding} sample: ${document.id} / page 1 of 1`, 44, 33, 8);
   const stream = commands.join("\n");
   const objects = [
     "<< /Type /Catalog /Pages 2 0 R >>",

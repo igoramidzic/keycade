@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { readEnvironment } from "@keycade/config/server";
-import { syntheticDocumentPdf } from "@keycade/integrations/document-fixtures";
+import { readEnvironment } from "@keylend/config/server";
+import { syntheticDocumentPdf } from "@keylend/integrations/document-fixtures";
 import { expect, type Page, test } from "@playwright/test";
 import { fillSignInEmail } from "./identity-helpers";
 
@@ -33,7 +33,7 @@ test("staff retries failed work and both dashboards show only currently permitte
   browser,
 }, testInfo) => {
   await signIn(page, staff, "officer-a@example.test");
-  await page.goto(`${staff}/applications/${id}/documents?bank=bank-a`);
+  await page.goto(`${staff}/applications/${id}/documents?bank=keybank`);
   const fileName = `synthetic-operations-${randomUUID().slice(0, 8)}.pdf`;
   await page
     .getByRole("region", { name: "Document upload drop area", exact: true })
@@ -45,7 +45,7 @@ test("staff retries failed work and both dashboards show only currently permitte
     });
   const document = page.getByRole("listitem", { name: `Document ${fileName}`, exact: true });
   await expect(document).toContainText("Scan failed", { timeout: 25000 });
-  await page.goto(`${staff}/applications/${id}/operations?bank=bank-a`);
+  await page.goto(`${staff}/applications/${id}/operations?bank=keybank`);
   await expect(
     page.getByRole("heading", { name: "Background operations", exact: true }),
   ).toBeVisible();
@@ -70,7 +70,7 @@ test("staff retries failed work and both dashboards show only currently permitte
     path: testInfo.outputPath("synthetic-operations-recovery.png"),
     fullPage: true,
   });
-  await page.goto(`${staff}/applications/${id}/activity?bank=bank-a`);
+  await page.goto(`${staff}/applications/${id}/activity?bank=keybank`);
   await expect(
     page.getByRole("heading", { name: "Application activity", exact: true }),
   ).toBeVisible();
@@ -81,7 +81,7 @@ test("staff retries failed work and both dashboards show only currently permitte
   try {
     const applicant = await applicantContext.newPage();
     await signIn(applicant, borrower, "borrower@example.test");
-    await applicant.goto(`${borrower}/applications/${id}/activity?bank=bank-a`);
+    await applicant.goto(`${borrower}/applications/${id}/activity?bank=keybank`);
     await expect(
       applicant.getByRole("heading", { name: "Application activity", exact: true }),
     ).toBeVisible();
@@ -96,7 +96,7 @@ test("staff retries failed work and both dashboards show only currently permitte
     });
     const limited = await adviserContext.newPage();
     await signIn(limited, borrower, "adviser@example.test");
-    await limited.goto(`${borrower}/applications/${id}/activity?bank=bank-a`);
+    await limited.goto(`${borrower}/applications/${id}/activity?bank=keybank`);
     await expect(
       limited.getByRole("heading", { name: "Application activity", exact: true }),
     ).toBeVisible();
@@ -109,7 +109,7 @@ test("staff retries failed work and both dashboards show only currently permitte
 });
 test("diagnostics hide stale data on a failed refresh and recover with retry", async ({ page }) => {
   await signIn(page, staff, "officer-a@example.test");
-  await page.goto(`${staff}/applications/${id}/operations?bank=bank-a`);
+  await page.goto(`${staff}/applications/${id}/operations?bank=keybank`);
   await expect(
     page.getByRole("heading", { name: "Background operations", exact: true }),
   ).toBeVisible();

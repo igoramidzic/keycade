@@ -1,7 +1,7 @@
-import type { DocumentVersion } from "@keycade/contracts";
-import { Alert, AlertDescription, AlertTitle } from "@keycade/ui/components/alert";
-import { Button } from "@keycade/ui/components/button";
-import { Input } from "@keycade/ui/components/input";
+import type { DocumentVersion } from "@keylend/contracts";
+import { Alert, AlertDescription, AlertTitle } from "@keylend/ui/components/alert";
+import { Button } from "@keylend/ui/components/button";
+import { Input } from "@keylend/ui/components/input";
 import { useEffect, useRef, useState } from "react";
 
 type PdfViewerComponent = typeof import("./document-pdf-preview").default;

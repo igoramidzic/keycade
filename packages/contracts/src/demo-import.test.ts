@@ -103,7 +103,7 @@ describe("deterministic content-bound synthetic PDFs and typed facts", () => {
     expect(readDemoImportPdfFixture(bytes)).toEqual(demoImportFixtureFor(recipe.id, context));
     const original = new TextDecoder().decode(bytes);
     expect(original.startsWith("%PDF-1.4\n")).toBe(true);
-    expect(original).toContain("KEYCADE / SYNTHETIC DEMO");
+    expect(original).toContain("KEYLEND / SYNTHETIC DEMO");
     expect(original).toContain("FICTIONAL RECORD");
     expect(original).toContain("xref\n");
     expect(original).toContain(recipe.period.start);
@@ -192,3 +192,15 @@ describe("deterministic content-bound synthetic PDFs and typed facts", () => {
     expect(fields.some((field) => field.key.includes("adjustment"))).toBe(false);
   });
 });
+
+// Historical uploads retain their bytes; a rename must not turn them into unknown evidence.
+it.each(demoImportRecipes)(
+  "recognizes legacy branded $id without accepting altered content",
+  (recipe) => {
+    const legacy = createDemoImportPdf(recipe.id, context, "Keycade");
+    expect(readDemoImportPdfFixture(legacy)).toEqual(demoImportFixtureFor(recipe.id, context));
+    const changed = new Uint8Array(legacy);
+    changed[changed.length - 10] ^= 1;
+    expect(readDemoImportPdfFixture(changed)).toBeNull();
+  },
+);

@@ -6,7 +6,7 @@ The [v2 plan](v2/README.md) adds planned experience and data contracts to the ex
 
 ## Deployment target
 
-Cloudflare is the intended hosted platform (user clarification, October 6, 2026); the five Keycade Workers and their native Git build triggers exist. Initial hosting uses default `workers.dev` URLs without a custom domain. The existing account subdomain is `kualia.workers.dev`. Neon is selected for PostgreSQL only and the existing project is linked; Hyperdrive `keycade-db` is provisioned with caching disabled and a separate runtime login. Document storage remains planned for R2. GitHub Actions owns hosted Drizzle migrations, separately from local initialization. This document’s Node/Fastify/pg-boss topology is the local foundation. The hosted compatibility and infrastructure slice is tracked in [D02](tasks/D02-cloudflare-deployment.md), with the rationale in [decisions](06-decisions-and-sources.md#cloudflare-implementation-boundary-october-6-2026). Keep domain services and transactional intent separate from HTTP, queue, timer, and file-storage adapters. Do not assume a persistent Node queue polling loop runs unchanged inside a request-driven Cloudflare Worker. PostgreSQL remains required; choosing Cloudflare does not replace it with D1.
+Cloudflare is the intended hosted platform (user clarification, October 6, 2026); the five KeyLend Workers and their native Git build triggers exist. Initial hosting uses default `workers.dev` URLs without a custom domain. The existing account subdomain is `kualia.workers.dev`. Neon is selected for PostgreSQL only and the existing project is linked; Hyperdrive `keylend-db` is provisioned with caching disabled and a separate runtime login. Document storage remains planned for R2. GitHub Actions owns hosted Drizzle migrations, separately from local initialization. This document’s Node/Fastify/pg-boss topology is the local foundation. The hosted compatibility and infrastructure slice is tracked in [D02](tasks/D02-cloudflare-deployment.md), with the rationale in [decisions](06-decisions-and-sources.md#cloudflare-implementation-boundary-october-6-2026). Keep domain services and transactional intent separate from HTTP, queue, timer, and file-storage adapters. Do not assume a persistent Node queue polling loop runs unchanged inside a request-driven Cloudflare Worker. PostgreSQL remains required; choosing Cloudflare does not replace it with D1.
 
 ## Chosen starting architecture
 
@@ -19,7 +19,7 @@ Use a TypeScript modular backend with three React/Vite frontends, one Fastify HT
 | Workspace | pnpm workspaces + Turborepo | Shared packages and consistent development/build tasks. |
 | Frontends | React + Vite + React Router | Independent mock bank, borrower, and staff applications. |
 | Server state/forms | TanStack Query; React Hook Form with shared validation | Caching, invalidation, autosave, and consistent form errors. |
-| UI | shadcn/ui + Tailwind CSS | CLI-generated components themed by the Keycade design system ([D06](tasks/D06-design-system-redesign.md)). |
+| UI | shadcn/ui + Tailwind CSS | CLI-generated components themed by the KeyLend design system ([D06](tasks/D06-design-system-redesign.md)). |
 | HTTP API | Node.js + Fastify | Explicit routes, runtime validation, authorization, and OpenAPI contract. |
 | Contracts | Zod request/response schemas with a supported Fastify integration | Shared browser-safe types; verify package compatibility during T01/T04. |
 | Database | PostgreSQL + Drizzle ORM/Kit | Relational records, transactions, versioned migrations, local Studio. |
@@ -107,7 +107,7 @@ Postgres and Mailpit run through Podman. On macOS the initialize script verifies
 
 ## Storage and schema ownership
 
-Drizzle owns Keycade application tables and committed SQL migrations. pg-boss owns its internal schema according to its documented lifecycle; do not generate conflicting Drizzle migrations for it. Test both bootstrapping together against the selected Postgres version.
+Drizzle owns KeyLend application tables and committed SQL migrations. pg-boss owns its internal schema according to its documented lifecycle; do not generate conflicting Drizzle migrations for it. Test both bootstrapping together against the selected Postgres version.
 
 Use UUID identifiers, UTC timestamps, foreign keys and uniqueness constraints. Monetary values use Postgres `numeric(20,2)` and decimal-string DTOs in the USD prototype; never round-trip through JavaScript floating point. Store binary uploads outside the repo's public folders and outside Postgres, with opaque storage keys and metadata in the database.
 
@@ -123,4 +123,4 @@ The three frontend Workers serve static assets and proxy `/api/*` through the `A
 
 API and jobs open request/event-scoped PostgreSQL pools (maximum one client) through `HYPERDRIVE`, then close them. Cloudflare manages database pooling. Readiness checks migration timestamps and real required columns without applying SQL changes. GitHub alone checks full migration hashes and applies committed SQL.
 
-The hosted jobs Worker consumes operation IDs from `keycade-jobs`. A minute Cron recovers expired leases and dispatches pending outbox rows. Queue delivery may duplicate; operation IDs, claim tokens, transaction locks, stale-input checks and effect deduplication fence effects. Future pending application writes remain transactional. The jobs Worker has no public URL; the API reaches its internal readiness endpoint by service binding. Local jobs retain the pg-boss poller and heartbeat.
+The hosted jobs Worker consumes operation IDs from `keylend-jobs`. A minute Cron recovers expired leases and dispatches pending outbox rows. Queue delivery may duplicate; operation IDs, claim tokens, transaction locks, stale-input checks and effect deduplication fence effects. Future pending application writes remain transactional. The jobs Worker has no public URL; the API reaches its internal readiness endpoint by service binding. Local jobs retain the pg-boss poller and heartbeat.

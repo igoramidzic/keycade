@@ -54,7 +54,7 @@ T01–T22 and D01–D04 are implemented and verified in the linked task records.
 | User requirement | Planned coverage | Key proof |
 | --- | --- | --- |
 | Entire app, including production, is a demo with local-equivalent access/email | T06, T18, D03, T22 | D03 replaces AUTH_DELIVERY_UNAVAILABLE with an encrypted, recipient-scoped simulated inbox. Deployed demo/email access, consumed links, setup resume, adviser invitation and both signers' confirmations passed without external email. T22 recorded explicitly simulated funding without moving money. Reminder timing/suppression is covered with injected clocks and the same delivery adapter. |
-| Brand-new Keycade project; plan first | Root README, AGENTS.md, this plan | Planning baseline preserved; first local milestone subsequently authorized. |
+| Brand-new KeyLend project; plan first | Root README, AGENTS.md, this plan | Planning baseline preserved; first local milestone subsequently authorized. |
 | Cloudflare deployment on default URLs | D02, D03, T13 | All five native builds at d7a6597 succeeded; the last schema migration at 5a3c1a5 passed. Hosted readiness, private R2 bytes, signatures, enrichment and recorded funding pass. Both HTTP adapters retain their PostgreSQL-backed transport coverage. |
 | Fast hosted loads/saves without excessive repeated session, task, document and readiness calls | D04 | Live serial and concurrent timings reproduce the bottleneck. Single session-bound resource requests retain backend authorization; idle refresh slows to 30 seconds and active work retains fast polling. Local regressions and 22 deployed serial/concurrent reads pass. Recorded task reads are 867–896 ms on the pinned seven-task fixture; the earlier fixture had eight tasks, so the record does not claim controlled causal attribution. Concurrent review still measured 2.38 seconds. |
 | Fast lender application lists, quiet refresh and no login flash on reload | D04 October 9 follow-up | Live 17-row queue took 7.0–8.3 seconds. Controlled rollback replay reduced 350 SQL statements to 8 with identical saved progress. Batched bank-scoped progress reads, quiet deduplicated exact-session checks and account polling and neutral pending-session UI pass 27 affected PostgreSQL and 14 desktop/mobile cases; 429 unit tests, all types, lint and builds pass. Verified locally; hosted publication/remeasurement pending. |
@@ -68,7 +68,7 @@ T01–T22 and D01–D04 are implemented and verified in the linked task records.
 | Drizzle ORM and Studio | T03 | Migrations from empty DB and locally usable Studio. |
 | Turborepo and pnpm | T01–T02 | Workspace commands and dependency/task graph. |
 | Biome formatting/linting | T01, every task | Shared Biome checks across workspace code. |
-| shadcn via npx; Tailwind; Keycade design system (user request, October 8, 2026) | T01, UI tasks, D06 | CLI-generated shared components themed by shared tokens and composed primitives across the bank site, borrower portal and bank console; D06 records the redesign and its validation, including KeyBank-inspired red branding and primary buttons with blue routine status/selection and charcoal/white surfaces through shared light/dark tokens. |
+| shadcn via npx; Tailwind; KeyLend design system (user request, October 8, 2026) | T01, UI tasks, D06 | CLI-generated shared components themed by shared tokens and composed primitives across the bank site, borrower portal and bank console; D06 records the redesign and its validation, including KeyBank-inspired red branding and primary buttons with blue routine status/selection and charcoal/white surfaces through shared light/dark tokens. |
 | Podman DB, simple initialization/env setup | T02–T03 | Initialize twice without loss; env creation and DB access. |
 | pnpm dev starts projects and checks DB | T02, T05, T22 | Bad credentials prevent launch; all processes start with healthy DB. |
 | Mock existing bank site with apply button | T08, D02 | T08 browser tests verify bank apply/resume links, public context, and separate borrower origin. D02's October 7 hosted intake recovery adds explicit synthetic bank/product configuration; live borrower catalog returns 200 and unknown-bank catalog remains 404. |
@@ -110,3 +110,12 @@ October 7 final implementation checkpoint: `d7a6597` has lint, workspace types, 
 | Select existing hosted lender accounts; no manual staff signup | [D07](tasks/D07-account-picker-and-product-copy.md), T06 identity service and both HTTP transports |
 | No email-link switch or example email on either sign-in screen; no obsolete hosted warning | D07 shared IdentityPortal; borrower start/resume and existing-link confirmation retained |
 | Neutral product wording across bank website, lender console, borrower dashboard and wizard | D07; supersedes earlier product-screen simulation-label acceptance criteria, without enabling real providers |
+
+## Keybank-only product identity
+
+| Requirement | Owning task | Evidence |
+| --- | --- | --- |
+| KeyLend application/package names and Keybank-only branding | D08 | All workspace builds/types, unit and browser checks |
+| Keybank-only normal seeding and public entry, preserving access boundaries | D08, T03, T06, T08 | PostgreSQL seed/transport checks and desktop/mobile account-selection cases |
+| Non-destructive bank rename and historical evidence compatibility | D08 | Migration 0025, prior-schema/repeat tests and old PDF/provider support |
+| Renamed Cloudflare Workers with matching origins and build commands | D08, D02 | Live names/config read-back; source publication and hosted migration pending |

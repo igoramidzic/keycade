@@ -1,5 +1,5 @@
 {
-  "extends": "@keycade/config/tsconfig.json",
+  "extends": "@keylend/config/tsconfig.json",
   "include": ["src", "worker.ts", "worker-configuration.d.ts"],
   "compilerOptions": {
     "types": ["node", "@cloudflare/workers-types"],

@@ -1,5 +1,5 @@
 {
-  "extends": "@keycade/config/tsconfig.json",
+  "extends": "@keylend/config/tsconfig.json",
   "compilerOptions": { "outDir": "dist", "rootDir": "src" },
   "include": ["src/**/*.ts"]
 }

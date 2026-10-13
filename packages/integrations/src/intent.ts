@@ -5,7 +5,7 @@ import {
   type DatabaseTransaction,
   integrationRuns,
   outboxEvents,
-} from "@keycade/db";
+} from "@keylend/db";
 import { and, eq } from "drizzle-orm";
 import { type Clock, type DemoScenario, scenarioSchema, systemClock } from "./provider.js";
 

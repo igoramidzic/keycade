@@ -42,7 +42,7 @@ export const enrichmentScenarioSchema = z.enum([
   "missing_input",
 ]);
 export const enrichmentResultSchema = z.strictObject({
-  provider: z.literal("keycade-enrichment-v1"),
+  provider: z.enum(["keylend-enrichment-v1", "keycade-enrichment-v1"]),
   simulated: z.literal(true),
   kind: enrichmentKindSchema,
   operationId: z.string().uuid(),

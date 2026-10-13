@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { readEnvironment } from "@keycade/config/server";
-import type { ClosingView, DocumentsView } from "@keycade/contracts";
-import { syntheticDocumentPdf } from "@keycade/integrations/document-fixtures";
+import { readEnvironment } from "@keylend/config/server";
+import type { ClosingView, DocumentsView } from "@keylend/contracts";
+import { syntheticDocumentPdf } from "@keylend/integrations/document-fixtures";
 import { type BrowserContext, expect as baseExpect, type Page, test } from "@playwright/test";
 import { prepareReview, workflowApi } from "./closing-helpers";
 import { confirmHostedInboxMessage, paceHostedRequests } from "./hosted-helpers";
@@ -14,9 +14,9 @@ import {
 } from "./identity-helpers";
 
 const env = readEnvironment();
-const borrower = env.KEYCADE_E2E_BORROWER_ORIGIN ?? `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
-const staff = env.KEYCADE_E2E_STAFF_ORIGIN ?? `http://127.0.0.1:${env.BANK_CONSOLE_PORT ?? 3002}`;
-const hosted = env.KEYCADE_E2E_HOSTED === "true";
+const borrower = env.KEYLEND_E2E_BORROWER_ORIGIN ?? `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
+const staff = env.KEYLEND_E2E_STAFF_ORIGIN ?? `http://127.0.0.1:${env.BANK_CONSOLE_PORT ?? 3002}`;
+const hosted = env.KEYLEND_E2E_HOSTED === "true";
 test.use({ trace: "off", screenshot: "off", video: "off", actionTimeout: 25000 });
 test.setTimeout(hosted ? 900000 : 420000);
 const expect = baseExpect.configure({ timeout: hosted ? 30000 : 15000 });
@@ -67,13 +67,13 @@ test("approved terms progress through two signatures and explicit funding into o
     ? `hosted-closing-${randomUUID()}@example.test`
     : "borrower@example.test";
   if (hosted) {
-    await page.goto(`${borrower}/?bank=bank-a`);
+    await page.goto(`${borrower}/?bank=keybank`);
     await expect(page.getByLabel("Email address", { exact: true })).toBeVisible();
     await requestAccessEmail(page, primaryEmail);
     await fillSignInEmail(page, primaryEmail);
     await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await page.getByRole("link", { name: "Inbox", exact: true }).click();
-    await confirmHostedInboxMessage(page, "Your Keycade sign-in link");
+    await confirmHostedInboxMessage(page, "Your KeyLend sign-in link");
     await expect(
       page.getByRole("heading", { name: "Your applications", exact: true }),
     ).toBeVisible();
@@ -92,7 +92,7 @@ test("approved terms progress through two signatures and explicit funding into o
     if (hosted)
       console.log("Hosted closing: synthetic application is ready for explicit staff approval.");
     const base = `/applications/${app.id}`;
-    const url = (origin: string, section: string) => `${origin}${base}/${section}?bank=bank-a`;
+    const url = (origin: string, section: string) => `${origin}${base}/${section}?bank=keybank`;
     await officer.goto(url(staff, "review"));
     await officer.getByRole("button", { name: "Approve application", exact: true }).click();
     await officer.getByLabel("Approved amount (USD)", { exact: true }).fill("19000.25");
@@ -242,7 +242,7 @@ test("approved terms progress through two signatures and explicit funding into o
 
     if (hosted) await page.goto(url(borrower, "closing"));
     else {
-      await page.goto(`${borrower}${base}?bank=bank-a`);
+      await page.goto(`${borrower}${base}?bank=keybank`);
       await page.getByRole("link", { name: "View closing requirements", exact: true }).click();
       await expect(page).toHaveURL(url(borrower, "closing"));
     }
@@ -317,7 +317,7 @@ test("approved terms progress through two signatures and explicit funding into o
     );
     if (hosted) await page.goto(url(borrower, "closing"));
     else {
-      await page.goto(`${borrower}${base}?bank=bank-a`);
+      await page.goto(`${borrower}${base}?bank=keybank`);
       await page.getByRole("link", { name: "View funded account", exact: true }).click();
       await expect(page).toHaveURL(url(borrower, "closing"));
     }
@@ -340,7 +340,7 @@ test("approved terms progress through two signatures and explicit funding into o
       fullPage: true,
     });
     await officer.goto(`${staff}/api/ready`);
-    await page.goto(`${borrower}/?bank=bank-a`);
+    await page.goto(`${borrower}/?bank=keybank`);
     const business = page.getByRole("region", {
       name: `Funded accounts for ${app.businessName}`,
       exact: true,
@@ -350,14 +350,14 @@ test("approved terms progress through two signatures and explicit funding into o
     await expect(page).toHaveURL(url(borrower, "closing"));
     await expect(account).toContainText(reference);
     await page.goto(`${borrower}/api/ready`);
-    await officer.goto(`${staff}/?bank=bank-a`);
+    await officer.goto(`${staff}/?bank=keybank`);
     await expect(
       officer
         .getByRole("region", { name: `Funded accounts for ${app.businessName}`, exact: true })
         .getByRole("article"),
     ).toHaveCount(1);
     await officer.goto(`${staff}/api/ready`);
-    await signer.goto(`${borrower}/?bank=bank-a`);
+    await signer.goto(`${borrower}/?bank=keybank`);
     await expect(
       signer.getByText("No funded accounts are available for your account yet.", { exact: true }),
     ).toBeVisible();

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { CheckResult } from "@keycade/contracts";
+import type { CheckResult } from "@keylend/contracts";
 import {
   applicationChecks,
   applicationParticipants,
@@ -14,9 +14,9 @@ import {
   documentVersions,
   sensitiveIdentifierVersions,
   users,
-} from "@keycade/db";
-import { seedIds as ids, seedDatabase } from "@keycade/db/seed";
-import { createTestDatabase } from "@keycade/db/testing";
+} from "@keylend/db";
+import { seedIds as ids, seedDatabase } from "@keylend/db/seed";
+import { createTestDatabase } from "@keylend/db/testing";
 import {
   type Actor,
   createChecksService,
@@ -24,7 +24,7 @@ import {
   createIdentifierCipher,
   createReadinessService,
   createTasksService,
-} from "@keycade/domain";
+} from "@keylend/domain";
 import { and, eq } from "drizzle-orm";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -44,7 +44,7 @@ const enrich = () => createEnrichmentService(database.db, { cipher, clock: clock
 const readiness = () => createReadinessService(database.db, { clock: clock.now });
 beforeAll(async () => {
   database = await createTestDatabase();
-  await seedDatabase(database.connectionString);
+  await seedDatabase(database.connectionString, { isolationFixtures: true });
 }, 30000);
 afterAll(async () => database?.cleanup());
 async function app(ownerCount = 0) {
@@ -152,7 +152,7 @@ function result(
   outcome: CheckResult["outcome"] = "clear",
 ): CheckResult {
   return {
-    provider: "keycade-checks-v1",
+    provider: "keylend-checks-v1",
     simulated: true,
     kind: request.kind,
     operationId: request.operationId,

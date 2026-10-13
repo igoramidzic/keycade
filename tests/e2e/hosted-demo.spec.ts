@@ -1,16 +1,16 @@
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { readEnvironment } from "@keycade/config/server";
-import { syntheticDocumentPdf } from "@keycade/integrations/document-fixtures";
+import { readEnvironment } from "@keylend/config/server";
+import { syntheticDocumentPdf } from "@keylend/integrations/document-fixtures";
 import { expect, type Page, test } from "@playwright/test";
 import { paceHostedRequests } from "./hosted-helpers";
 import { fillSignInEmail, requestAccessEmail } from "./identity-helpers";
 import { completeAddressAndSkipOptional } from "./setup-helpers";
 
 const env = readEnvironment();
-const borrower = env.KEYCADE_E2E_BORROWER_ORIGIN ?? "";
-const staff = env.KEYCADE_E2E_STAFF_ORIGIN ?? "";
-test.skip(env.KEYCADE_E2E_HOSTED !== "true", "Explicit hosted acceptance is required.");
+const borrower = env.KEYLEND_E2E_BORROWER_ORIGIN ?? "";
+const staff = env.KEYLEND_E2E_STAFF_ORIGIN ?? "";
+test.skip(env.KEYLEND_E2E_HOSTED !== "true", "Explicit hosted acceptance is required.");
 test.use({ trace: "off", screenshot: "off", video: "off", actionTimeout: 25_000 });
 test.setTimeout(600_000);
 
@@ -44,10 +44,10 @@ async function api<T>(
   );
 }
 async function requestLink(page: Page, email: string, start = false) {
-  await page.goto(`${borrower}${start ? "/apply" : "/"}?bank=bank-a`);
+  await page.goto(`${borrower}${start ? "/apply" : "/"}?bank=keybank`);
   await expect(page.getByLabel("Email address", { exact: true })).toBeVisible();
   await requestAccessEmail(page, email, start);
-  await page.goto(`${borrower}/?bank=bank-a`);
+  await page.goto(`${borrower}/?bank=keybank`);
   await fillSignInEmail(page, email);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.getByRole("link", { name: "Inbox", exact: true }).click();
@@ -76,7 +76,7 @@ async function confirmInboxMessage(page: Page, subject: string) {
   await page.getByRole("button", { name: "Confirm and sign in", exact: true }).click();
 }
 async function demoSignIn(page: Page, origin: string, email: string) {
-  await page.goto(`${origin}/?bank=bank-a`);
+  await page.goto(`${origin}/?bank=keybank`);
   await fillSignInEmail(page, email);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
@@ -112,7 +112,7 @@ test("hosted synthetic borrower resumes setup, invites a scoped collaborator, an
   if (!applicationId) throw new Error("Hosted synthetic application was not created.");
   testInfo.annotations.push({ type: "synthetic_application", description: applicationId });
   const section = (origin: string, name: string) =>
-    `${origin}/applications/${applicationId}/${name}?bank=bank-a`;
+    `${origin}/applications/${applicationId}/${name}?bank=keybank`;
   await page
     .getByLabel("Legal business name", { exact: true })
     .fill(`Synthetic Hosted Workshop ${nonce}`);
@@ -126,7 +126,7 @@ test("hosted synthetic borrower resumes setup, invites a scoped collaborator, an
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
   await expect(page.getByLabel("Email address", { exact: true })).toBeVisible();
   await requestLink(page, applicantEmail);
-  await confirmInboxMessage(page, "Your Keycade sign-in link");
+  await confirmInboxMessage(page, "Your KeyLend sign-in link");
   await page.getByRole("button", { name: "Continue setup", exact: true }).click();
   await expect(page.getByLabel("Requested amount", { exact: true })).toHaveValue(
     /32,?000(?:\.00)?/,
@@ -240,7 +240,7 @@ test("hosted synthetic borrower resumes setup, invites a scoped collaborator, an
     await officer.goto("about:blank");
 
     for (const signer of [page, adviser]) {
-      await signer.goto(`${borrower}/demo-inbox?bank=bank-a`);
+      await signer.goto(`${borrower}/demo-inbox?bank=keybank`);
       await confirmInboxMessage(signer, "Review your simulated signature request");
       const request = signer.getByRole("region", {
         name: `Signature request ${title}`,
@@ -260,8 +260,8 @@ test("hosted synthetic borrower resumes setup, invites a scoped collaborator, an
     const artifact = await download;
     const path = await artifact.path();
     if (!path) throw new Error("Hosted synthetic artifact download is missing.");
-    expect(await readFile(path, "utf8")).toContain("KEYCADE SIMULATED SIGNATURE ARTIFACT");
-    await officer.goto(`${staff}/?bank=bank-a`);
+    expect(await readFile(path, "utf8")).toContain("KEYLEND SIMULATED SIGNATURE ARTIFACT");
+    await officer.goto(`${staff}/?bank=keybank`);
     const completed = await api<{ tasks: { id: string; state: string; inputKind: string }[] }>(
       officer,
       applicationId,

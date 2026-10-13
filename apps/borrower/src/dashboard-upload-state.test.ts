@@ -1,4 +1,4 @@
-import type { DocumentsView, DocumentVersion } from "@keycade/contracts";
+import type { DocumentsView, DocumentVersion } from "@keylend/contracts";
 import { expect, test } from "vitest";
 import { generalUploadStatus, generalUploadVersions } from "./dashboard-upload-state";
 

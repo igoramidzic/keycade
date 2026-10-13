@@ -9,7 +9,7 @@ import { createLocalDocumentStorage } from "./document-storage-local.js";
 
 const directories: string[] = [];
 async function fixture() {
-  const directory = await mkdtemp(path.join(tmpdir(), "keycade-doc-test-"));
+  const directory = await mkdtemp(path.join(tmpdir(), "keylend-doc-test-"));
   directories.push(directory);
   return { directory, storage: createLocalDocumentStorage(directory) };
 }

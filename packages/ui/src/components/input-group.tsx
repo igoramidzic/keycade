@@ -1,6 +1,6 @@
-import { Button } from "@keycade/ui/components/button";
-import { Input } from "@keycade/ui/components/input";
-import { Textarea } from "@keycade/ui/components/textarea";
+import { Button } from "@keylend/ui/components/button";
+import { Input } from "@keylend/ui/components/input";
+import { Textarea } from "@keylend/ui/components/textarea";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "cn";
 import * as React from "react";

@@ -12,9 +12,9 @@
   "iconLibrary": "lucide",
   "aliases": {
     "components": "@/components",
-    "utils": "@keycade/ui/lib/utils",
+    "utils": "@keylend/ui/lib/utils",
     "hooks": "@/hooks",
     "lib": "@/lib",
-    "ui": "@keycade/ui/components"
+    "ui": "@keylend/ui/components"
   }
 }

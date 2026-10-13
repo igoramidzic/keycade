@@ -1,32 +1,32 @@
-import type { DemoImportContext } from "@keycade/contracts/demo-import";
-import { Alert, AlertDescription, AlertTitle } from "@keycade/ui/components/alert";
-import { Badge } from "@keycade/ui/components/badge";
-import { Button } from "@keycade/ui/components/button";
+import type { DemoImportContext } from "@keylend/contracts/demo-import";
+import { Alert, AlertDescription, AlertTitle } from "@keylend/ui/components/alert";
+import { Badge } from "@keylend/ui/components/badge";
+import { Button } from "@keylend/ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@keycade/ui/components/card";
+} from "@keylend/ui/components/card";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@keycade/ui/components/collapsible";
-import { useDemoKit } from "@keycade/ui/components/demo-kit";
+} from "@keylend/ui/components/collapsible";
+import { useDemoKit } from "@keylend/ui/components/demo-kit";
 import {
   categoryLabels,
   type DocumentCategory,
   DocumentInterpretation,
   type DocumentProcessingData,
-} from "@keycade/ui/components/document-interpretation";
-import { NativeSelect } from "@keycade/ui/components/native-select";
+} from "@keylend/ui/components/document-interpretation";
+import { NativeSelect } from "@keylend/ui/components/native-select";
 import {
   createDemoDocumentFile,
   demoDocumentMime,
   readDemoDocumentDrag,
-} from "@keycade/ui/lib/demo-document-transfer";
+} from "@keylend/ui/lib/demo-document-transfer";
 import {
   createDemoImportFile,
   type DemoImportPreview,
@@ -34,8 +34,8 @@ import {
   demoImportMime,
   readDemoImportDrag,
   sameDemoImportContext,
-} from "@keycade/ui/lib/demo-import-transfer";
-import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
+} from "@keylend/ui/lib/demo-import-transfer";
+import { workflowName, workflowText } from "@keylend/ui/lib/workflow-text";
 import { ChevronRight, FileUp } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 

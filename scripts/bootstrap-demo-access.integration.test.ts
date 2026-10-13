@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { createTestDatabase } from "@keycade/db/testing";
+import { createTestDatabase } from "@keylend/db/testing";
 import { afterEach, describe, expect, it } from "vitest";
 
 const intakeSql = await readFile(
@@ -44,7 +44,7 @@ describe("hosted synthetic staff bootstrap on PostgreSQL", () => {
     expect(before.rows).toHaveLength(1);
     expect(before.rows[0]).toMatchObject({ synthetic: true, role: "admin" });
     const officerId = before.rows[0].id;
-    const bank = await db.pool.query("SELECT id FROM banks WHERE slug = 'bank-a'");
+    const bank = await db.pool.query("SELECT id FROM banks WHERE slug = 'keybank'");
     const applicationId = randomUUID();
     await db.pool.query(
       "UPDATE users SET display_name = 'Synthetic preserved name' WHERE id = $1",
@@ -111,10 +111,10 @@ describe("hosted synthetic staff bootstrap on PostgreSQL", () => {
 
   it("refuses non-synthetic bank or membership fixtures without modifying them", async () => {
     const db = await fixture();
-    await db.pool.query("UPDATE banks SET synthetic = false WHERE slug = 'bank-a'");
-    await expect(bootstrap()).rejects.toThrow("Synthetic bank-a is required");
+    await db.pool.query("UPDATE banks SET synthetic = false WHERE slug = 'keybank'");
+    await expect(bootstrap()).rejects.toThrow("Synthetic keybank is required");
     expect((await db.pool.query("SELECT * FROM users")).rows).toEqual([]);
-    await db.pool.query("UPDATE banks SET synthetic = true WHERE slug = 'bank-a'");
+    await db.pool.query("UPDATE banks SET synthetic = true WHERE slug = 'keybank'");
     await bootstrap();
     await db.pool.query("UPDATE bank_memberships SET synthetic = false");
     const before = await db.pool.query("SELECT * FROM bank_memberships");

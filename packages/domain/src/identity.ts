@@ -15,7 +15,7 @@ import {
   notifications,
   sessions,
   users,
-} from "@keycade/db";
+} from "@keylend/db";
 import { and, eq, gt, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { claimApplicationInTransaction } from "./application-claims.js";
 import { DomainError, deny } from "./errors.js";
@@ -61,7 +61,7 @@ export function hashIdentityCredential(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 function csrfForSession(token: string) {
-  return hashIdentityCredential(`keycade-csrf:${token}`);
+  return hashIdentityCredential(`keylend-csrf:${token}`);
 }
 function credential() {
   return Buffer.from(randomBytes(32)).toString("hex");
@@ -165,7 +165,7 @@ export function createIdentityService(
       );
       if (!allowed) return accepted;
       const [bank] = await tx.select().from(banks).where(eq(banks.slug, input.bankSlug));
-      if (!bank) return accepted;
+      if (!bank || bank.slug !== "keybank") return accepted;
       const [contact] = await tx
         .insert(applicantContacts)
         .values({
@@ -326,7 +326,7 @@ export function createIdentityService(
         claimToken,
         to: contact.email,
         confirmUrl: `${delivery.origin}/auth/confirm#token=${token}`,
-        messageId: `<keycade-access-${id}@keycade.local>`,
+        messageId: `<keylend-access-${id}@keylend.local>`,
         attempt: delivery.attempts + 1,
         notification: {
           kind: notification.kind,
@@ -732,7 +732,7 @@ export function createIdentityService(
         .from(banks)
         .where(and(eq(banks.slug, input.bankSlug), eq(banks.synthetic, true)))
         .for("share");
-      if (!bank) return deny();
+      if (!bank || bank.slug !== "keybank") return deny();
       await tx
         .insert(users)
         .values({
@@ -818,6 +818,7 @@ export function createIdentityService(
   }
   // Public picker for explicitly enabled synthetic access only. Never enumerate real identities.
   async function listDemoStaffAccounts(bankSlug: string) {
+    if (bankSlug !== "keybank") return { accounts: [] };
     const accounts = await db
       .select({ email: users.email, role: bankMemberships.role })
       .from(bankMemberships)

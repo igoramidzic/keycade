@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { readEnvironment } from "@keycade/config/server";
-import type { ApplicationSetup, ReviewView, TasksView, TaskView } from "@keycade/contracts";
+import { readEnvironment } from "@keylend/config/server";
+import type { ApplicationSetup, ReviewView, TasksView, TaskView } from "@keylend/contracts";
 import { expect as baseExpect, type Page, test } from "@playwright/test";
 import { setupFixtureSteps } from "../setup-fixture";
 import { fillSignInEmail } from "./identity-helpers";
@@ -13,7 +13,7 @@ const expect = baseExpect.configure({ timeout: 15000 });
 test.use({ trace: "off", screenshot: "off", video: "off", actionTimeout: 15000 });
 test.setTimeout(150000);
 const url = (origin: string, id: string, section = "review") =>
-  `${origin}/applications/${id}/${section}?bank=bank-a`;
+  `${origin}/applications/${id}/${section}?bank=keybank`;
 function paceRequests() {
   let nextRequest = 0;
   return async (page: Page) => {
@@ -182,7 +182,7 @@ test("submission, returned information, immutable resubmission, and explicit app
     await signIn(officer, staff);
     await officer.goto(`${staff}/api/ready`);
     const app = await createApplication(page);
-    await page.goto(`${borrower}/applications/${app.id}?bank=bank-a`);
+    await page.goto(`${borrower}/applications/${app.id}?bank=keybank`);
     await page.getByRole("link", { name: "Review and submit application", exact: true }).click();
     await expect(page).toHaveURL(url(borrower, app.id));
     await expect(

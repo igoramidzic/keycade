@@ -1,4 +1,4 @@
-import { readEnvironment } from "@keycade/config/server";
+import { readEnvironment } from "@keylend/config/server";
 import { expect, test } from "@playwright/test";
 import { fillSignInEmail } from "./identity-helpers";
 
@@ -37,7 +37,7 @@ test("idle borrower overview avoids session fan-out and three-second background 
       ),
     ),
   );
-  await page.goto(`${borrower}/applications/${applicationId}?bank=bank-a`);
+  await page.goto(`${borrower}/applications/${applicationId}?bank=keybank`);
   await loaded;
   await expect(
     page.getByRole("button", { name: "Describe your business", exact: true }),

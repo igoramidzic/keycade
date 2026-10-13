@@ -9,7 +9,7 @@ import { seedIds as ids, seedDatabase } from "./seed.js";
 import { createTestDatabase } from "./testing.js";
 
 it("adds nullable demo recipe manifests without altering existing evidence, applications or grants and repeats safely", async () => {
-  const folder = await mkdtemp(join(tmpdir(), "keycade-before-demo-import-"));
+  const folder = await mkdtemp(join(tmpdir(), "keylend-before-demo-import-"));
   const database = await createTestDatabase(undefined, { migrate: false });
   try {
     const journal = JSON.parse(
@@ -24,7 +24,7 @@ it("adds nullable demo recipe manifests without altering existing evidence, appl
       ),
     );
     await migrate(database.db, { migrationsFolder: folder });
-    await seedDatabase(database.connectionString);
+    await seedDatabase(database.connectionString, { isolationFixtures: true });
     const documentId = randomUUID();
     const versionId = randomUUID();
     await database.pool.query(
@@ -69,7 +69,7 @@ it("adds nullable demo recipe manifests without altering existing evidence, appl
       (await database.pool.query("SELECT * FROM application_participants ORDER BY id")).rows,
     ).toEqual(beforeParticipants);
     await migrateDatabase(database.connectionString);
-    await seedDatabase(database.connectionString);
+    await seedDatabase(database.connectionString, { isolationFixtures: true });
     expect((await database.pool.query("SELECT * FROM document_versions ORDER BY id")).rows).toEqual(
       beforeVersions.map((row) => ({ ...row, demo_import_fixture: null })),
     );

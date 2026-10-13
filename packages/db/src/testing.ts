@@ -15,15 +15,15 @@ export async function createTestDatabase(
   if (
     !["postgres:", "postgresql:"].includes(adminUrl.protocol) ||
     !["127.0.0.1", "localhost", "[::1]"].includes(adminUrl.hostname) ||
-    adminUrl.username !== "keycade" ||
-    !/^\/keycade(?:_[a-z0-9_]+)?$/.test(adminUrl.pathname) ||
+    !["keylend", "keycade"].includes(adminUrl.username) ||
+    !/^\/(?:keylend|keycade)(?:_[a-z0-9_]+)?$/.test(adminUrl.pathname) ||
     adminUrl.search !== ""
   ) {
     throw new Error(
-      "Integration tests require the recognized loopback keycade database/user with no URL overrides.",
+      "Integration tests require the recognized loopback keylend database/user with no URL overrides.",
     );
   }
-  const databaseName = `keycade_test_${randomUUID().replaceAll("-", "")}`;
+  const databaseName = `keylend_test_${randomUUID().replaceAll("-", "")}`;
   const { pool: adminPool } = createDatabase(adminConnectionString);
   let created = false;
   try {

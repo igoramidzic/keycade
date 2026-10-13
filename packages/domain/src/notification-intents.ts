@@ -6,7 +6,7 @@ import {
   type DatabaseTransaction,
   type NotificationKind,
   notifications,
-} from "@keycade/db";
+} from "@keylend/db";
 import { and, eq, isNull } from "drizzle-orm";
 
 type Tx = DatabaseTransaction;

@@ -1,5 +1,5 @@
-import { tasksViewSchema, taskViewSchema } from "@keycade/contracts";
-import { TasksManager } from "@keycade/ui/components/tasks-manager";
+import { tasksViewSchema, taskViewSchema } from "@keylend/contracts";
+import { TasksManager } from "@keylend/ui/components/tasks-manager";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { ApiError, useStaffApi } from "./api";

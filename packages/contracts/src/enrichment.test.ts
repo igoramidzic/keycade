@@ -43,7 +43,7 @@ describe("private enrichment wire contracts", () => {
   });
   it("rejects provider result extensions containing identifiers or unsupported facts", () => {
     const result = {
-      provider: "keycade-enrichment-v1",
+      provider: "keylend-enrichment-v1",
       simulated: true,
       kind: "business",
       operationId: "10000000-0000-4000-8000-000000000001",

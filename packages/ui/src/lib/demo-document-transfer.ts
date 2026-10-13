@@ -2,9 +2,9 @@ import {
   createDemoDocumentPdf,
   type DemoDocument,
   demoDocuments,
-} from "@keycade/contracts/demo-scenarios";
+} from "@keylend/contracts/demo-scenarios";
 
-export const demoDocumentMime = "application/x-keycade-demo-document";
+export const demoDocumentMime = "application/x-keylend-demo-document";
 
 export function createDemoDocumentFile(document: DemoDocument, businessName: string): File {
   const bytes = createDemoDocumentPdf(document, businessName);

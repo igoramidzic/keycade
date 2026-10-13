@@ -76,7 +76,7 @@ Do not add snapshot tests of generated shadcn markup or tests that merely restat
 
 ## Required synthetic scenarios
 
-- Bank A and isolated Bank B; officers in each; no cross-bank access.
+- Keybank and isolated Isolation fixture; officers in each; no cross-bank access.
 - One borrower with two businesses, two active applications for one business, and a funded account.
 - Unfinished setup at different saved questions, explicit optional skips, completed setup with remaining tasks, and a staff-prefilled draft still awaiting applicant confirmation. Include unfinished and completed setups for the same borrower.
 - Requested amounts of $10,000, $5,000,000, and $7,500,000, plus an invalid/over-product-limit value.

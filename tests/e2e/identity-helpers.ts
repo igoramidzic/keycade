@@ -1,4 +1,4 @@
-import { readEnvironment } from "@keycade/config/server";
+import { readEnvironment } from "@keylend/config/server";
 import { expect, type Page } from "@playwright/test";
 
 const env = readEnvironment();
@@ -23,7 +23,7 @@ export async function requestAccessEmail(page: Page, email: string, start = fals
   const status = await page.evaluate(
     async ({ email, start, staff }) => {
       const session = await (await fetch("/api/v1/auth/session")).json();
-      const bankSlug = new URLSearchParams(location.search).get("bank") ?? "bank-a";
+      const bankSlug = new URLSearchParams(location.search).get("bank") ?? "keybank";
       const returnPath =
         /^\/(?:invitations|signatures|applications)\/[0-9a-f-]{36}(?:\/setup)?$/.test(
           location.pathname,

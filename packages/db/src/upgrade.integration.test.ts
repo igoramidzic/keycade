@@ -9,7 +9,7 @@ import { seedIds } from "./seed.js";
 import { createTestDatabase } from "./testing.js";
 
 it("adds invitation assignment intent without changing existing grants or assigning legacy invitations", async () => {
-  const folder = await mkdtemp(join(tmpdir(), "keycade-before-invite-assignments-"));
+  const folder = await mkdtemp(join(tmpdir(), "keylend-before-invite-assignments-"));
   const database = await createTestDatabase(undefined, { migrate: false });
   try {
     const journal = JSON.parse(
@@ -53,7 +53,7 @@ it("adds invitation assignment intent without changing existing grants or assign
 });
 
 it("adds closing policies to every existing synthetic business-credit version without changing applications", async () => {
-  const folder = await mkdtemp(join(tmpdir(), "keycade-before-closing-"));
+  const folder = await mkdtemp(join(tmpdir(), "keylend-before-closing-"));
   const database = await createTestDatabase(undefined, { migrate: false });
   try {
     const journal = JSON.parse(
@@ -177,7 +177,7 @@ it("adds closing policies to every existing synthetic business-credit version wi
 // ORM/seed would silently couple historical fixtures to later schema additions.
 async function seedHistoricalDatabase(database: Awaited<ReturnType<typeof createTestDatabase>>) {
   await database.pool.query(
-    "INSERT INTO banks (id, slug, name, synthetic) VALUES ($1,'bank-a','Synthetic Historical A',true), ($2,'bank-b','Synthetic Historical B',true)",
+    "INSERT INTO banks (id, slug, name, synthetic) VALUES ($1,'keybank','Synthetic Historical A',true), ($2,'isolation-fixture','Synthetic Historical B',true)",
     [seedIds.bankA, seedIds.bankB],
   );
   await database.pool.query(
@@ -206,7 +206,7 @@ async function seedHistoricalDatabase(database: Awaited<ReturnType<typeof create
     `INSERT INTO applications (id,bank_id,product_id,source,status,business_name,synthetic) VALUES
     ($1,$2,$3,'seed','collecting_information','Synthetic Historical Business',true),
     ($4,$2,$3,'seed','draft',NULL,true),
-    ($5,$6,$7,'seed','draft','Synthetic Other Bank Business',true)`,
+    ($5,$6,$7,'seed','draft','Synthetic Other Isolation fixtureusiness',true)`,
     [
       seedIds.applicationSmall,
       seedIds.bankA,
@@ -247,7 +247,7 @@ async function seedHistoricalDatabase(database: Awaited<ReturnType<typeof create
 }
 
 it("upgrades historical drafts and later lifecycle applications without inventing confirmation", async () => {
-  const earlierMigrations = await mkdtemp(join(tmpdir(), "keycade-prior-migrations-"));
+  const earlierMigrations = await mkdtemp(join(tmpdir(), "keylend-prior-migrations-"));
   const database = await createTestDatabase(undefined, { migrate: false });
   try {
     const journal = JSON.parse(
@@ -327,7 +327,7 @@ it("upgrades historical drafts and later lifecycle applications without inventin
 });
 
 it("assigns the fixed bank product to legacy drafts and resumes past product selection without altering completed applications", async () => {
-  const folder = await mkdtemp(join(tmpdir(), "keycade-before-fixed-product-"));
+  const folder = await mkdtemp(join(tmpdir(), "keylend-before-fixed-product-"));
   const database = await createTestDatabase(undefined, { migrate: false });
   try {
     const journal = JSON.parse(
@@ -388,7 +388,7 @@ it("assigns the fixed bank product to legacy drafts and resumes past product sel
 });
 
 it("adds internal staff notes without altering pre-T10 applications and enforces tenant references", async () => {
-  const folder = await mkdtemp(join(tmpdir(), "keycade-before-staff-workspace-"));
+  const folder = await mkdtemp(join(tmpdir(), "keylend-before-staff-workspace-"));
   const database = await createTestDatabase(undefined, { migrate: false });
   try {
     const journal = JSON.parse(
@@ -436,7 +436,7 @@ it("adds internal staff notes without altering pre-T10 applications and enforces
 });
 
 it("upgrades pre-T11 grants and auth deliveries without granting additional access", async () => {
-  const folder = await mkdtemp(join(tmpdir(), "keycade-before-participants-"));
+  const folder = await mkdtemp(join(tmpdir(), "keylend-before-participants-"));
   const database = await createTestDatabase(undefined, { migrate: false });
   try {
     const journal = JSON.parse(
@@ -520,7 +520,7 @@ it("upgrades pre-T11 grants and auth deliveries without granting additional acce
 });
 
 it("upgrades every unfinished v1 step while preserving answers, optional skips, staff prefills and completed legacy setups", async () => {
-  const folder = await mkdtemp(join(tmpdir(), "keycade-before-v2-setup-"));
+  const folder = await mkdtemp(join(tmpdir(), "keylend-before-v2-setup-"));
   const database = await createTestDatabase(undefined, { migrate: false });
   try {
     const journal = JSON.parse(
@@ -643,7 +643,7 @@ it("upgrades every unfinished v1 step while preserving answers, optional skips, 
 });
 
 it("adds queued or waiting informational footprint snapshots for frozen and legacy apps without changing retained facts", async () => {
-  const folder = await mkdtemp(join(tmpdir(), "keycade-before-footprint-"));
+  const folder = await mkdtemp(join(tmpdir(), "keylend-before-footprint-"));
   const database = await createTestDatabase(undefined, { migrate: false });
   try {
     const journal = JSON.parse(
@@ -737,6 +737,55 @@ it("adds queued or waiting informational footprint snapshots for frozen and lega
         )
       ).rows[0].count,
     ).toBe(rows.length);
+  } finally {
+    await database.cleanup();
+    await rm(folder, { recursive: true, force: true });
+  }
+});
+
+it("renames the existing synthetic bank without replacing application or evidence records", async () => {
+  const folder = await mkdtemp(join(tmpdir(), "keylend-before-branding-"));
+  const database = await createTestDatabase(undefined, { migrate: false });
+  try {
+    const journal = JSON.parse(
+      await readFile(join(migrationsFolder, "meta/_journal.json"), "utf8"),
+    ) as { entries: { idx: number; tag: string }[] };
+    journal.entries = journal.entries.filter((entry) => entry.idx < 25);
+    await mkdir(join(folder, "meta"));
+    await writeFile(join(folder, "meta/_journal.json"), JSON.stringify(journal));
+    await Promise.all(
+      journal.entries.map((entry) =>
+        copyFile(join(migrationsFolder, `${entry.tag}.sql`), join(folder, `${entry.tag}.sql`)),
+      ),
+    );
+    await migrate(database.db, { migrationsFolder: folder });
+    await seedHistoricalDatabase(database);
+    await database.pool.query(
+      "UPDATE banks SET slug = 'bank-a', name = 'Synthetic Bank A' WHERE id = $1",
+      [seedIds.bankA],
+    );
+    const applicationsBefore = (await database.pool.query("SELECT * FROM applications ORDER BY id"))
+      .rows;
+    const participantsBefore = (
+      await database.pool.query("SELECT * FROM application_participants ORDER BY id")
+    ).rows;
+    for (let run = 0; run < 2; run++) {
+      await migrateDatabase(database.connectionString);
+      await assertSchemaReady(database.connectionString);
+      expect(
+        (
+          await database.pool.query("SELECT id, name, slug FROM banks WHERE id = $1", [
+            seedIds.bankA,
+          ])
+        ).rows,
+      ).toEqual([{ id: seedIds.bankA, name: "Keybank", slug: "keybank" }]);
+      expect((await database.pool.query("SELECT * FROM applications ORDER BY id")).rows).toEqual(
+        applicationsBefore,
+      );
+      expect(
+        (await database.pool.query("SELECT * FROM application_participants ORDER BY id")).rows,
+      ).toEqual(participantsBefore);
+    }
   } finally {
     await database.cleanup();
     await rm(folder, { recursive: true, force: true });

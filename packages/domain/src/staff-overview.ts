@@ -1,5 +1,5 @@
-import { type StaffTaxDocument, staffOverviewSchema } from "@keycade/contracts";
-import { type Database } from "@keycade/db";
+import { type StaffTaxDocument, staffOverviewSchema } from "@keylend/contracts";
+import { type Database } from "@keylend/db";
 import { type Actor, requireApplicationAccess } from "./authorization.js";
 import { lockCheckApplication } from "./checks.js";
 import { projectApplicationDocuments, readDocumentWorkspace } from "./documents.js";

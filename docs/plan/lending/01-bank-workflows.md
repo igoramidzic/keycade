@@ -1,14 +1,14 @@
 # How business loans move through a bank
 
-Keycade covers the outer lending journey well, but its review stage currently combines several different bank functions. A more complete origination model separates repayment analysis, authority to approve a proposed structure, the customer's acceptance, legal and collateral clearance, and authority to release funds. These workstreams often overlap and return for more information.
+KeyLend covers the outer lending journey well, but its review stage currently combines several different bank functions. A more complete origination model separates repayment analysis, authority to approve a proposed structure, the customer's acceptance, legal and collateral clearance, and authority to release funds. These workstreams often overlap and return for more information.
 
-This research covers U.S. business lending through initial funding. Subsequent account administration is identified only to define the handoff; it remains outside Keycade's release scope.
+This research covers U.S. business lending through initial funding. Subsequent account administration is identified only to define the handoff; it remains outside KeyLend's release scope.
 
 ## What small medium and large mean
 
-There is no single dollar classification that determines every bank's workflow. The OCC describes underwriting depth as dependent on loan type and size, and lending authority as dependent on amount, policy exceptions, borrower history and risk. Individual, joint and committee approval arrangements are all possible. Banks may automate some small-business underwriting; Keycade's decisions remain human. [OCC lending handbook, printed pages 24–28][occ-lending]
+There is no single dollar classification that determines every bank's workflow. The OCC describes underwriting depth as dependent on loan type and size, and lending authority as dependent on amount, policy exceptions, borrower history and risk. Individual, joint and committee approval arrangements are all possible. Banks may automate some small-business underwriting; KeyLend's decisions remain human. [OCC lending handbook, printed pages 24–28][occ-lending]
 
-Use these **illustrative Keycade routing bands**, applied to the proposed package's aggregate commitment and considered alongside existing exposure. They do not set product eligibility or borrower size:
+Use these **illustrative KeyLend routing bands**, applied to the proposed package's aggregate commitment and considered alongside existing exposure. They do not set product eligibility or borrower size:
 
 | Demo band | Amount illustration | Typical work to represent | Proposed demo treatment |
 | --- | --- | --- | --- |
@@ -20,7 +20,7 @@ A small construction or acquisition request can require more work than a larger 
 
 ## The bank workflow
 
-The following is a synthesis for Keycade's workflow design. Roles are responsibilities; a smaller institution may assign several to one person, subject to its controls.
+The following is a synthesis for KeyLend's workflow design. Roles are responsibilities; a smaller institution may assign several to one person, subject to its controls.
 
 | Stage | Responsible function | Work and handoff artifact | Common return path |
 | --- | --- | --- | --- |
@@ -37,11 +37,10 @@ The following is a synthesis for Keycade's workflow design. Roles are responsibi
 
 The table expands the product journey into implementation responsibilities; it is not a claim that every institution uses these exact ten steps. The OCC separately describes pre-closing, closing, booking and post-closing reviews and controls such as segregation of duties and reconciliation. Signing therefore should not itself mean that funding is authorized. [OCC lending handbook, printed pages 35–36][occ-lending]
 
-An initial expression of interest or indicative term sheet is not final approval. Underwriting generally supports the credit decision; outstanding conditions may still need review after a conditional decision. Keycade should show which conditions affect the credit judgment and which simply complete documentation, rather than using “approved” to mean every step is finished.
+An initial expression of interest or indicative term sheet is not final approval. Underwriting generally supports the credit decision; outstanding conditions may still need review after a conditional decision. KeyLend should show which conditions affect the credit judgment and which simply complete documentation, rather than using “approved” to mean every step is finished.
 
 ## What underwriting adds beyond collecting documents
 
-Bank of America's public guide describes financial evidence including tax returns, profit-and-loss statements, bank statements, a balance sheet and, where needed, projections and personal financial information. Its underwriting explanation includes verification of income, assets, debt and collateral. The precise evidence depends on lender and product; do not require every item for every application. [Bank of America application guide][boa-guide]
 
 For most small-business loans, the OCC identifies business cash flow as the primary repayment source. Collateral and guarantees are additional support, not a substitute for demonstrating repayment capacity. [OCC small-business lending][occ-small]
 
@@ -72,7 +71,7 @@ SBA's lender resources distinguish processing methods and product-specific condi
 
 The OCC's real-estate handbook describes environmental diligence and construction controls, including inspections, budget monitoring, lien searches and dual disbursement approval. These are reasons to route by transaction complexity rather than amount alone. [OCC CRE handbook, printed pages 45 and 66–68][occ-cre]
 
-The Shared National Credit review covers large shared commitments of at least $100 million. That is a supervisory program threshold, not a minimum for loan participation or Keycade's definition of a large loan. [Federal Reserve 2025 SNC release][snc]
+The Shared National Credit review covers large shared commitments of at least $100 million. That is a supervisory program threshold, not a minimum for loan participation or KeyLend's definition of a large loan. [Federal Reserve 2025 SNC release][snc]
 
 ## Easily missed controls and unsuccessful outcomes
 
@@ -84,11 +83,10 @@ The Shared National Credit review covers large shared commitments of at least $1
 
 **Collateral clearance is more than a signature.** Where applicable, track the intended security interest, valuation, prior liens/payoffs, required filings and evidence of completion. A filing requested or queued is not evidence that a lien is perfected. Some trailing documents arrive after closing; distinguish an expressly permitted trailing item from a mandatory pre-funding condition.
 
-**Funding has its own controls.** The proposed Keycade flow records separate preparation and release, independently confirms synthetic recipient instructions, rechecks current conditions and reconciles amounts. Sending a request, timing out, and confirming funding are distinct outcomes. Each facility must have its own funding identity within the overall application.
+**Funding has its own controls.** The proposed KeyLend flow records separate preparation and release, independently confirms synthetic recipient instructions, rechecks current conditions and reconciles amounts. Sending a request, timing out, and confirming funding are distinct outcomes. Each facility must have its own funding identity within the overall application.
 
 ## Timing and borrower communication
 
-Do not promise a universal time to funding. Bank of America's examples range from about a week for some unsecured decisions to weeks or months for other products. That is one lender's guidance, not a service commitment; SBA's published processing times are also not an end-to-end bank funding promise. [Bank of America guide][boa-guide]
 
 Show the borrower the current stage, requested action, responsible bank contact and dated status update. Show staff aging, who is waiting on whom, stale evidence, offer expiry and the next handoff. Demo processing delays remain configurable and tests use injected clocks.
 
@@ -100,7 +98,6 @@ All links below were read on October 12, 2026. Dates describe the source, not a 
 | --- | --- | --- |
 | [OCC Lending and Loan Portfolio Risk Management][occ-lending] | June 2026, printed pages 24–28 and 35–36 | Underwriting, authority and administration |
 | [OCC Small Business Lending][occ-small] | Current topic page | Repayment-source principle |
-| [Bank of America business-loan guide][boa-guide] | August 8, 2025 | Borrower evidence and timing examples |
 | [OCC Commercial Real Estate Lending][occ-cre] | March 2022, version 2.0; PDF notes March 2025 reputation-risk removal | Property, construction and collateral branches |
 | [SBA lender resources][sba-lenders] | Current product descriptions; mutable page | SBA product variants and processing |
 | [SBA 504 overview][sba-504] | Current overview | Fixed-asset uses and CDC participation |
@@ -113,7 +110,6 @@ Product-specific references and the July 2026 SBA coordination notice are in [th
 
 [occ-lending]: https://www.occ.treas.gov/publications-and-resources/publications/comptrollers-handbook/files/lending-loan-portfolio-risk-management/pub-ch-lending-loan-portfolio.pdf
 [occ-small]: https://www.occ.treas.gov/topics/supervision-and-examination/credit/commercial-credit/small-business-lending.html
-[boa-guide]: https://business.bankofamerica.com/en/resources/what-is-business-loan-and-how-do-i-get-one
 [occ-cre]: https://www.occ.gov/publications-and-resources/publications/comptrollers-handbook/files/commercial-real-estate-lending/pub-ch-commercial-real-estate.pdf
 [sba-lenders]: https://www.sba.gov/sba-lenders/
 [sba-504]: https://www.sba.gov/loans/504-loans/

@@ -6,7 +6,7 @@ import {
   effectDeduplications,
   integrationRuns,
   outboxEvents,
-} from "@keycade/db";
+} from "@keylend/db";
 import { and, eq, isNull, lte, sql } from "drizzle-orm";
 import {
   type Clock,

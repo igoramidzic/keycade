@@ -1,11 +1,11 @@
-import type { ApplicationPortal } from "@keycade/contracts";
+import type { ApplicationPortal } from "@keylend/contracts";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@keycade/ui/components/collapsible";
-import { cn } from "@keycade/ui/lib/utils";
-import { workflowText } from "@keycade/ui/lib/workflow-text";
+} from "@keylend/ui/components/collapsible";
+import { cn } from "@keylend/ui/lib/utils";
+import { workflowText } from "@keylend/ui/lib/workflow-text";
 import { Check, ChevronDown, History, Minus } from "lucide-react";
 import { applicationProgress, lifecycleLabels, type ProgressStep } from "./application-progress";
 

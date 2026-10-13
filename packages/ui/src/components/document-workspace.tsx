@@ -4,25 +4,25 @@ import type {
   FinancialFactsView,
   ReviewFinancialFacts,
   UpdateDocumentMetadata,
-} from "@keycade/contracts";
-import { documentCategoryLabels } from "@keycade/contracts";
-import { Alert, AlertDescription, AlertTitle } from "@keycade/ui/components/alert";
-import { Badge } from "@keycade/ui/components/badge";
-import { Button } from "@keycade/ui/components/button";
+} from "@keylend/contracts";
+import { documentCategoryLabels } from "@keylend/contracts";
+import { Alert, AlertDescription, AlertTitle } from "@keylend/ui/components/alert";
+import { Badge } from "@keylend/ui/components/badge";
+import { Button } from "@keylend/ui/components/button";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@keycade/ui/components/collapsible";
+} from "@keylend/ui/components/collapsible";
 import {
   DocumentFinancialReview,
   documentMoney,
-} from "@keycade/ui/components/document-financial-review";
-import { DocumentInfo } from "@keycade/ui/components/document-info";
-import { DocumentPreview } from "@keycade/ui/components/document-preview";
-import { NativeSelect } from "@keycade/ui/components/native-select";
-import { displayDocumentField } from "@keycade/ui/lib/document-field-display";
-import { workflowText } from "@keycade/ui/lib/workflow-text";
+} from "@keylend/ui/components/document-financial-review";
+import { DocumentInfo } from "@keylend/ui/components/document-info";
+import { DocumentPreview } from "@keylend/ui/components/document-preview";
+import { NativeSelect } from "@keylend/ui/components/native-select";
+import { displayDocumentField } from "@keylend/ui/lib/document-field-display";
+import { workflowText } from "@keylend/ui/lib/workflow-text";
 import { ChevronRight } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 

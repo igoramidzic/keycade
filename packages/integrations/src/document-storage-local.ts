@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import { chmod, link, mkdir, open, readdir, stat, unlink } from "node:fs/promises";
 import path from "node:path";
-import { DomainError } from "@keycade/domain";
+import { DomainError } from "@keylend/domain";
 import { type PrivateDocumentStorage, validateDocumentContent } from "./document-content.js";
 
 /** All keys are server-generated opaque IDs. Original names never become filesystem paths. */

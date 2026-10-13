@@ -63,7 +63,7 @@ describe("simulated provider and injected clock", () => {
     await clock.advance(1);
     expect(await pending).toMatchObject({
       simulated: true,
-      provider: "keycade-demo-v1",
+      provider: "keylend-demo-v1",
       outcome: "complete",
       inputRevision: 1,
       completedAt: "2026-01-01T00:00:05.000Z",

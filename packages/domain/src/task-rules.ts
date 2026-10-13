@@ -1,5 +1,5 @@
-import type { TaskProgress, TaskStage, TaskState } from "@keycade/contracts";
-import type { RequirementRule } from "@keycade/db";
+import type { TaskProgress, TaskStage, TaskState } from "@keylend/contracts";
+import type { RequirementRule } from "@keylend/db";
 
 export const taskStages: readonly TaskStage[] = ["submission", "approval", "closing"];
 export const settledTaskStates = new Set<TaskState>(["completed", "waived", "cancelled"]);

@@ -1,7 +1,7 @@
-import { authSessionSchema } from "@keycade/contracts";
-import type { AuthenticatedSession } from "@keycade/ui/components/identity-portal";
-import { currentSession } from "@keycade/ui/lib/session-snapshot";
-import { workflowText } from "@keycade/ui/lib/workflow-text";
+import { authSessionSchema } from "@keylend/contracts";
+import type { AuthenticatedSession } from "@keylend/ui/components/identity-portal";
+import { currentSession } from "@keylend/ui/lib/session-snapshot";
+import { workflowText } from "@keylend/ui/lib/workflow-text";
 import { createContext, useContext } from "react";
 
 export class ApiError extends Error {
@@ -71,7 +71,7 @@ export function createStaffApi(session: AuthenticatedSession, onDenied: () => vo
         ...(options.method && options.method !== "GET"
           ? { "x-csrf-token": session.csrfToken }
           : {}),
-        "x-keycade-session": session.csrfToken,
+        "x-keylend-session": session.csrfToken,
         ...(options.body ? { "Content-Type": "application/json" } : {}),
       },
       body: options.body ? JSON.stringify(options.body) : undefined,
@@ -88,7 +88,7 @@ export function createStaffApi(session: AuthenticatedSession, onDenied: () => vo
       );
     // A response started by an old account must never populate the current account's screen.
     // An older API may still serve traffic while the five native builds finish independently.
-    if (response.headers.get("x-keycade-session-bound") !== "1") {
+    if (response.headers.get("x-keylend-session-bound") !== "1") {
       const verified = await verify(signal);
       if (verified.csrfToken !== session.csrfToken) {
         onDenied();

@@ -1,7 +1,7 @@
-import { authSessionSchema, signatureLookupSchema, signaturesViewSchema } from "@keycade/contracts";
-import type { AuthenticatedSession } from "@keycade/ui/components/identity-portal";
-import { SignaturesManager } from "@keycade/ui/components/signatures-manager";
-import { downloadSignatureArtifact } from "@keycade/ui/lib/signature-download";
+import { authSessionSchema, signatureLookupSchema, signaturesViewSchema } from "@keylend/contracts";
+import type { AuthenticatedSession } from "@keylend/ui/components/identity-portal";
+import { SignaturesManager } from "@keylend/ui/components/signatures-manager";
+import { downloadSignatureArtifact } from "@keylend/ui/lib/signature-download";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Navigate, useParams } from "react-router";
 import { ApiError, errorMessage, request } from "./api";

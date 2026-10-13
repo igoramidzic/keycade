@@ -4,7 +4,7 @@
 
 - PostgreSQL 18.6: `${PROJECT_NAME}-postgres`, named volume `${PROJECT_NAME}-postgres18-data` mounted at `/var/lib/postgresql`, data at `/var/lib/postgresql/18/docker`, loopback `${DB_PORT}:5432`.
 - Mailpit: `${PROJECT_NAME}-mailpit`, loopback SMTP `${MAILPIT_SMTP_PORT}:1025` and inbox `${MAILPIT_UI_PORT}:8025`.
-- All resources carry `io.keycade.workspace` and `io.keycade.project` ownership labels. Existing containers must match both labels, port mappings and database identity/storage. Existing unrelated names/ports cause errors.
+- All resources carry `io.keylend.workspace` and `io.keylend.project` ownership labels. Existing containers must match both labels, port mappings and database identity/storage. Existing unrelated names/ports cause errors.
 - Database credentials reach Podman over stdin, never command arguments. Private env/storage are ignored by Git. Initialization preserves nonempty env values and persistent data.
 - `pnpm infra:stop` stops these containers without removing either containers or volume. There is deliberately no reset command.
 

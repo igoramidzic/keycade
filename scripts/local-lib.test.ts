@@ -3,7 +3,7 @@ import { copyFileSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSyn
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { loadServerEnv, projectRoot, type ServerEnv } from "@keycade/config/server";
+import { loadServerEnv, projectRoot, type ServerEnv } from "@keylend/config/server";
 import { parse } from "dotenv";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
@@ -27,7 +27,7 @@ let template: string;
 
 beforeEach(() => {
   vi.mocked(spawnSync).mockReset();
-  directory = mkdtempSync(path.join(os.tmpdir(), "keycade-local-config-"));
+  directory = mkdtempSync(path.join(os.tmpdir(), "keylend-local-config-"));
   file = path.join(directory, ".env");
   template = path.join(directory, ".env.example");
   copyFileSync(path.join(projectRoot, ".env.example"), template);
@@ -199,8 +199,8 @@ describe("version-specific PostgreSQL persistence", () => {
   }
 
   test.each([
-    ["docker.io/library/postgres:18.6-alpine", "keycade-postgres18-data", "/var/lib/postgresql"],
-    ["docker.io/library/postgres:17.7-alpine", "keycade-postgres-data", "/var/lib/postgresql/data"],
+    ["docker.io/library/postgres:18.6-alpine", "keylend-postgres18-data", "/var/lib/postgresql"],
+    ["docker.io/library/postgres:17.7-alpine", "keylend-postgres-data", "/var/lib/postgresql/data"],
   ])("creates %s with the matching persistent volume mount", async (image, volume, mount) => {
     const env = environment(image);
     // Ask the OS for a free loopback port; the database process itself is mocked.
@@ -250,7 +250,7 @@ describe("version-specific PostgreSQL persistence", () => {
       existing.State.Running = false;
       if (mismatch === "image") existing.Config.Image = "docker.io/library/postgres:17.7-alpine";
       if (mismatch === "mount") existing.Mounts[0].Destination = "/var/lib/postgresql/data";
-      if (mismatch === "volume") existing.Mounts[0].Name = "keycade-postgres-data";
+      if (mismatch === "volume") existing.Mounts[0].Name = "keylend-postgres-data";
       if (mismatch === "PGDATA") existing.Config.Env[2] = "PGDATA=/var/lib/postgresql/data";
       if (mismatch === "nested mount")
         existing.Mounts.push({ Name: "anonymous", Destination: "/var/lib/postgresql/18/docker" });
@@ -312,7 +312,7 @@ describe("safe infrastructure preflight", () => {
     [
       "different database",
       (url: URL) => {
-        url.pathname = "/keycade_other";
+        url.pathname = "/keylend_other";
       },
     ],
     [
@@ -352,7 +352,7 @@ describe("safe infrastructure preflight", () => {
     const address = occupant.address();
     if (!address || typeof address === "string") throw new Error("No TCP port assigned.");
     try {
-      await expect(assertPortFree(address.port)).rejects.toThrow("Keycade did not stop it");
+      await expect(assertPortFree(address.port)).rejects.toThrow("KeyLend did not stop it");
       expect(occupant.listening).toBe(true);
       const response = await new Promise<string>((resolve, reject) => {
         const socket = net.connect(address.port, "127.0.0.1");
@@ -372,7 +372,7 @@ describe("safe infrastructure preflight", () => {
   });
 
   test("a missing executable yields a bounded, actionable error without printing arguments", () => {
-    const missing = path.join(directory, "missing-keycade-tool");
+    const missing = path.join(directory, "missing-keylend-tool");
     const started = Date.now();
     expect(() =>
       run(missing, ["synthetic-secret-that-must-not-be-logged"], { timeout: 100 }),

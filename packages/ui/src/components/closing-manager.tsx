@@ -1,21 +1,21 @@
-import { Alert, AlertDescription, AlertTitle } from "@keycade/ui/components/alert";
-import { Badge } from "@keycade/ui/components/badge";
-import { Button } from "@keycade/ui/components/button";
+import { Alert, AlertDescription, AlertTitle } from "@keylend/ui/components/alert";
+import { Badge } from "@keylend/ui/components/badge";
+import { Button } from "@keylend/ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@keycade/ui/components/card";
-import { type ReadinessData, ReadinessPanel } from "@keycade/ui/components/checks-manager";
+} from "@keylend/ui/components/card";
+import { type ReadinessData, ReadinessPanel } from "@keylend/ui/components/checks-manager";
 import {
   exactUsd,
   FundedAccountCard,
   type FundedAccountData,
-} from "@keycade/ui/components/funded-accounts";
-import { Input } from "@keycade/ui/components/input";
-import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
+} from "@keylend/ui/components/funded-accounts";
+import { Input } from "@keylend/ui/components/input";
+import { workflowName, workflowText } from "@keylend/ui/lib/workflow-text";
 import { useEffect, useRef, useState } from "react";
 
 export type ClosingData = {

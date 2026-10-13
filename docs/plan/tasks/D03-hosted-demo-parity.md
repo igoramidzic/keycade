@@ -35,7 +35,7 @@ Done — October 7, 2026. Hosted API enables synthetic entry and uses a private 
 
 Native jobs dispatch inbox deliveries before scheduling bounded provider families. Queue consumers process one family per invocation; API wakes are best-effort after successful mutations and minute Cron recovers durable work. Local Mailpit remains the default; `DEMO_INBOX_ENABLED=true` exercises hosted-equivalent delivery locally. Both Workers require the same private encryption binding, installed without exposing its value.
 
-The separate `infra/bootstrap-demo-access.sql` adds only the synthetic `officer-a@example.test` fixture to Synthetic Bank A. It refuses nonsynthetic collisions and never reactivates a revoked membership. It ran twice against the configured Neon demo with one active staff membership and no reset.
+The separate `infra/bootstrap-demo-access.sql` adds only the synthetic `officer-a@example.test` fixture to Keybank. It refuses nonsynthetic collisions and never reactivates a revoked membership. It ran twice against the configured Neon demo with one active staff membership and no reset.
 
 Local acceptance: private inbox 11 PostgreSQL tests, bootstrap 4 PostgreSQL tests, purpose-bound cipher 2 unit tests, both HTTP transport journeys, and native queue dispatch/idempotency checks pass. `DEMO_INBOX_ENABLED=true pnpm test:e2e tests/e2e/demo-inbox.spec.ts` passed 8/8 desktop/mobile cases, including deliberate confirmation, used links, sign-out/re-entry, saved setup resume, known staff and unknown-staff denial. No bearer traces or authentication screenshots were retained.
 
@@ -46,7 +46,7 @@ October 7, 2026: `pnpm check` passed Biome/browser boundaries, all 12 workspace 
 
 ## Hosted acceptance — October 7, 2026
 
-Deployed checkpoint `b9c679d` passed all five native Cloudflare builds and [Neon migration run 37671862158](https://github.com/igoramidzic/keycade/actions/runs/37671862158). The repeatable synthetic staff bootstrap was applied twice without resetting existing progress. The browser checks used the actual [borrower portal](https://keycade-borrower.kualia.workers.dev) and [bank console](https://keycade-bank-console.kualia.workers.dev), with no real email or identity provider.
+Deployed checkpoint `b9c679d` passed all five native Cloudflare builds and [Neon migration run 37671862158](https://github.com/igoramidzic/keycade/actions/runs/37671862158). The repeatable synthetic staff bootstrap was applied twice without resetting existing progress. The browser checks used the actual [borrower portal](https://keylend-borrower.kualia.workers.dev) and [bank console](https://keylend-bank-console.kualia.workers.dev), with no real email or identity provider.
 
 - Four hosted inbox cases passed: borrower deliberate confirmation and consumed-link concealment, fresh-link saved-setup resume, known synthetic staff confirmation, and unknown-staff denial. The report is `.local/hosted-d03-b9c679d/report.json`; its separate full-journey attempt stopped on a test navigation race, corrected before the successful run below. The strengthened staff consumed-detail check also passed in `.local/hosted-d03-b9c679d-staff-final/report.json`.
 - The full hosted journey passed in 8.0 minutes: create a new synthetic application; save and resume the requested-amount setup step; finish setup and enter Tasks; upload a private synthetic PDF and wait for its clean scan; invite and accept an intended adviser with one assigned task; create a two-signer request; open each recipient's private inbox notification; deliberately confirm; complete both simulated signatures; download the immutable synthetic artifact; verify the signature task completed. Successful synthetic application ID: `5fda6825-4058-4b57-a6ad-a0edfa85220d`.
@@ -56,9 +56,9 @@ Deployed checkpoint `b9c679d` passed all five native Cloudflare builds and [Neon
 The reusable `playwright.hosted.config.ts` runs one desktop worker with request pacing and requires explicit HTTPS portal origins. It never starts local services or resets a database:
 
 ```sh
-KEYCADE_E2E_HOSTED=true DEMO_INBOX_ENABLED=true \
-KEYCADE_E2E_BORROWER_ORIGIN=https://keycade-borrower.kualia.workers.dev \
-KEYCADE_E2E_STAFF_ORIGIN=https://keycade-bank-console.kualia.workers.dev \
+KEYLEND_E2E_HOSTED=true DEMO_INBOX_ENABLED=true \
+KEYLEND_E2E_BORROWER_ORIGIN=https://keylend-borrower.kualia.workers.dev \
+KEYLEND_E2E_STAFF_ORIGIN=https://keylend-bank-console.kualia.workers.dev \
 pnpm exec playwright test --config=playwright.hosted.config.ts
 ```
 

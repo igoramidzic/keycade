@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { readEnvironment } from "@keycade/config/server";
+import { readEnvironment } from "@keylend/config/server";
 import { expect, type Page, test } from "@playwright/test";
 import { fillSignInEmail } from "./identity-helpers";
 import { completeAddressAndSkipOptional } from "./setup-helpers";
@@ -59,7 +59,7 @@ async function signIn(page: Page, email = "borrower@example.test") {
 const card = (page: Page, id: string) =>
   page.getByRole("article", { name: `Application ${id}`, exact: true });
 const applicationUrl = (id: string, section = "") =>
-  `${borrower}/applications/${id}${section ? `/${section}` : ""}?bank=bank-a`;
+  `${borrower}/applications/${id}${section ? `/${section}` : ""}?bank=keybank`;
 
 async function noOverflow(page: Page) {
   expect(
@@ -468,7 +468,7 @@ test("polling after an account switch clears application cards and detail instea
             headers: { "Content-Type": "application/json", "x-csrf-token": session.csrfToken },
             body: JSON.stringify({
               email,
-              bankSlug: "bank-a",
+              bankSlug: "keybank",
               portal: "borrower",
               returnPath: "/",
             }),

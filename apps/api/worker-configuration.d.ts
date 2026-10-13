@@ -4,12 +4,12 @@ interface __BaseEnv_ApiBindings {
   DOCUMENTS: R2Bucket;
   HYPERDRIVE: Hyperdrive;
   API_RATE_LIMITER: RateLimit;
-  ALLOWED_ORIGINS: "https://keycade-bank-site.kualia.workers.dev,https://keycade-borrower.kualia.workers.dev,https://keycade-bank-console.kualia.workers.dev";
+  ALLOWED_ORIGINS: "https://keylend-bank-site.kualia.workers.dev,https://keylend-borrower.kualia.workers.dev,https://keylend-bank-console.kualia.workers.dev";
   DEMO_INBOX_ENABLED: "true";
-  BORROWER_ORIGIN: "https://keycade-borrower.kualia.workers.dev";
-  STAFF_ORIGIN: "https://keycade-bank-console.kualia.workers.dev";
+  BORROWER_ORIGIN: "https://keylend-borrower.kualia.workers.dev";
+  STAFF_ORIGIN: "https://keylend-bank-console.kualia.workers.dev";
   ENCRYPTION_KEY: string;
-  JOBS: Fetcher /* keycade-jobs */;
+  JOBS: Fetcher /* keylend-jobs */;
 }
 declare namespace Cloudflare {
   interface GlobalProps {

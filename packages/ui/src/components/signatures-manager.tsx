@@ -1,15 +1,15 @@
-import { Alert, AlertDescription, AlertTitle } from "@keycade/ui/components/alert";
-import { Badge } from "@keycade/ui/components/badge";
-import { Button } from "@keycade/ui/components/button";
+import { Alert, AlertDescription, AlertTitle } from "@keylend/ui/components/alert";
+import { Badge } from "@keylend/ui/components/badge";
+import { Button } from "@keylend/ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@keycade/ui/components/card";
-import { NativeSelect } from "@keycade/ui/components/native-select";
-import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
+} from "@keylend/ui/components/card";
+import { NativeSelect } from "@keylend/ui/components/native-select";
+import { workflowName, workflowText } from "@keylend/ui/lib/workflow-text";
 import { useEffect, useState } from "react";
 
 type Envelope = {

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { EnrichmentResult } from "@keycade/contracts";
+import type { EnrichmentResult } from "@keylend/contracts";
 import {
   applicationParticipants,
   applicationSetups,
@@ -10,10 +10,10 @@ import {
   enrichmentRuns,
   sensitiveIdentifierVersions,
   users,
-} from "@keycade/db";
-import { seedIds as ids, seedDatabase } from "@keycade/db/seed";
-import { createTestDatabase } from "@keycade/db/testing";
-import { type Actor, createEnrichmentService, createIdentifierCipher } from "@keycade/domain";
+} from "@keylend/db";
+import { seedIds as ids, seedDatabase } from "@keylend/db/seed";
+import { createTestDatabase } from "@keylend/db/testing";
+import { type Actor, createEnrichmentService, createIdentifierCipher } from "@keylend/domain";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { processEnrichmentRun } from "./enrichment-jobs.js";
@@ -30,7 +30,7 @@ const service = () => createEnrichmentService(database.db, { cipher, clock: cloc
 const denied = { code: "NOT_FOUND", statusCode: 404 };
 beforeAll(async () => {
   database = await createTestDatabase();
-  await seedDatabase(database.connectionString);
+  await seedDatabase(database.connectionString, { isolationFixtures: true });
 }, 30000);
 afterAll(async () => database?.cleanup());
 async function app() {
@@ -83,7 +83,7 @@ async function identifier(
 }
 function result(request: EnrichmentProviderRequest): EnrichmentResult {
   return {
-    provider: "keycade-enrichment-v1",
+    provider: "keylend-enrichment-v1",
     simulated: true,
     kind: request.kind,
     operationId: request.operationId,

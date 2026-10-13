@@ -8,9 +8,9 @@ import {
   auditEvents,
   loanProducts,
   users,
-} from "@keycade/db";
-import { seedIds as ids, seedDatabase } from "@keycade/db/seed";
-import { createTestDatabase } from "@keycade/db/testing";
+} from "@keylend/db";
+import { seedIds as ids, seedDatabase } from "@keylend/db/seed";
+import { createTestDatabase } from "@keylend/db/testing";
 import { and, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -35,7 +35,7 @@ const notFound = { code: "NOT_FOUND", statusCode: 404 };
 
 beforeAll(async () => {
   database = await createTestDatabase();
-  await seedDatabase(database.connectionString);
+  await seedDatabase(database.connectionString, { isolationFixtures: true });
 }, 30_000);
 afterAll(async () => {
   await database?.cleanup();
@@ -59,7 +59,7 @@ async function verifiedApplicant() {
   return { actor: { kind: "user", userId: user.id } as Actor, email };
 }
 function publicInput(email = `${randomUUID()}@example.test`) {
-  return { email, bankSlug: "bank-a", idempotencyKey: randomBytes(32).toString("hex") };
+  return { email, bankSlug: "keybank", idempotencyKey: randomBytes(32).toString("hex") };
 }
 function publicContext() {
   return { origin, requestId: randomUUID(), rateLimitKey: randomUUID() };
@@ -93,7 +93,7 @@ async function freshSession(email: string) {
   const requestId = randomUUID();
   await identity.requestAccessLink({
     email,
-    bankSlug: "bank-a",
+    bankSlug: "keybank",
     portal: "borrower",
     origin,
     returnPath: "/",
@@ -238,6 +238,7 @@ describe("real PostgreSQL email-first application creation and resume", () => {
     const input = publicInput();
     for (const invalid of [
       { ...input, bankSlug: "missing-bank" },
+      { ...input, bankSlug: "isolation-fixture" },
       { ...input, productSlug: "missing-product" },
     ]) {
       const context = publicContext();
@@ -631,7 +632,7 @@ describe("real PostgreSQL authenticated creation and setup", () => {
         draft.selectedProduct,
       );
       expect(
-        (await readPublicIntake(database.db, { bankSlug: "bank-a" })).products.map((p) => p.id),
+        (await readPublicIntake(database.db, { bankSlug: "keybank" })).products.map((p) => p.id),
       ).toEqual([replacement.id]);
       await expect(
         service().saveSetup(
@@ -1248,7 +1249,7 @@ describe("synthetic demo application setup boundaries", () => {
     const email = `${randomUUID()}@example.test`;
     const input = {
       email,
-      bankSlug: "bank-a",
+      bankSlug: "keybank",
       portal: "borrower" as const,
       origin,
       returnPath: "/",
@@ -1286,7 +1287,7 @@ describe("synthetic demo application setup boundaries", () => {
     const email = `${randomUUID()}@example.test`;
     const signedIn = await identity.signInDemo({
       email,
-      bankSlug: "bank-a",
+      bankSlug: "keybank",
       portal: "borrower",
       origin,
       returnPath: "/",
@@ -1329,7 +1330,7 @@ describe("synthetic demo application setup boundaries", () => {
     const identity = createIdentityService(database.db, { clock });
     const signedIn = await identity.signInDemo({
       email: "officer-a@example.test",
-      bankSlug: "bank-a",
+      bankSlug: "keybank",
       portal: "staff",
       origin: "http://localhost:3002",
       returnPath: "/",

@@ -1,4 +1,4 @@
-import { Button } from "@keycade/ui/components/button";
+import { Button } from "@keylend/ui/components/button";
 import {
   Combobox,
   ComboboxContent,
@@ -6,7 +6,7 @@ import {
   ComboboxItem,
   ComboboxList,
   ComboboxTrigger,
-} from "@keycade/ui/components/combobox";
+} from "@keylend/ui/components/combobox";
 import { useEffect, useState } from "react";
 
 type Option = { code: string; title: string };

@@ -6,7 +6,7 @@ export function workflowText(value: string | null | undefined): string {
       /All application data, checks, signatures and funding in this demo are synthetic\./g,
       "",
     )
-    .replace(/This is a Keycade simulation\.\s*/g, "")
+    .replace(/This is a (?:KeyLend|Keycade) simulation\.\s*/g, "")
     .replace(/\s*[—·]\s*simulation\b/gi, "")
     .replace(/These checks are simulated and unverified\./g, "These checks are unverified.")
     .replace(/No external email has been sent\.?/gi, "")

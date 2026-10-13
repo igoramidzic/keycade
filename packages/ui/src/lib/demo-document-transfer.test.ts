@@ -1,4 +1,4 @@
-import { demoDocuments } from "@keycade/contracts/demo-scenarios";
+import { demoDocuments } from "@keylend/contracts/demo-scenarios";
 import { describe, expect, it } from "vitest";
 import {
   createDemoDocumentFile,

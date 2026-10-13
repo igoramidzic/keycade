@@ -1,5 +1,5 @@
-import { participantsWorkspaceSchema, tasksViewSchema, taskViewSchema } from "@keycade/contracts";
-import { ParticipantsManager } from "@keycade/ui/components/participants-manager";
+import { participantsWorkspaceSchema, tasksViewSchema, taskViewSchema } from "@keylend/contracts";
+import { ParticipantsManager } from "@keylend/ui/components/participants-manager";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, useStaffApi } from "./api";
 import { ErrorNotice, Loading } from "./ui";

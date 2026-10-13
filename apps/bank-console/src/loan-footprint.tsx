@@ -1,13 +1,13 @@
-import { type BusinessAddress, checksViewSchema } from "@keycade/contracts";
-import { Badge } from "@keycade/ui/components/badge";
-import { Button } from "@keycade/ui/components/button";
+import { type BusinessAddress, checksViewSchema } from "@keylend/contracts";
+import { Badge } from "@keylend/ui/components/badge";
+import { Button } from "@keylend/ui/components/button";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@keycade/ui/components/collapsible";
-import { cn } from "@keycade/ui/lib/utils";
-import { workflowText } from "@keycade/ui/lib/workflow-text";
+} from "@keylend/ui/components/collapsible";
+import { cn } from "@keylend/ui/lib/utils";
+import { workflowText } from "@keylend/ui/lib/workflow-text";
 import { useQueryClient } from "@tanstack/react-query";
 import { ChevronRight, CircleCheck, MapPin, X } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";

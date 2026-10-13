@@ -2,7 +2,7 @@ import {
   type OperationsView,
   operationCommandSchema,
   operationsViewSchema,
-} from "@keycade/contracts";
+} from "@keylend/contracts";
 import {
   accessDeliveryRequests,
   applicationChecks,
@@ -11,7 +11,7 @@ import {
   notifications as notificationRows,
   outboxEvents,
   workerHeartbeats,
-} from "@keycade/db";
+} from "@keylend/db";
 import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { type Actor, requireApplicationAccess, requireBankStaff } from "./authorization.js";
 import { createChecksService } from "./checks.js";

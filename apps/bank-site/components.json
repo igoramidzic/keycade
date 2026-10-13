@@ -14,8 +14,8 @@
   "rtl": false,
   "aliases": {
     "components": "@/components",
-    "utils": "@keycade/ui/lib/utils",
-    "ui": "@keycade/ui/components",
+    "utils": "@keylend/ui/lib/utils",
+    "ui": "@keylend/ui/components",
     "lib": "@/lib",
     "hooks": "@/hooks"
   },

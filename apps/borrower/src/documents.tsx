@@ -3,11 +3,11 @@ import {
   documentActionResultSchema,
   documentsViewSchema,
   documentUploadResultSchema,
-} from "@keycade/contracts";
-import { DocumentsManager } from "@keycade/ui/components/documents-manager";
-import type { AuthenticatedSession } from "@keycade/ui/components/identity-portal";
-import { createDocumentTransfer } from "@keycade/ui/lib/document-transfer";
-import { documentRefreshInterval } from "@keycade/ui/lib/refresh-policy";
+} from "@keylend/contracts";
+import { DocumentsManager } from "@keylend/ui/components/documents-manager";
+import type { AuthenticatedSession } from "@keylend/ui/components/identity-portal";
+import { createDocumentTransfer } from "@keylend/ui/lib/document-transfer";
+import { documentRefreshInterval } from "@keylend/ui/lib/refresh-policy";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { ApiError, errorMessage, reportApplicationAccessLoss, request } from "./api";

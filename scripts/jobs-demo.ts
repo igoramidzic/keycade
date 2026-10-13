@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { createDatabase } from "@keycade/db";
-import { assertSchemaReady } from "@keycade/db/migrate";
-import { seedIds } from "@keycade/db/seed";
-import { enqueueDemo, scenarioSchema, workerHealth } from "@keycade/integrations";
+import { createDatabase } from "@keylend/db";
+import { assertSchemaReady } from "@keylend/db/migrate";
+import { seedIds } from "@keylend/db/seed";
+import { enqueueDemo, scenarioSchema, workerHealth } from "@keylend/integrations";
 import { assertOwnedDatabase, localEnv, waitForDatabase } from "./local-lib";
 
 async function main() {

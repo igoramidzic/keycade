@@ -1,5 +1,5 @@
 import { Readable } from "node:stream";
-import { createDatabase } from "@keycade/db";
+import { createDatabase } from "@keylend/db";
 import { afterAll, describe, expect, it, vi } from "vitest";
 import { documentReservationMaxBytes } from "../src/documents.js";
 import { buildServer } from "../src/server.js";

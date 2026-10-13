@@ -1,4 +1,4 @@
-import { Input } from "@keycade/ui/components/input";
+import { Input } from "@keylend/ui/components/input";
 import { cn } from "cn";
 import { type ComponentProps, useLayoutEffect, useRef } from "react";
 

@@ -21,7 +21,7 @@ Borrowers understand visible progress, and bank staff can diagnose a stuck proce
 - Staff can distinguish waiting-for-input, pending, retrying, stale, and terminal failure.
 - A missing worker or growing backlog is visible; retrying uses current authorized input and cannot duplicate completed effects.
 - Old entries remain auditable after participant removal, document replacement, or rule changes.
-- Bank A operations routes cannot inspect Bank B queue/business metadata.
+- Keybank operations routes cannot inspect Isolation fixture queue/business metadata.
 
 ## Validation
 

@@ -1,4 +1,4 @@
-import type { ApplicationPortal } from "@keycade/contracts";
+import type { ApplicationPortal } from "@keylend/contracts";
 import { describe, expect, it } from "vitest";
 import { applicationProgress } from "./application-progress";
 

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type { ReviewFinancialFacts } from "@keycade/contracts";
-import { type DemoImportRecipeId, demoImportFields } from "@keycade/contracts/demo-import";
+import type { ReviewFinancialFacts } from "@keylend/contracts";
+import { type DemoImportRecipeId, demoImportFields } from "@keylend/contracts/demo-import";
 import {
   applicationDecisions,
   applicationParticipants,
@@ -17,9 +17,9 @@ import {
   documentVersions,
   financialFactCommands,
   financialFactReviews,
-} from "@keycade/db";
-import { seedIds as ids, seedDatabase } from "@keycade/db/seed";
-import { createTestDatabase } from "@keycade/db/testing";
+} from "@keylend/db";
+import { seedIds as ids, seedDatabase } from "@keylend/db/seed";
+import { createTestDatabase } from "@keylend/db/testing";
 import { and, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -35,7 +35,7 @@ const now = new Date("2026-10-08T12:00:00Z");
 const service = () => createFinancialFactsService(database.db, { clock: () => now });
 beforeAll(async () => {
   database = await createTestDatabase();
-  await seedDatabase(database.connectionString);
+  await seedDatabase(database.connectionString, { isolationFixtures: true });
 });
 afterAll(async () => database?.cleanup());
 async function fixture() {
@@ -128,7 +128,7 @@ async function source(
       state: "classified",
       requestId: randomUUID(),
       result: {
-        provider: "keycade-document-interpretation-v1",
+        provider: "keylend-document-interpretation-v1",
         simulated: true,
         versionId,
         runId,

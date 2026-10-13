@@ -4,24 +4,24 @@ import {
   type StaffWorkspace,
   staffOptionsSchema,
   staffWorkspaceSchema,
-} from "@keycade/contracts";
-import { Alert, AlertDescription, AlertTitle } from "@keycade/ui/components/alert";
-import { Badge } from "@keycade/ui/components/badge";
-import { Button, buttonVariants } from "@keycade/ui/components/button";
+} from "@keylend/contracts";
+import { Alert, AlertDescription, AlertTitle } from "@keylend/ui/components/alert";
+import { Badge } from "@keylend/ui/components/badge";
+import { Button, buttonVariants } from "@keylend/ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@keycade/ui/components/card";
-import { useDemoApplication } from "@keycade/ui/components/demo-kit";
-import { EmptyState } from "@keycade/ui/components/empty-state";
-import { NativeSelect } from "@keycade/ui/components/native-select";
-import { backLinkClassName } from "@keycade/ui/components/page-header";
-import { applicationStatusTone, StatusPill } from "@keycade/ui/components/status-pill";
-import { cn } from "@keycade/ui/lib/utils";
-import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
+} from "@keylend/ui/components/card";
+import { useDemoApplication } from "@keylend/ui/components/demo-kit";
+import { EmptyState } from "@keylend/ui/components/empty-state";
+import { NativeSelect } from "@keylend/ui/components/native-select";
+import { backLinkClassName } from "@keylend/ui/components/page-header";
+import { applicationStatusTone, StatusPill } from "@keylend/ui/components/status-pill";
+import { cn } from "@keylend/ui/lib/utils";
+import { workflowName, workflowText } from "@keylend/ui/lib/workflow-text";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,

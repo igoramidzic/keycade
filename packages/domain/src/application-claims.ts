@@ -6,7 +6,7 @@ import {
   banks,
   type DatabaseTransaction,
   users,
-} from "@keycade/db";
+} from "@keylend/db";
 import { and, eq } from "drizzle-orm";
 import type { Actor } from "./authorization.js";
 import { deny } from "./errors.js";

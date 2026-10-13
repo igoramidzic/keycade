@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
-import { projectRoot } from "@keycade/config/server";
-import { assertSchemaReady } from "@keycade/db/migrate";
+import { projectRoot } from "@keylend/config/server";
+import { assertSchemaReady } from "@keylend/db/migrate";
 import { assertPortFree, localEnv, preparePrivateStorage, waitForDatabase } from "./local-lib";
 
 async function main() {
@@ -10,7 +10,7 @@ async function main() {
   );
   await waitForDatabase(env, 3);
   await assertSchemaReady(env.DATABASE_URL);
-  const { assertQueueReady } = await import("@keycade/integrations");
+  const { assertQueueReady } = await import("@keylend/integrations");
   await assertQueueReady(env.DATABASE_URL);
   preparePrivateStorage(env);
   for (const port of [env.API_PORT, env.BANK_SITE_PORT, env.BORROWER_PORT, env.BANK_CONSOLE_PORT])

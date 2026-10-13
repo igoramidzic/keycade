@@ -1,4 +1,4 @@
-# Working on Keycade
+# Working on KeyLend
 
 ## Start here
 
@@ -9,7 +9,7 @@
 
 ## Required direction
 
-- Use TypeScript, pnpm workspaces, Turborepo, React, Node.js, PostgreSQL, Drizzle ORM and Drizzle Studio, Biome, Tailwind CSS, and shadcn/ui themed by the Keycade design system (tokens and composed primitives in `packages/ui`; see its README). The user replaced default shadcn styling with this design system on October 8, 2026.
+- Use TypeScript, pnpm workspaces, Turborepo, React, Node.js, PostgreSQL, Drizzle ORM and Drizzle Studio, Biome, Tailwind CSS, and shadcn/ui themed by the KeyLend design system (tokens and composed primitives in `packages/ui`; see its README). The user replaced default shadcn styling with this design system on October 8, 2026.
 - Add shadcn components through the `npx shadcn@latest` CLI as requested. Keep pnpm as the repository package manager and maintain one pnpm lockfile.
 - Use Podman for the local database. `pnpm initialize` must be repeatable; `pnpm dev` must verify an actual database connection before starting development processes.
 - Follow the local Fastify API and worker architecture unless a subsequent decision changes it. Keep database and integration credentials out of browser packages.

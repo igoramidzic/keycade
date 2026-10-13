@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { readEnvironment } from "@keycade/config/server";
+import { readEnvironment } from "@keylend/config/server";
 import { expect, type Response, test } from "@playwright/test";
 import { fillSignInEmail, openLink, requestLink } from "./identity-helpers";
 
@@ -56,7 +56,7 @@ test("staff demo sign-in enforces bank membership without an email", async ({ pa
         await fetch("/api/v1/auth/demo-sign-in", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, bankSlug: "bank-a", portal: "staff" }),
+          body: JSON.stringify({ email, bankSlug: "keybank", portal: "staff" }),
         })
       ).status,
     nonstaff,
@@ -102,21 +102,23 @@ test("staff demo sign-in preserves email during a service outage and can retry",
   await expect(page.getByRole("heading", { name: "Applications", exact: true })).toBeVisible();
 });
 
-test("staff accounts follow the selected bank and empty banks cannot sign in", async ({ page }) => {
-  await page.goto(`${staff}/?bank=bank-b`);
-  const picker = page.getByRole("combobox", { name: "Email address", exact: true });
-  await expect(picker.locator("option")).toHaveText(["officer-b@example.test · Loan officer"]);
-  await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Applications", exact: true })).toBeVisible();
-  expect(
-    await page.evaluate(async () => (await (await fetch("/api/v1/auth/session")).json()).bank.slug),
-  ).toBe("bank-b");
-  await page.getByRole("button", { name: "Sign out", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
-  await page.goto(`${staff}/?bank=missing-bank`);
-  await expect(picker).toBeDisabled();
-  await expect(page.getByText("No staff accounts are available for this bank.")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeDisabled();
+test("the staff portal always selects Keybank regardless of a bank query parameter", async ({
+  page,
+}) => {
+  for (const query of ["isolation-fixture", "missing-bank"]) {
+    await page.goto(`${staff}/?bank=${query}`);
+    const picker = page.getByRole("combobox", { name: "Email address", exact: true });
+    await expect(picker.locator("option")).toHaveText(["officer-a@example.test · Administrator"]);
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Applications", exact: true })).toBeVisible();
+    expect(
+      await page.evaluate(
+        async () => (await (await fetch("/api/v1/auth/session")).json()).bank.slug,
+      ),
+    ).toBe("keybank");
+    await page.getByRole("button", { name: "Sign out", exact: true }).click();
+    await expect(page.getByRole("combobox", { name: "Email address", exact: true })).toBeVisible();
+  }
 });
 
 test("account loading can retry and borrower sign-in has no alternate link or example email", async ({

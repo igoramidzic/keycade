@@ -1,5 +1,5 @@
 {
-  "name": "@keycade/worker",
+  "name": "@keylend/worker",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,9 +9,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@keycade/config": "workspace:*",
-    "@keycade/db": "workspace:*",
-    "@keycade/integrations": "workspace:*",
-    "@keycade/domain": "workspace:*"
+    "@keylend/config": "workspace:*",
+    "@keylend/db": "workspace:*",
+    "@keylend/integrations": "workspace:*",
+    "@keylend/domain": "workspace:*"
   }
 }

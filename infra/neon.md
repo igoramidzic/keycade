@@ -1,6 +1,6 @@
 # Neon PostgreSQL and GitHub Actions
 
-The existing Neon project `holy-fog-27591922` (Keycade), branch `production`, is the hosted database. It runs PostgreSQL 18.6. Local Podman also uses 18.6 after the user explicitly authorized wiping the initial local 17 database and starting fresh. GitHub's PostgreSQL 18 validation job is preserved but commented out for faster demo deployment. Neon is used only for PostgreSQL. Cloudflare R2 remains the planned document store.
+The existing Neon project `holy-fog-27591922` (KeyLend), branch `production`, is the hosted database. It runs PostgreSQL 18.6. Local Podman also uses 18.6 after the user explicitly authorized wiping the initial local 17 database and starting fresh. GitHub's PostgreSQL 18 validation job is preserved but commented out for faster demo deployment. Neon is used only for PostgreSQL. Cloudflare R2 remains the planned document store.
 
 ## Local connection context
 

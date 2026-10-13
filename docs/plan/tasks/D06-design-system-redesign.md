@@ -6,7 +6,7 @@ Dependencies: V2-07 (integrated borrower/lender experience) and T22. Read the [d
 
 ## Outcome
 
-One Keycade design system, built on the CLI-generated shadcn/ui primitives, styles all three web applications. The bank site reads as a credible fictional bank, the borrower experiences are client-focused and calm, and the lender console makes an application's state, facts, outstanding work and evidence easy to scan. Behavior, data, access rules and simulations are unchanged.
+One KeyLend design system, built on the CLI-generated shadcn/ui primitives, styles all three web applications. The bank site reads as a credible fictional bank, the borrower experiences are client-focused and calm, and the lender console makes an application's state, facts, outstanding work and evidence easy to scan. Behavior, data, access rules and simulations are unchanged.
 
 ## Scope
 
@@ -37,7 +37,7 @@ In progress — October 8, 2026.
 
 The user requested “Use key bank color scheme.” Shared tokens now use #b30000 primary actions, #cc0000 brand accents, #900000 hover, pale red selections, charcoal text and neutral gray/white surfaces. Dark tokens use readable lighter reds on charcoal. Existing semantic status and demo-tool tones remain separate. Dependencies are unchanged.
 
-Reference: computed styles on the [KeyBank homepage](https://www.key.com/personal/index.html), inspected October 8, 2026: “Get Details” has #b30000 fill and white text; the “Get Started with Personal Banking Products & Services” heading uses #cc0000. Hover, soft fills, neutrals and dark tones are Keycade adaptations.
+Reference: computed styles on the [KeyBank homepage](https://www.key.com/personal/index.html), inspected October 8, 2026: “Get Details” has #b30000 fill and white text; the “Get Started with Personal Banking Products & Services” heading uses #cc0000. Hover, soft fills, neutrals and dark tones are KeyLend adaptations.
 
 Done locally — October 8, 2026. Validation:
 
@@ -92,7 +92,7 @@ No hosted deployment was performed.
 
 ## Dialogs, menus and in-button spinners — October 8, 2026
 
-The user asked for a spinner inside buttons instead of “Saving…” text, in the setup wizard and elsewhere. `Button` now accepts `loading`: it disables the button, keeps the label in place (preserving width and accessible name) and overlays the shadcn Spinner. All 30 buttons that swapped their label for progress text across the borrower portal and bank console use it, including sign-in, setup Continue/Finish, task, document, review, closing and participant actions. The wizard keeps a screen-reader-only “Saving…” announcement; upload percentages and service-status text are unchanged. Dialog, Dropdown Menu and Spinner were added with `npx shadcn@latest add` (declining the prompt to overwrite the customized button) and themed with Keycade tokens: ink-tinted overlay, card surface with `shadow-lg`, sticky dialog footer and muted/danger menu items. The shared `CurrencyInput` is documented with the other composed primitives in the [UI README](../../../packages/ui/README.md). Dependencies are unchanged.
+The user asked for a spinner inside buttons instead of “Saving…” text, in the setup wizard and elsewhere. `Button` now accepts `loading`: it disables the button, keeps the label in place (preserving width and accessible name) and overlays the shadcn Spinner. All 30 buttons that swapped their label for progress text across the borrower portal and bank console use it, including sign-in, setup Continue/Finish, task, document, review, closing and participant actions. The wizard keeps a screen-reader-only “Saving…” announcement; upload percentages and service-status text are unchanged. Dialog, Dropdown Menu and Spinner were added with `npx shadcn@latest add` (declining the prompt to overwrite the customized button) and themed with KeyLend tokens: ink-tinted overlay, card surface with `shadow-lg`, sticky dialog footer and muted/danger menu items. The shared `CurrencyInput` is documented with the other composed primitives in the [UI README](../../../packages/ui/README.md). Dependencies are unchanged.
 
 Done locally — October 8, 2026. Validation (shared with the other October 8 UI follow-ups in this change):
 

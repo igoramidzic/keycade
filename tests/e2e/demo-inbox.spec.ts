@@ -1,14 +1,14 @@
 import { randomUUID } from "node:crypto";
-import { readEnvironment } from "@keycade/config/server";
+import { readEnvironment } from "@keylend/config/server";
 import { expect, type Page, test } from "@playwright/test";
 import { paceHostedRequests } from "./hosted-helpers";
 import { fillSignInEmail, messages, requestAccessEmail } from "./identity-helpers";
 import { completeAddressAndSkipOptional } from "./setup-helpers";
 
 const env = readEnvironment();
-const borrower = env.KEYCADE_E2E_BORROWER_ORIGIN ?? `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
-const staff = env.KEYCADE_E2E_STAFF_ORIGIN ?? `http://127.0.0.1:${env.BANK_CONSOLE_PORT ?? 3002}`;
-const hosted = env.KEYCADE_E2E_HOSTED === "true";
+const borrower = env.KEYLEND_E2E_BORROWER_ORIGIN ?? `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
+const staff = env.KEYLEND_E2E_STAFF_ORIGIN ?? `http://127.0.0.1:${env.BANK_CONSOLE_PORT ?? 3002}`;
+const hosted = env.KEYLEND_E2E_HOSTED === "true";
 
 // Confirmation credentials stay inside the browser; never retain auth/network artifacts.
 test.use({ trace: "off", screenshot: "off", video: "off", actionTimeout: 15_000 });
@@ -22,7 +22,7 @@ async function requestEmail(page: Page, email: string, action = "Send sign-in li
   await expect(page.getByLabel("Email address", { exact: true })).toBeVisible();
   await requestAccessEmail(page, email, action === "Start application");
   const origin = new URL(page.url()).origin;
-  await page.goto(`${origin}/?bank=bank-a`);
+  await page.goto(`${origin}/?bank=keybank`);
   await fillSignInEmail(page, email);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
 }
@@ -83,7 +83,7 @@ test("borrower inbox requires deliberate confirmation, conceals the used link, a
   await page.goto(borrower);
   await requestEmail(page, email);
   await openInbox(page);
-  await selectReadyMessage(page, "Your Keycade sign-in link");
+  await selectReadyMessage(page, "Your KeyLend sign-in link");
   expect(await authenticationMethod(page)).toBe("demo");
   expect(consumptions).toBe(0);
   await noOverflow(page);
@@ -98,7 +98,7 @@ test("borrower inbox requires deliberate confirmation, conceals the used link, a
   const used = page
     .getByRole("list", { name: "Messages" })
     .getByRole("button")
-    .filter({ hasText: "Your Keycade sign-in link" });
+    .filter({ hasText: "Your KeyLend sign-in link" });
   await expect(used).toContainText("Used");
   await used.click();
   const detail = page.getByRole("region", { name: "Selected message" });
@@ -136,7 +136,7 @@ test("email-started application resumes its saved setup through a fresh simulate
     )
       starts++;
   });
-  await page.goto(`${borrower}/apply?bank=bank-a`);
+  await page.goto(`${borrower}/apply?bank=keybank`);
   await requestEmail(page, email, "Start application");
   await openInbox(page);
   await selectReadyMessage(page, "Your application is started");
@@ -161,7 +161,7 @@ test("email-started application resumes its saved setup through a fresh simulate
   await page.goto(borrower);
   await requestEmail(page, email);
   await openInbox(page);
-  await selectReadyMessage(page, "Your Keycade sign-in link");
+  await selectReadyMessage(page, "Your KeyLend sign-in link");
   await openConfirmation(page);
   await page.getByRole("button", { name: "Confirm and sign in", exact: true }).click();
   await expect(page.getByRole("button", { name: "Continue setup", exact: true })).toHaveCount(1);
@@ -182,7 +182,7 @@ test("known synthetic staff confirms through its own demo inbox", async ({ page 
   await page.goto(staff);
   await requestEmail(page, "officer-a@example.test");
   await openInbox(page);
-  await selectReadyMessage(page, "Your Keycade sign-in link");
+  await selectReadyMessage(page, "Your KeyLend sign-in link");
   expect(await authenticationMethod(page)).toBe("demo");
   await noOverflow(page);
   await openConfirmation(page);
@@ -194,7 +194,7 @@ test("known synthetic staff confirms through its own demo inbox", async ({ page 
   const used = page
     .getByRole("list", { name: "Messages" })
     .getByRole("button")
-    .filter({ hasText: "Your Keycade sign-in link" })
+    .filter({ hasText: "Your KeyLend sign-in link" })
     .first();
   await expect(used).toContainText("Used");
   await used.click();
@@ -217,7 +217,7 @@ test("unknown staff cannot open a demo inbox or acquire bank membership", async 
         await fetch("/api/v1/auth/demo-sign-in", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, bankSlug: "bank-a", portal: "staff" }),
+          body: JSON.stringify({ email, bankSlug: "keybank", portal: "staff" }),
         })
       ).status,
     email,

@@ -1,5 +1,5 @@
-import type { ReviewAction, ReviewActionInput } from "@keycade/ui/components/review-action-form";
-import type { ReviewReasons } from "@keycade/ui/components/review-manager";
+import type { ReviewAction, ReviewActionInput } from "@keylend/ui/components/review-action-form";
+import type { ReviewReasons } from "@keylend/ui/components/review-manager";
 
 export function reviewReasons(labels: Record<string, string>): ReviewReasons {
   const options = (codes: string[]) =>

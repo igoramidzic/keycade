@@ -7,12 +7,12 @@ import {
   signatureNotificationOutbox,
   signatureSendOutbox,
   signatureSigners,
-} from "@keycade/db";
+} from "@keylend/db";
 import {
   applyVerifiedSignatureEvent,
   signatureInputCurrent,
   signatureSignerEligible,
-} from "@keycade/domain";
+} from "@keylend/domain";
 import { and, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { type Clock, ProviderError, systemClock } from "./provider.js";
 import { sendSyntheticSignatureEnvelope } from "./signatures-provider.js";

@@ -44,7 +44,7 @@ Done — local industry search, private identifier storage and protected busines
 - Replaced the temporary industry select with a shadcn/Base UI searchable popup. The complete Census 2022 U.S. six-digit catalog contains 1,012 entries. Local code/title/synonym/fuzzy search includes “dentistry office,” “dentstry ofice,” everyday descriptions and exact numeric codes. See [source evaluation, licensing, checksums and maintenance policy](../naics-source.md).
 - Search text and selected value are separate. Only an explicit catalog selection saves a code plus `2022`; schema validation is shared with the backend. Paired null skip remains optional. Historical demo answers remain readable but require a valid selection or skip when edited.
 - The popup preserves query/selection on failure, has a retry action, announces loading/results/no-match states, and ignores cancelled or out-of-order searches. The local index needs no provider credentials or external search requests.
-- Validation: focused catalog/search and application-contract tests passed (30); `@keycade/contracts`, `@keycade/ui` and `@keycade/borrower` typechecks passed. `pnpm test:e2e tests/e2e/industry.spec.ts`: **4 passed**, desktop/mobile keyboard selection, persistence, Escape focus return, popup width, optional skip, failed-search retry and out-of-order response fencing; run `.local/e2e-MMQMvr` used disposable PostgreSQL. Additional direct domain validation is included in the setup integration suite.
+- Validation: focused catalog/search and application-contract tests passed (30); `@keylend/contracts`, `@keylend/ui` and `@keylend/borrower` typechecks passed. `pnpm test:e2e tests/e2e/industry.spec.ts`: **4 passed**, desktop/mobile keyboard selection, persistence, Escape focus return, popup width, optional skip, failed-search retry and out-of-order response fencing; run `.local/e2e-MMQMvr` used disposable PostgreSQL. Additional direct domain validation is included in the setup integration suite.
 - Catalog selection classifies the applicant's chosen industry; it makes no identifier, business or tax verification claim.
 
 ### Identifier and enrichment backend — October 7, 2026
@@ -81,8 +81,8 @@ At deployed checkpoint `5a3c1a5`, all five native Cloudflare builds and [Neon mi
 Report: `.local/hosted-enrichment-5a3c1a5/report.json`. No external registry/tax provider, real identifier, authentication trace or bearer artifact was used. Existing hosted applications were untouched. This narrow acceptance complements the local privacy/staleness/failure suites; it does not claim those negative cases all ran against the shared hosted demo.
 
 ```sh
-KEYCADE_E2E_HOSTED=true DEMO_INBOX_ENABLED=true \
-KEYCADE_E2E_BORROWER_ORIGIN=https://keycade-borrower.kualia.workers.dev \
-KEYCADE_E2E_STAFF_ORIGIN=https://keycade-bank-console.kualia.workers.dev \
+KEYLEND_E2E_HOSTED=true DEMO_INBOX_ENABLED=true \
+KEYLEND_E2E_BORROWER_ORIGIN=https://keylend-borrower.kualia.workers.dev \
+KEYLEND_E2E_STAFF_ORIGIN=https://keylend-bank-console.kualia.workers.dev \
 pnpm exec playwright test tests/e2e/hosted-enrichment.spec.ts --config=playwright.hosted.config.ts
 ```

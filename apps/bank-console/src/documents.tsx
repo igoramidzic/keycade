@@ -3,11 +3,11 @@ import {
   documentsViewSchema,
   documentUploadResultSchema,
   financialFactsViewSchema,
-} from "@keycade/contracts";
-import { DocumentWorkspace } from "@keycade/ui/components/document-workspace";
-import { DocumentsManager } from "@keycade/ui/components/documents-manager";
-import { createDocumentTransfer } from "@keycade/ui/lib/document-transfer";
-import { documentRefreshInterval } from "@keycade/ui/lib/refresh-policy";
+} from "@keylend/contracts";
+import { DocumentWorkspace } from "@keylend/ui/components/document-workspace";
+import { DocumentsManager } from "@keylend/ui/components/documents-manager";
+import { createDocumentTransfer } from "@keylend/ui/lib/document-transfer";
+import { documentRefreshInterval } from "@keylend/ui/lib/refresh-policy";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { ApiError, useStaffApi } from "./api";

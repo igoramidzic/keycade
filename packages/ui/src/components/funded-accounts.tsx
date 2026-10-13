@@ -1,13 +1,13 @@
-import { Badge } from "@keycade/ui/components/badge";
-import { buttonVariants } from "@keycade/ui/components/button";
+import { Badge } from "@keylend/ui/components/badge";
+import { buttonVariants } from "@keylend/ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@keycade/ui/components/card";
-import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
+} from "@keylend/ui/components/card";
+import { workflowName, workflowText } from "@keylend/ui/lib/workflow-text";
 
 export type FundedAccountData = {
   id: string;

@@ -4,7 +4,7 @@ import {
   documentProcessingRuns,
   documents,
   documentVersions,
-} from "@keycade/db";
+} from "@keylend/db";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import type { QueryDatabase } from "./authorization.js";
 

@@ -30,7 +30,7 @@ export const scenarioSchema = z.enum([
 export type DemoScenario = z.infer<typeof scenarioSchema>;
 export const demoResultSchema = z
   .object({
-    provider: z.literal("keycade-demo-v1"),
+    provider: z.enum(["keylend-demo-v1", "keycade-demo-v1"]),
     simulated: z.literal(true),
     outcome: z.enum(["complete", "waiting_for_input"]),
     operationId: z.uuid(),
@@ -82,7 +82,7 @@ export async function invokeDemoProvider(
     if (request.scenario === "transient_error" && request.attempt === 1)
       throw new ProviderError("transient_error", true);
     return demoResultSchema.parse({
-      provider: "keycade-demo-v1",
+      provider: "keylend-demo-v1",
       simulated: true,
       outcome: request.scenario === "missing_input" ? "waiting_for_input" : "complete",
       operationId: request.operationId,

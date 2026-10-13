@@ -1,12 +1,12 @@
-import { notificationPreferenceSchema } from "@keycade/contracts";
-import { Button, buttonVariants } from "@keycade/ui/components/button";
+import { notificationPreferenceSchema } from "@keylend/contracts";
+import { Button, buttonVariants } from "@keylend/ui/components/button";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@keycade/ui/components/collapsible";
-import type { AuthenticatedSession } from "@keycade/ui/components/identity-portal";
-import { cn } from "@keycade/ui/lib/utils";
+} from "@keylend/ui/components/collapsible";
+import type { AuthenticatedSession } from "@keylend/ui/components/identity-portal";
+import { cn } from "@keylend/ui/lib/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BellRing } from "lucide-react";
 import { useState } from "react";

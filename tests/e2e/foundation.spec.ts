@@ -1,21 +1,21 @@
-import { readEnvironment } from "@keycade/config/server";
+import { readEnvironment } from "@keylend/config/server";
 import { expect, test } from "@playwright/test";
 
 const env = readEnvironment();
 const workspaces = [
   {
-    name: "Keycade Bank",
-    brand: "Bank A",
+    name: "Keybank",
+    brand: "Keybank",
     port: env.BANK_SITE_PORT ?? 3000,
   },
   {
     name: "Borrower Portal",
-    brand: "Keycade Bank",
+    brand: "Keybank",
     port: env.BORROWER_PORT ?? 3001,
   },
   {
     name: "Bank Console",
-    brand: "Keycade Bank Console",
+    brand: "KeyLend",
     port: env.BANK_CONSOLE_PORT ?? 3002,
   },
 ];
@@ -44,26 +44,20 @@ for (const workspace of workspaces) {
     expect(layout.contentWidth).toBeLessThanOrEqual(layout.width);
     expect(layout.fontFamily).toContain("Geist");
 
-    if (workspace.name === "Keycade Bank") {
+    if (workspace.name === "Keybank") {
       await page.getByRole("link", { name: "Continue an application", exact: true }).click();
-      await expect(page).toHaveURL(`http://127.0.0.1:${env.BORROWER_PORT ?? 3001}/?bank=bank-a`);
+      await expect(page).toHaveURL(`http://127.0.0.1:${env.BORROWER_PORT ?? 3001}/?bank=keybank`);
       await expect(page.getByLabel("Email address", { exact: true })).toBeVisible();
-      await page
-        .getByRole("banner")
-        .getByRole("link", { name: "Keycade Bank", exact: true })
-        .click();
+      await page.getByRole("banner").getByRole("link", { name: "Keybank", exact: true }).click();
       await page.getByRole("link", { name: "Bank staff sign-in", exact: true }).click();
       await expect(page).toHaveURL(`http://127.0.0.1:${env.BANK_CONSOLE_PORT ?? 3002}/`);
     } else if (workspace.name === "Borrower Portal") {
-      await page
-        .getByRole("banner")
-        .getByRole("link", { name: "Keycade Bank", exact: true })
-        .click();
+      await page.getByRole("banner").getByRole("link", { name: "Keybank", exact: true }).click();
       await expect(page).toHaveURL(`http://127.0.0.1:${env.BANK_SITE_PORT ?? 3000}/`);
     } else {
       await expect(page.getByLabel("Email address", { exact: true })).toBeVisible();
       await page.getByRole("banner").getByRole("link", { name: workspace.brand }).click();
-      await expect(page).toHaveURL(`http://127.0.0.1:${workspace.port}/?bank=bank-a`);
+      await expect(page).toHaveURL(`http://127.0.0.1:${workspace.port}/?bank=keybank`);
       await expect(page.getByLabel("Email address", { exact: true })).toBeVisible();
     }
     expect(errors).toEqual([]);

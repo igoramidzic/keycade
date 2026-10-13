@@ -1,6 +1,6 @@
-import { activityViewSchema, operationsViewSchema } from "@keycade/contracts";
-import { ActivityHistory } from "@keycade/ui/components/activity-history";
-import { OperationsWorkspace } from "@keycade/ui/components/operations-workspace";
+import { activityViewSchema, operationsViewSchema } from "@keylend/contracts";
+import { ActivityHistory } from "@keylend/ui/components/activity-history";
+import { OperationsWorkspace } from "@keylend/ui/components/operations-workspace";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useStaffApi } from "./api";
 import { ErrorNotice, Loading } from "./ui";

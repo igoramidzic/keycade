@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { readEnvironment } from "@keycade/config/server";
+import { readEnvironment } from "@keylend/config/server";
 import { expect, type Page, test } from "@playwright/test";
 import { fillSignInEmail } from "./identity-helpers";
 
@@ -9,7 +9,7 @@ test.use({ trace: "off", screenshot: "off", video: "off", actionTimeout: 15_000 
 test.setTimeout(75_000);
 
 async function industryStep(page: Page) {
-  await page.goto(`${borrower}/apply?bank=bank-a`);
+  await page.goto(`${borrower}/apply?bank=keybank`);
   await fillSignInEmail(page, `industry-${randomUUID()}@example.test`);
   await page.getByRole("button", { name: "Start application", exact: true }).click();
   await page.getByLabel("Legal business name", { exact: true }).fill("Synthetic Dental Office");

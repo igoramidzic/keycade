@@ -1,4 +1,4 @@
-import type { BusinessAddress, ChecksView } from "@keycade/contracts";
+import type { BusinessAddress, ChecksView } from "@keylend/contracts";
 
 export type LoanFootprintCheck = ChecksView["checks"][number];
 

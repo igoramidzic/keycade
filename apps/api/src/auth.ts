@@ -1,12 +1,12 @@
-import type { AuthPortal } from "@keycade/contracts";
-import type { Database } from "@keycade/db";
+import type { AuthPortal } from "@keylend/contracts";
+import type { Database } from "@keylend/db";
 import {
   type Actor,
   createIdentityService,
   DomainError,
   deny,
   requireBankStaff,
-} from "@keycade/domain";
+} from "@keylend/domain";
 import { readSessionCookie, validCsrfToken } from "./security.js";
 
 export type IdentityService = ReturnType<typeof createIdentityService>;

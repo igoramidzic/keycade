@@ -1,4 +1,4 @@
-import type { NotificationKind } from "@keycade/db";
+import type { NotificationKind } from "@keylend/db";
 
 export interface AccessEmail {
   deliveryRequestId: string;
@@ -14,7 +14,7 @@ export interface AccessEmailAdapter {
 }
 
 const subjects: Record<NotificationKind, string> = {
-  access_requested: "Your Keycade sign-in link",
+  access_requested: "Your KeyLend sign-in link",
   application_started: "Your application is started",
   application_resume: "Continue your application",
   invitation: "Your application invitation",
@@ -32,7 +32,7 @@ export function renderAccessEmail(message: AccessEmail, options: { includeLink?:
   return {
     subject: `${subjects[kind]}${reference ? ` · Application ${reference}` : ""} — simulation`,
     text: [
-      "This is a Keycade simulation. No external email has been sent.",
+      "This is a KeyLend simulation. No external email has been sent.",
       "",
       subjects[kind],
       ...(reference ? [`Application ${reference}`] : []),

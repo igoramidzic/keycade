@@ -1,6 +1,6 @@
-import { activityViewSchema } from "@keycade/contracts";
-import { ActivityHistory } from "@keycade/ui/components/activity-history";
-import type { AuthenticatedSession } from "@keycade/ui/components/identity-portal";
+import { activityViewSchema } from "@keylend/contracts";
+import { ActivityHistory } from "@keylend/ui/components/activity-history";
+import type { AuthenticatedSession } from "@keylend/ui/components/identity-portal";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { request } from "./api";
 import { ErrorNotice, Loading } from "./workspace-ui";

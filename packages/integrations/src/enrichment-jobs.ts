@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { type EnrichmentResult, enrichmentResultSchema } from "@keycade/contracts";
+import { type EnrichmentResult, enrichmentResultSchema } from "@keylend/contracts";
 import {
   applications,
   auditEvents,
@@ -7,12 +7,12 @@ import {
   enrichmentInputs,
   enrichmentRuns,
   sensitiveIdentifierVersions,
-} from "@keycade/db";
+} from "@keylend/db";
 import {
   enrichmentPrerequisites,
   enrichmentSubjectActive,
   type IdentifierCipher,
-} from "@keycade/domain";
+} from "@keylend/domain";
 import { and, eq, inArray, lte, or } from "drizzle-orm";
 import {
   type EnrichmentProviderRequest,

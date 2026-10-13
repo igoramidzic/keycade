@@ -1,5 +1,5 @@
-import { fundedAccountsViewSchema } from "@keycade/contracts";
-import { FundedAccounts } from "@keycade/ui/components/funded-accounts";
+import { fundedAccountsViewSchema } from "@keylend/contracts";
+import { FundedAccounts } from "@keylend/ui/components/funded-accounts";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
 import { ApiError, useStaffApi } from "./api";

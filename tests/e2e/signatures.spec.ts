@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { readEnvironment } from "@keycade/config/server";
-import { syntheticDocumentPdf } from "@keycade/integrations/document-fixtures";
+import { readEnvironment } from "@keylend/config/server";
+import { syntheticDocumentPdf } from "@keylend/integrations/document-fixtures";
 import { type BrowserContext, expect as baseExpect, type Page, test } from "@playwright/test";
 import { fillSignInEmail, messages, openLink, waitForLink } from "./identity-helpers";
 
@@ -13,7 +13,7 @@ const expect = baseExpect.configure({ timeout: 15_000 });
 test.use({ trace: "off", screenshot: "off", video: "off", actionTimeout: 15000 });
 test.setTimeout(150000);
 const url = (origin: string, section: string) =>
-  `${origin}/applications/${applicationId}/${section}?bank=bank-a`;
+  `${origin}/applications/${applicationId}/${section}?bank=keybank`;
 async function signIn(page: Page, origin: string, email: string) {
   await page.goto(origin);
   await fillSignInEmail(page, email);

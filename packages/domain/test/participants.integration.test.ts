@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { applicationParticipants, users } from "@keycade/db";
-import { seedIds as ids, seedDatabase } from "@keycade/db/seed";
-import { createTestDatabase } from "@keycade/db/testing";
+import { applicationParticipants, users } from "@keylend/db";
+import { seedIds as ids, seedDatabase } from "@keylend/db/seed";
+import { createTestDatabase } from "@keylend/db/testing";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -19,7 +19,7 @@ const origin = "http://localhost:3001";
 const denied = { code: "NOT_FOUND", statusCode: 404 };
 beforeAll(async () => {
   database = await createTestDatabase();
-  await seedDatabase(database.connectionString);
+  await seedDatabase(database.connectionString, { isolationFixtures: true });
 }, 30_000);
 afterAll(async () => database?.cleanup());
 

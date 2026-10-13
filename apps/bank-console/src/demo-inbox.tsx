@@ -1,5 +1,5 @@
-import { demoInboxMessageSchema, demoInboxViewSchema } from "@keycade/contracts";
-import { DemoInbox } from "@keycade/ui/components/demo-inbox";
+import { demoInboxMessageSchema, demoInboxViewSchema } from "@keylend/contracts";
+import { DemoInbox } from "@keylend/ui/components/demo-inbox";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { useStaffApi } from "./api";

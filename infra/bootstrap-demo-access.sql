@@ -4,8 +4,8 @@ BEGIN;
 
 DO $$
 BEGIN
-  IF NOT EXISTS (SELECT 1 FROM banks WHERE slug = 'bank-a' AND synthetic) THEN
-    RAISE EXCEPTION 'Synthetic bank-a is required; no changes applied';
+  IF NOT EXISTS (SELECT 1 FROM banks WHERE slug = 'keybank' AND synthetic) THEN
+    RAISE EXCEPTION 'Synthetic keybank is required; no changes applied';
   END IF;
   IF EXISTS (SELECT 1 FROM users WHERE email = 'officer-a@example.test' AND NOT synthetic) THEN
     RAISE EXCEPTION 'Demo officer collides with a non-synthetic identity; no changes applied';
@@ -19,7 +19,7 @@ ON CONFLICT (email) DO NOTHING;
 INSERT INTO bank_memberships (bank_id, user_id, role, synthetic)
 SELECT b.id, u.id, 'admin', true
 FROM banks b CROSS JOIN users u
-WHERE b.slug = 'bank-a' AND b.synthetic AND u.email = 'officer-a@example.test' AND u.synthetic
+WHERE b.slug = 'keybank' AND b.synthetic AND u.email = 'officer-a@example.test' AND u.synthetic
 ON CONFLICT (bank_id, user_id) DO NOTHING;
 
 DO $$
@@ -27,7 +27,7 @@ BEGIN
   IF EXISTS (
     SELECT 1 FROM bank_memberships m
     JOIN users u ON u.id = m.user_id JOIN banks b ON b.id = m.bank_id
-    WHERE b.slug = 'bank-a' AND u.email = 'officer-a@example.test' AND NOT m.synthetic
+    WHERE b.slug = 'keybank' AND u.email = 'officer-a@example.test' AND NOT m.synthetic
   ) THEN
     RAISE EXCEPTION 'Existing staff membership is not synthetic; no changes applied';
   END IF;

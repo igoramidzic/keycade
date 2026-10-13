@@ -9,7 +9,7 @@ import {
   staffWorkspaceSchema,
   type TaskProgress,
   updateStaffNoteSchema,
-} from "@keycade/contracts";
+} from "@keylend/contracts";
 import {
   applicantContacts,
   applicationParticipants,
@@ -23,7 +23,7 @@ import {
   loanProducts,
   staffNotes,
   users,
-} from "@keycade/db";
+} from "@keylend/db";
 import { and, asc, count, desc, eq, ilike, inArray, isNull, or, type SQL, sql } from "drizzle-orm";
 import { type AnyPgColumn, alias } from "drizzle-orm/pg-core";
 import { type Actor, requireApplicationAccess, requireBankStaff } from "./authorization.js";

@@ -1,6 +1,6 @@
-# Gaps between Keycade and the proposed lending workflow
+# Gaps between KeyLend and the proposed lending workflow
 
-The inspected baseline is commit `d69b44a`. Keycade already provides resumable setup, scoped participation, private evidence, human financial-fact review, stage readiness, immutable decisions, simulated signing, closing gates and idempotent recorded funding. Those are useful foundations. The next work should add the missing lending concepts around them.
+The inspected baseline is commit `d69b44a`. KeyLend already provides resumable setup, scoped participation, private evidence, human financial-fact review, stage readiness, immutable decisions, simulated signing, closing gates and idempotent recorded funding. Those are useful foundations. The next work should add the missing lending concepts around them.
 
 This is a source inspection, not a new execution of the application test suite. Historical acceptance evidence remains in the original task records. The target behavior below is **not implemented**.
 

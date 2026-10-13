@@ -6,7 +6,7 @@ import {
   signatureEnvelopes,
   taskReviews,
   taskSignaturePolicies,
-} from "@keycade/db";
+} from "@keylend/db";
 import { and, asc, eq } from "drizzle-orm";
 import type { QueryDatabase } from "./authorization.js";
 import { DomainError } from "./errors.js";

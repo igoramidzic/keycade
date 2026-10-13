@@ -81,7 +81,7 @@ export const documentFindingSchema = z.strictObject({
   detail: z.string().min(1).max(1000),
 });
 export const documentInterpretationResultSchema = z.strictObject({
-  provider: z.literal("keycade-document-interpretation-v1"),
+  provider: z.enum(["keylend-document-interpretation-v1", "keycade-document-interpretation-v1"]),
   simulated: z.literal(true),
   runId: z.string().uuid(),
   versionId: z.string().uuid(),

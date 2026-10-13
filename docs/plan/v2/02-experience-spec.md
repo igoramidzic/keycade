@@ -54,7 +54,7 @@ On mobile, show a compact application/stage summary above tasks, with expandable
 
 Derive stage and text from persisted setup/lifecycle/events. Never store a second mutable stage in the browser or present percentages as likelihood of approval.
 
-| Keycade state/evidence | Borrower label and behavior |
+| KeyLend state/evidence | Borrower label and behavior |
 | --- | --- |
 | Setup in progress / `draft` | Initial Application Form; applicant remains in wizard, selector can show its saved progress |
 | Setup completed; `collecting_information` | Initial Application Form complete; Application In Progress current |

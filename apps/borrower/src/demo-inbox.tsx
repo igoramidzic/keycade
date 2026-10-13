@@ -1,6 +1,6 @@
-import { demoInboxMessageSchema, demoInboxViewSchema } from "@keycade/contracts";
-import { DemoInbox } from "@keycade/ui/components/demo-inbox";
-import type { AuthenticatedSession } from "@keycade/ui/components/identity-portal";
+import { demoInboxMessageSchema, demoInboxViewSchema } from "@keylend/contracts";
+import { DemoInbox } from "@keylend/ui/components/demo-inbox";
+import type { AuthenticatedSession } from "@keylend/ui/components/identity-portal";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { request } from "./api";

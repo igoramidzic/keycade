@@ -6,7 +6,7 @@ import {
   reviewViewSchema,
   signaturesViewSchema,
   tasksViewSchema,
-} from "@keycade/contracts";
+} from "@keylend/contracts";
 import {
   accessDeliveryRequests,
   applicantContacts,
@@ -22,18 +22,18 @@ import {
   signatureArtifacts,
   signatureProviderEvents,
   users,
-} from "@keycade/db";
-import { seedIds as ids, seedDatabase } from "@keycade/db/seed";
-import { createTestDatabase } from "@keycade/db/testing";
+} from "@keylend/db";
+import { seedIds as ids, seedDatabase } from "@keylend/db/seed";
+import { createTestDatabase } from "@keylend/db/testing";
 import {
   type Actor,
   createDocumentsService,
   createIdentifierCipher,
   createTasksService,
-} from "@keycade/domain";
-import { processCheckRun } from "@keycade/integrations/check-jobs";
-import { processSignatureJobs } from "@keycade/integrations/signatures-jobs";
-import { createSignatureWebhookAuthenticator } from "@keycade/integrations/signatures-provider";
+} from "@keylend/domain";
+import { processCheckRun } from "@keylend/integrations/check-jobs";
+import { processSignatureJobs } from "@keylend/integrations/signatures-jobs";
+import { createSignatureWebhookAuthenticator } from "@keylend/integrations/signatures-provider";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildServer } from "../src/server.js";
@@ -48,7 +48,7 @@ const borrower: Actor = { kind: "user", userId: ids.borrower };
 const base = (applicationId: string) => `/api/v1/banks/${ids.bankA}/applications/${applicationId}`;
 beforeAll(async () => {
   database = await createTestDatabase();
-  await seedDatabase(database.connectionString);
+  await seedDatabase(database.connectionString, { isolationFixtures: true });
 }, 30000);
 afterAll(async () => database?.cleanup());
 async function fixture() {
@@ -520,7 +520,7 @@ for (const transport of ["fastify", "worker"] as const)
           (
             await anonymous.call(signatureWebhookPath, raw, {
               ...headers,
-              "x-keycade-signature": "v1=" + "0".repeat(64),
+              "x-keylend-signature": "v1=" + "0".repeat(64),
             })
           ).status,
         ).toBe(403);
@@ -529,7 +529,7 @@ for (const transport of ["fastify", "worker"] as const)
           (
             await anonymous.call(signatureWebhookPath, malformed, {
               ...headers,
-              "x-keycade-signature": mac.sign(malformed),
+              "x-keylend-signature": mac.sign(malformed),
             })
           ).status,
         ).toBe(400);
@@ -538,11 +538,11 @@ for (const transport of ["fastify", "worker"] as const)
           (
             await anonymous.call(signatureWebhookPath, invalid, {
               ...headers,
-              "x-keycade-signature": mac.sign(invalid),
+              "x-keylend-signature": mac.sign(invalid),
             })
           ).status,
         ).toBe(400);
-        const authenticated = { ...headers, "x-keycade-signature": mac.sign(raw) };
+        const authenticated = { ...headers, "x-keylend-signature": mac.sign(raw) };
         expect((await anonymous.call(signatureWebhookPath, raw + " ", authenticated)).status).toBe(
           403,
         );

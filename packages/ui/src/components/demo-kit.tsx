@@ -1,22 +1,22 @@
-import type { DemoImportContext } from "@keycade/contracts/demo-import";
+import type { DemoImportContext } from "@keylend/contracts/demo-import";
 import {
   type DemoDocument,
   demoDocumentBusinessName,
   demoScenarios,
-} from "@keycade/contracts/demo-scenarios";
-import { Button } from "@keycade/ui/components/button";
+} from "@keylend/contracts/demo-scenarios";
+import { Button } from "@keylend/ui/components/button";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@keycade/ui/components/collapsible";
-import { DemoBadge, DemoDestination, DemoStepHeading } from "@keycade/ui/components/demo-kit-parts";
-import { DemoTextImporter } from "@keycade/ui/components/demo-text-importer";
-import { NativeSelect } from "@keycade/ui/components/native-select";
-import { createDemoDocumentFile, demoDocumentMime } from "@keycade/ui/lib/demo-document-transfer";
-import type { DemoImportPreview } from "@keycade/ui/lib/demo-import-transfer";
-import { preferredDemoUploadTarget } from "@keycade/ui/lib/demo-upload-targets";
-import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
+} from "@keylend/ui/components/collapsible";
+import { DemoBadge, DemoDestination, DemoStepHeading } from "@keylend/ui/components/demo-kit-parts";
+import { DemoTextImporter } from "@keylend/ui/components/demo-text-importer";
+import { NativeSelect } from "@keylend/ui/components/native-select";
+import { createDemoDocumentFile, demoDocumentMime } from "@keylend/ui/lib/demo-document-transfer";
+import type { DemoImportPreview } from "@keylend/ui/lib/demo-import-transfer";
+import { preferredDemoUploadTarget } from "@keylend/ui/lib/demo-upload-targets";
+import { workflowName, workflowText } from "@keylend/ui/lib/workflow-text";
 import { cn } from "cn";
 import {
   Check,
@@ -60,7 +60,7 @@ type DemoKitContextValue = {
   registerApplication: (id: string, name: string | null | undefined) => () => void;
 };
 const DemoKitContext = createContext<DemoKitContextValue | null>(null);
-const selectionKey = "keycade.demo-scenario.v1";
+const selectionKey = "keylend.demo-scenario.v1";
 /** Every kit surface uses the charcoal demo console palette (see `.demo-kit` in globals.css). */
 const kitTheme = "dark demo-kit bg-background text-foreground";
 
@@ -411,7 +411,7 @@ function DemoKitPanel({
           <DemoBadge />
           <h2 className="mt-2 text-lg leading-6 font-semibold">Sample kit</h2>
           <p className="mt-1 text-xs leading-5 text-muted-foreground">
-            Example profiles and documents for exploring Keycade.
+            Example profiles and documents for exploring KeyLend.
           </p>
         </div>
         <Button size="icon-sm" variant="ghost" aria-label="Hide sample kit" onClick={close}>

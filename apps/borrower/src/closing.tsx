@@ -1,6 +1,6 @@
-import { closingViewSchema } from "@keycade/contracts";
-import { ClosingManager } from "@keycade/ui/components/closing-manager";
-import type { AuthenticatedSession } from "@keycade/ui/components/identity-portal";
+import { closingViewSchema } from "@keylend/contracts";
+import { ClosingManager } from "@keylend/ui/components/closing-manager";
+import type { AuthenticatedSession } from "@keylend/ui/components/identity-portal";
 import { useQuery } from "@tanstack/react-query";
 import { ApiError, request } from "./api";
 import { ErrorNotice, Loading } from "./workspace-ui";

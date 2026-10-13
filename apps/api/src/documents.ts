@@ -3,15 +3,15 @@ import {
   correctDocumentCategorySchema,
   type DocumentsView,
   documentUploadResultSchema,
-} from "@keycade/contracts";
+} from "@keylend/contracts";
 import {
   demoImportMaxBytes,
   demoImportMaxFiles,
   readDemoImportPdfFixture,
-} from "@keycade/contracts/demo-import";
-import type { Database } from "@keycade/db";
-import { type Actor, createDocumentsService, DomainError } from "@keycade/domain";
-import type { ByteSource, PrivateDocumentStorage } from "@keycade/integrations/documents";
+} from "@keylend/contracts/demo-import";
+import type { Database } from "@keylend/db";
+import { type Actor, createDocumentsService, DomainError } from "@keylend/domain";
+import type { ByteSource, PrivateDocumentStorage } from "@keylend/integrations/documents";
 
 // JSON may encode each text byte as a six-byte Unicode escape. Reserve additional
 // room for the bounded filenames, context and upload metadata in a full batch.

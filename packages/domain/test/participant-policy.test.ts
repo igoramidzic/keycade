@@ -48,7 +48,7 @@ describe("participant task/document policy matrix", () => {
       }
     }
     for (const role of ["officer", "admin"] as const) {
-      it(`${kind}: bank ${role} can use bank-authorized resources`, () => {
+      it(`${kind}: bank ${role} can use keybankuthorized resources`, () => {
         for (const visibility of ["shared", "assigned", "private"] as const)
           expect(
             participantResourceAllowed({

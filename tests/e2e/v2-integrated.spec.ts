@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { readEnvironment } from "@keycade/config/server";
+import { readEnvironment } from "@keylend/config/server";
 import type {
   ApplicationSetup,
   DocumentsView,
   FinancialFactsView,
   TasksView,
-} from "@keycade/contracts";
+} from "@keylend/contracts";
 import { expect as browserExpect, type Page, type Route, test } from "@playwright/test";
 import { demoImportRecipes } from "../../packages/contracts/src/demo-import";
 import { workflowApi } from "./closing-helpers";
@@ -125,7 +125,7 @@ test("one new applicant resumes expanded setup and reaches reviewed financial hi
     page.getByRole("heading", { name: "Review your application setup", exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Finish setup", exact: true }).click();
-  await expect(page).toHaveURL(`${borrower}${base}?bank=bank-a`);
+  await expect(page).toHaveURL(`${borrower}${base}?bank=keybank`);
   await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
   await expect(page.getByRole("tablist")).toHaveCount(0);
   const sidebar = page.getByRole("complementary", { name: "Application details", exact: true });
@@ -216,7 +216,7 @@ test("one new applicant resumes expanded setup and reaches reviewed financial hi
     await officerContext.route("**/api/v1/**", pace);
     const officer = await officerContext.newPage();
     await signIn(officer, staff, "officer-a@example.test");
-    await officer.goto(`${staff}${base}/overview?bank=bank-a`);
+    await officer.goto(`${staff}${base}/overview?bank=keybank`);
     const financials = officer.getByRole("region", { name: "Financial overview", exact: true });
     await expect(financials).toBeVisible({ timeout: 30_000 });
     await expect(financials).toContainText("Unconfirmed");

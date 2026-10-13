@@ -33,8 +33,8 @@ import {
   submitApplicationSchema,
   tasksViewSchema,
   withdrawApplicationSchema,
-} from "@keycade/contracts";
-import { type Database, signatureEnvelopes } from "@keycade/db";
+} from "@keylend/contracts";
+import { type Database, signatureEnvelopes } from "@keylend/db";
 import {
   type Actor,
   applyVerifiedSignatureEvent,
@@ -50,8 +50,8 @@ import {
   createReviewService,
   createSignaturesService,
   DomainError,
-} from "@keycade/domain";
-import { createSignatureWebhookAuthenticator } from "@keycade/integrations/signatures-provider";
+} from "@keylend/domain";
+import { createSignatureWebhookAuthenticator } from "@keylend/integrations/signatures-provider";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
@@ -74,7 +74,7 @@ const empty = z.strictObject({});
 const scope = (p: Params) => applicationParamsSchema.parse(p);
 const resource = (p: Params) => z.uuid().parse(p.resourceId);
 export const signatureWebhookPath = "/api/v1/simulated/signatures/events";
-export const signatureWebhookContentType = "application/vnd.keycade.signature+json";
+export const signatureWebhookContentType = "application/vnd.keylend.signature+json";
 
 /** Shared route contracts keep native Workers and Fastify behavior aligned. */
 export function createWorkflowTransport(
@@ -495,7 +495,7 @@ export function workflowOpenApi(routes: Route[]) {
   paths[signatureWebhookPath] = {
     post: {
       parameters: [
-        { name: "x-keycade-signature", in: "header", required: true, schema: { type: "string" } },
+        { name: "x-keylend-signature", in: "header", required: true, schema: { type: "string" } },
       ],
       requestBody: {
         required: true,

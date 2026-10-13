@@ -1,4 +1,4 @@
-import { readEnvironment } from "@keycade/config/server";
+import { readEnvironment } from "@keylend/config/server";
 import { expect, test } from "@playwright/test";
 import { fillSignInEmail } from "./identity-helpers";
 

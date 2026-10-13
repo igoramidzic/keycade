@@ -5,33 +5,33 @@ import {
   applicationSelectionSchema,
   applicationSetupSchema,
   fundingPurposeOptions,
-} from "@keycade/contracts";
-import { Alert, AlertDescription, AlertTitle } from "@keycade/ui/components/alert";
-import { IdentityAvatar } from "@keycade/ui/components/app-shell";
-import { Badge } from "@keycade/ui/components/badge";
-import { Button, buttonVariants } from "@keycade/ui/components/button";
+} from "@keylend/contracts";
+import { Alert, AlertDescription, AlertTitle } from "@keylend/ui/components/alert";
+import { IdentityAvatar } from "@keylend/ui/components/app-shell";
+import { Badge } from "@keylend/ui/components/badge";
+import { Button, buttonVariants } from "@keylend/ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@keycade/ui/components/card";
+} from "@keylend/ui/components/card";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@keycade/ui/components/collapsible";
-import { useDemoApplication } from "@keycade/ui/components/demo-kit";
-import { EmptyState } from "@keycade/ui/components/empty-state";
+} from "@keylend/ui/components/collapsible";
+import { useDemoApplication } from "@keylend/ui/components/demo-kit";
+import { EmptyState } from "@keylend/ui/components/empty-state";
 import type {
   AuthenticatedSession,
   IdentityControls,
-} from "@keycade/ui/components/identity-portal";
-import { backLinkClassName, PageHeader } from "@keycade/ui/components/page-header";
-import { applicationStatusTone, StatusPill } from "@keycade/ui/components/status-pill";
-import { cn } from "@keycade/ui/lib/utils";
-import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
+} from "@keylend/ui/components/identity-portal";
+import { backLinkClassName, PageHeader } from "@keylend/ui/components/page-header";
+import { applicationStatusTone, StatusPill } from "@keylend/ui/components/status-pill";
+import { cn } from "@keylend/ui/lib/utils";
+import { workflowName, workflowText } from "@keylend/ui/lib/workflow-text";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,

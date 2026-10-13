@@ -1,13 +1,13 @@
-import { Badge } from "@keycade/ui/components/badge";
-import { Button } from "@keycade/ui/components/button";
+import { Badge } from "@keylend/ui/components/badge";
+import { Button } from "@keylend/ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@keycade/ui/components/card";
-import { workflowText } from "@keycade/ui/lib/workflow-text";
+} from "@keylend/ui/components/card";
+import { workflowText } from "@keylend/ui/lib/workflow-text";
 import { useEffect, useRef, useState } from "react";
 
 type Message = {

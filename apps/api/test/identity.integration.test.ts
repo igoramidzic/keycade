@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { authSessionSchema } from "@keycade/contracts";
-import { seedDatabase, seedIds } from "@keycade/db/seed";
-import { createTestDatabase } from "@keycade/db/testing";
-import { createIdentityService } from "@keycade/domain";
+import { authSessionSchema } from "@keylend/contracts";
+import { seedDatabase, seedIds } from "@keylend/db/seed";
+import { createTestDatabase } from "@keylend/db/testing";
+import { createIdentityService } from "@keylend/domain";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildServer } from "../src/server.js";
 import { handleWorkerRequest } from "../src/worker-handler.js";
@@ -10,7 +10,7 @@ import { handleWorkerRequest } from "../src/worker-handler.js";
 let database: Awaited<ReturnType<typeof createTestDatabase>>;
 beforeAll(async () => {
   database = await createTestDatabase();
-  await seedDatabase(database.connectionString);
+  await seedDatabase(database.connectionString, { isolationFixtures: true });
 }, 30_000);
 afterAll(async () => database?.cleanup());
 
@@ -55,7 +55,7 @@ for (const transport of ["fastify", "worker"] as const) {
           ...(input.omitOrigin ? {} : { origin }),
           ...(input.cookie ? { cookie: input.cookie } : {}),
           ...(input.csrf ? { "x-csrf-token": input.csrf } : {}),
-          ...(input.expectedSession ? { "x-keycade-session": input.expectedSession } : {}),
+          ...(input.expectedSession ? { "x-keylend-session": input.expectedSession } : {}),
           ...(input.body !== undefined ? { "content-type": "application/json" } : {}),
         };
         if (transport === "fastify") {
@@ -71,7 +71,7 @@ for (const transport of ["fastify", "worker"] as const) {
             body: response.json(),
             cookie: String(response.headers["set-cookie"] ?? ""),
             requestId: String(response.headers["x-request-id"]),
-            sessionBound: response.headers["x-keycade-session-bound"] === "1",
+            sessionBound: response.headers["x-keylend-session-bound"] === "1",
           };
         }
         const response = await handleWorkerRequest(
@@ -87,7 +87,7 @@ for (const transport of ["fastify", "worker"] as const) {
           body: await response.json(),
           cookie: response.headers.get("set-cookie") ?? "",
           requestId: response.headers.get("x-request-id") ?? "",
-          sessionBound: response.headers.get("x-keycade-session-bound") === "1",
+          sessionBound: response.headers.get("x-keylend-session-bound") === "1",
         };
       };
       const requestLink = async (email: string, portal: "borrower" | "staff" = "borrower") => {
@@ -95,7 +95,7 @@ for (const transport of ["fastify", "worker"] as const) {
         const response = await call("/api/v1/auth/request-link", {
           method: "POST",
           origin,
-          body: { email, bankSlug: "bank-a", portal, returnPath: "/" },
+          body: { email, bankSlug: "keybank", portal, returnPath: "/" },
         });
         expect(response.status).toBe(202);
         const result = await database.pool.query<{ id: string }>(
@@ -117,12 +117,12 @@ for (const transport of ["fastify", "worker"] as const) {
       const disabled = await client();
       try {
         const path = "/api/v1/auth/staff-accounts?bankSlug=";
-        expect((await disabled.call(`${path}bank-a`)).status).toBe(503);
-        expect((await enabled.call(`${path}bank-a`)).body).toEqual({
+        expect((await disabled.call(`${path}keybank`)).status).toBe(503);
+        expect((await enabled.call(`${path}keybank`)).body).toEqual({
           accounts: [{ email: "officer-a@example.test", role: "admin" }],
         });
-        expect((await enabled.call(`${path}bank-b`)).body).toEqual({
-          accounts: [{ email: "officer-b@example.test", role: "officer" }],
+        expect((await enabled.call(`${path}isolation-fixture`)).body).toEqual({
+          accounts: [],
         });
         expect((await enabled.call(`${path}missing-bank`)).body).toEqual({ accounts: [] });
         expect((await enabled.call(`${path}invalid!`)).status).toBe(400);
@@ -136,7 +136,7 @@ for (const transport of ["fastify", "worker"] as const) {
           "INSERT INTO bank_memberships (bank_id, user_id, role, synthetic) VALUES ($1, $2, 'officer', true)",
           [seedIds.bankA, userId],
         );
-        const list = async () => (await enabled.call(`${path}bank-a`)).body.accounts;
+        const list = async () => (await enabled.call(`${path}keybank`)).body.accounts;
         expect(await list()).toContainEqual({ email, role: "officer" });
         await database.pool.query("UPDATE users SET synthetic = false WHERE id = $1", [userId]);
         expect(await list()).not.toContainEqual({ email, role: "officer" });
@@ -156,7 +156,7 @@ for (const transport of ["fastify", "worker"] as const) {
             await enabled.call("/api/v1/auth/demo-sign-in", {
               method: "POST",
               origin: staffOrigin,
-              body: { email, bankSlug: "bank-a", portal: "staff" },
+              body: { email, bankSlug: "keybank", portal: "staff" },
             })
           ).status,
         ).toBe(404);
@@ -172,7 +172,7 @@ for (const transport of ["fastify", "worker"] as const) {
         const signIn = async (email: string) =>
           enabled.call("/api/v1/auth/demo-sign-in", {
             method: "POST",
-            body: { email, bankSlug: "bank-a", portal: "borrower" },
+            body: { email, bankSlug: "keybank", portal: "borrower" },
           });
         const first = await signIn("borrower@example.test");
         expect(first.status).toBe(200);
@@ -238,7 +238,7 @@ for (const transport of ["fastify", "worker"] as const) {
       const disabled = await client();
       const body = {
         email: "borrower@example.test",
-        bankSlug: "bank-a",
+        bankSlug: "keybank",
         portal: "borrower",
         returnPath: "/",
       };
@@ -453,7 +453,7 @@ for (const transport of ["fastify", "worker"] as const) {
                 ip: randomUUID(),
                 body: {
                   email: "borrower@example.test",
-                  bankSlug: "bank-a",
+                  bankSlug: "keybank",
                   portal: "borrower",
                   returnPath,
                 },
@@ -467,7 +467,7 @@ for (const transport of ["fastify", "worker"] as const) {
               method: "POST",
               body: {
                 email: "borrower@example.test",
-                bankSlug: "bank-a",
+                bankSlug: "keybank",
                 portal: "staff",
                 returnPath: "/",
               },

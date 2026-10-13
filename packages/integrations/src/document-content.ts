@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { DomainError } from "@keycade/domain";
+import { DomainError } from "@keylend/domain";
 
 export type ByteSource = AsyncIterable<Uint8Array> & {
   /** Interrupt an in-flight upstream read when its downstream storage operation fails. */

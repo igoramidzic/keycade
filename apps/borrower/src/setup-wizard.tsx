@@ -8,18 +8,18 @@ import {
   industryTaxonomyVersion,
   type SaveApplicationSetup,
   saveApplicationSetupSchema,
-} from "@keycade/contracts";
-import { Alert, AlertDescription, AlertTitle } from "@keycade/ui/components/alert";
-import { Button, buttonVariants } from "@keycade/ui/components/button";
-import { CurrencyInput, wholeDollars } from "@keycade/ui/components/currency-input";
-import { useDemoApplication } from "@keycade/ui/components/demo-kit";
-import { LoadingState } from "@keycade/ui/components/empty-state";
-import { FundingPurposeIcon } from "@keycade/ui/components/funding-purpose-icon";
-import type { AuthenticatedSession } from "@keycade/ui/components/identity-portal";
-import { Input } from "@keycade/ui/components/input";
-import { SearchCombobox } from "@keycade/ui/components/search-combobox";
-import { cn } from "@keycade/ui/lib/utils";
-import { workflowText } from "@keycade/ui/lib/workflow-text";
+} from "@keylend/contracts";
+import { Alert, AlertDescription, AlertTitle } from "@keylend/ui/components/alert";
+import { Button, buttonVariants } from "@keylend/ui/components/button";
+import { CurrencyInput, wholeDollars } from "@keylend/ui/components/currency-input";
+import { useDemoApplication } from "@keylend/ui/components/demo-kit";
+import { LoadingState } from "@keylend/ui/components/empty-state";
+import { FundingPurposeIcon } from "@keylend/ui/components/funding-purpose-icon";
+import type { AuthenticatedSession } from "@keylend/ui/components/identity-portal";
+import { Input } from "@keylend/ui/components/input";
+import { SearchCombobox } from "@keylend/ui/components/search-combobox";
+import { cn } from "@keylend/ui/lib/utils";
+import { workflowText } from "@keylend/ui/lib/workflow-text";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -40,7 +40,7 @@ import { answerKey, rememberAnswer, unsavedAnswer } from "./unsaved-answers";
 import { applicationPath, ErrorNotice, setupStepFromSlug, setupStepPath } from "./workspace-ui";
 
 async function searchIndustries(query: string) {
-  const catalog = await import("@keycade/contracts/industry-search");
+  const catalog = await import("@keylend/contracts/industry-search");
   return catalog.searchIndustries(query);
 }
 const questions = {

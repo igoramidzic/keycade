@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { readEnvironment } from "@keycade/config/server";
-import type { DocumentsView, TasksView } from "@keycade/contracts";
-import { syntheticDocumentPdf } from "@keycade/integrations/document-fixtures";
+import { readEnvironment } from "@keylend/config/server";
+import type { DocumentsView, TasksView } from "@keylend/contracts";
+import { syntheticDocumentPdf } from "@keylend/integrations/document-fixtures";
 import { expect, type Page, test } from "@playwright/test";
 import { workflowApi } from "./closing-helpers";
 import { fillSignInEmail } from "./identity-helpers";
@@ -10,7 +10,7 @@ const env = readEnvironment();
 const borrower = `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
 const applicationId = "60000000-0000-4000-8000-000000000001";
 const base = `/applications/${applicationId}`;
-const dashboard = `${borrower}${base}?bank=bank-a`;
+const dashboard = `${borrower}${base}?bank=keybank`;
 const pdf = Buffer.from(syntheticDocumentPdf("clean-statement"));
 // Synthetic sessions and private documents remain outside browser artifacts.
 test.use({ trace: "off", screenshot: "off", video: "off", actionTimeout: 15_000 });
@@ -43,7 +43,7 @@ test("contextual pages and browser Back preserve the open task and its unsaved a
   const draft = `Unsaved synthetic dashboard answer ${randomUUID().slice(0, 8)}`;
   await tasks.locator('[id^="task-answer-"]').fill(draft);
   await page.getByRole("link", { name: "View documents", exact: true }).click();
-  await expect(page).toHaveURL(`${borrower}${base}/documents?bank=bank-a`);
+  await expect(page).toHaveURL(`${borrower}${base}/documents?bank=keybank`);
   await expect(page.getByRole("heading", { name: "Documents", exact: true })).toBeVisible();
   await page.goBack();
   await expect(page).toHaveURL(dashboard);

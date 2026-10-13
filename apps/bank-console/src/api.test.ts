@@ -1,12 +1,12 @@
-import type { AuthenticatedSession } from "@keycade/ui/components/identity-portal";
-import { rememberSession } from "@keycade/ui/lib/session-snapshot";
+import type { AuthenticatedSession } from "@keylend/ui/components/identity-portal";
+import { rememberSession } from "@keylend/ui/lib/session-snapshot";
 import { afterEach, expect, test, vi } from "vitest";
 import { createStaffApi } from "./api";
 
 const session: AuthenticatedSession = {
   authenticated: true,
   demoSignInEnabled: true,
-  bank: { id: "00000000-0000-4000-8000-000000000001", slug: "bank-a", name: "Synthetic Bank A" },
+  bank: { id: "00000000-0000-4000-8000-000000000001", slug: "keybank", name: "Keybank" },
   user: { email: "officer-a@example.test", displayName: "Synthetic officer" },
   csrfToken: "a".repeat(64),
   staff: true,
@@ -21,7 +21,7 @@ afterEach(() => {
 test("staff reads and saves each use one server-verified session-bound request", async () => {
   rememberSession(session);
   const fetch = vi.fn(async (_path: string, _init?: RequestInit) =>
-    Response.json({ ok: true }, { headers: { "x-keycade-session-bound": "1" } }),
+    Response.json({ ok: true }, { headers: { "x-keylend-session-bound": "1" } }),
   );
   vi.stubGlobal("fetch", fetch);
   const api = createStaffApi(session, vi.fn());
@@ -29,10 +29,10 @@ test("staff reads and saves each use one server-verified session-bound request",
   await api.participantRequest("/tasks/answer", schema, { method: "PATCH", body: {} });
   expect(fetch).toHaveBeenCalledTimes(2);
   expect(fetch.mock.calls[0]?.[1]?.headers).toMatchObject({
-    "x-keycade-session": session.csrfToken,
+    "x-keylend-session": session.csrfToken,
   });
   expect(fetch.mock.calls[1]?.[1]?.headers).toMatchObject({
-    "x-keycade-session": session.csrfToken,
+    "x-keylend-session": session.csrfToken,
     "x-csrf-token": session.csrfToken,
   });
 });
@@ -44,7 +44,7 @@ test("staff responses are discarded if the local identity changes while loading"
     "fetch",
     vi.fn(async () => {
       rememberSession({ authenticated: false });
-      return Response.json({ ok: true }, { headers: { "x-keycade-session-bound": "1" } });
+      return Response.json({ ok: true }, { headers: { "x-keylend-session-bound": "1" } });
     }),
   );
   await expect(createStaffApi(session, denied).request("/options", schema)).rejects.toMatchObject({

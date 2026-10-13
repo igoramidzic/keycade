@@ -2,8 +2,8 @@ import {
   publicApplicationSchema,
   staffApplicationSchema,
   updatePurposeSchema,
-} from "@keycade/contracts";
-import { applicationSetups, applications, auditEvents, type Database } from "@keycade/db";
+} from "@keylend/contracts";
+import { applicationSetups, applications, auditEvents, type Database } from "@keylend/db";
 import { and, eq, sql } from "drizzle-orm";
 import {
   type Actor,

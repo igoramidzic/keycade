@@ -59,7 +59,7 @@ export const authConsumeRateLimit = { max: 30, timeWindow: "1 minute" } as const
 // Cookies do not distinguish ports. Give each configured portal its own cookie so local
 // borrower and staff sessions can coexist without replacing one another.
 export function sessionCookieName(origin: string): string {
-  return `keycade_session_${createHash("sha256").update(origin).digest("hex").slice(0, 16)}`;
+  return `keylend_session_${createHash("sha256").update(origin).digest("hex").slice(0, 16)}`;
 }
 
 export function readSessionCookie(header: string | undefined, origin: string): string | undefined {

@@ -1,4 +1,4 @@
-import { type ReadinessBlocker, readinessViewSchema, type TaskStage } from "@keycade/contracts";
+import { type ReadinessBlocker, readinessViewSchema, type TaskStage } from "@keylend/contracts";
 import {
   applicationChecks,
   applicationParticipants,
@@ -15,7 +15,7 @@ import {
   loanProducts,
   taskReviews,
   users,
-} from "@keycade/db";
+} from "@keylend/db";
 import { and, eq, isNull } from "drizzle-orm";
 import {
   type Actor,

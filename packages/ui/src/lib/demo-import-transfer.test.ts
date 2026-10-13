@@ -1,4 +1,4 @@
-import { demoImportFixtureFor } from "@keycade/contracts/demo-import";
+import { demoImportFixtureFor } from "@keylend/contracts/demo-import";
 import { describe, expect, it } from "vitest";
 import {
   createDemoImportFile,

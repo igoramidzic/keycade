@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { readEnvironment } from "@keycade/config/server";
-import { syntheticDocumentPdf } from "@keycade/integrations/document-fixtures";
+import { readEnvironment } from "@keylend/config/server";
+import { syntheticDocumentPdf } from "@keylend/integrations/document-fixtures";
 import { expect, type Page, test } from "@playwright/test";
 import { fillSignInEmail } from "./identity-helpers";
 
@@ -21,7 +21,7 @@ async function signIn(page: Page, origin: string, email: string) {
       exact: true,
     }),
   ).toBeVisible();
-  await page.goto(`${origin}/applications/${applicationId}/documents?bank=bank-a`);
+  await page.goto(`${origin}/applications/${applicationId}/documents?bank=keybank`);
   await expect(page.getByRole("heading", { name: "Documents", exact: true })).toBeVisible();
 }
 async function noOverflow(page: Page) {
@@ -105,7 +105,7 @@ test("borrower tax uploads appear in grouped tabs with unverified suggestions an
     path: testInfo.outputPath("synthetic-borrower-document-groups.png"),
     fullPage: true,
   });
-  await page.goto(`${borrower}/applications/${applicationId}/tasks?bank=bank-a`);
+  await page.goto(`${borrower}/applications/${applicationId}/tasks?bank=keybank`);
   const task = page.getByRole("button", {
     name: "Confirm business identifier readiness",
     exact: true,
@@ -125,7 +125,7 @@ test("borrower tax uploads appear in grouped tabs with unverified suggestions an
   try {
     const officer = await staffContext.newPage();
     await signIn(officer, staff, "officer-a@example.test");
-    await officer.goto(`${staff}/applications/${applicationId}/tasks?bank=bank-a`);
+    await officer.goto(`${staff}/applications/${applicationId}/tasks?bank=keybank`);
     await officer
       .getByRole("button", { name: "Confirm business identifier readiness", exact: true })
       .click();

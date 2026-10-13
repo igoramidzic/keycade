@@ -1,4 +1,4 @@
-import type { ApplicationSetupStep } from "@keycade/contracts";
+import type { ApplicationSetupStep } from "@keylend/contracts";
 
 // Unsaved recovery is scoped to this tab and identity. Saved answers/progress always come
 // from the server; never store credentials or application data in browser storage.

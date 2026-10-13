@@ -11,7 +11,7 @@ import {
   retryCheckSchema,
   taxAuthorizationNotice,
   taxAuthorizationNoticeVersion,
-} from "@keycade/contracts";
+} from "@keylend/contracts";
 import {
   applicationChecks,
   applicationParticipants,
@@ -30,7 +30,7 @@ import {
   sensitiveIdentifierVersions,
   taskAnswers,
   taskAssignments,
-} from "@keycade/db";
+} from "@keylend/db";
 import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import {
   type Actor,

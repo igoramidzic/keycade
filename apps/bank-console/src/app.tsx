@@ -6,20 +6,20 @@ import {
   IdentityAvatar,
   shellWidth,
   useHeaderSlot,
-} from "@keycade/ui/components/app-shell";
-import { Badge } from "@keycade/ui/components/badge";
-import { BrandLockup } from "@keycade/ui/components/brand";
-import { Button, buttonVariants } from "@keycade/ui/components/button";
-import { DemoKitProvider, useDemoUploadAvailability } from "@keycade/ui/components/demo-kit";
-import { EmptyState } from "@keycade/ui/components/empty-state";
+} from "@keylend/ui/components/app-shell";
+import { Badge } from "@keylend/ui/components/badge";
+import { BrandLockup } from "@keylend/ui/components/brand";
+import { Button, buttonVariants } from "@keylend/ui/components/button";
+import { DemoKitProvider, useDemoUploadAvailability } from "@keylend/ui/components/demo-kit";
+import { EmptyState } from "@keylend/ui/components/empty-state";
 import {
   type AuthenticatedSession,
   type Confirmation,
   type IdentityControls,
   IdentityPortal,
-} from "@keycade/ui/components/identity-portal";
-import { cn } from "@keycade/ui/lib/utils";
-import { workflowText } from "@keycade/ui/lib/workflow-text";
+} from "@keylend/ui/components/identity-portal";
+import { cn } from "@keylend/ui/lib/utils";
+import { workflowText } from "@keylend/ui/lib/workflow-text";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   BarChart3,
@@ -44,7 +44,7 @@ export function BankApp({ confirmation }: { confirmation: Confirmation }) {
   const navigate = useNavigate();
   const header = useHeaderSlot();
   const [showKit, setShowKit] = useState(false);
-  const bankSlug = new URLSearchParams(location.search).get("bank") ?? "bank-a";
+  const bankSlug = "keybank";
   return (
     <DemoKitProvider visible={showKit}>
       <div className="flex min-h-screen flex-col bg-canvas text-foreground">
@@ -61,7 +61,7 @@ export function BankApp({ confirmation }: { confirmation: Confirmation }) {
               to={`/?bank=${encodeURIComponent(bankSlug)}`}
               className="min-w-0 rounded-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
             >
-              <BrandLockup name="Keycade Bank Console" detail="Staff workspace" />
+              <BrandLockup name="KeyLend" detail="Staff workspace" />
             </Link>
           }
         />
@@ -91,7 +91,7 @@ export function BankApp({ confirmation }: { confirmation: Confirmation }) {
           </main>
         </HeaderSlotProvider>
         <AppFooter>
-          <p>Keycade · Business lending</p>
+          <p>Keybank · KeyLend</p>
         </AppFooter>
       </div>
     </DemoKitProvider>

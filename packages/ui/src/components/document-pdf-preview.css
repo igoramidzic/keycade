@@ -1,5 +1,5 @@
 /* Text selection geometry follows PDF.js TextLayer (Mozilla, Apache-2.0). */
-.keycade-pdf-text {
+.keylend-pdf-text {
   position: absolute;
   inset: 0;
   overflow: clip;
@@ -13,7 +13,7 @@
   --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
   --min-font-size-inv: calc(1 / var(--min-font-size));
 }
-.keycade-pdf-text :is(span, br) {
+.keylend-pdf-text :is(span, br) {
   position: absolute;
   color: transparent;
   white-space: pre;
@@ -21,8 +21,8 @@
   transform-origin: 0 0;
   user-select: text;
 }
-.keycade-pdf-text > :not(.markedContent),
-.keycade-pdf-text .markedContent span:not(.markedContent) {
+.keylend-pdf-text > :not(.markedContent),
+.keylend-pdf-text .markedContent span:not(.markedContent) {
   z-index: 1;
   --font-height: 0;
   --scale-x: 1;
@@ -30,9 +30,9 @@
   font-size: calc(var(--text-scale-factor) * var(--font-height));
   transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
 }
-.keycade-pdf-text .markedContent {
+.keylend-pdf-text .markedContent {
   display: contents;
 }
-.keycade-pdf-text ::selection {
+.keylend-pdf-text ::selection {
   background: rgb(0 90 210 / 0.3);
 }

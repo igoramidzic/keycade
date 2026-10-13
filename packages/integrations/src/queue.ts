@@ -1,7 +1,8 @@
-import { createDatabase } from "@keycade/db";
+import { createDatabase } from "@keylend/db";
 import { PgBoss } from "pg-boss";
 import bossPackage from "pg-boss/package.json" with { type: "json" };
 
+// Persisted queue identities must keep pending jobs reachable after a rename.
 export const demoQueue = "keycade-demo-v1";
 export const accessQueue = "keycade-access-v1";
 export function createQueueClient(

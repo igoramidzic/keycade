@@ -1,6 +1,8 @@
 # Business lending workflow and product expansion
 
-Research: October 12, 2026. Documentation completed: October 13, 2026. Keycade should model a financing request that can contain several loan facilities, with explicit underwriting, credit approval, offer acceptance, closing clearance and funding for the agreed structure. A facility is one separately documented credit product within that request.
+**October 13 scope:** All lending expansion tasks serve Keybank exclusively through KeyLend. Retain access isolation tests; do not build onboarding, theming or selection for other institutions.
+
+Research: October 12, 2026. Documentation completed: October 13, 2026. KeyLend should model a financing request that can contain several loan facilities, with explicit underwriting, credit approval, offer acceptance, closing clearance and funding for the agreed structure. A facility is one separately documented credit product within that request.
 
 The user's October 12 follow-up replaces the fixed Synthetic Business Credit selection and the assumption that one application always produces one loan account. Applicants should choose a loan type; lenders should be able to change amounts, switch products, and split or combine facilities after intake. The reference scenario is a $9 million request initially described as SBA financing, restructured into $5 million of SBA 7(a) and $4 million of conventional financing.
 

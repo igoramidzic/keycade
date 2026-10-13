@@ -7,7 +7,7 @@ import {
   participantCommandSchema,
   participantsWorkspaceSchema,
   setRelationshipActiveSchema,
-} from "@keycade/contracts";
+} from "@keylend/contracts";
 import {
   accessDeliveryRequests,
   applicantContacts,
@@ -22,7 +22,7 @@ import {
   invitations,
   participantCommands,
   users,
-} from "@keycade/db";
+} from "@keylend/db";
 import { and, asc, eq, isNull, or } from "drizzle-orm";
 import {
   type Actor,

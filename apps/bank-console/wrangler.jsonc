@@ -10,7 +10,7 @@
       "invocation_logs": false
     }
   },
-  "name": "keycade-bank-console",
+  "name": "keylend-bank-console",
   "workers_dev": true,
   "assets": {
     "directory": "./dist",
@@ -21,7 +21,7 @@
   "services": [
     {
       "binding": "API",
-      "service": "keycade-api"
+      "service": "keylend-api"
     }
   ]
 }

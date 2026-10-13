@@ -1,1 +1,1 @@
-export { frontendWorker as default } from "@keycade/config/cloudflare";
+export { frontendWorker as default } from "@keylend/config/cloudflare";

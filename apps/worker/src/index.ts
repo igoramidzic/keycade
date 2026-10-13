@@ -1,7 +1,7 @@
-import { loadServerEnv } from "@keycade/config/server";
-import { createDemoInboxCipher, createIdentifierCipher } from "@keycade/domain";
-import { createDemoInboxAdapter, createMailpitAdapter, startWorker } from "@keycade/integrations";
-import { createLocalDocumentStorage } from "@keycade/integrations/document-storage-local";
+import { loadServerEnv } from "@keylend/config/server";
+import { createDemoInboxCipher, createIdentifierCipher } from "@keylend/domain";
+import { createDemoInboxAdapter, createMailpitAdapter, startWorker } from "@keylend/integrations";
+import { createLocalDocumentStorage } from "@keylend/integrations/document-storage-local";
 
 async function main() {
   const env = loadServerEnv();

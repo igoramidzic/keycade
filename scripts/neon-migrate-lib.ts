@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { migrationsFolder } from "@keycade/db/migrate";
+import { migrationsFolder } from "@keylend/db/migrate";
 import { type MigrationMeta, readMigrationFiles } from "drizzle-orm/migrator";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
@@ -72,7 +72,7 @@ export function neonClientConfig(env: NodeJS.ProcessEnv): ClientConfig {
       password: decodeURIComponent(url.password),
       ssl: { rejectUnauthorized: true, servername: host },
       enableChannelBinding: true,
-      application_name: "keycade-github-migrations",
+      application_name: "keylend-github-migrations",
       connectionTimeoutMillis: 15_000,
       statement_timeout: 120_000,
       lock_timeout: 60_000,
@@ -156,7 +156,7 @@ async function migrationHistory(client: Client): Promise<MigrationHistory> {
   return result.rows;
 }
 
-// A stable two-int key shared by every Keycade deployment, scoped by PostgreSQL database.
+// A stable two-int key shared by every KeyLend deployment, scoped by PostgreSQL database.
 export const migrationLock = [1801812323, 1835624306] as const;
 
 /** The caller owns this dedicated connection; tests supply only a disposable local database. */

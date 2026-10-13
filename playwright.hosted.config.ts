@@ -1,11 +1,11 @@
-import { readEnvironment } from "@keycade/config/server";
+import { readEnvironment } from "@keylend/config/server";
 import { defineConfig } from "@playwright/test";
 import base from "./playwright.config";
 
 const env = readEnvironment();
-if (env.KEYCADE_E2E_HOSTED !== "true" || env.DEMO_INBOX_ENABLED !== "true")
+if (env.KEYLEND_E2E_HOSTED !== "true" || env.DEMO_INBOX_ENABLED !== "true")
   throw new Error("Hosted acceptance requires explicit hosted mode and simulated inbox delivery.");
-for (const key of ["KEYCADE_E2E_BORROWER_ORIGIN", "KEYCADE_E2E_STAFF_ORIGIN"]) {
+for (const key of ["KEYLEND_E2E_BORROWER_ORIGIN", "KEYLEND_E2E_STAFF_ORIGIN"]) {
   const value = env[key];
   if (!value) throw new Error("Hosted acceptance requires both explicit portal origins.");
   const origin = new URL(value);

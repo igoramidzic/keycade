@@ -1,1 +1,1 @@
-{ "extends": "@keycade/config/tsconfig.json", "include": ["src", "test"] }
+{ "extends": "@keylend/config/tsconfig.json", "include": ["src", "test"] }

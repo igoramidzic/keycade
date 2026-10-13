@@ -5,14 +5,14 @@ import {
   documentMimeTypes,
   documentsViewSchema,
   updateDocumentMetadataSchema,
-} from "@keycade/contracts";
+} from "@keylend/contracts";
 import {
   createDemoImportPdf,
   type DemoImportFixture,
   demoImportFixtureFor,
   demoImportFixtureSchema,
   validateDemoTextImport,
-} from "@keycade/contracts/demo-import";
+} from "@keylend/contracts/demo-import";
 import {
   applications,
   applicationTasks,
@@ -26,7 +26,7 @@ import {
   documentVersions,
   taskDocumentEvidence,
   users,
-} from "@keycade/db";
+} from "@keylend/db";
 import { and, asc, desc, eq, inArray, lt } from "drizzle-orm";
 import {
   type Actor,

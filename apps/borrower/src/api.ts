@@ -1,6 +1,6 @@
-import { authSessionSchema } from "@keycade/contracts";
-import { currentSession, rememberSession } from "@keycade/ui/lib/session-snapshot";
-import { workflowText } from "@keycade/ui/lib/workflow-text";
+import { authSessionSchema } from "@keylend/contracts";
+import { currentSession, rememberSession } from "@keylend/ui/lib/session-snapshot";
+import { workflowText } from "@keylend/ui/lib/workflow-text";
 
 export class ApiError extends Error {
   constructor(
@@ -96,7 +96,7 @@ async function performRequest<T>(
       Accept: "application/json",
       ...(options.body ? { "Content-Type": "application/json" } : {}),
       ...(csrf ? { "x-csrf-token": csrf } : {}),
-      ...(expectedSession ? { "x-keycade-session": expectedSession } : {}),
+      ...(expectedSession ? { "x-keylend-session": expectedSession } : {}),
     },
     body: options.body ? JSON.stringify(options.body) : undefined,
     signal: options.signal
@@ -113,7 +113,7 @@ async function performRequest<T>(
         : (data?.error?.message ?? "We couldn’t complete your request. Please try again."),
     );
   // Native Worker builds can finish independently. Older APIs need the explicit post-check.
-  if (expectedSession && response.headers.get("x-keycade-session-bound") !== "1") {
+  if (expectedSession && response.headers.get("x-keylend-session-bound") !== "1") {
     const current = await request("/api/v1/auth/session", authSessionSchema, {
       signal: options.signal,
     });

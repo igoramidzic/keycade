@@ -315,7 +315,11 @@ function wrap(value: string, width: number): string[] {
   return lines;
 }
 /** Deterministic and complete PDF bytes. Text stubs are deliberately absent from this API. */
-export function createDemoImportPdf(recipeId: string, context: DemoImportContext): Uint8Array {
+export function createDemoImportPdf(
+  recipeId: string,
+  context: DemoImportContext,
+  branding: "KeyLend" | "Keycade" = "KeyLend",
+): Uint8Array {
   const fixture = demoImportFixtureFor(recipeId, context);
   const recipe = demoImportRecipe(recipeId);
   const fields = demoImportFields(fixture);
@@ -328,7 +332,7 @@ export function createDemoImportPdf(recipeId: string, context: DemoImportContext
         `BT /${bold ? "F2" : "F1"} ${size} Tf 1 0 0 1 44 ${y} Tm (${pdfText(value)}) Tj ET`,
       );
     commands.push("0.93 0.94 0.98 rg 0 700 612 92 re f 0.16 0.18 0.24 rg");
-    text("KEYCADE / SYNTHETIC DEMO", 756, 12, true);
+    text(`${branding.toUpperCase()} / SYNTHETIC DEMO`, 756, 12, true);
     text(page === 1 ? recipe.title : "Synthetic supporting schedule", 725, 17, true);
     text("FICTIONAL RECORD - NOT VALID TAX OR FINANCIAL EVIDENCE", 681, 9, true);
     text(`Period: ${recipe.period.start} to ${recipe.period.end} | Currency: USD`, 660);
@@ -404,7 +408,7 @@ export function createDemoImportPdf(recipeId: string, context: DemoImportContext
   const identity = Array.from(new TextEncoder().encode(JSON.stringify(fixture)), (byte) =>
     byte.toString(16).padStart(2, "0"),
   ).join("");
-  let pdf = `%PDF-1.4\n% Keycade fixture identity ${identity}\n`;
+  let pdf = `%PDF-1.4\n% ${branding} fixture identity ${identity}\n`;
   const offsets = [0];
   for (const [index, object] of objects.entries()) {
     offsets.push(pdf.length);
@@ -422,17 +426,23 @@ export function createDemoImportPdf(recipeId: string, context: DemoImportContext
 export function readDemoImportPdfFixture(bytes: Uint8Array): DemoImportFixture | null {
   if (bytes.length > 128 * 1024) return null;
   const header = new TextDecoder().decode(bytes.subarray(0, 4096));
-  const match = /^%PDF-1\.4\n% Keycade fixture identity ([0-9a-f]{2,3500})\n/.exec(header);
-  if (!match?.[1] || match[1].length % 2) return null;
+  const match = /^%PDF-1\.4\n% (KeyLend|Keycade) fixture identity ([0-9a-f]{2,3500})\n/.exec(
+    header,
+  );
+  if (!match?.[2] || match[2].length % 2) return null;
   try {
-    const identityBytes = Uint8Array.from(match[1].match(/../g) ?? [], (pair) =>
+    const identityBytes = Uint8Array.from(match[2].match(/../g) ?? [], (pair) =>
       Number.parseInt(pair, 16),
     );
     const parsed = demoImportFixtureSchema.safeParse(
       JSON.parse(new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(identityBytes)),
     );
     if (!parsed.success) return null;
-    const expected = createDemoImportPdf(parsed.data.recipeId, parsed.data);
+    const expected = createDemoImportPdf(
+      parsed.data.recipeId,
+      parsed.data,
+      match[1] as "KeyLend" | "Keycade",
+    );
     if (expected.length !== bytes.length || expected.some((value, index) => value !== bytes[index]))
       return null;
     return parsed.data;

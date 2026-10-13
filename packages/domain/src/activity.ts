@@ -3,7 +3,7 @@ import {
   activityQuerySchema,
   activityReferenceSchema,
   activityViewSchema,
-} from "@keycade/contracts";
+} from "@keylend/contracts";
 import {
   applicationChecks,
   applicationTasks,
@@ -15,7 +15,7 @@ import {
   documentVersions,
   signatureEnvelopes,
   signatureSigners,
-} from "@keycade/db";
+} from "@keylend/db";
 import { and, desc, eq, inArray, lt, or, type SQL, sql } from "drizzle-orm";
 import { type Actor, requireApplicantPortalAccess } from "./authorization.js";
 import { checkIsVisible } from "./checks.js";

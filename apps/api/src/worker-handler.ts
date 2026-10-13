@@ -70,8 +70,8 @@ import {
   updatePurposeSchema,
   updateStaffNoteSchema,
   waiveTaskSchema,
-} from "@keycade/contracts";
-import type { Database } from "@keycade/db";
+} from "@keylend/contracts";
+import type { Database } from "@keylend/db";
 import {
   addStaffNote,
   assignApplicationStaff,
@@ -93,8 +93,8 @@ import {
   requireBankStaff,
   updateApplicationPurpose,
   updateStaffNote,
-} from "@keycade/domain";
-import { webByteSource } from "@keycade/integrations/documents";
+} from "@keylend/domain";
+import { webByteSource } from "@keylend/integrations/documents";
 import { z } from "zod";
 import {
   type Authentication,
@@ -196,7 +196,7 @@ export async function handleWorkerRequest(
       return json(
         await workflows.webhook(
           await readRawBody(request),
-          request.headers.get("x-keycade-signature") ?? undefined,
+          request.headers.get("x-keylend-signature") ?? undefined,
           requestId,
         ),
       );
@@ -237,7 +237,7 @@ export async function handleWorkerRequest(
       });
       return json({
         openapi: "3.1.0",
-        info: { title: "Keycade simulation API", version: "0.1.0" },
+        info: { title: "KeyLend simulation API", version: "0.1.0" },
         paths: {
           ...workflowOpenApi(workflows.routes),
           "/api/v1/banks/{bankId}/applications/{applicationId}/overview": {
@@ -761,8 +761,8 @@ export async function handleWorkerRequest(
           origin,
           deps.demoSignInEnabled,
         );
-    assertExpectedSession(authentication, request.headers.get("x-keycade-session"));
-    if (request.headers.has("x-keycade-session")) headers["x-keycade-session-bound"] = "1";
+    assertExpectedSession(authentication, request.headers.get("x-keylend-session"));
+    if (request.headers.has("x-keylend-session")) headers["x-keylend-session-bound"] = "1";
     if (
       !get &&
       request.method !== "OPTIONS" &&

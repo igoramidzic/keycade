@@ -28,7 +28,7 @@ describe("delayed simulated identity/fraud provider", () => {
       expect(settled).toBe(false);
       await vi.advanceTimersByTimeAsync(1);
       expect(await pending).toMatchObject({
-        provider: "keycade-checks-v1",
+        provider: "keylend-checks-v1",
         simulated: true,
         kind,
         outcome: "clear",

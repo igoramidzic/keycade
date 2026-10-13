@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { readEnvironment } from "@keycade/config/server";
+import { readEnvironment } from "@keylend/config/server";
 import { expect, type Page, test } from "@playwright/test";
 import { fillSignInEmail } from "./identity-helpers";
 
@@ -62,7 +62,7 @@ test("private synthetic inputs load upfront and drive scoped readiness, review, 
       ? "60000000-0000-4000-8000-000000000001"
       : "60000000-0000-4000-8000-000000000002";
   const url = (origin: string, section: string) =>
-    `${origin}/applications/${applicationId}/${section}?bank=bank-a`;
+    `${origin}/applications/${applicationId}/${section}?bank=keybank`;
   await signIn(page, borrower, "borrower@example.test");
   const staffContext = await browser.newContext({ viewport: page.viewportSize() });
   try {

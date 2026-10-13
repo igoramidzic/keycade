@@ -24,7 +24,7 @@ export function createMailpitAdapter(port: number): AccessEmailAdapter {
     async send(message) {
       try {
         const result = await transport.sendMail({
-          from: "Keycade local simulation <access@keycade.example.test>",
+          from: "KeyLend local simulation <access@keylend.example.test>",
           to: message.to,
           messageId: message.messageId,
           ...renderAccessEmail(message),

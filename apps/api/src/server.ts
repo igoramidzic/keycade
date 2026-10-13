@@ -76,8 +76,8 @@ import {
   updatePurposeSchema,
   updateStaffNoteSchema,
   waiveTaskSchema,
-} from "@keycade/contracts";
-import type { Database } from "@keycade/db";
+} from "@keylend/contracts";
+import type { Database } from "@keylend/db";
 import {
   addStaffNote,
   assignApplicationStaff,
@@ -99,8 +99,8 @@ import {
   requireBankStaff,
   updateApplicationPurpose,
   updateStaffNote,
-} from "@keycade/domain";
-import { type ByteSource, webByteSource } from "@keycade/integrations/documents";
+} from "@keylend/domain";
+import { type ByteSource, webByteSource } from "@keylend/integrations/documents";
 import Fastify, { type FastifyRequest, LogController } from "fastify";
 import {
   jsonSchemaTransform,
@@ -196,7 +196,7 @@ export async function buildServer(options: ServerOptions) {
             "req.headers.authorization",
             "req.headers.cookie",
             'req.headers["x-csrf-token"]',
-            'req.headers["x-keycade-session"]',
+            'req.headers["x-keylend-session"]',
             "res.headers.set-cookie",
           ],
           serializers: {
@@ -225,7 +225,7 @@ export async function buildServer(options: ServerOptions) {
   await app.register(cookie);
   await app.register(rateLimit, { global: true, max: 120, timeWindow: "1 minute" });
   await app.register(swagger, {
-    openapi: { info: { title: "Keycade local simulation API", version: "0.1.0" } },
+    openapi: { info: { title: "KeyLend local simulation API", version: "0.1.0" } },
     transform: jsonSchemaTransform,
   });
   app.addHook("onRequest", async (request, reply) => {
@@ -268,8 +268,8 @@ export async function buildServer(options: ServerOptions) {
           originFor(request),
           options.demoSignInEnabled,
         );
-    assertExpectedSession(request.authentication, request.headers["x-keycade-session"]);
-    if (request.headers["x-keycade-session"]) reply.header("x-keycade-session-bound", "1");
+    assertExpectedSession(request.authentication, request.headers["x-keylend-session"]);
+    if (request.headers["x-keylend-session"]) reply.header("x-keylend-session-bound", "1");
     if (
       !["GET", "HEAD", "OPTIONS"].includes(request.method) &&
       request.authentication.actor.kind === "user" &&
@@ -400,7 +400,7 @@ export async function buildServer(options: ServerOptions) {
       },
     },
     async (request) => {
-      const signature = request.headers["x-keycade-signature"];
+      const signature = request.headers["x-keylend-signature"];
       return workflows.webhook(
         request.body,
         typeof signature === "string" ? signature : undefined,

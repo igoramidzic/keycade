@@ -39,17 +39,30 @@ export const seedIds = {
 } as const;
 
 /** Insert missing synthetic fixtures only. Never resets or overwrites user edits. */
-export async function seedDatabase(connectionString: string): Promise<void> {
+export async function seedDatabase(
+  connectionString: string,
+  options: { isolationFixtures?: boolean } = {},
+): Promise<void> {
+  const isolation = options.isolationFixtures === true;
+  if (isolation && !/^\/keylend_test_[a-f0-9]{32}$/.test(new URL(connectionString).pathname))
+    throw new Error("Isolation fixtures require a disposable test database.");
   const { db, pool } = createDatabase(connectionString);
   try {
     await db.transaction(async (tx) => {
       const verifiedAt = new Date("2026-01-01T00:00:00.000Z");
       await tx
         .insert(banks)
-        .values([
-          { id: seedIds.bankA, slug: "bank-a", name: "Synthetic Bank A", synthetic: true },
-          { id: seedIds.bankB, slug: "bank-b", name: "Synthetic Bank B", synthetic: true },
-        ])
+        .values(
+          [
+            { id: seedIds.bankA, slug: "keybank", name: "Keybank", synthetic: true },
+            {
+              id: seedIds.bankB,
+              slug: "isolation-fixture",
+              name: "Isolation fixture",
+              synthetic: true,
+            },
+          ].filter((row) => isolation || row.id !== seedIds.bankB),
+        )
         .onConflictDoNothing();
       await tx
         .insert(users)
@@ -80,15 +93,29 @@ export async function seedDatabase(connectionString: string): Promise<void> {
               email: "revoked-owner@example.test",
               displayName: "Synthetic Revoked Owner",
             },
-          ].map((user) => ({ ...user, synthetic: true, emailVerifiedAt: verifiedAt })),
+          ]
+            .filter((user) => isolation || user.id !== seedIds.officerB)
+            .map((user) => ({ ...user, synthetic: true, emailVerifiedAt: verifiedAt })),
         )
         .onConflictDoNothing();
       await tx
         .insert(bankMemberships)
-        .values([
-          { bankId: seedIds.bankA, userId: seedIds.officerA, role: "admin", synthetic: true },
-          { bankId: seedIds.bankB, userId: seedIds.officerB, role: "officer", synthetic: true },
-        ])
+        .values(
+          [
+            {
+              bankId: seedIds.bankA,
+              userId: seedIds.officerA,
+              role: "admin" as const,
+              synthetic: true,
+            },
+            {
+              bankId: seedIds.bankB,
+              userId: seedIds.officerB,
+              role: "officer" as const,
+              synthetic: true,
+            },
+          ].filter((row) => isolation || row.bankId !== seedIds.bankB),
+        )
         .onConflictDoNothing();
       await tx
         .insert(applicantContacts)
@@ -111,7 +138,9 @@ export async function seedDatabase(connectionString: string): Promise<void> {
               bankId: seedIds.bankB,
               legalName: "Synthetic Birch Services",
             },
-          ].map((business) => ({ ...business, synthetic: true })),
+          ]
+            .filter((business) => isolation || business.bankId !== seedIds.bankB)
+            .map((business) => ({ ...business, synthetic: true })),
         )
         .onConflictDoNothing();
       await tx
@@ -120,98 +149,102 @@ export async function seedDatabase(connectionString: string): Promise<void> {
           [
             { id: seedIds.productA, bankId: seedIds.bankA },
             { id: seedIds.productB, bankId: seedIds.bankB },
-          ].map((product) => ({
-            ...product,
-            slug: "business-credit",
-            name: "Synthetic Business Credit",
-            minimumAmount: normalizeMoney("10000"),
-            maximumAmount: normalizeMoney("7500000"),
-            synthetic: true,
-          })),
+          ]
+            .filter((product) => isolation || product.bankId !== seedIds.bankB)
+            .map((product) => ({
+              ...product,
+              slug: "business-credit",
+              name: "Synthetic Business Credit",
+              minimumAmount: normalizeMoney("10000"),
+              maximumAmount: normalizeMoney("7500000"),
+              synthetic: true,
+            })),
         )
         .onConflictDoNothing();
       await tx
         .insert(applications)
-        .values([
-          {
-            id: seedIds.applicationSmall,
-            bankId: seedIds.bankA,
-            businessId: seedIds.businessA,
-            businessName: "Synthetic Cedar Workshop",
-            contactId: seedIds.contactA,
-            productId: seedIds.productA,
-            requestedAmount: normalizeMoney("10000"),
-            purpose: "Synthetic equipment purchase",
-            source: "seed",
-            status: "collecting_information",
-            synthetic: true,
-          },
-          {
-            id: seedIds.applicationLarge,
-            bankId: seedIds.bankA,
-            businessId: seedIds.businessB,
-            businessName: "Synthetic Maple Supply",
-            contactId: seedIds.contactA,
-            productId: seedIds.productA,
-            requestedAmount: normalizeMoney("5000000"),
-            purpose: "Synthetic expansion",
-            source: "seed",
-            status: "collecting_information",
-            synthetic: true,
-          },
-          {
-            id: seedIds.applicationUnshared,
-            bankId: seedIds.bankA,
-            businessId: seedIds.businessA,
-            businessName: "Synthetic Cedar Workshop",
-            productId: seedIds.productA,
-            requestedAmount: normalizeMoney("7500000"),
-            purpose: "Synthetic separate request; no borrower grant",
-            source: "seed",
-            synthetic: true,
-          },
-          {
-            id: seedIds.applicationOtherBank,
-            bankId: seedIds.bankB,
-            businessId: seedIds.businessOtherBank,
-            businessName: "Synthetic Birch Services",
-            productId: seedIds.productB,
-            requestedAmount: normalizeMoney("10000"),
-            purpose: "Synthetic isolated bank request",
-            source: "seed",
-            synthetic: true,
-          },
-          {
-            id: seedIds.applicationSetupDraft,
-            bankId: seedIds.bankA,
-            businessId: seedIds.businessA,
-            businessName: "Synthetic Cedar Workshop",
-            contactId: seedIds.contactA,
-            productId: seedIds.productA,
-            source: "seed",
-            synthetic: true,
-          },
-          {
-            id: seedIds.applicationClosedDraft,
-            bankId: seedIds.bankA,
-            businessId: seedIds.businessA,
-            businessName: "Synthetic Cedar Workshop",
-            contactId: seedIds.contactA,
-            productId: seedIds.productA,
-            requestedAmount: normalizeMoney("25000"),
-            status: "withdrawn",
-            source: "seed",
-            synthetic: true,
-          },
-          {
-            id: seedIds.applicationEmpty,
-            bankId: seedIds.bankA,
-            productId: seedIds.productA,
-            contactId: seedIds.contactA,
-            source: "seed",
-            synthetic: true,
-          },
-        ])
+        .values(
+          [
+            {
+              id: seedIds.applicationSmall,
+              bankId: seedIds.bankA,
+              businessId: seedIds.businessA,
+              businessName: "Synthetic Cedar Workshop",
+              contactId: seedIds.contactA,
+              productId: seedIds.productA,
+              requestedAmount: normalizeMoney("10000"),
+              purpose: "Synthetic equipment purchase",
+              source: "seed" as const,
+              status: "collecting_information" as const,
+              synthetic: true,
+            },
+            {
+              id: seedIds.applicationLarge,
+              bankId: seedIds.bankA,
+              businessId: seedIds.businessB,
+              businessName: "Synthetic Maple Supply",
+              contactId: seedIds.contactA,
+              productId: seedIds.productA,
+              requestedAmount: normalizeMoney("5000000"),
+              purpose: "Synthetic expansion",
+              source: "seed" as const,
+              status: "collecting_information" as const,
+              synthetic: true,
+            },
+            {
+              id: seedIds.applicationUnshared,
+              bankId: seedIds.bankA,
+              businessId: seedIds.businessA,
+              businessName: "Synthetic Cedar Workshop",
+              productId: seedIds.productA,
+              requestedAmount: normalizeMoney("7500000"),
+              purpose: "Synthetic separate request; no borrower grant",
+              source: "seed" as const,
+              synthetic: true,
+            },
+            {
+              id: seedIds.applicationOtherBank,
+              bankId: seedIds.bankB,
+              businessId: seedIds.businessOtherBank,
+              businessName: "Synthetic Birch Services",
+              productId: seedIds.productB,
+              requestedAmount: normalizeMoney("10000"),
+              purpose: "Synthetic isolated bank request",
+              source: "seed" as const,
+              synthetic: true,
+            },
+            {
+              id: seedIds.applicationSetupDraft,
+              bankId: seedIds.bankA,
+              businessId: seedIds.businessA,
+              businessName: "Synthetic Cedar Workshop",
+              contactId: seedIds.contactA,
+              productId: seedIds.productA,
+              source: "seed" as const,
+              synthetic: true,
+            },
+            {
+              id: seedIds.applicationClosedDraft,
+              bankId: seedIds.bankA,
+              businessId: seedIds.businessA,
+              businessName: "Synthetic Cedar Workshop",
+              contactId: seedIds.contactA,
+              productId: seedIds.productA,
+              requestedAmount: normalizeMoney("25000"),
+              status: "withdrawn" as const,
+              source: "seed" as const,
+              synthetic: true,
+            },
+            {
+              id: seedIds.applicationEmpty,
+              bankId: seedIds.bankA,
+              productId: seedIds.productA,
+              contactId: seedIds.contactA,
+              source: "seed" as const,
+              synthetic: true,
+            },
+          ].filter((row) => isolation || row.bankId !== seedIds.bankB),
+        )
         .onConflictDoNothing();
       await tx
         .insert(applicationParticipants)

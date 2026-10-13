@@ -19,11 +19,11 @@ const port = z.coerce.number().int().min(1024).max(65535);
 const positive = z.coerce.number().int().positive();
 const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-  PROJECT_NAME: z.string().regex(/^keycade(?:-[a-z0-9-]+)?$/),
+  PROJECT_NAME: z.string().regex(/^(?:keylend|keycade)(?:-[a-z0-9-]+)?$/),
   PODMAN_MACHINE: z.string().regex(/^[a-zA-Z0-9_.-]+$/),
   DB_HOST: z.enum(["127.0.0.1", "localhost"]),
   DB_PORT: port,
-  DB_NAME: z.string().regex(/^keycade(?:_[a-z0-9_]+)?$/),
+  DB_NAME: z.string().regex(/^(?:keylend|keycade)(?:_[a-z0-9_]+)?$/),
   DB_USER: z.string().regex(/^[a-z_][a-z0-9_]*$/),
   DB_PASSWORD: z.string().min(16),
   DATABASE_URL: z.string().url(),

@@ -1,4 +1,4 @@
-import { readEnvironment } from "@keycade/config/server";
+import { readEnvironment } from "@keylend/config/server";
 import { defineConfig, devices } from "@playwright/test";
 
 const env = readEnvironment();

@@ -1,6 +1,6 @@
-import { checksViewSchema, readinessViewSchema, type StaffWorkspace } from "@keycade/contracts";
-import { ChecksManager, ReadinessPanel } from "@keycade/ui/components/checks-manager";
-import { checkRefreshInterval, readinessRefreshInterval } from "@keycade/ui/lib/refresh-policy";
+import { checksViewSchema, readinessViewSchema, type StaffWorkspace } from "@keylend/contracts";
+import { ChecksManager, ReadinessPanel } from "@keylend/ui/components/checks-manager";
+import { checkRefreshInterval, readinessRefreshInterval } from "@keylend/ui/lib/refresh-policy";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, useStaffApi } from "./api";
 import { LoanFootprintItem } from "./loan-footprint";

@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { envFile } from "@keycade/config/server";
-import { createDatabase } from "@keycade/db";
+import { envFile } from "@keylend/config/server";
+import { createDatabase } from "@keylend/db";
 import { assertOwnedDatabase, localEnv, run, waitForDatabase } from "./local-lib";
 
 const env = localEnv();

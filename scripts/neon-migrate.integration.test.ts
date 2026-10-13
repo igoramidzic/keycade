@@ -1,8 +1,8 @@
 import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { migrationsFolder } from "@keycade/db/migrate";
-import { createTestDatabase } from "@keycade/db/testing";
+import { migrationsFolder } from "@keylend/db/migrate";
+import { createTestDatabase } from "@keylend/db/testing";
 import { Client } from "pg";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from "vitest";
 import {
@@ -35,7 +35,7 @@ beforeEach(async () => {
   await database.pool.query(
     "DROP SCHEMA IF EXISTS public CASCADE; DROP SCHEMA IF EXISTS drizzle CASCADE; CREATE SCHEMA public",
   );
-  folder = mkdtempSync(join(tmpdir(), "keycade-neon-migrations-"));
+  folder = mkdtempSync(join(tmpdir(), "keylend-neon-migrations-"));
   cpSync(migrationsFolder, folder, { recursive: true });
 });
 

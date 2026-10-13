@@ -5,7 +5,7 @@ import {
   signatureActionSchema,
   signatureEventSchema,
   signaturesViewSchema,
-} from "@keycade/contracts";
+} from "@keylend/contracts";
 import {
   applicationParticipants,
   applications,
@@ -24,7 +24,7 @@ import {
   signatureSigners,
   taskSignaturePolicies,
   users,
-} from "@keycade/db";
+} from "@keylend/db";
 import { and, asc, desc, eq } from "drizzle-orm";
 import {
   type Actor,
@@ -295,7 +295,7 @@ async function applyEvent(
           if (allCurrent) {
             const evidenceRevision = envelope.taskEvidenceRevision + 1;
             const body = [
-              "KEYCADE SIMULATED SIGNATURE ARTIFACT",
+              "KEYLEND SIMULATED SIGNATURE ARTIFACT",
               "Synthetic demonstration only. This is not a legally executed contract.",
               `Envelope: ${envelope.id}`,
               `Source document version: ${envelope.sourceVersionId}`,

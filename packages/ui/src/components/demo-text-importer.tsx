@@ -7,22 +7,22 @@ import {
   demoImportMaxFiles,
   demoImportRecipes,
   validateDemoTextImportBatch,
-} from "@keycade/contracts/demo-import";
-import { Button } from "@keycade/ui/components/button";
+} from "@keylend/contracts/demo-import";
+import { Button } from "@keylend/ui/components/button";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@keycade/ui/components/collapsible";
-import type { DemoUploadTarget } from "@keycade/ui/components/demo-kit";
-import { DemoDestination, DemoStepHeading } from "@keycade/ui/components/demo-kit-parts";
+} from "@keylend/ui/components/collapsible";
+import type { DemoUploadTarget } from "@keylend/ui/components/demo-kit";
+import { DemoDestination, DemoStepHeading } from "@keylend/ui/components/demo-kit-parts";
 import {
   createDemoImportFile,
   type DemoImportPreview,
   demoImportMime,
   sameDemoImportContext,
-} from "@keycade/ui/lib/demo-import-transfer";
-import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
+} from "@keylend/ui/lib/demo-import-transfer";
+import { workflowName, workflowText } from "@keylend/ui/lib/workflow-text";
 import { cn } from "cn";
 import { ChevronDown, Download, FileText, GripVertical, Upload } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";

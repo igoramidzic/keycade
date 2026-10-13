@@ -1,4 +1,4 @@
-import { rememberSession } from "@keycade/ui/lib/session-snapshot";
+import { rememberSession } from "@keylend/ui/lib/session-snapshot";
 import { afterEach, expect, test, vi } from "vitest";
 import { ApiError, onApplicationAccessLoss, request } from "./api";
 
@@ -174,7 +174,7 @@ afterEach(() => {
 test("protected reads and saves each make one request bound to the mounted session", async () => {
   rememberSession(session);
   const fetch = vi.fn(async (_path: string, _init?: RequestInit) =>
-    Response.json({ saved: true }, { headers: { "x-keycade-session-bound": "1" } }),
+    Response.json({ saved: true }, { headers: { "x-keylend-session-bound": "1" } }),
   );
   vi.stubGlobal("fetch", fetch);
   const actor = { bankId: session.bank.id, actorEmail: session.user.email };
@@ -187,10 +187,10 @@ test("protected reads and saves each make one request bound to the mounted sessi
   expect(fetch.mock.calls).toHaveLength(2);
   const calls = fetch.mock.calls;
   expect(calls[0]?.[0]).toBe("/tasks");
-  expect(calls[0]?.[1]?.headers).toMatchObject({ "x-keycade-session": session.csrfToken });
+  expect(calls[0]?.[1]?.headers).toMatchObject({ "x-keylend-session": session.csrfToken });
   expect(calls[1]?.[1]?.headers).toMatchObject({
     "x-csrf-token": session.csrfToken,
-    "x-keycade-session": session.csrfToken,
+    "x-keylend-session": session.csrfToken,
   });
 });
 
@@ -200,7 +200,7 @@ test("a late response cannot populate a locally changed session", async () => {
     "fetch",
     vi.fn(async () => {
       rememberSession({ ...session, csrfToken: "b".repeat(64) });
-      return Response.json({ oldAccount: true }, { headers: { "x-keycade-session-bound": "1" } });
+      return Response.json({ oldAccount: true }, { headers: { "x-keylend-session-bound": "1" } });
     }),
   );
   await expect(request("/tasks", schema, { bankId: session.bank.id })).rejects.toMatchObject({
@@ -239,7 +239,7 @@ test("an older API requires a session post-check and cannot return a switched ac
           demoSignInEnabled: true,
           staff: false,
           authenticationMethod: "demo",
-          bank: { ...session.bank, slug: "bank-a", name: "Synthetic Bank A" },
+          bank: { ...session.bank, slug: "keybank", name: "Keybank" },
           user: { ...session.user, displayName: null },
         })
       : Response.json({ saved: true }),

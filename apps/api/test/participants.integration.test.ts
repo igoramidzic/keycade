@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { authSessionSchema, participantsWorkspaceSchema } from "@keycade/contracts";
-import { seedDatabase, seedIds } from "@keycade/db/seed";
-import { createTestDatabase } from "@keycade/db/testing";
-import { createIdentityService } from "@keycade/domain";
+import { authSessionSchema, participantsWorkspaceSchema } from "@keylend/contracts";
+import { seedDatabase, seedIds } from "@keylend/db/seed";
+import { createTestDatabase } from "@keylend/db/testing";
+import { createIdentityService } from "@keylend/domain";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildServer } from "../src/server.js";
 import { handleWorkerRequest } from "../src/worker-handler.js";
@@ -10,7 +10,7 @@ import { handleWorkerRequest } from "../src/worker-handler.js";
 let database: Awaited<ReturnType<typeof createTestDatabase>>;
 beforeAll(async () => {
   database = await createTestDatabase();
-  await seedDatabase(database.connectionString);
+  await seedDatabase(database.connectionString, { isolationFixtures: true });
 }, 30_000);
 afterAll(async () => database?.cleanup());
 const borrowerOrigin = "http://localhost:3001";
@@ -98,7 +98,7 @@ for (const transport of ["fastify", "worker"] as const) {
         const response = await call("/api/v1/auth/demo-sign-in", {
           method: "POST",
           origin,
-          body: { email, bankSlug: "bank-a", portal, returnPath: "/" },
+          body: { email, bankSlug: "keybank", portal, returnPath: "/" },
         });
         expect(response.status).toBe(200);
         return credentials(response.cookie, origin);

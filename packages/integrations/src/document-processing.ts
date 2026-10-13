@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { documentInterpretationResultSchema } from "@keycade/contracts";
-import { demoImportFixtureSchema } from "@keycade/contracts/demo-import";
+import { documentInterpretationResultSchema } from "@keylend/contracts";
+import { demoImportFixtureSchema } from "@keylend/contracts/demo-import";
 import {
   applications,
   auditEvents,
@@ -10,8 +10,8 @@ import {
   documentProcessingRuns,
   documents,
   documentVersions,
-} from "@keycade/db";
-import { enqueueDocumentProcessing } from "@keycade/domain";
+} from "@keylend/db";
+import { enqueueDocumentProcessing } from "@keylend/domain";
 import { and, desc, eq, inArray, isNull, lte, notInArray, or, sql } from "drizzle-orm";
 import { interpretSyntheticDocument } from "./document-interpretation.js";
 import { type Clock, ProviderError, systemClock } from "./provider.js";

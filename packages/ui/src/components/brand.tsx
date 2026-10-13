@@ -1,7 +1,7 @@
 import { cn } from "cn";
 
 /**
- * Keycade's mark: a keystone arch, read as both "key" and "arcade". Decorative only;
+ * KeyLend's key symbol is decorative;
  * the adjacent wordmark supplies the accessible name.
  */
 export function BrandMark({
@@ -30,13 +30,9 @@ export function BrandMark({
         strokeLinejoin="round"
         className={tone === "brand" ? "stroke-brand-foreground" : "stroke-brand"}
       >
-        <path d="M10 23.5v-7.25a6 6 0 0 1 12 0v7.25" strokeWidth="2.4" />
-        <path d="M7.5 23.5h17" strokeWidth="2.4" />
+        <circle cx="11" cy="15" r="4.5" strokeWidth="2.4" />
+        <path d="M15.5 15H26M22 15v5M26 15v3" strokeWidth="2.4" />
       </g>
-      <path
-        d="M14.4 7.2h3.2l-.65 3.6h-1.9z"
-        className={tone === "brand" ? "fill-brand-foreground" : "fill-brand"}
-      />
     </svg>
   );
 }

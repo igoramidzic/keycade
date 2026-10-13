@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { publicIntakeSchema } from "@keycade/contracts";
-import { banks, loanProducts } from "@keycade/db";
-import { createTestDatabase } from "@keycade/db/testing";
+import { publicIntakeSchema } from "@keylend/contracts";
+import { banks, loanProducts } from "@keylend/db";
+import { createTestDatabase } from "@keylend/db/testing";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildServer } from "../src/server.js";
 import { handleWorkerRequest } from "../src/worker-handler.js";
@@ -14,8 +14,8 @@ beforeAll(async () => {
   database = await createTestDatabase();
   await database.db.insert(banks).values({
     id: bankId,
-    slug: "catalog-bank",
-    name: "Synthetic Catalog Bank",
+    slug: "keybank",
+    name: "Keybank",
     synthetic: true,
   });
   await database.db.insert(loanProducts).values({
@@ -70,13 +70,13 @@ for (const transport of ["fastify", "worker"] as const) {
     it("serves the allowlisted catalog anonymously without creating application state", async () => {
       const c = await client();
       try {
-        const response = await c.call("/api/v1/public/banks/catalog-bank/intake");
+        const response = await c.call("/api/v1/public/banks/keybank/intake");
         expect(response.status).toBe(200);
         expect(JSON.parse(response.body)).toEqual({
           bank: {
             id: bankId,
-            slug: "catalog-bank",
-            name: "Synthetic Catalog Bank",
+            slug: "keybank",
+            name: "Keybank",
             synthetic: true,
           },
           products: [
@@ -95,7 +95,7 @@ for (const transport of ["fastify", "worker"] as const) {
         expect(response.headers["cache-control"]).toBe("no-store");
         const result = await database.pool.query("SELECT count(*)::int AS count FROM applications");
         expect(result.rows[0]?.count).toBe(0);
-        const head = await c.call("/api/v1/public/banks/catalog-bank/intake", "HEAD");
+        const head = await c.call("/api/v1/public/banks/keybank/intake", "HEAD");
         expect(head.status).toBe(200);
         expect(head.body).toBe("");
         const openapi = await c.call("/api/openapi.json");
@@ -118,8 +118,8 @@ for (const transport of ["fastify", "worker"] as const) {
         for (const path of [
           "/api/v1/public/banks/UPPERCASE/intake",
           `/api/v1/public/banks/${"a".repeat(81)}/intake`,
-          `/api/v1/public/banks/catalog-bank/intake?bankId=${randomUUID()}`,
-          `/api/v1/public/banks/catalog-bank/intake?productId=${randomUUID()}`,
+          `/api/v1/public/banks/keybank/intake?bankId=${randomUUID()}`,
+          `/api/v1/public/banks/keybank/intake?productId=${randomUUID()}`,
         ]) {
           const response = await c.call(path);
           expect(response.status).toBe(400);

@@ -3,13 +3,13 @@ import {
   documentFindingSchema,
   documentInterpretationResultSchema,
   extractedDocumentFieldSchema,
-} from "@keycade/contracts";
+} from "@keylend/contracts";
 import {
   createDemoImportPdf,
   demoImportFixtureFor,
   demoImportRecipes,
-} from "@keycade/contracts/demo-import";
-import { createDemoDocumentPdf, demoDocuments } from "@keycade/contracts/demo-scenarios";
+} from "@keylend/contracts/demo-import";
+import { createDemoDocumentPdf, demoDocuments } from "@keylend/contracts/demo-scenarios";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { documentDigest } from "./document-content.js";
 import {
@@ -44,7 +44,7 @@ afterEach(() => vi.useRealTimers());
 describe("schema-validated simulated document interpretation", () => {
   it("defaults historical findings and rejects unstructured or instruction-shaped findings", () => {
     const historical = documentInterpretationResultSchema.parse({
-      provider: "keycade-document-interpretation-v1",
+      provider: "keylend-document-interpretation-v1",
       simulated: true,
       runId: randomUUID(),
       versionId: randomUUID(),
@@ -210,7 +210,7 @@ describe("schema-validated simulated document interpretation", () => {
     expect(
       documentInterpretationResultSchema.safeParse({
         ...request("unknown"),
-        provider: "keycade-document-interpretation-v1",
+        provider: "keylend-document-interpretation-v1",
         simulated: true,
         category: "other",
         confidence: 0,
@@ -240,7 +240,7 @@ describe("schema-validated simulated document interpretation", () => {
       category: "tax",
       confidence: 0.97,
       simulated: true,
-      provider: "keycade-document-interpretation-v1",
+      provider: "keylend-document-interpretation-v1",
       completedAt: "2026-10-07T12:00:05.000Z",
     });
     expect(
@@ -377,4 +377,27 @@ describe("content-bound imported document interpretation", () => {
     expect(result.findings.every((finding) => finding.severity === "warning")).toBe(true);
     expect(result.extractedFields.some((field) => field.key === "adjusted_net_income")).toBe(false);
   });
+});
+
+it("recognizes historical sample document hashes after the branding change", () => {
+  const name = "Synthetic Cedar Workshop";
+  for (const document of demoDocuments) {
+    const legacy = createDemoDocumentPdf(document, name, "Keycade");
+    const matched = demoDocumentFixture(documentDigest(legacy), name)?.document;
+    expect(matched?.id).toBe(document.id);
+    if (document.rows.some((row) => row.label === "Institution"))
+      expect(matched?.rows.find((row) => row.label === "Institution")?.value).toBe(
+        "Keycade Fictional Bank",
+      );
+  }
+  const fixture = demoImportFixtureFor("business-tax-return-2023", {
+    businessName: name,
+    applicationRevision: 1,
+  });
+  expect(
+    demoImportDocumentFixture(
+      documentDigest(createDemoImportPdf(fixture.recipeId, fixture, "Keycade")),
+      fixture,
+    )?.fixture,
+  ).toEqual(fixture);
 });

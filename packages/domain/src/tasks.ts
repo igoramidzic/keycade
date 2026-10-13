@@ -7,7 +7,7 @@ import {
   tasksViewSchema,
   taskViewSchema,
   waiveTaskSchema,
-} from "@keycade/contracts";
+} from "@keylend/contracts";
 import {
   applicationParticipants,
   applicationRequirementPolicies,
@@ -27,7 +27,7 @@ import {
   taskReviews,
   taskSignaturePolicies,
   users,
-} from "@keycade/db";
+} from "@keylend/db";
 import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import {
   type Actor,

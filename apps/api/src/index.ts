@@ -1,8 +1,8 @@
-import { loadServerEnv } from "@keycade/config/server";
-import { createDatabase } from "@keycade/db";
-import { assertSchemaReady } from "@keycade/db/migrate";
-import { workerHealth } from "@keycade/integrations";
-import { createLocalDocumentStorage } from "@keycade/integrations/document-storage-local";
+import { loadServerEnv } from "@keylend/config/server";
+import { createDatabase } from "@keylend/db";
+import { assertSchemaReady } from "@keylend/db/migrate";
+import { workerHealth } from "@keylend/integrations";
+import { createLocalDocumentStorage } from "@keylend/integrations/document-storage-local";
 import { buildServer } from "./server.js";
 
 const env = loadServerEnv();

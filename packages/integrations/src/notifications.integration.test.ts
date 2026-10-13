@@ -9,9 +9,9 @@ import {
   auditEvents,
   notifications,
   users,
-} from "@keycade/db";
-import { seedIds as ids, seedDatabase } from "@keycade/db/seed";
-import { createTestDatabase } from "@keycade/db/testing";
+} from "@keylend/db";
+import { seedIds as ids, seedDatabase } from "@keylend/db/seed";
+import { createTestDatabase } from "@keylend/db/testing";
 import {
   type Actor,
   createEnrichmentService,
@@ -21,7 +21,7 @@ import {
   createTasksService,
   queueApplicationStatusNotifications,
   recordApplicantActivity,
-} from "@keycade/domain";
+} from "@keylend/domain";
 import { and, eq, inArray } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { processAccessDelivery } from "./access-delivery.js";
@@ -42,7 +42,7 @@ const schedule = () =>
 const dispatch = () => dispatchNotifications(database.db, { clock, borrowerOrigin: origin });
 beforeAll(async () => {
   database = await createTestDatabase();
-  await seedDatabase(database.connectionString);
+  await seedDatabase(database.connectionString, { isolationFixtures: true });
   await database.db.update(applications).set({ status: "withdrawn" });
 }, 30000);
 beforeEach(() => {
@@ -446,7 +446,7 @@ describe("typed notifications and inactivity reminders on PostgreSQL", () => {
     expect((await notification(f.app.id)).suppressionReason).toBe("reminders_disabled");
     await identity().requestAccessLink({
       email: f.email,
-      bankSlug: "bank-a",
+      bankSlug: "keybank",
       portal: "borrower",
       returnPath: "/",
       origin,
@@ -471,7 +471,7 @@ describe("typed notifications and inactivity reminders on PostgreSQL", () => {
     expect((await notification(f.app.id)).suppressionReason).toBe("recipient_unverified");
     await identity().requestAccessLink({
       email: f.email,
-      bankSlug: "bank-a",
+      bankSlug: "keybank",
       portal: "borrower",
       returnPath: "/",
       origin,

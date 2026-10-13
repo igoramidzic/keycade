@@ -1,13 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { readEnvironment } from "@keycade/config/server";
+import { readEnvironment } from "@keylend/config/server";
 import type {
   ApplicationSetup,
   ChecksView,
   DocumentsView,
   FinancialFactsView,
   TasksView,
-} from "@keycade/contracts";
+} from "@keylend/contracts";
 import { expect as browserExpect, type Page, test } from "@playwright/test";
 import { demoImportRecipes } from "../../packages/contracts/src/demo-import";
 import { workflowApi } from "./closing-helpers";
@@ -16,9 +16,9 @@ import { fillSignInEmail } from "./identity-helpers";
 
 const env = readEnvironment();
 const expect = browserExpect.configure({ timeout: 30_000 });
-const borrower = env.KEYCADE_E2E_BORROWER_ORIGIN ?? "";
-const staff = env.KEYCADE_E2E_STAFF_ORIGIN ?? "";
-test.skip(env.KEYCADE_E2E_HOSTED !== "true", "Explicit hosted acceptance is required.");
+const borrower = env.KEYLEND_E2E_BORROWER_ORIGIN ?? "";
+const staff = env.KEYLEND_E2E_STAFF_ORIGIN ?? "";
+test.skip(env.KEYLEND_E2E_HOSTED !== "true", "Explicit hosted acceptance is required.");
 // Capture only explicitly selected synthetic views, never session/network artifacts.
 test.use({ trace: "off", screenshot: "off", video: "off", actionTimeout: 25_000 });
 test.setTimeout(900_000);
@@ -53,7 +53,7 @@ test("hosted v2 applicant resumes masked setup and reaches R2 evidence, reviewed
   await paceHostedRequests(context);
   const email = `hosted-v2-${randomUUID()}@example.test`;
   const name = `Synthetic Hosted V2 Workshop ${randomUUID().slice(0, 8)}`;
-  await page.goto(`${borrower}/apply?bank=bank-a`);
+  await page.goto(`${borrower}/apply?bank=keybank`);
   await fillSignInEmail(page, email);
   await page.getByRole("button", { name: "Start application", exact: true }).click();
   await page.getByLabel("Legal business name", { exact: true }).fill(name);
@@ -168,7 +168,7 @@ test("hosted v2 applicant resumes masked setup and reaches R2 evidence, reviewed
   await page.getByRole("button", { name: "Continue", exact: true }).click();
   await expect(page.getByRole("button", { name: "Finish setup", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Finish setup", exact: true }).click();
-  await expect(page).toHaveURL(`${borrower}${base}?bank=bank-a`);
+  await expect(page).toHaveURL(`${borrower}${base}?bank=keybank`);
   await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
   await expect(page.getByRole("tablist")).toHaveCount(0);
   const sidebar = page.getByRole("complementary", { name: "Application details", exact: true });
@@ -268,7 +268,7 @@ test("hosted v2 applicant resumes masked setup and reaches R2 evidence, reviewed
     await paceHostedRequests(officerContext);
     const officer = await officerContext.newPage();
     await signIn(officer, staff, "officer-a@example.test");
-    await officer.goto(`${staff}${base}/overview?bank=bank-a`);
+    await officer.goto(`${staff}${base}/overview?bank=keybank`);
     const financials = officer.getByRole("region", { name: "Financial overview", exact: true });
     await expect(financials).toBeVisible({ timeout: 120_000 });
     await expect(financials).toContainText("Unconfirmed");
@@ -423,7 +423,7 @@ test("hosted v2 address changes fence stale runs, refresh replay is idempotent, 
     const check = footprint(view);
     return check.runs.find((run) => run.id === check.currentRunId);
   };
-  await page.goto(`${staff}${base}/overview?bank=bank-a`);
+  await page.goto(`${staff}${base}/overview?bank=keybank`);
   await page.getByRole("button", { name: "Loan Footprint", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Geographic Eligibility", exact: true });
   await expect(dialog.getByText("Within the US lending footprint.", { exact: true })).toBeVisible({

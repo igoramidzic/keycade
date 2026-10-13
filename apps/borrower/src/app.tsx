@@ -1,5 +1,5 @@
-import { applicationSetupSchema, type PublicIntake, publicIntakeSchema } from "@keycade/contracts";
-import { Alert, AlertDescription, AlertTitle } from "@keycade/ui/components/alert";
+import { applicationSetupSchema, type PublicIntake, publicIntakeSchema } from "@keylend/contracts";
+import { Alert, AlertDescription, AlertTitle } from "@keylend/ui/components/alert";
 import {
   AppFooter,
   AppHeader,
@@ -8,19 +8,19 @@ import {
   IdentityAvatar,
   shellWidth,
   useHeaderSlot,
-} from "@keycade/ui/components/app-shell";
-import { Badge } from "@keycade/ui/components/badge";
-import { BrandLockup } from "@keycade/ui/components/brand";
-import { Button, buttonVariants } from "@keycade/ui/components/button";
-import { EmptyState, LoadingState } from "@keycade/ui/components/empty-state";
+} from "@keylend/ui/components/app-shell";
+import { Badge } from "@keylend/ui/components/badge";
+import { BrandLockup } from "@keylend/ui/components/brand";
+import { Button, buttonVariants } from "@keylend/ui/components/button";
+import { EmptyState, LoadingState } from "@keylend/ui/components/empty-state";
 import {
   type AuthenticatedSession,
   type Confirmation,
   type IdentityControls,
   IdentityPortal,
-} from "@keycade/ui/components/identity-portal";
-import { cn } from "@keycade/ui/lib/utils";
-import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
+} from "@keylend/ui/components/identity-portal";
+import { cn } from "@keylend/ui/lib/utils";
+import { workflowName, workflowText } from "@keylend/ui/lib/workflow-text";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
@@ -43,14 +43,14 @@ import { SignatureContinuation } from "./signatures";
 import { clearUnsavedAnswers } from "./unsaved-answers";
 import { applicationPath, ErrorNotice } from "./workspace-ui";
 
-declare const __KEYCADE_PUBLIC__: { bankSiteUrl: string };
+declare const __KEYLEND_PUBLIC__: { bankSiteUrl: string };
 
 export function BorrowerApp({ confirmation }: { confirmation: Confirmation }) {
   const location = useLocation();
   const navigate = useNavigate();
   const header = useHeaderSlot();
   const params = new URLSearchParams(location.search);
-  const bankSlug = params.get("bank") ?? "bank-a";
+  const bankSlug = "keybank";
   // Product query hints no longer select financing; every new draft uses the server default.
   const productSlug = "business-credit";
   const starting = location.pathname === "/apply";
@@ -76,10 +76,10 @@ export function BorrowerApp({ confirmation }: { confirmation: Confirmation }) {
         slotRef={header.ref}
         brand={
           <a
-            href={__KEYCADE_PUBLIC__.bankSiteUrl}
+            href={__KEYLEND_PUBLIC__.bankSiteUrl}
             className="min-w-0 rounded-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
           >
-            <BrandLockup name="Keycade Bank" detail="Business financing" />
+            <BrandLockup name="Keybank" detail="Business financing" />
           </a>
         }
       />
@@ -328,7 +328,7 @@ function Workspace({
               element={
                 session.bank.id !== targetCatalog.bank.id ? (
                   <Alert variant="warning">
-                    <AlertTitle>You’re signed in to another bank</AlertTitle>
+                    <AlertTitle>Please sign in to Keybank</AlertTitle>
                     <AlertDescription>
                       Sign out to start an application at {workflowName(targetCatalog.bank.name)}.
                     </AlertDescription>

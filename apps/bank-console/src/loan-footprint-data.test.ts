@@ -1,4 +1,4 @@
-import type { BusinessAddress, CheckResult } from "@keycade/contracts";
+import type { BusinessAddress, CheckResult } from "@keylend/contracts";
 import { expect, test } from "vitest";
 import {
   footprintMapPoint,
@@ -21,7 +21,7 @@ const coordinates = {
 };
 const footprintInput = { addressRevision: 2, address, policyVersion: "US-only-demo-v1" as const };
 const evidence: CheckResult = {
-  provider: "keycade-checks-v1",
+  provider: "keylend-checks-v1",
   simulated: true,
   kind: "loan_footprint",
   operationId: "operation-current",

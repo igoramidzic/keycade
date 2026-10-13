@@ -7,9 +7,9 @@ import {
   effectDeduplications,
   integrationRuns,
   outboxEvents,
-} from "@keycade/db";
-import { seedDatabase, seedIds } from "@keycade/db/seed";
-import { createTestDatabase } from "@keycade/db/testing";
+} from "@keylend/db";
+import { seedDatabase, seedIds } from "@keylend/db/seed";
+import { createTestDatabase } from "@keylend/db/testing";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, expect, it } from "vitest";
 import { enqueueDemo } from "./intent.js";
@@ -35,7 +35,7 @@ const options = {
 };
 beforeAll(async () => {
   database = await createTestDatabase();
-  await seedDatabase(database.connectionString);
+  await seedDatabase(database.connectionString, { isolationFixtures: true });
   await initializeQueue(database.connectionString);
   await initializeQueue(database.connectionString);
   await assertQueueReady(database.connectionString);

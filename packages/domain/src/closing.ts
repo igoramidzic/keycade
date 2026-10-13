@@ -5,7 +5,7 @@ import {
   fundedAccountsViewSchema,
   recordFundingSchema,
   startClosingSchema,
-} from "@keycade/contracts";
+} from "@keylend/contracts";
 import {
   applicationClosingPackages,
   applicationDecisions,
@@ -29,7 +29,7 @@ import {
   productClosingPolicies,
   taskAssignments,
   users,
-} from "@keycade/db";
+} from "@keylend/db";
 import { and, asc, desc, eq, isNull, ne } from "drizzle-orm";
 import { type Actor, type ApplicationAccess, requireApplicationAccess } from "./authorization.js";
 import { lockCheckApplication } from "./checks.js";

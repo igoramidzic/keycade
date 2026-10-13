@@ -21,7 +21,7 @@ Bank staff can find drafts, create an application on a client's behalf, and insp
 ## Acceptance criteria
 
 - Authorized staff see their bank's drafts and submitted records with expected filtering and pagination.
-- A borrower cannot access staff endpoints; Bank A staff cannot access Bank B records, notes, or counts.
+- A borrower cannot access staff endpoints; Keybank staff cannot access Isolation fixture records, notes, or counts.
 - Staff creation accepts borrower email with optional business name, amount and purpose; supplied answers, draft, audit, idempotency and one simulated continuation intent commit together. Invalid prefills create no draft or delivery intent. The borrower receives a targeted continuation through local Mailpit or the hosted demo inbox; staff origin/creator metadata is preserved. Repeated identical requests return the same draft, including recovery after a lost response.
 - A staff-created draft exposes prefilled answers and incomplete setup through T07's authorized resume response; staff create/prefill calls cannot complete setup. Staff can inspect setup progress throughout. T08 covers the borrower-facing confirmation journey.
 - Staff assignment and note changes persist and are audited; notes never appear in borrower DTOs.

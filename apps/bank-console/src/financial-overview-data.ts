@@ -1,4 +1,4 @@
-import type { FinancialFact, FinancialFactsView, FinancialMetric } from "@keycade/contracts";
+import type { FinancialFact, FinancialFactsView, FinancialMetric } from "@keylend/contracts";
 
 export const overviewFinancialMetrics = [
   { metric: "revenue", label: "Revenue" },

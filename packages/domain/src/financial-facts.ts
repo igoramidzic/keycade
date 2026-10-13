@@ -8,7 +8,7 @@ import {
   financialFactsViewSchema,
   financialMetricSchema,
   reviewFinancialFactsSchema,
-} from "@keycade/contracts";
+} from "@keylend/contracts";
 import {
   applicationSetups,
   applications,
@@ -22,7 +22,7 @@ import {
   documentVersions,
   financialFactCommands,
   financialFactReviews,
-} from "@keycade/db";
+} from "@keylend/db";
 import { and, desc, eq } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { type Actor, type QueryDatabase, requireApplicationAccess } from "./authorization.js";

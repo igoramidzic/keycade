@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { readEnvironment } from "@keycade/config/server";
-import type { DocumentsView, ParticipantsWorkspace, TasksView } from "@keycade/contracts";
+import { readEnvironment } from "@keylend/config/server";
+import type { DocumentsView, ParticipantsWorkspace, TasksView } from "@keylend/contracts";
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import {
   createDemoDocumentPdf,
@@ -17,7 +17,7 @@ const staff = `http://127.0.0.1:${env.BANK_CONSOLE_PORT ?? 3002}`;
 const applicationId = "60000000-0000-4000-8000-000000000001";
 const base = `/applications/${applicationId}`;
 const businessName = "Synthetic Cedar Workshop";
-const demoMime = "application/x-keycade-demo-document";
+const demoMime = "application/x-keylend-demo-document";
 // Demo sessions and private evidence remain outside Playwright traces.
 test.use({ trace: "off", screenshot: "off", video: "off", actionTimeout: 15_000 });
 test.setTimeout(150_000);
@@ -42,7 +42,7 @@ async function signIn(page: Page, origin: string, email: string) {
       exact: true,
     }),
   ).toBeVisible();
-  await page.goto(`${origin}${base}/documents?bank=bank-a`);
+  await page.goto(`${origin}${base}/documents?bank=keybank`);
   await expect(page.getByRole("heading", { name: "Documents", exact: true })).toBeVisible();
 }
 function kit(page: Page) {
@@ -379,7 +379,7 @@ test("guarantor kit evidence uses a private task and the restricted adviser cann
     } finally {
       await misplaced.dispose();
     }
-    await applicantPage.goto(`${borrower}${base}/tasks?bank=bank-a&task=${privateTask.id}`);
+    await applicantPage.goto(`${borrower}${base}/tasks?bank=keybank&task=${privateTask.id}`);
     await expect(
       applicantPage.getByRole("heading", { name: "Task documents", exact: true }),
     ).toBeVisible();
@@ -396,7 +396,7 @@ test("guarantor kit evidence uses a private task and the restricted adviser cann
       visibility: "private",
       subjectUserId: applicant.userId,
     });
-    await officer.goto(`${staff}${base}/tasks?bank=bank-a&task=${privateTask.id}`);
+    await officer.goto(`${staff}${base}/tasks?bank=keybank&task=${privateTask.id}`);
     await expect(savedDocument(officer, "clear-guarantor")).toBeVisible();
 
     const adviser = await adviserContext.newPage();

@@ -1,5 +1,5 @@
-import { closingViewSchema } from "@keycade/contracts";
-import { ClosingManager } from "@keycade/ui/components/closing-manager";
+import { closingViewSchema } from "@keylend/contracts";
+import { ClosingManager } from "@keylend/ui/components/closing-manager";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
 import { ApiError, useStaffApi } from "./api";

@@ -1,7 +1,7 @@
-import { Button } from "@keycade/ui/components/button";
-import { Input } from "@keycade/ui/components/input";
-import { NativeSelect } from "@keycade/ui/components/native-select";
-import { workflowText } from "@keycade/ui/lib/workflow-text";
+import { Button } from "@keylend/ui/components/button";
+import { Input } from "@keylend/ui/components/input";
+import { NativeSelect } from "@keylend/ui/components/native-select";
+import { workflowText } from "@keylend/ui/lib/workflow-text";
 import { useEffect, useState } from "react";
 
 export type ReviewAction =

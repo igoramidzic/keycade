@@ -1,21 +1,21 @@
-import { Badge } from "@keycade/ui/components/badge";
-import { Button, buttonVariants } from "@keycade/ui/components/button";
+import { Badge } from "@keylend/ui/components/badge";
+import { Button, buttonVariants } from "@keylend/ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@keycade/ui/components/card";
-import { type Confirmation, IdentityPortal } from "@keycade/ui/components/identity-portal";
-import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
+} from "@keylend/ui/components/card";
+import { type Confirmation, IdentityPortal } from "@keylend/ui/components/identity-portal";
+import { workflowName, workflowText } from "@keylend/ui/lib/workflow-text";
 import { ArrowRight, Check, CircleAlert, CircleDashed, Landmark, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type AppName = "bank-site" | "borrower" | "bank-console";
 type CheckState = "checking" | "available" | "unavailable";
 
-declare const __KEYCADE_PUBLIC__: {
+declare const __KEYLEND_PUBLIC__: {
   bankSiteUrl: string;
   borrowerUrl: string;
   bankConsoleUrl: string;
@@ -24,12 +24,12 @@ declare const __KEYCADE_PUBLIC__: {
 
 const applications = {
   "bank-site": {
-    name: "Keycade Bank",
+    name: "Keybank",
     label: "Bank website",
     eyebrow: "The beginning of the journey",
     title: "A place for businesses to move forward.",
     description: "Start or continue your business loan application in the borrower portal.",
-    url: () => __KEYCADE_PUBLIC__.bankSiteUrl,
+    url: () => __KEYLEND_PUBLIC__.bankSiteUrl,
   },
   borrower: {
     name: "Borrower Portal",
@@ -37,7 +37,7 @@ const applications = {
     eyebrow: "Your business, in one place",
     title: "Room for your next chapter.",
     description: "Enter your email to open your workspace.",
-    url: () => __KEYCADE_PUBLIC__.borrowerUrl,
+    url: () => __KEYLEND_PUBLIC__.borrowerUrl,
   },
   "bank-console": {
     name: "Bank Console",
@@ -46,7 +46,7 @@ const applications = {
     title: "A workspace built around progress.",
     description:
       "Sign in with your bank staff email to access the console. Your membership is checked independently from borrower access.",
-    url: () => __KEYCADE_PUBLIC__.bankConsoleUrl,
+    url: () => __KEYLEND_PUBLIC__.bankConsoleUrl,
   },
 } satisfies Record<AppName, object>;
 
@@ -172,7 +172,7 @@ export function FoundationShell({
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <a
-                href={app === "bank-site" ? __KEYCADE_PUBLIC__.borrowerUrl : "#identity"}
+                href={app === "bank-site" ? __KEYLEND_PUBLIC__.borrowerUrl : "#identity"}
                 className={buttonVariants()}
               >
                 {app === "bank-site" ? "Open borrower portal" : "Continue to sign in"}{" "}
@@ -226,7 +226,7 @@ export function FoundationShell({
       </main>
       <footer className="border-t">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-6 py-5 text-xs text-muted-foreground lg:px-8">
-          <span>Keycade · Business lending</span>
+          <span>KeyLend · Business lending</span>
           <span>Applications through funding</span>
         </div>
       </footer>

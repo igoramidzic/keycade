@@ -1,5 +1,5 @@
 {
-  "name": "@keycade/contracts",
+  "name": "@keylend/contracts",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -18,6 +18,6 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
-    "@keycade/config": "workspace:*"
+    "@keylend/config": "workspace:*"
   }
 }

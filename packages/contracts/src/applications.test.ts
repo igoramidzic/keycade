@@ -12,14 +12,14 @@ describe("initial application wire contracts", () => {
     expect(
       publicStartApplicationSchema.parse({
         email: "applicant@example.test",
-        bankSlug: "bank-a",
+        bankSlug: "keybank",
         idempotencyKey: "a".repeat(64),
       }),
-    ).toMatchObject({ email: "applicant@example.test", bankSlug: "bank-a" });
+    ).toMatchObject({ email: "applicant@example.test", bankSlug: "keybank" });
     expect(
       publicStartApplicationSchema.safeParse({
         email: "applicant@example.test",
-        bankSlug: "bank-a",
+        bankSlug: "keybank",
         idempotencyKey,
       }).success,
     ).toBe(false);

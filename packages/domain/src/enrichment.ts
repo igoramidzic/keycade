@@ -11,7 +11,7 @@ import {
   saveSetupIdentifierSchema,
   taxAuthorizationNotice,
   taxAuthorizationNoticeVersion,
-} from "@keycade/contracts";
+} from "@keylend/contracts";
 import {
   applicationParticipants,
   applicationSetups,
@@ -24,7 +24,7 @@ import {
   enrichmentInputs,
   enrichmentRuns,
   sensitiveIdentifierVersions,
-} from "@keycade/db";
+} from "@keylend/db";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import {
   type Actor,

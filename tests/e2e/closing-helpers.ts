@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { ApplicationSetup, ReviewView, TasksView, TaskView } from "@keycade/contracts";
+import type { ApplicationSetup, ReviewView, TasksView, TaskView } from "@keylend/contracts";
 import { expect, type Page } from "@playwright/test";
 import { setupFixtureSteps } from "../setup-fixture";
 

@@ -1,12 +1,14 @@
 # Product scope and user journeys
 
-The [v2 screenshot-driven update](v2/README.md) describes the implemented baseline, planned on October 8, 2026. V2-01–V2-06 setup, borrower dashboard, demo importer, document review, lender overview and Loan Footprint are implemented and verified locally; V2-07 integrated local acceptance is complete; V2-08 hosted parity is complete. The detailed [experience specification](v2/02-experience-spec.md) and [screenshot findings](v2/01-screenshot-findings.md) distinguish observed reference behavior from decisions for Keycade. Existing task validation records describe their own acceptance boundaries.
+**October 13 scope:** KeyLend is exclusively Keybank’s internal lending tool, with borrower-facing intake and task views. Other institutions are not product tenants. [D08](tasks/D08-keylend-keybank.md) owns the identity change.
+
+The [v2 screenshot-driven update](v2/README.md) describes the implemented baseline, planned on October 8, 2026. V2-01–V2-06 setup, borrower dashboard, demo importer, document review, lender overview and Loan Footprint are implemented and verified locally; V2-07 integrated local acceptance is complete; V2-08 hosted parity is complete. The detailed [experience specification](v2/02-experience-spec.md) and [screenshot findings](v2/01-screenshot-findings.md) distinguish observed reference behavior from decisions for KeyLend. Existing task validation records describe their own acceptance boundaries.
 
 The **October 12 lending expansion is the new target and is not implemented**. [Products and restructuring](lending/02-products-and-restructuring.md) replaces fixed-product intake with product preference and a financing request containing multiple facilities. Lenders can revise amounts, switch products and split/combine unfunded facilities, including $5M SBA 7(a) plus $4M conventional financing for a $9M need. [L01–L10](lending/04-delivery-and-validation.md) adds bank underwriting, authority, offers, notices, closing and per-facility initial funding. The baseline journeys below remain descriptions of current behavior where specifically identified.
 
 ## Product intent
 
-Keycade helps banks originate business credit and coordinate the work required from applicants, beneficial owners, outside advisers, and bank staff. Borrowers get a clear next action; bank staff get the application record, requirements, documents, check results, and history in one workspace.
+KeyLend helps banks originate business credit and coordinate the work required from applicants, beneficial owners, outside advisers, and bank staff. Borrowers get a clear next action; bank staff get the application record, requirements, documents, check results, and history in one workspace.
 
 The first implementation operates as one fictional bank. Model bank boundaries from the start and test with a second isolated bank. Do not build bank onboarding, billing, or a tenant administration product yet.
 
@@ -70,7 +72,7 @@ This gate belongs to each application, not the user account or business. A minim
 
 After initial setup, the borrower home lists applications and funded accounts grouped by business. Each card identifies business, product, amount, state, last update, and outstanding action count where available. Unfinished drafts show setup progress and “Continue setup,” which opens the saved wizard step rather than that application's task workspace. A person with access to only one task sees a limited card and workspace. Selecting one application must not merge its documents or tasks with another.
 
-The planned v2 application dashboard has no top-level application tabs. Show tasks in the main left column and application details, stage/progress, and a working document drop zone/file picker in the right column. On mobile, stack the same accessible regions. Progress is derived from applicable requirements, can change when requirements change, and is not an approval probability. The red top area in the reference identifies the client experience; use the [Keycade design system](06-decisions-and-sources.md#design-system-redesign--october-8-2026) rather than copying reference branding.
+The planned v2 application dashboard has no top-level application tabs. Show tasks in the main left column and application details, stage/progress, and a working document drop zone/file picker in the right column. On mobile, stack the same accessible regions. Progress is derived from applicable requirements, can change when requirements change, and is not an approval probability. The red top area in the reference identifies the client experience; use the [KeyLend design system](06-decisions-and-sources.md#design-system-redesign--october-8-2026) rather than copying reference branding.
 
 Retain permitted document, signature, submission, closing, people, activity, and funded-account actions through relevant task details, sidebar actions, and contextual routes. Removing tabs does not remove these capabilities or expand access. Preserve legacy deep links with authorized redirects or contextual screens and protect unsaved task answers. Restricted collaborators see only their permitted work and appropriately limited summaries. Invitation controls remain lender-only.
 
@@ -118,7 +120,7 @@ Provide sample small-business and commercial requirement templates. Requirements
 
 ## UI expectations
 
-Use shadcn components generated by its CLI and Tailwind, themed by the Keycade design system that the user requested on October 8, 2026 ([decision](06-decisions-and-sources.md#design-system-redesign--october-8-2026), [D06](tasks/D06-design-system-redesign.md), [shared UI guide](../../packages/ui/README.md#design-system)). Prefer straightforward forms, cards, tables, tabs, badges, dialogs, alerts, and accessible status messages. Keep borrower screens calm and client-focused, keep lender screens dense but scannable, and never imitate a real institution's branding.
+Use shadcn components generated by its CLI and Tailwind, themed by the KeyLend design system that the user requested on October 8, 2026 ([decision](06-decisions-and-sources.md#design-system-redesign--october-8-2026), [D06](tasks/D06-design-system-redesign.md), [shared UI guide](../../packages/ui/README.md#design-system)). Prefer straightforward forms, cards, tables, tabs, badges, dialogs, alerts, and accessible status messages. Keep borrower screens calm and client-focused, keep lender screens dense but scannable, and never imitate a real institution's branding.
 
 Support keyboard navigation and mobile borrower layouts. Do not rely on color alone, a drag gesture alone, or toast messages alone. Preserve entered values on errors. Show useful empty, loading, denied, expired-link, failed-upload, and retry states. Poll for asynchronous changes initially; a WebSocket service is unnecessary.
 

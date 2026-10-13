@@ -8,7 +8,7 @@ import {
   startReviewSchema,
   submitApplicationSchema,
   withdrawApplicationSchema,
-} from "@keycade/contracts";
+} from "@keylend/contracts";
 import {
   applicationChecks,
   applicationDecisions,
@@ -41,7 +41,7 @@ import {
   signatureSigners,
   taskReviews,
   taskSignaturePolicies,
-} from "@keycade/db";
+} from "@keylend/db";
 import { and, asc, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { type Actor, type ApplicationAccess, requireApplicationAccess } from "./authorization.js";

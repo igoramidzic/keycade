@@ -24,7 +24,7 @@ export type DocumentCategory =
   | "signed"
   | "other";
 export type DocumentInterpretationResult = {
-  provider: "keycade-document-interpretation-v1";
+  provider: "keylend-document-interpretation-v1" | "keycade-document-interpretation-v1";
   simulated: true;
   versionId: string;
   runId: string;

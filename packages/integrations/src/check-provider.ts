@@ -6,7 +6,7 @@ import {
   type EnrichmentScenario,
   type FootprintInput,
   type FootprintResult,
-} from "@keycade/contracts";
+} from "@keylend/contracts";
 import { invokeEnrichmentProvider } from "./enrichment-provider.js";
 import type { Clock } from "./provider.js";
 export type CheckProviderRequest = {
@@ -40,7 +40,7 @@ export async function invokeCheckProvider(
           ? "needs_review"
           : "unable_to_verify";
     return checkResultSchema.parse({
-      provider: "keycade-checks-v1",
+      provider: "keylend-checks-v1",
       simulated: true,
       kind: request.kind,
       operationId: request.operationId,
@@ -64,7 +64,7 @@ export async function invokeCheckProvider(
         ? "needs_review"
         : "unable_to_verify";
   return checkResultSchema.parse({
-    provider: "keycade-checks-v1",
+    provider: "keylend-checks-v1",
     simulated: true,
     kind: request.kind,
     operationId: request.operationId,

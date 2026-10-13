@@ -1,4 +1,6 @@
-# Keycade implementation plan
+# KeyLend implementation plan
+
+**October 13 identity update:** [D08](tasks/D08-keylend-keybank.md) implements KeyLend as Keybank’s internal lending tool. Keybank is the only supported bank. Local validation is complete; the user renamed the five live Workers, and their origin variables/build filters are corrected. Hosted application publication and migration 0025 are pending.
 
 **Latest planning update — October 13, 2026:** the [business lending research and expansion plan](lending/README.md) covers bank workflows, 19 product types/variants, current gaps and L01–L10. The user's October 12 follow-up replaces the fixed-product target with borrower product choice and lender restructuring of a financing request into multiple facilities, including $5M SBA 7(a) plus $4M conventional financing. **Implementation is Not started.** Start the next lending build with L01, then L02. Historical completion records below apply to the prior scope. [R01](tasks/R01-lending-workflow-research.md) tracks documentation validation.
 
@@ -12,7 +14,7 @@ V2-03 delivered five registered text filenames that generate synthetic PDFs with
 
 V2-02 delivered the borrower task dashboard with personal/assigned/business tasks, persisted-stage progress, sidebar uploads and contextual documents, signing, submission, closing, people and history. Its [local acceptance](v2/04-delivery-and-validation.md#v2-02--borrower-task-dashboard) records the historical validation boundary.
 
-Planning baseline: October 6, 2026. The first local-foundation milestone (T01–T05) is complete and verified. Cloudflare is the intended deployment target; five Keycade Workers are deployed and their Neon/Hyperdrive connections are verified. Neon PostgreSQL is linked and migrated through GitHub Actions; the initial apply and repeat no-op run passed. Separate CI validation is paused for faster demo deployment at the user's request.
+Planning baseline: October 6, 2026. The first local-foundation milestone (T01–T05) is complete and verified. Cloudflare is the intended deployment target; five KeyLend Workers are deployed and their Neon/Hyperdrive connections are verified. Neon PostgreSQL is linked and migrated through GitHub Actions; the initial apply and repeat no-op run passed. Separate CI validation is paused for faster demo deployment at the user's request.
 
 Current handoff: **T01–T22 and D01–D04 are complete.** The first release supports application setup, collaboration, private evidence, simulated checks and signatures, human decisions, closing, one recorded simulated funding event, scoped account summaries, activity and operations. See [the developer/demo guide](../../README.md) and [T22 acceptance](tasks/T22-acceptance.md).
 
@@ -143,6 +145,7 @@ Read the [v2 experience](v2/02-experience-spec.md) and [data/simulation contract
 | D03 | [Hosted demo authentication and delivery parity](tasks/D03-hosted-demo-parity.md) | D02, T06, T18 | Done — private simulated inbox, saved setup, scoped invitation and two-party signing passed on actual production URLs; [evidence](tasks/D03-hosted-demo-parity.md#hosted-acceptance--october-7-2026). |
 | D04 | [Hosted request efficiency and latency](tasks/D04-hosted-performance.md) | D02, D03, T12, T16 | Done — session binding, quieter polling and placement validated; [deployed serial/concurrent timings](tasks/D04-hosted-performance.md#hosted-remeasurement--october-7-2026) record improvements and remaining latency. |
 | D05 | [Scenario kit and synthetic document demonstrations](tasks/D05-demo-scenarios.md) | T08, T11–T14, T16–T21 | Done — fixed panel, twelve synthetic PDFs and simulated findings; [local acceptance](tasks/D05-demo-scenarios.md#validation) passed. Included in the V2-08 hosted deployment. |
+| D08 | [KeyLend and Keybank identity](tasks/D08-keylend-keybank.md) | T01, T03, T06, T08, T10, D02, D07 | Done locally — validation recorded; hosted publication pending |
 | T19 | [Submission, review, and decisions](tasks/T19-review-and-decisions.md) | T10, T12, T16 | Done — guarded decisions, immutable history and desktop/mobile review journeys; [validation](tasks/T19-review-and-decisions.md#implementation-record). |
 | T20 | [Closing and recorded funding](tasks/T20-closing-and-funding.md) | T17, T19 | Done — guarded closing, current signatures, atomic simulated funding and scoped accounts; [validated](tasks/T20-closing-and-funding.md#implementation-record). |
 | T21 | [Activity and operations workspace](tasks/T21-activity-and-operations.md) | T10, T14, T16, T17, T18, T20 | Done — safe paginated history, scoped diagnostics and audited retry recovery; [validated](tasks/T21-activity-and-operations.md#implementation-record). |

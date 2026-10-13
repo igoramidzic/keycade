@@ -7,25 +7,25 @@ import {
   type StaffWorkspace,
   staffOverviewSchema,
   tasksViewSchema,
-} from "@keycade/contracts";
-import { Badge } from "@keycade/ui/components/badge";
-import { Button, buttonVariants } from "@keycade/ui/components/button";
+} from "@keylend/contracts";
+import { Badge } from "@keylend/ui/components/badge";
+import { Button, buttonVariants } from "@keylend/ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@keycade/ui/components/card";
+} from "@keylend/ui/components/card";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@keycade/ui/components/collapsible";
-import { DescriptionItem, DescriptionList } from "@keycade/ui/components/description-list";
-import { checkRefreshInterval } from "@keycade/ui/lib/refresh-policy";
-import { cn } from "@keycade/ui/lib/utils";
-import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
+} from "@keylend/ui/components/collapsible";
+import { DescriptionItem, DescriptionList } from "@keylend/ui/components/description-list";
+import { checkRefreshInterval } from "@keylend/ui/lib/refresh-policy";
+import { cn } from "@keylend/ui/lib/utils";
+import { workflowName, workflowText } from "@keylend/ui/lib/workflow-text";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,

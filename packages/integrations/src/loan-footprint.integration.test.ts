@@ -1,14 +1,14 @@
 import { randomUUID } from "node:crypto";
-import type { BusinessAddress, CheckResult } from "@keycade/contracts";
+import type { BusinessAddress, CheckResult } from "@keylend/contracts";
 import {
   applicationChecks,
   applicationSetups,
   applications,
   auditEvents,
   checkRuns,
-} from "@keycade/db";
-import { seedIds as ids, seedDatabase } from "@keycade/db/seed";
-import { createTestDatabase } from "@keycade/db/testing";
+} from "@keylend/db";
+import { seedIds as ids, seedDatabase } from "@keylend/db/seed";
+import { createTestDatabase } from "@keylend/db/testing";
 import {
   type Actor,
   createApplicationService,
@@ -16,7 +16,7 @@ import {
   createIdentifierCipher,
   createReadinessService,
   reconcileFootprint,
-} from "@keycade/domain";
+} from "@keylend/domain";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { processCheckRun } from "./check-jobs.js";
@@ -39,7 +39,7 @@ const checks = () => createChecksService(database.db, { cipher, clock: clock.now
 const readiness = () => createReadinessService(database.db, { clock: clock.now });
 beforeAll(async () => {
   database = await createTestDatabase();
-  await seedDatabase(database.connectionString);
+  await seedDatabase(database.connectionString, { isolationFixtures: true });
 }, 30000);
 afterAll(async () => database?.cleanup());
 async function fixture(
@@ -85,7 +85,7 @@ async function provider(request: CheckProviderRequest): Promise<CheckResult> {
         ? "needs_review"
         : "unable_to_verify";
   return {
-    provider: "keycade-checks-v1",
+    provider: "keylend-checks-v1",
     simulated: true,
     kind: "loan_footprint",
     operationId: request.operationId,

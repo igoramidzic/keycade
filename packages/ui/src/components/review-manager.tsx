@@ -1,25 +1,25 @@
-import { Alert, AlertDescription, AlertTitle } from "@keycade/ui/components/alert";
-import { Badge } from "@keycade/ui/components/badge";
-import { Button } from "@keycade/ui/components/button";
+import { Alert, AlertDescription, AlertTitle } from "@keylend/ui/components/alert";
+import { Badge } from "@keylend/ui/components/badge";
+import { Button } from "@keylend/ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@keycade/ui/components/card";
-import { type ReadinessData, ReadinessPanel } from "@keycade/ui/components/checks-manager";
+} from "@keylend/ui/components/card";
+import { type ReadinessData, ReadinessPanel } from "@keylend/ui/components/checks-manager";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@keycade/ui/components/collapsible";
+} from "@keylend/ui/components/collapsible";
 import {
   type ReviewAction,
   ReviewActionForm,
   type ReviewActionInput,
-} from "@keycade/ui/components/review-action-form";
-import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
+} from "@keylend/ui/components/review-action-form";
+import { workflowName, workflowText } from "@keylend/ui/lib/workflow-text";
 import { ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 

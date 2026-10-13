@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { FixedLengthStream, R2Bucket } from "@cloudflare/workers-types";
-import { DomainError } from "@keycade/domain";
+import { DomainError } from "@keylend/domain";
 import { type PrivateDocumentStorage, validateDocumentContent } from "./document-content.js";
 
 /** Private R2 objects are mediated by the API; the bucket has no public domain. */

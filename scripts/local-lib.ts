@@ -3,10 +3,11 @@ import { randomBytes } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import net from "node:net";
 import path from "node:path";
-import { envFile, loadServerEnv, projectRoot, type ServerEnv } from "@keycade/config/server";
+import { envFile, loadServerEnv, projectRoot, type ServerEnv } from "@keylend/config/server";
 import { parse } from "dotenv";
 import pg from "pg";
 
+// Existing Podman resources keep their ownership identity across the application rename.
 const ownerLabel = "io.keycade.workspace";
 export function generateEnvironment(
   file = envFile,
@@ -20,7 +21,7 @@ export function generateEnvironment(
   next.DB_PASSWORD ||= randomBytes(24).toString("hex");
   next.SESSION_SECRET ||= randomBytes(32).toString("hex");
   next.ENCRYPTION_KEY ||= randomBytes(32).toString("hex");
-  next.DATABASE_URL ||= `postgresql://${encodeURIComponent(next.DB_USER ?? "keycade")}:${encodeURIComponent(next.DB_PASSWORD)}@${next.DB_HOST}:${next.DB_PORT}/${next.DB_NAME}`;
+  next.DATABASE_URL ||= `postgresql://${encodeURIComponent(next.DB_USER ?? "keylend")}:${encodeURIComponent(next.DB_PASSWORD)}@${next.DB_HOST}:${next.DB_PORT}/${next.DB_NAME}`;
   if (!existsSync(file))
     writeFileSync(
       file,
@@ -73,7 +74,7 @@ export function run(
 ) {
   if (binary === "podman" && (process.env.CONTAINER_HOST || process.env.CONTAINER_CONNECTION)) {
     throw new Error(
-      "Unset CONTAINER_HOST and CONTAINER_CONNECTION before using Keycade local infrastructure; remote Podman overrides are not allowed.",
+      "Unset CONTAINER_HOST and CONTAINER_CONNECTION before using KeyLend local infrastructure; remote Podman overrides are not allowed.",
     );
   }
   const result = spawnSync(binary, args, {
@@ -173,7 +174,7 @@ export async function assertPortFree(port: number) {
     server.once("error", () =>
       reject(
         new Error(
-          `Local port ${port} is already in use. Change the matching port in .env or stop its owner yourself. Keycade did not stop it.`,
+          `Local port ${port} is already in use. Change the matching port in .env or stop its owner yourself. KeyLend did not stop it.`,
         ),
       ),
     );

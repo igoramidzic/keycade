@@ -1,6 +1,6 @@
-import { createDatabase } from "@keycade/db";
-import { assertWorkerSchemaReady } from "@keycade/db/cloudflare";
-import { createR2DocumentStorage } from "@keycade/integrations/document-storage-r2";
+import { createDatabase } from "@keylend/db";
+import { assertWorkerSchemaReady } from "@keylend/db/cloudflare";
+import { createR2DocumentStorage } from "@keylend/integrations/document-storage-r2";
 import { handleWorkerRequest } from "./src/worker-handler";
 
 export default {

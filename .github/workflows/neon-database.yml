@@ -47,13 +47,13 @@ jobs:
   #     postgres:
   #       image: postgres:18.6-alpine
   #       env:
-  #         POSTGRES_USER: keycade
-  #         POSTGRES_PASSWORD: keycade_ci_only
-  #         POSTGRES_DB: keycade
+  #         POSTGRES_USER: keylend
+  #         POSTGRES_PASSWORD: keylend_ci_only
+  #         POSTGRES_DB: keylend
   #       ports:
   #         - 5432:5432
   #       options: >-
-  #         --health-cmd "pg_isready -U keycade -d keycade"
+  #         --health-cmd "pg_isready -U keylend -d keylend"
   #         --health-interval 5s
   #         --health-timeout 5s
   #         --health-retries 12
@@ -74,7 +74,7 @@ jobs:
   #     - name: Test with disposable PostgreSQL databases
   #       run: pnpm exec vitest run .integration.test.ts
   #       env:
-  #         TEST_DATABASE_URL: postgresql://keycade:keycade_ci_only@127.0.0.1:5432/keycade
+  #         TEST_DATABASE_URL: postgresql://keylend:keylend_ci_only@127.0.0.1:5432/keylend
   #
   migrate:
     name: Apply migrations to Neon

@@ -1,17 +1,17 @@
-import { type StaffSignInAccounts, staffSignInAccountsSchema } from "@keycade/contracts";
-import { Button } from "@keycade/ui/components/button";
+import { type StaffSignInAccounts, staffSignInAccountsSchema } from "@keylend/contracts";
+import { Button } from "@keylend/ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@keycade/ui/components/card";
-import { LoadingState } from "@keycade/ui/components/empty-state";
-import { Input } from "@keycade/ui/components/input";
-import { NativeSelect, NativeSelectOption } from "@keycade/ui/components/native-select";
-import { rememberSession } from "@keycade/ui/lib/session-snapshot";
-import { workflowName } from "@keycade/ui/lib/workflow-text";
+} from "@keylend/ui/components/card";
+import { LoadingState } from "@keylend/ui/components/empty-state";
+import { Input } from "@keylend/ui/components/input";
+import { NativeSelect, NativeSelectOption } from "@keylend/ui/components/native-select";
+import { rememberSession } from "@keylend/ui/lib/session-snapshot";
+import { workflowName } from "@keylend/ui/lib/workflow-text";
 import { cn } from "cn";
 import { Check, CircleAlert, Inbox, LockKeyhole, Mail, MailCheck, ShieldAlert } from "lucide-react";
 import { type FormEvent, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
@@ -27,7 +27,7 @@ export function captureConfirmation(): Confirmation {
   const page = window.location.pathname === "/auth/confirm";
   if (!page) return { page: false, token: null };
   const token = new URLSearchParams(window.location.hash.slice(1)).get("token");
-  const bankSlug = new URLSearchParams(window.location.search).get("bank");
+  const bankSlug = "keybank";
   const bankQuery =
     bankSlug && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(bankSlug)
       ? `?bank=${encodeURIComponent(bankSlug)}`
@@ -86,8 +86,8 @@ async function fetchSession(signal?: AbortSignal): Promise<Session> {
 export function IdentityPortal({
   portal,
   confirmation,
-  bankSlug = "bank-a",
-  bankName = "Bank A",
+  bankSlug = "keybank",
+  bankName = "Keybank",
   intent = "resume",
   returnPath = "/",
   onApplicationCreated,
@@ -560,7 +560,7 @@ export function IdentityPortal({
                 {isStaff
                   ? staffAccounts.length
                     ? "Select the account you want to use."
-                    : "No staff accounts are available for this bank."
+                    : "No Keybank staff accounts are available."
                   : isStarting
                     ? "You can save your progress and return later."
                     : "Requesting access won’t start a new application."}

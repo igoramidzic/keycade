@@ -43,7 +43,7 @@ export async function sendSyntheticSignatureEnvelope(
     options,
   );
   return {
-    provider: "keycade-signatures-v1" as const,
+    provider: "keylend-signatures-v1" as const,
     simulated: true as const,
     envelopeId: request.envelopeId,
     providerEnvelopeId: `synthetic-${request.envelopeId}`,

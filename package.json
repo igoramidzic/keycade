@@ -1,5 +1,5 @@
 {
-  "name": "keycade",
+  "name": "keylend",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.34.6",
@@ -23,7 +23,7 @@
     "db:status": "tsx scripts/local.ts db:status",
     "infra:start": "tsx scripts/local.ts infra:start",
     "infra:stop": "tsx scripts/local.ts infra:stop",
-    "db:generate": "pnpm --filter @keycade/db generate",
+    "db:generate": "pnpm --filter @keylend/db generate",
     "db:migrate": "tsx scripts/local.ts db:migrate",
     "db:migrate:neon": "tsx scripts/neon-migrate.ts",
     "db:seed": "tsx scripts/local.ts db:seed",
@@ -31,10 +31,10 @@
     "jobs:demo": "tsx scripts/jobs-demo.ts"
   },
   "dependencies": {
-    "@keycade/config": "workspace:*",
-    "@keycade/db": "workspace:*",
-    "@keycade/integrations": "workspace:*",
-    "@keycade/testing": "workspace:*",
+    "@keylend/config": "workspace:*",
+    "@keylend/db": "workspace:*",
+    "@keylend/integrations": "workspace:*",
+    "@keylend/testing": "workspace:*",
     "dotenv": "18.0.6",
     "drizzle-orm": "0.45.3",
     "pg": "8.23.1"

@@ -1,4 +1,4 @@
-import { documentProcessingViewSchema } from "@keycade/contracts";
+import { documentProcessingViewSchema } from "@keylend/contracts";
 import {
   applications,
   applicationTasks,
@@ -9,7 +9,7 @@ import {
   documentProcessingRuns,
   documents,
   documentVersions,
-} from "@keycade/db";
+} from "@keylend/db";
 import { desc, eq } from "drizzle-orm";
 import { type Actor, type ApplicationAccess } from "./authorization.js";
 import { taskIsVisible } from "./tasks.js";

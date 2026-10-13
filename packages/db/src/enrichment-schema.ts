@@ -16,7 +16,7 @@ import { integrationStatus } from "./job-schema.js";
 import { applications, users } from "./schema.js";
 
 type SafeEnrichmentResult = {
-  provider: "keycade-enrichment-v1";
+  provider: "keylend-enrichment-v1" | "keycade-enrichment-v1";
   simulated: true;
   kind: "business" | "tax";
   operationId: string;

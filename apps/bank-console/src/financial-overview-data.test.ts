@@ -1,4 +1,4 @@
-import type { FinancialCandidate, FinancialFact, FinancialFactsView } from "@keycade/contracts";
+import type { FinancialCandidate, FinancialFact, FinancialFactsView } from "@keylend/contracts";
 import { expect, test } from "vitest";
 import {
   financialChartBars,

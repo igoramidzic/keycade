@@ -11,10 +11,10 @@
   },
   "iconLibrary": "lucide",
   "aliases": {
-    "components": "@keycade/ui/components",
-    "utils": "@keycade/ui/lib/utils",
-    "hooks": "@keycade/ui/hooks",
-    "lib": "@keycade/ui/lib",
-    "ui": "@keycade/ui/components"
+    "components": "@keylend/ui/components",
+    "utils": "@keylend/ui/lib/utils",
+    "hooks": "@keylend/ui/hooks",
+    "lib": "@keylend/ui/lib",
+    "ui": "@keylend/ui/components"
   }
 }

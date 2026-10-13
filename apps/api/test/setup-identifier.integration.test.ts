@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { applicationSetupSchema } from "@keycade/contracts";
+import { applicationSetupSchema } from "@keylend/contracts";
 import {
   applicationParticipants,
   applicationSetups,
@@ -8,14 +8,14 @@ import {
   enrichmentInputs,
   enrichmentRuns,
   sensitiveIdentifierVersions,
-} from "@keycade/db";
-import { seedIds as ids, seedDatabase } from "@keycade/db/seed";
-import { createTestDatabase } from "@keycade/db/testing";
+} from "@keylend/db";
+import { seedIds as ids, seedDatabase } from "@keylend/db/seed";
+import { createTestDatabase } from "@keylend/db/testing";
 import {
   createApplicationService,
   createEnrichmentService,
   createIdentifierCipher,
-} from "@keycade/domain";
+} from "@keylend/domain";
 import { and, asc, eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildServer } from "../src/server.js";
@@ -24,7 +24,7 @@ import { handleWorkerRequest } from "../src/worker-handler.js";
 let database: Awaited<ReturnType<typeof createTestDatabase>>;
 beforeAll(async () => {
   database = await createTestDatabase();
-  await seedDatabase(database.connectionString);
+  await seedDatabase(database.connectionString, { isolationFixtures: true });
 });
 afterAll(async () => database?.cleanup());
 

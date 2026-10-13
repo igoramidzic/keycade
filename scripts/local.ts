@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
-import { projectRoot } from "@keycade/config/server";
-import { assertSchemaReady, migrateDatabase } from "@keycade/db/migrate";
-import { seedDatabase } from "@keycade/db/seed";
+import { projectRoot } from "@keylend/config/server";
+import { assertSchemaReady, migrateDatabase } from "@keylend/db/migrate";
+import { seedDatabase } from "@keylend/db/seed";
 import {
   assertLocalTarget,
   assertOwnedDatabase,
@@ -28,7 +28,7 @@ async function main() {
     if (command !== "initialize") return;
     assertOwnedDatabase(env);
     await migrateDatabase(env.DATABASE_URL);
-    const { initializeQueue } = await import("@keycade/integrations");
+    const { initializeQueue } = await import("@keylend/integrations");
     await initializeQueue(env.DATABASE_URL);
     await seedDatabase(env.DATABASE_URL);
     preparePrivateStorage(env);
@@ -53,7 +53,7 @@ async function main() {
     await waitForDatabase(env, 1);
     if (command === "db:migrate") {
       await migrateDatabase(env.DATABASE_URL);
-      const { initializeQueue } = await import("@keycade/integrations");
+      const { initializeQueue } = await import("@keylend/integrations");
       await initializeQueue(env.DATABASE_URL);
       console.log("Committed database migrations and queue schema applied.");
     } else if (command === "db:seed") {
@@ -68,7 +68,7 @@ async function main() {
         "pnpm",
         [
           "--filter",
-          "@keycade/db",
+          "@keylend/db",
           "exec",
           "drizzle-kit",
           "studio",

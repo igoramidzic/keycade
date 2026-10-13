@@ -1,5 +1,5 @@
 {
-  "name": "@keycade/bank-console",
+  "name": "@keylend/bank-console",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,8 +10,8 @@
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {
-    "@keycade/contracts": "workspace:*",
-    "@keycade/ui": "workspace:*",
+    "@keylend/contracts": "workspace:*",
+    "@keylend/ui": "workspace:*",
     "@tanstack/react-query": "5.104.1",
     "lucide-react": "1.52.0",
     "react": "19.3.0",
@@ -19,7 +19,7 @@
     "react-router": "8.4.0"
   },
   "devDependencies": {
-    "@keycade/config": "workspace:*",
+    "@keylend/config": "workspace:*",
     "@tailwindcss/vite": "4.3.3",
     "@types/node": "24.19.1",
     "@types/react": "19.3.0",

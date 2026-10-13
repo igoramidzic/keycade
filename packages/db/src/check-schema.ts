@@ -30,7 +30,7 @@ export type SafeFootprintInput = {
   policyVersion: "US-only-demo-v1";
 };
 export type SafeCheckResult = {
-  provider: "keycade-checks-v1";
+  provider: "keylend-checks-v1" | "keycade-checks-v1";
   simulated: true;
   kind: "identity" | "fraud" | "loan_footprint";
   operationId: string;

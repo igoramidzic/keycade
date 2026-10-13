@@ -1,5 +1,5 @@
 {
-  "name": "@keycade/bank-site",
+  "name": "@keylend/bank-site",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,13 +10,13 @@
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {
-    "@keycade/ui": "workspace:*",
+    "@keylend/ui": "workspace:*",
     "lucide-react": "1.52.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },
   "devDependencies": {
-    "@keycade/config": "workspace:*",
+    "@keylend/config": "workspace:*",
     "@tailwindcss/vite": "4.3.3",
     "@types/node": "24.19.1",
     "@types/react": "19.3.0",

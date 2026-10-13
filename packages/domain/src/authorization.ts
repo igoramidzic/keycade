@@ -6,7 +6,7 @@ import {
   banks,
   type Database,
   users,
-} from "@keycade/db";
+} from "@keylend/db";
 import { and, eq, isNull } from "drizzle-orm";
 import { DomainError, deny } from "./errors.js";
 

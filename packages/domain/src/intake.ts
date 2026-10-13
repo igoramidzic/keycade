@@ -1,5 +1,5 @@
-import { publicIntakeParamsSchema, publicIntakeSchema } from "@keycade/contracts";
-import { banks, type Database, loanProducts } from "@keycade/db";
+import { publicIntakeParamsSchema, publicIntakeSchema } from "@keylend/contracts";
+import { banks, type Database, loanProducts } from "@keylend/db";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { DomainError, deny } from "./errors.js";
 
@@ -7,6 +7,7 @@ import { DomainError, deny } from "./errors.js";
 export async function readPublicIntake(db: Database, input: unknown) {
   const parsed = publicIntakeParamsSchema.safeParse(input);
   if (!parsed.success) throw new DomainError("INVALID_INPUT", 400, "Invalid request.");
+  if (parsed.data.bankSlug !== "keybank") return deny();
   const [bank] = await db
     .select({ id: banks.id, slug: banks.slug, name: banks.name, synthetic: banks.synthetic })
     .from(banks)

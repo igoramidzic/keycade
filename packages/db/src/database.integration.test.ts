@@ -9,7 +9,7 @@ import { createTestDatabase } from "./testing.js";
 let database: Awaited<ReturnType<typeof createTestDatabase>>;
 beforeAll(async () => {
   database = await createTestDatabase();
-  await seedDatabase(database.connectionString);
+  await seedDatabase(database.connectionString, { isolationFixtures: true });
 }, 30_000);
 afterAll(async () => {
   await database?.cleanup();
@@ -22,7 +22,7 @@ describe("committed migrations and synthetic data on PostgreSQL", () => {
       .set({ purpose: "Changed by integration test" })
       .where(eq(applications.id, seedIds.applicationSmall));
     await migrateDatabase(database.connectionString);
-    await seedDatabase(database.connectionString);
+    await seedDatabase(database.connectionString, { isolationFixtures: true });
     await assertSchemaReady(database.connectionString);
     const result = await database.pool.query("SELECT count(*)::int AS count FROM applications");
     expect(result.rows[0].count).toBe(7);
@@ -123,7 +123,7 @@ describe("committed migrations and synthetic data on PostgreSQL", () => {
 
   it("enforces uniqueness and positive revisions", async () => {
     await expect(
-      database.pool.query("INSERT INTO banks (slug, name) VALUES ('bank-a', 'Duplicate')"),
+      database.pool.query("INSERT INTO banks (slug, name) VALUES ('keybank', 'Duplicate')"),
     ).rejects.toThrow();
     await expect(
       database.db
@@ -165,7 +165,7 @@ describe("committed migrations and synthetic data on PostgreSQL", () => {
       .update(applicationSetups)
       .set({ currentStep: "product", completedSteps: ["business_name"] })
       .where(eq(applicationSetups.applicationId, seedIds.applicationEmpty));
-    await seedDatabase(database.connectionString);
+    await seedDatabase(database.connectionString, { isolationFixtures: true });
     const [resumed] = await database.db
       .select()
       .from(applicationSetups)

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { readEnvironment } from "@keycade/config/server";
+import { readEnvironment } from "@keylend/config/server";
 import { expect, type Page, type Response, test } from "@playwright/test";
 import { fillSignInEmail, messages, openLink, waitForLink } from "./identity-helpers";
 
@@ -97,7 +97,7 @@ async function filter(page: Page, label: string, key: string, value: string) {
 }
 
 const workspaceUrl = (id: string, section = "overview") =>
-  `${staff}/applications/${id}/${section}?bank=bank-a`;
+  `${staff}/applications/${id}/${section}?bank=keybank`;
 
 async function namedDraft(page: Page, name: string, email?: string) {
   const created = await api<Setup>(page, "POST", "", {
@@ -602,7 +602,7 @@ test("an address without staff membership cannot open the staff queue", async ({
         await fetch("/api/v1/auth/demo-sign-in", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, bankSlug: "bank-a", portal: "staff" }),
+          body: JSON.stringify({ email, bankSlug: "keybank", portal: "staff" }),
         })
       ).status,
     email,

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { readEnvironment } from "@keycade/config/server";
-import type { DocumentsView, TasksView } from "@keycade/contracts";
-import { syntheticDocumentPdf } from "@keycade/integrations/document-fixtures";
+import { readEnvironment } from "@keylend/config/server";
+import type { DocumentsView, TasksView } from "@keylend/contracts";
+import { syntheticDocumentPdf } from "@keylend/integrations/document-fixtures";
 import { expect, test } from "@playwright/test";
 import { workflowApi } from "./closing-helpers";
 import { fillSignInEmail } from "./identity-helpers";
@@ -21,7 +21,7 @@ test("sidebar file drops use the general application target and expose scan and 
   await fillSignInEmail(page, "borrower@example.test");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Your applications", exact: true })).toBeVisible();
-  await page.goto(`${borrower}${base}?bank=bank-a`);
+  await page.goto(`${borrower}${base}?bank=keybank`);
   await page.getByRole("button", { name: "Describe your business", exact: true }).click();
   const tasksBefore = await workflowApi<TasksView>(page, "GET", `${base}/tasks`);
   const sidebar = page.getByRole("region", { name: "Upload other documents", exact: true });

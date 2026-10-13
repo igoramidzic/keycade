@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createIdentifierCipher } from "./identifier-cipher.js";
 
 const scope = {
-  bankId: "bank-a",
+  bankId: "keybank",
   applicationId: "application-a",
   subjectKey: "business",
   revision: 1,
@@ -21,7 +21,7 @@ describe("private identifier encryption", () => {
     const cipher = createIdentifierCipher("a".repeat(64));
     const encrypted = cipher.encrypt("000000002", scope);
     for (const changed of [
-      { ...scope, bankId: "bank-b" },
+      { ...scope, bankId: "isolation-fixture" },
       { ...scope, applicationId: "application-b" },
       { ...scope, subjectKey: "person" },
       { ...scope, revision: 2 },

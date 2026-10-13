@@ -1,11 +1,11 @@
-import { Alert, AlertDescription, AlertTitle } from "@keycade/ui/components/alert";
-import { Badge } from "@keycade/ui/components/badge";
-import { Button } from "@keycade/ui/components/button";
+import { Alert, AlertDescription, AlertTitle } from "@keylend/ui/components/alert";
+import { Badge } from "@keylend/ui/components/badge";
+import { Button } from "@keylend/ui/components/button";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@keycade/ui/components/collapsible";
+} from "@keylend/ui/components/collapsible";
 import {
   Dialog,
   DialogClose,
@@ -14,19 +14,19 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@keycade/ui/components/dialog";
+} from "@keylend/ui/components/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@keycade/ui/components/dropdown-menu";
-import { EmptyState } from "@keycade/ui/components/empty-state";
-import { Input } from "@keycade/ui/components/input";
-import { NativeSelect } from "@keycade/ui/components/native-select";
-import { StatusPill, type StatusTone } from "@keycade/ui/components/status-pill";
-import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
+} from "@keylend/ui/components/dropdown-menu";
+import { EmptyState } from "@keylend/ui/components/empty-state";
+import { Input } from "@keylend/ui/components/input";
+import { NativeSelect } from "@keylend/ui/components/native-select";
+import { StatusPill, type StatusTone } from "@keylend/ui/components/status-pill";
+import { workflowName, workflowText } from "@keylend/ui/lib/workflow-text";
 import { cn } from "cn";
 import {
   Building2,

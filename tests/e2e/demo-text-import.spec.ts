@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { readEnvironment } from "@keycade/config/server";
-import type { DocumentsView, TasksView } from "@keycade/contracts";
+import { readEnvironment } from "@keylend/config/server";
+import type { DocumentsView, TasksView } from "@keylend/contracts";
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { createDemoImportPdf, demoImportRecipes } from "../../packages/contracts/src/demo-import";
 import { workflowApi } from "./closing-helpers";
@@ -12,7 +12,7 @@ const borrower = `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
 const staff = `http://127.0.0.1:${env.BANK_CONSOLE_PORT ?? 3002}`;
 const applicationId = "60000000-0000-4000-8000-000000000001";
 const base = `/applications/${applicationId}`;
-const importMime = "application/x-keycade-demo-import";
+const importMime = "application/x-keylend-demo-import";
 test.use({ trace: "off", screenshot: "off", video: "off", actionTimeout: 15_000 });
 test.setTimeout(150_000);
 
@@ -31,7 +31,7 @@ async function signIn(
       exact: true,
     }),
   ).toBeVisible();
-  await page.goto(`${origin}${base}${dashboard ? "" : "/documents"}?bank=bank-a`);
+  await page.goto(`${origin}${base}${dashboard ? "" : "/documents"}?bank=keybank`);
   await expect(
     page.getByRole("heading", {
       name: dashboard ? "Synthetic Cedar Workshop" : "Documents",

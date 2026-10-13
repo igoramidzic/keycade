@@ -1,6 +1,6 @@
-import { tasksViewSchema, taskViewSchema } from "@keycade/contracts";
-import type { AuthenticatedSession } from "@keycade/ui/components/identity-portal";
-import { TasksManager } from "@keycade/ui/components/tasks-manager";
+import { tasksViewSchema, taskViewSchema } from "@keylend/contracts";
+import type { AuthenticatedSession } from "@keylend/ui/components/identity-portal";
+import { TasksManager } from "@keylend/ui/components/tasks-manager";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { ApiError, errorMessage, request } from "./api";

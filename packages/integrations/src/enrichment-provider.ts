@@ -3,7 +3,7 @@ import {
   type EnrichmentResult,
   type EnrichmentScenario,
   enrichmentResultSchema,
-} from "@keycade/contracts";
+} from "@keylend/contracts";
 import { type Clock, ProviderError } from "./provider.js";
 
 export type EnrichmentProviderRequest = {
@@ -60,7 +60,7 @@ export async function invokeEnrichmentProvider(
             : "complete";
     const hasEvidence = outcome === "complete" || outcome === "needs_review";
     return enrichmentResultSchema.parse({
-      provider: "keycade-enrichment-v1",
+      provider: "keylend-enrichment-v1",
       simulated: true,
       kind: request.kind,
       operationId: request.operationId,

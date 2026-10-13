@@ -1,10 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { authSessionSchema, demoInboxMessageSchema, demoInboxViewSchema } from "@keycade/contracts";
-import { seedDatabase, seedIds } from "@keycade/db/seed";
-import { createTestDatabase } from "@keycade/db/testing";
-import { createDemoInboxCipher } from "@keycade/domain";
-import { processAccessDelivery } from "@keycade/integrations/access-delivery";
-import { createDemoInboxAdapter } from "@keycade/integrations/demo-inbox";
+import { authSessionSchema, demoInboxMessageSchema, demoInboxViewSchema } from "@keylend/contracts";
+import { seedDatabase, seedIds } from "@keylend/db/seed";
+import { createTestDatabase } from "@keylend/db/testing";
+import { createDemoInboxCipher } from "@keylend/domain";
+import { processAccessDelivery } from "@keylend/integrations/access-delivery";
+import { createDemoInboxAdapter } from "@keylend/integrations/demo-inbox";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildServer } from "../src/server.js";
 import { handleWorkerRequest } from "../src/worker-handler.js";
@@ -14,7 +14,7 @@ const origin = "https://synthetic-borrower.example.test";
 const key = "73".repeat(32);
 beforeAll(async () => {
   database = await createTestDatabase();
-  await seedDatabase(database.connectionString);
+  await seedDatabase(database.connectionString, { isolationFixtures: true });
 }, 30000);
 afterAll(async () => database?.cleanup());
 
@@ -94,7 +94,7 @@ for (const transport of ["fastify", "worker"] as const) {
         stranger = await client(),
         disabled = await client(false);
       const email = `hosted-transport-${randomUUID()}@example.test`;
-      const input = { email, bankSlug: "bank-a", portal: "borrower", returnPath: "/" };
+      const input = { email, bankSlug: "keybank", portal: "borrower", returnPath: "/" };
       const base = `/api/v1/banks/${seedIds.bankA}/demo-inbox`;
       try {
         expect((await owner.call("/api/v1/auth/session")).body).toMatchObject({

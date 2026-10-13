@@ -3,24 +3,24 @@ import {
   documentActionResultSchema,
   documentsViewSchema,
   documentUploadResultSchema,
-} from "@keycade/contracts";
-import type { DemoDocument } from "@keycade/contracts/demo-scenarios";
-import { Button } from "@keycade/ui/components/button";
+} from "@keylend/contracts";
+import type { DemoDocument } from "@keylend/contracts/demo-scenarios";
+import { Button } from "@keylend/ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@keycade/ui/components/card";
-import { useDemoKit } from "@keycade/ui/components/demo-kit";
-import type { UploadInput } from "@keycade/ui/components/documents-manager";
-import type { AuthenticatedSession } from "@keycade/ui/components/identity-portal";
+} from "@keylend/ui/components/card";
+import { useDemoKit } from "@keylend/ui/components/demo-kit";
+import type { UploadInput } from "@keylend/ui/components/documents-manager";
+import type { AuthenticatedSession } from "@keylend/ui/components/identity-portal";
 import {
   createDemoDocumentFile,
   demoDocumentMime,
   readDemoDocumentDrag,
-} from "@keycade/ui/lib/demo-document-transfer";
+} from "@keylend/ui/lib/demo-document-transfer";
 import {
   createDemoImportFile,
   type DemoImportPreview,
@@ -28,11 +28,11 @@ import {
   demoImportMime,
   readDemoImportDrag,
   sameDemoImportContext,
-} from "@keycade/ui/lib/demo-import-transfer";
-import { createDocumentTransfer } from "@keycade/ui/lib/document-transfer";
-import { documentRefreshInterval } from "@keycade/ui/lib/refresh-policy";
-import { cn } from "@keycade/ui/lib/utils";
-import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
+} from "@keylend/ui/lib/demo-import-transfer";
+import { createDocumentTransfer } from "@keylend/ui/lib/document-transfer";
+import { documentRefreshInterval } from "@keylend/ui/lib/refresh-policy";
+import { cn } from "@keylend/ui/lib/utils";
+import { workflowName, workflowText } from "@keylend/ui/lib/workflow-text";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, CloudUpload, FileText } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";

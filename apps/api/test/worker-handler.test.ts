@@ -1,4 +1,4 @@
-import { createDatabase } from "@keycade/db";
+import { createDatabase } from "@keylend/db";
 import { afterAll, expect, test } from "vitest";
 import { handleWorkerRequest } from "../src/worker-handler";
 
@@ -37,7 +37,7 @@ test("Worker reports refused PostgreSQL connections during staff demo login as s
       headers: { origin, "content-type": "application/json" },
       body: JSON.stringify({
         email: "officer-a@example.test",
-        bankSlug: "bank-a",
+        bankSlug: "keybank",
         portal: "staff",
         returnPath: "/",
       }),
@@ -176,7 +176,7 @@ test("Worker explicitly reports unavailable hosted email and enforces CSRF for a
       headers: { origin: "https://borrower.example", "content-type": "application/json" },
       body: JSON.stringify({
         email: "borrower@example.test",
-        bankSlug: "bank-a",
+        bankSlug: "keybank",
         portal: "borrower",
         returnPath: "/",
       }),
@@ -221,7 +221,7 @@ test("Worker immediate demo sign-in is unavailable by default", async () => {
       headers: { origin: "https://borrower.example", "content-type": "application/json" },
       body: JSON.stringify({
         email: "borrower@example.test",
-        bankSlug: "bank-a",
+        bankSlug: "keybank",
         portal: "borrower",
         returnPath: "/",
       }),

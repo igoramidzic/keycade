@@ -6,7 +6,7 @@ Dependencies: read the implemented T07–T20 and V2 product/data contracts. This
 
 ## Outcome
 
-Explain how small, medium and large U.S. business loans move through a bank, identify gaps in Keycade, and give the next implementation tasks. Incorporate the user's product-choice and restructuring follow-up, including a $9M need split into $5M SBA 7(a) plus $4M of another product.
+Explain how small, medium and large U.S. business loans move through a bank, identify gaps in KeyLend, and give the next implementation tasks. Incorporate the user's product-choice and restructuring follow-up, including a $9M need split into $5M SBA 7(a) plus $4M of another product.
 
 ## Deliverables
 

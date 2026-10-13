@@ -36,7 +36,7 @@ describe("simulated business and tax providers", () => {
         await vi.advanceTimersByTimeAsync(1);
         const result = await promise;
         expect(result).toMatchObject({
-          provider: "keycade-enrichment-v1",
+          provider: "keylend-enrichment-v1",
           simulated: true,
           kind,
           outcome: "complete",

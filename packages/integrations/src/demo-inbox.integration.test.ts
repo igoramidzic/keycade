@@ -9,9 +9,9 @@ import {
   demoInboxMessages,
   notifications,
   users,
-} from "@keycade/db";
-import { seedIds as ids, seedDatabase } from "@keycade/db/seed";
-import { createTestDatabase } from "@keycade/db/testing";
+} from "@keylend/db";
+import { seedIds as ids, seedDatabase } from "@keylend/db/seed";
+import { createTestDatabase } from "@keylend/db/testing";
 import {
   type Actor,
   createDemoInboxCipher,
@@ -19,7 +19,7 @@ import {
   createIdentityService,
   createParticipantsService,
   queueApplicationStatusNotifications,
-} from "@keycade/domain";
+} from "@keylend/domain";
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { processAccessDelivery } from "./access-delivery.js";
@@ -39,7 +39,7 @@ const officer: Actor = { kind: "user", userId: ids.officerA };
 const denied = { code: "NOT_FOUND", statusCode: 404 };
 beforeAll(async () => {
   database = await createTestDatabase();
-  await seedDatabase(database.connectionString);
+  await seedDatabase(database.connectionString, { isolationFixtures: true });
 }, 30000);
 beforeEach(() => {
   now = new Date("2026-10-07T12:00:00Z");
@@ -50,7 +50,7 @@ async function fixture() {
   const email = `synthetic-inbox-${randomUUID()}@example.test`;
   const input = {
     email,
-    bankSlug: "bank-a",
+    bankSlug: "keybank",
     portal: "borrower" as const,
     returnPath: "/",
     origin,
@@ -394,7 +394,7 @@ describe("private hosted simulated inbox on PostgreSQL", () => {
     await expect(
       identity().signInDemo({
         email: f.email,
-        bankSlug: "bank-a",
+        bankSlug: "keybank",
         portal: "staff",
         returnPath: "/",
         origin,

@@ -1,6 +1,6 @@
-import { fundedAccountsViewSchema } from "@keycade/contracts";
-import { FundedAccounts } from "@keycade/ui/components/funded-accounts";
-import type { AuthenticatedSession } from "@keycade/ui/components/identity-portal";
+import { fundedAccountsViewSchema } from "@keylend/contracts";
+import { FundedAccounts } from "@keylend/ui/components/funded-accounts";
+import type { AuthenticatedSession } from "@keylend/ui/components/identity-portal";
 import { useQuery } from "@tanstack/react-query";
 import { ApiError, request } from "./api";
 import { ErrorNotice } from "./workspace-ui";

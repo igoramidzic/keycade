@@ -9,7 +9,7 @@ import { seedIds as ids, seedDatabase } from "./seed.js";
 import { createTestDatabase } from "./testing.js";
 
 it("upgrades populated pre-workspace evidence without inventing reviewed facts or changing immutable decisions", async () => {
-  const folder = await mkdtemp(join(tmpdir(), "keycade-before-document-workspace-"));
+  const folder = await mkdtemp(join(tmpdir(), "keylend-before-document-workspace-"));
   const database = await createTestDatabase(undefined, { migrate: false });
   try {
     const journal = JSON.parse(
@@ -24,7 +24,7 @@ it("upgrades populated pre-workspace evidence without inventing reviewed facts o
       ),
     );
     await migrate(database.db, { migrationsFolder: folder });
-    await seedDatabase(database.connectionString);
+    await seedDatabase(database.connectionString, { isolationFixtures: true });
     const documentId = randomUUID();
     const versionId = randomUUID();
     const runId = randomUUID();
@@ -55,7 +55,7 @@ it("upgrades populated pre-workspace evidence without inventing reviewed facts o
       ],
     );
     const originalResult = {
-      provider: "keycade-document-interpretation-v1",
+      provider: "keylend-document-interpretation-v1",
       simulated: true,
       versionId,
       runId,
@@ -117,7 +117,7 @@ it("upgrades populated pre-workspace evidence without inventing reviewed facts o
     for (let attempt = 0; attempt < 2; attempt++) {
       await migrateDatabase(database.connectionString);
       await assertSchemaReady(database.connectionString);
-      await seedDatabase(database.connectionString);
+      await seedDatabase(database.connectionString, { isolationFixtures: true });
       for (const [index, table] of tables.entries())
         expect((await database.pool.query(`SELECT * FROM ${table} ORDER BY id`)).rows).toEqual(
           before[index],

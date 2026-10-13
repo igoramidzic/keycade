@@ -2,24 +2,24 @@ import {
   acceptInvitationResponseSchema,
   invitationViewSchema,
   participantsWorkspaceSchema,
-} from "@keycade/contracts";
-import { Alert, AlertDescription, AlertTitle } from "@keycade/ui/components/alert";
-import { Badge } from "@keycade/ui/components/badge";
-import { Button, buttonVariants } from "@keycade/ui/components/button";
+} from "@keylend/contracts";
+import { Alert, AlertDescription, AlertTitle } from "@keylend/ui/components/alert";
+import { Badge } from "@keylend/ui/components/badge";
+import { Button, buttonVariants } from "@keylend/ui/components/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@keycade/ui/components/card";
-import type { AuthenticatedSession } from "@keycade/ui/components/identity-portal";
+} from "@keylend/ui/components/card";
+import type { AuthenticatedSession } from "@keylend/ui/components/identity-portal";
 import {
   ParticipantsManager,
   participantRoleLabels,
   participantScopeLabel,
-} from "@keycade/ui/components/participants-manager";
-import { workflowName, workflowText } from "@keycade/ui/lib/workflow-text";
+} from "@keylend/ui/components/participants-manager";
+import { workflowName, workflowText } from "@keylend/ui/lib/workflow-text";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, Navigate, useLocation, useNavigate, useParams } from "react-router";

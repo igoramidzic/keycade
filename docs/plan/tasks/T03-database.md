@@ -12,7 +12,7 @@ Versioned core storage and useful synthetic records that every later feature can
 - Create core bank, user/contact, bank membership, business, product, application, participant, and audit-record tables. Keep a draft's business/details nullable until supplied.
 - Add keys, bank-scoped relationships, timestamps, revisions, lifecycle values, and exact monetary representation. Add future feature tables in their own tasks.
 - Add migration generation/application, idempotent seeds, and the local Studio command. Connect initialize and dev schema readiness to committed migrations.
-- Seed Bank A, isolated Bank B, borrower/staff identities, two businesses, multiple drafts, and $10k/$5m/$7.5m examples. Mark all fixtures synthetic.
+- Seed Keybank, isolated Isolation fixture, borrower/staff identities, two businesses, multiple drafts, and $10k/$5m/$7.5m examples. Mark all fixtures synthetic.
 
 ## Acceptance criteria
 
@@ -39,6 +39,6 @@ Validation:
 - Schema readiness compares committed migration hashes and executes real column queries. The integration suite temporarily removes a required column and verifies failure with the migration command, then restores it.
 - Root acceptance confirmed repeated `pnpm initialize` preserves environment bytes and a temporary synthetic bank record, PostgreSQL stop causes a failed query and failed `pnpm dev`, and `pnpm db:start` preserves the record. No data reset was performed. Studio was opened in the browser on its loopback listener; five seeded applications visibly include 10000.00, 5000000.00 and 7500000.00 USD plus the nullable draft. Private env values were absent from all three production bundles.
 
-Fixtures are exported as `seedIds`: Bank A and isolated Bank B; borrower, two bank officers, restricted adviser and revoked owner; two Bank A businesses plus one Bank B business; $10k/$5m/$7.5m applications, a separate same-business application without a borrower grant, an isolated Bank B application, and an incomplete draft. All fixtures carry `synthetic: true` and use `example.test` email addresses. The borrower has exactly two explicit active application grants. Money is stored as `numeric(20,2)` and returned as strings; `normalizeMoney` rejects imprecise/invalid input before PostgreSQL's numeric conversion. Future amount-writing services must use the decimal-string contract.
+Fixtures are exported as `seedIds`: Keybank and isolated Isolation fixture; borrower, two bank officers, restricted adviser and revoked owner; two Keybank businesses plus one Isolation fixture business; $10k/$5m/$7.5m applications, a separate same-business application without a borrower grant, an isolated Isolation fixture application, and an incomplete draft. All fixtures carry `synthetic: true` and use `example.test` email addresses. The borrower has exactly two explicit active application grants. Money is stored as `numeric(20,2)` and returned as strings; `normalizeMoney` rejects imprecise/invalid input before PostgreSQL's numeric conversion. Future amount-writing services must use the decimal-string contract.
 
 No identity tokens, documents, tasks, identifiers, or funded-loan tables were introduced.

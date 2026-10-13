@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { projectRoot } from "@keycade/config/server";
+import { projectRoot } from "@keylend/config/server";
 
 const failures: string[] = [];
 function inspect(folder: string) {
@@ -11,7 +11,7 @@ function inspect(folder: string) {
     else if (/\.[tj]sx?$/.test(file)) {
       const source = readFileSync(file, "utf8");
       if (
-        /(?:from\s*|import\s*\()\s*["'](?:@keycade\/(?:db|domain|integrations)|.*packages\/(?:db|domain|integrations)|.*config\/server)/.test(
+        /(?:from\s*|import\s*\()\s*["'](?:@keylend\/(?:db|domain|integrations)|.*packages\/(?:db|domain|integrations)|.*config\/server)/.test(
           source,
         )
       )

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import { readEnvironment } from "@keycade/config/server";
+import { readEnvironment } from "@keylend/config/server";
 import type {
   ApplicationSetup,
   DocumentsView,
@@ -9,8 +9,8 @@ import type {
   FinancialFactsView,
   ReviewFinancialFacts,
   TasksView,
-} from "@keycade/contracts";
-import { syntheticDocumentPdf } from "@keycade/integrations/document-fixtures";
+} from "@keylend/contracts";
+import { syntheticDocumentPdf } from "@keylend/integrations/document-fixtures";
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import {
   createDemoImportPdf,
@@ -45,7 +45,7 @@ async function signIn(page: Page, origin = staff, email = "officer-a@example.tes
   ).toBeVisible();
 }
 async function openDocuments(page: Page, applicationId = seededApplication) {
-  await page.goto(`${staff}/applications/${applicationId}/documents?bank=bank-a`);
+  await page.goto(`${staff}/applications/${applicationId}/documents?bank=keybank`);
   await expect(page.getByRole("heading", { name: "Documents", exact: true })).toBeVisible();
 }
 async function freshApplication(page: Page) {

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { notificationPreferenceSchema, notificationsViewSchema } from "@keycade/contracts";
+import { notificationPreferenceSchema, notificationsViewSchema } from "@keylend/contracts";
 import {
   accessDeliveryRequests,
   applicantContacts,
@@ -10,7 +10,7 @@ import {
   notificationPreferences,
   notifications,
   users,
-} from "@keycade/db";
+} from "@keylend/db";
 import { and, desc, eq, isNotNull, isNull } from "drizzle-orm";
 import { type Actor, requireApplicationAccess, requireBankStaff } from "./authorization.js";
 import { DomainError, deny } from "./errors.js";

@@ -1,8 +1,8 @@
 import { afterEach, expect, test, vi } from "vitest";
 import worker from "../worker";
 
-const borrowerOrigin = "https://keycade-borrower.kualia.workers.dev";
-const staffOrigin = "https://keycade-bank-console.kualia.workers.dev";
+const borrowerOrigin = "https://keylend-borrower.kualia.workers.dev";
+const staffOrigin = "https://keylend-bank-console.kualia.workers.dev";
 const key = "73".repeat(32);
 
 function bindings(demoInboxEnabled: string, encryptionKey = key) {
@@ -14,7 +14,7 @@ function bindings(demoInboxEnabled: string, encryptionKey = key) {
       connectionString: "postgresql://unused:unused@127.0.0.1:1/unused",
     } as Hyperdrive,
     API_RATE_LIMITER: { limit: async () => ({ success: true }) },
-    ALLOWED_ORIGINS: `https://keycade-bank-site.kualia.workers.dev,${borrowerOrigin},${staffOrigin}`,
+    ALLOWED_ORIGINS: `https://keylend-bank-site.kualia.workers.dev,${borrowerOrigin},${staffOrigin}`,
     DEMO_INBOX_ENABLED: demoInboxEnabled,
     ENCRYPTION_KEY: encryptionKey,
     BORROWER_ORIGIN: borrowerOrigin,
@@ -59,7 +59,7 @@ test.each([
       const response = await call(
         env,
         "/api/v1/auth/request-link",
-        { email: "synthetic@example.test", bankSlug: "bank-a", portal, returnPath: "/" },
+        { email: "synthetic@example.test", bankSlug: "keybank", portal, returnPath: "/" },
         origin,
       );
       expect(response).toMatchObject({
@@ -70,7 +70,7 @@ test.each([
     expect(
       await call(env, "/api/v1/applications/start", {
         email: "synthetic@example.test",
-        bankSlug: "bank-a",
+        bankSlug: "keybank",
         idempotencyKey: "12".repeat(32),
       }),
     ).toMatchObject({ status: 503, body: { error: { code: "AUTH_DELIVERY_UNAVAILABLE" } } });
@@ -102,7 +102,7 @@ test("native Worker restores simulated delivery when the inbox configuration is 
   expect(
     await call(env, "/api/v1/auth/request-link", {
       email: "synthetic@example.test",
-      bankSlug: "bank-a",
+      bankSlug: "keybank",
       portal: "borrower",
       returnPath: "/",
     }),

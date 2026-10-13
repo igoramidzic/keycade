@@ -6,9 +6,9 @@ import {
   documentProcessingRuns,
   documentVersions,
   enrichmentRuns,
-} from "@keycade/db";
-import { seedDatabase, seedIds } from "@keycade/db/seed";
-import { createTestDatabase } from "@keycade/db/testing";
+} from "@keylend/db";
+import { seedDatabase, seedIds } from "@keylend/db/seed";
+import { createTestDatabase } from "@keylend/db/testing";
 import {
   createChecksService,
   createDemoInboxCipher,
@@ -18,8 +18,8 @@ import {
   createIdentifierCipher,
   createIdentityService,
   createTasksService,
-} from "@keycade/domain";
-import { enqueueDemo } from "@keycade/integrations";
+} from "@keylend/domain";
+import { enqueueDemo } from "@keylend/integrations";
 import { and, eq, inArray } from "drizzle-orm";
 import { expect, test } from "vitest";
 import { createDemoImportPdf } from "../../../packages/contracts/src/demo-import";
@@ -78,7 +78,7 @@ test("native document families drain a full batch after an early processing wake
   const scan = { kind: "family", family: "document_scans" };
   const processing = { kind: "family", family: "document_processing" };
   try {
-    await seedDatabase(database.connectionString);
+    await seedDatabase(database.connectionString, { isolationFixtures: true });
     const borrower = { kind: "user" as const, userId: seedIds.borrower };
     const service = createDocumentsService(database.db, { scanDelayMs: 0 });
     const context = (await service.list(borrower, seedIds.bankA, seedIds.applicationSmall))
@@ -249,11 +249,11 @@ test("private service wake and native queue deliver a single encrypted demo mess
     expect({ ack, retry }).toEqual({ ack: true, retry: false });
   };
   try {
-    await seedDatabase(database.connectionString);
+    await seedDatabase(database.connectionString, { isolationFixtures: true });
     const identity = createIdentityService(database.db);
     const input = {
       email: "native-inbox@example.test",
-      bankSlug: "bank-a",
+      bankSlug: "keybank",
       portal: "borrower" as const,
       returnPath: "/",
       origin: env.BORROWER_ORIGIN,
@@ -357,7 +357,7 @@ test("Cron dispatch and queue delivery preserve durable retries and one effect a
     expect(retried).toBe(false);
   };
   try {
-    await seedDatabase(database.connectionString);
+    await seedDatabase(database.connectionString, { isolationFixtures: true });
     const operationId = await database.db.transaction((tx) =>
       enqueueDemo(tx, {
         bankId: seedIds.bankA,
@@ -458,7 +458,7 @@ test("dispatch prioritizes inbox and independently queued provider families pres
     expect({ ack, retry }).toEqual({ ack: true, retry: false });
   };
   try {
-    await seedDatabase(database.connectionString);
+    await seedDatabase(database.connectionString, { isolationFixtures: true });
     const actor = { kind: "user" as const, userId: seedIds.borrower };
     const task = (
       await createTasksService(database.db).read(actor, seedIds.bankA, seedIds.applicationSmall)
@@ -486,7 +486,7 @@ test("dispatch prioritizes inbox and independently queued provider families pres
     const identity = createIdentityService(database.db);
     const input = {
       email: "native-priority@example.test",
-      bankSlug: "bank-a",
+      bankSlug: "keybank",
       portal: "borrower" as const,
       returnPath: "/",
       origin: env.BORROWER_ORIGIN,

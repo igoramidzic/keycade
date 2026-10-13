@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { readEnvironment } from "@keycade/config/server";
-import type { ParticipantsWorkspace, TasksView } from "@keycade/contracts";
+import { readEnvironment } from "@keylend/config/server";
+import type { ParticipantsWorkspace, TasksView } from "@keylend/contracts";
 import { expect, type Page, test } from "@playwright/test";
 import { workflowApi } from "./closing-helpers";
 import { fillSignInEmail } from "./identity-helpers";
@@ -10,7 +10,7 @@ const borrower = `http://127.0.0.1:${env.BORROWER_PORT ?? 3001}`;
 const staff = `http://127.0.0.1:${env.BANK_CONSOLE_PORT ?? 3002}`;
 const applicationId = "60000000-0000-4000-8000-000000000001";
 const base = `/applications/${applicationId}`;
-const dashboard = `${borrower}${base}?bank=bank-a`;
+const dashboard = `${borrower}${base}?bank=keybank`;
 test.use({ trace: "off", screenshot: "off", video: "off", actionTimeout: 15_000 });
 test.setTimeout(90_000);
 

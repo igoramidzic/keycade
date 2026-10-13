@@ -6,9 +6,9 @@ import {
   demoImportRecipes,
   demoTextImportRequestSchema,
   validateDemoTextImport,
-} from "@keycade/contracts/demo-import";
+} from "@keylend/contracts/demo-import";
 
-export const demoImportMime = "application/x-keycade-demo-import";
+export const demoImportMime = "application/x-keylend-demo-import";
 export type DemoImportSource = {
   fileName: string;
   text: string;

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { applicationParticipants, applications, auditEvents, bankMemberships } from "@keycade/db";
-import { seedIds as ids, seedDatabase } from "@keycade/db/seed";
-import { createTestDatabase } from "@keycade/db/testing";
+import { applicationParticipants, applications, auditEvents, bankMemberships } from "@keylend/db";
+import { seedIds as ids, seedDatabase } from "@keylend/db/seed";
+import { createTestDatabase } from "@keylend/db/testing";
 import { and, eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
@@ -18,7 +18,7 @@ const borrower: Actor = { kind: "user", userId: ids.borrower };
 const officerA: Actor = { kind: "user", userId: ids.officerA };
 beforeAll(async () => {
   database = await createTestDatabase();
-  await seedDatabase(database.connectionString);
+  await seedDatabase(database.connectionString, { isolationFixtures: true });
 }, 30_000);
 afterAll(async () => {
   await database?.cleanup();
