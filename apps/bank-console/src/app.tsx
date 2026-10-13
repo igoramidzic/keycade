@@ -61,7 +61,7 @@ export function BankApp({ confirmation }: { confirmation: Confirmation }) {
               to={`/?bank=${encodeURIComponent(bankSlug)}`}
               className="min-w-0 rounded-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
             >
-              <BrandLockup name="KeyLend" detail="Staff workspace" />
+              <BrandLockup product="KeyLend" detail="Staff workspace" />
             </Link>
           }
         />

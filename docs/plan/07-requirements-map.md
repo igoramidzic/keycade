@@ -115,7 +115,7 @@ October 7 final implementation checkpoint: `d7a6597` has lint, workspace types, 
 
 | Requirement | Owning task | Evidence |
 | --- | --- | --- |
-| KeyLend application/package names and Keybank-only branding | D08 | All workspace builds/types, unit and browser checks |
+| KeyLend application/package names and Keybank-only branding | D08 | All workspace builds/types, unit and browser checks; shared official KeyBank logo and favicon follow-up covers all three frontends and portal states |
 | Keybank-only normal seeding and public entry, preserving access boundaries | D08, T03, T06, T08 | PostgreSQL seed/transport checks and desktop/mobile account-selection cases |
 | Non-destructive bank rename and historical evidence compatibility | D08 | Migration 0025, prior-schema/repeat tests and old PDF/provider support |
 | Renamed Cloudflare Workers with matching origins and build commands | D08, D02 | Live names/config read-back; source publication and hosted migration pending |

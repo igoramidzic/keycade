@@ -1,6 +1,7 @@
 import { cn } from "cn";
 import { createContext, type ReactNode, useCallback, useContext, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { BrandLogo } from "./brand";
 
 /**
  * Application chrome shared by the borrower portal and bank console.
@@ -78,6 +79,7 @@ export function AppFooter({ children }: { children?: ReactNode }) {
           "flex flex-wrap items-center justify-between gap-x-6 gap-y-2 py-5 text-xs leading-5 text-muted-foreground",
         )}
       >
+        <BrandLogo className="w-28 sm:w-28" />
         {children ?? <p>KeyLend · Business lending</p>}
       </div>
     </footer>

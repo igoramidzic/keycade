@@ -1,7 +1,7 @@
 import { workflowText } from "@keylend/ui/lib/workflow-text";
 import "@keylend/ui/styles.css";
 import { Badge } from "@keylend/ui/components/badge";
-import { BrandMark } from "@keylend/ui/components/brand";
+import { BrandLogo } from "@keylend/ui/components/brand";
 import { buttonVariants } from "@keylend/ui/components/button";
 import { FundingPurposeIcon } from "@keylend/ui/components/funding-purpose-icon";
 import { cn } from "@keylend/ui/lib/utils";
@@ -77,10 +77,7 @@ function BankSite() {
             href="/"
             className="flex min-w-0 items-center gap-2 rounded-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring sm:gap-2.5"
           >
-            <BrandMark className="size-7 sm:size-8" />
-            <span className="truncate text-[0.9375rem] font-semibold tracking-tight sm:text-[1.0625rem]">
-              Keybank
-            </span>
+            <BrandLogo className="w-28 sm:w-40" />
           </a>
           <nav aria-label="Main navigation" className="flex shrink-0 items-center gap-1">
             <a
@@ -324,8 +321,7 @@ function BankSite() {
         >
           <div className="max-w-md space-y-3">
             <p className="flex items-center gap-2 font-semibold tracking-tight">
-              <BrandMark className="size-6" />
-              Keybank
+              <BrandLogo />
             </p>
             <p className="text-xs leading-5 text-muted-foreground">
               Business financing, from application to funding. Track your progress and return

@@ -1,5 +1,7 @@
 # KeyLend implementation plan
 
+**October 13 logo follow-up:** [D08](tasks/D08-keylend-keybank.md#keybank-logo-and-favicon--october-13-2026) adds the official KeyBank logo to shared headers/footers and a shared key favicon to all three frontends. Four affected typechecks, three builds, 10 desktop/mobile foundation cases and targeted lint pass locally; publication remains pending.
+
 **October 13 identity update:** [D08](tasks/D08-keylend-keybank.md) implements KeyLend as Keybank’s internal lending tool. Keybank is the only supported bank. Local validation is complete; the user renamed the five live Workers, and their origin variables/build filters are corrected. Hosted application publication and migration 0025 are pending.
 
 **Latest planning update — October 13, 2026:** the [business lending research and expansion plan](lending/README.md) covers bank workflows, 19 product types/variants, current gaps and L01–L10. The user's October 12 follow-up replaces the fixed-product target with borrower product choice and lender restructuring of a financing request into multiple facilities, including $5M SBA 7(a) plus $4M conventional financing. **Implementation is Not started.** Start the next lending build with L01, then L02. Historical completion records below apply to the prior scope. [R01](tasks/R01-lending-workflow-research.md) tracks documentation validation.

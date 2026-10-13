@@ -1,60 +1,45 @@
 import { cn } from "cn";
 
-/**
- * KeyLend's key symbol is decorative;
- * the adjacent wordmark supplies the accessible name.
- */
-export function BrandMark({
-  className,
-  tone = "brand",
-}: {
-  className?: string;
-  tone?: "brand" | "inverse";
-}) {
+const logoUrl = new URL("../assets/keybank-logo.svg", import.meta.url).href;
+
+/** Locally bundled KeyBank artwork; keep its original proportions and colors. */
+export function BrandLogo({ className }: { className?: string }) {
   return (
-    <svg
-      aria-hidden="true"
-      focusable="false"
-      viewBox="0 0 32 32"
-      className={cn("size-8 shrink-0", className)}
-    >
-      <rect
-        width="32"
-        height="32"
-        rx="9"
-        className={tone === "brand" ? "fill-brand" : "fill-brand-foreground"}
-      />
-      <g
-        fill="none"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className={tone === "brand" ? "stroke-brand-foreground" : "stroke-brand"}
-      >
-        <circle cx="11" cy="15" r="4.5" strokeWidth="2.4" />
-        <path d="M15.5 15H26M22 15v5M26 15v3" strokeWidth="2.4" />
-      </g>
-    </svg>
+    <img
+      src={logoUrl}
+      alt="KeyBank"
+      width="394"
+      height="69"
+      className={cn(
+        "h-auto w-36 shrink-0 dark:rounded-sm dark:bg-white dark:p-2 sm:w-40",
+        className,
+      )}
+    />
   );
 }
 
-/** Logo lockup: mark plus a wordmark. The wordmark text is the accessible name. */
+/** Bank identity with an optional product name and workspace description. */
 export function BrandLockup({
-  name,
+  product,
   detail,
   className,
 }: {
-  name: string;
+  product?: string;
   detail?: string;
   className?: string;
 }) {
   return (
-    <span className={cn("flex min-w-0 items-center gap-2.5", className)}>
-      <BrandMark />
-      <span className="min-w-0 truncate text-[1.0625rem] font-semibold tracking-tight">{name}</span>
+    <span className={cn("flex min-w-0 flex-wrap items-center gap-3", className)}>
+      <BrandLogo />
+      {product && (
+        <span className="border-l pl-3 text-[1.0625rem] font-semibold tracking-tight">
+          {product}
+        </span>
+      )}
       {detail && (
         <span
           aria-hidden="true"
-          className="hidden border-l pl-2.5 text-xs font-medium text-muted-foreground sm:inline"
+          className="hidden border-l pl-3 text-xs font-medium text-muted-foreground sm:inline"
         >
           {detail}
         </span>

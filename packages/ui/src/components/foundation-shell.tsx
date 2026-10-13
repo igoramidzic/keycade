@@ -1,4 +1,5 @@
 import { Badge } from "@keylend/ui/components/badge";
+import { BrandLockup, BrandLogo } from "@keylend/ui/components/brand";
 import { Button, buttonVariants } from "@keylend/ui/components/button";
 import {
   Card,
@@ -9,7 +10,7 @@ import {
 } from "@keylend/ui/components/card";
 import { type Confirmation, IdentityPortal } from "@keylend/ui/components/identity-portal";
 import { workflowName, workflowText } from "@keylend/ui/lib/workflow-text";
-import { ArrowRight, Check, CircleAlert, CircleDashed, Landmark, RefreshCw } from "lucide-react";
+import { ArrowRight, Check, CircleAlert, CircleDashed, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type AppName = "bank-site" | "borrower" | "bank-console";
@@ -133,10 +134,7 @@ export function FoundationShell({
       <header className="border-b">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-5 lg:px-8">
           <a href={current.url()} className="flex items-center gap-3 font-semibold tracking-tight">
-            <span className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Landmark aria-hidden="true" className="size-5" />
-            </span>
-            <span>{workflowName(current.name)}</span>
+            <BrandLockup detail={workflowName(current.name)} />
           </a>
           <nav aria-label="Applications" className="flex flex-wrap items-center gap-1">
             {(Object.entries(applications) as [AppName, (typeof applications)[AppName]][]).map(
@@ -226,6 +224,7 @@ export function FoundationShell({
       </main>
       <footer className="border-t">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-6 py-5 text-xs text-muted-foreground lg:px-8">
+          <BrandLogo className="w-28 sm:w-28" />
           <span>KeyLend · Business lending</span>
           <span>Applications through funding</span>
         </div>

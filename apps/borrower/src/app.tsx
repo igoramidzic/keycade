@@ -79,7 +79,7 @@ export function BorrowerApp({ confirmation }: { confirmation: Confirmation }) {
             href={__KEYLEND_PUBLIC__.bankSiteUrl}
             className="min-w-0 rounded-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
           >
-            <BrandLockup name="Keybank" detail="Business financing" />
+            <BrandLockup detail="Business financing" />
           </a>
         }
       />

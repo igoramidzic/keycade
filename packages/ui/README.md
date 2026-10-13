@@ -40,7 +40,7 @@ Spacing follows a 4px grid: `space-y-6`/`gap-6` between page sections, card padd
 | Component | Purpose |
 | --- | --- |
 | `app-shell` | `AppHeader` (brand + account slot), `HeaderPortal`, `AppFooter`, `IdentityAvatar`, `shellWidth`. Signed-in workspaces portal their account controls into the header. |
-| `brand` | `BrandMark` (key symbol) and `BrandLockup` (mark + wordmark; the wordmark is the accessible name). |
+| `brand` | `BrandLogo` (official KeyBank artwork, accessible image name) and `BrandLockup` (logo + optional product/workspace labels). |
 | `page-header` | `PageHeader` (eyebrow, title, description, actions), `SectionHeading`, `backLinkClassName`. |
 | `status-pill` | `StatusPill` (toned badge with dot or icon), `StatusText` (wrapping dot + label for tables), `applicationStatusTone`. |
 | `description-list` | `DescriptionList` / `DescriptionItem` for label–value facts. Labels are 14px muted, values 16px. |
@@ -120,3 +120,7 @@ npx shadcn@latest add <component> --cwd apps/bank-site
 
 Keep matching style, icon library, and base color in each `components.json`. Run `pnpm
 install` to reconcile the single workspace lockfile after dependency changes.
+
+### KeyBank artwork
+
+`src/assets/keybank-logo.svg` preserves the header artwork from [KeyBank’s public website](https://www.key.com/personal/index.html), retrieved October 13, 2026 from the `.kb-svg-logo::before` SVG. `keybank-favicon.svg` uses the same red key path centered in a square viewport. These are locally bundled assets, with no runtime request to KeyBank. The logo retains its proportions and colors; a white backing keeps it readable on dark surfaces. All three HTML entries reference the shared favicon so Vite includes it in local and hosted builds.

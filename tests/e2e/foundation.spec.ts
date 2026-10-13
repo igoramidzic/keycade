@@ -5,12 +5,12 @@ const env = readEnvironment();
 const workspaces = [
   {
     name: "Keybank",
-    brand: "Keybank",
+    brand: "KeyBank",
     port: env.BANK_SITE_PORT ?? 3000,
   },
   {
     name: "Borrower Portal",
-    brand: "Keybank",
+    brand: "KeyBank",
     port: env.BORROWER_PORT ?? 3001,
   },
   {
@@ -48,11 +48,11 @@ for (const workspace of workspaces) {
       await page.getByRole("link", { name: "Continue an application", exact: true }).click();
       await expect(page).toHaveURL(`http://127.0.0.1:${env.BORROWER_PORT ?? 3001}/?bank=keybank`);
       await expect(page.getByLabel("Email address", { exact: true })).toBeVisible();
-      await page.getByRole("banner").getByRole("link", { name: "Keybank", exact: true }).click();
+      await page.getByRole("banner").getByRole("link", { name: "KeyBank", exact: true }).click();
       await page.getByRole("link", { name: "Bank staff sign-in", exact: true }).click();
       await expect(page).toHaveURL(`http://127.0.0.1:${env.BANK_CONSOLE_PORT ?? 3002}/`);
     } else if (workspace.name === "Borrower Portal") {
-      await page.getByRole("banner").getByRole("link", { name: "Keybank", exact: true }).click();
+      await page.getByRole("banner").getByRole("link", { name: "KeyBank", exact: true }).click();
       await expect(page).toHaveURL(`http://127.0.0.1:${env.BANK_SITE_PORT ?? 3000}/`);
     } else {
       await expect(page.getByLabel("Email address", { exact: true })).toBeVisible();
