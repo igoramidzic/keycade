@@ -1,5 +1,24 @@
 # Requirement coverage
 
+## Lending research and product restructuring — October 12, 2026
+
+[R01](tasks/R01-lending-workflow-research.md) records the documentation deliverable, continued October 13. **L01–L10 are Not started**; the proof column below is required future evidence, not a passing test claim. The new product-selection and restructuring requirement supersedes fixed-product behavior in the historical records further down.
+
+| Requirement | Coverage | Required proof |
+| --- | --- | --- |
+| Research small/medium/large bank lending from application through funding | [Workflow research](lending/01-bank-workflows.md), R01 | Dated primary sources, handoffs/roles, product complexity, unsuccessful paths and explicit demo assumptions |
+| Research 10–20 other loan types and focus on a few | [19-entry catalog](lending/02-products-and-restructuring.md#product-catalog), L01 | Family/variant distinctions, three executable families, reference-only unsupported entries and versioned policy sources |
+| Borrower chooses loan type including SBA 7(a) | L01, L02 | Saved/resumable product preference plus Help me choose; completed legacy setup remains complete |
+| Restructure an existing request, change amount/products and split/combine facilities | L01, L02, L06 | $9M request → $5M SBA + $4M conventional → three facilities → changed total, with immutable versions and no duplicate applications |
+| Apply product limits separately from total financing need | L01, L03, L05 | Preserve $9M need; block $6M single 7(a) approval; check aggregate exposure and prevent splitting/waiver bypasses |
+| Realistic underwriting and approval handoffs | L03–L05 | Reviewed-source financial spreads, combined debt service, human memo, risk/exception rationale and authority/quorum tests |
+| Changed or reduced terms require an explicit offer and acceptance | L06, L07 | Current version acceptance, expiry/nonacceptance, new request for amount increases and specific synthetic notices |
+| Restructure during approval/closing without reusing stale clearance | L02, L06, L08, L09 | Atomic hold, reapproval/reacceptance, affected signature invalidation, old-route denial and concurrent amendment/funding tests |
+| Product-specific legal/collateral/program closing requirements | L03, L08 | Explicit applicability, current evidence, guarantor versus signer versus portal access, shared collateral and non-waivable gates |
+| Funding per facility and truthful overall status | L09 | Separate accounts, permitted sequential versus atomic group release, partial funding, reconciliation and duplicate/retry protection |
+| Preserve existing records and isolation | L01–L10 | Additive legacy mappings, historical receipts, no synthetic-to-SBA relabelling, cross-bank/resource denial and real PostgreSQL upgrade tests |
+| All-environment demo, neutral wording and no servicing expansion | All L-tasks, D07 | Synthetic adapters/provenance, no external actions, no balances/accruals/repayment/draw engine; actual hosted acceptance separately in L10 |
+
 ## Version 2 requirements — October 8, 2026
 
 V2-01–V2-06 are implemented and verified locally. The [setup](v2/04-delivery-and-validation.md#v2-01--setup-contracts-migration-and-wizard), [dashboard](v2/04-delivery-and-validation.md#v2-02--borrower-task-dashboard), [importer](v2/04-delivery-and-validation.md#v2-03--demo-text-importer-and-registered-fixtures) and [document-review](v2/04-delivery-and-validation.md#v2-04--document-workspace-and-reviewed-financial-facts) records retain their historical validation boundaries. [V2-05 acceptance](v2/04-delivery-and-validation.md#v2-05--lender-overview-and-evidence-drilldowns) adds reviewed financial history and grouped lender evidence, verified with 373 unit tests, 449 PostgreSQL cases, all 12 builds/typechecks and 42 distinct desktop/mobile browser cases. [V2-06 acceptance](v2/04-delivery-and-validation.md#v2-06--simulated-loan-footprint) verifies the informational footprint with 399 unit tests, 477 PostgreSQL cases, all 12 builds/typechecks and 16 distinct desktop/mobile browser cases. [V2-07 acceptance](v2/04-delivery-and-validation.md#v2-07--integrated-local-acceptance) verifies the combined local implementation with **410 unit tests, 479 PostgreSQL cases, all 12 builds/typechecks and 136 distinct desktop/mobile browser cases**; [V2-08 hosted parity](v2/04-delivery-and-validation.md#v2-08--hosted-parity-and-deployment-slice) is **complete**, with 419 unit tests, 484 PostgreSQL cases, five native builds and six distinct hosted desktop cases. See [the source inventory](v2/01-screenshot-findings.md) and [v2 plan](v2/README.md). The actual hosted slice is verified separately from the broader local negative/mobile cases.

@@ -1,5 +1,7 @@
 # Simulated integrations and background jobs
 
+Planned lending expansion: [L03, L07, L08 and L09](lending/04-delivery-and-validation.md) adds synthetic program/diligence outcomes, versioned notice delivery, closing evidence and controlled funding attempts. Include facility/structure/terms fingerprints in dependent operations and invalidate stale results after restructuring. Never treat a successful provider execution as credit approval, a queued filing as perfected collateral, or an unconfirmed funding attempt as funded. Reuse existing outbox/retry/clock contracts; no real provider, SBA submission or money movement is authorized.
+
 The first release uses fake adapters with realistic asynchronous behavior. They require no external credentials, make no live financial checks, and send no external email. Interface boundaries must allow replacement without rewriting application use cases.
 
 The [v2 data and simulation plan](v2/03-data-and-simulation.md) has locally implemented setup, importer, financial-fact and lender-projection contracts; V2-06 geography is also implemented locally. It adds a protected text-trigger demo importer, a richer lender document viewer, explicit financial-fact adoption and mock geography while retaining these durability and access contracts.

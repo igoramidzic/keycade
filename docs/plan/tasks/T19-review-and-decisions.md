@@ -1,5 +1,7 @@
 # T19 — Submission, bank review, and decisions
 
+October 12 lending follow-up — **planned, not implemented**: [L04–L07](../lending/04-delivery-and-validation.md#l04-underwriting-workspace-and-credit-memo) adds underwriting, authority, full facility terms, offers/acceptance, amendments and notices after L01–L03. Acceptance requires package-bound votes, explicit acceptance of reduced/changed financing, reapproval after material restructuring and preserved submissions/decisions. The historical deferral of terms amendments/notices below is superseded as a target; the baseline implementation remains unchanged.
+
 V2 amendment — October 8, 2026, **implemented; acceptance recorded in the linked v2 tasks**: [V2-04](../v2/04-delivery-and-validation.md#v2-04--document-workspace-and-reviewed-financial-facts) introduces explicit reviewed adoption of extracted application facts with immutable provenance. Its acceptance preserves submitted/decided snapshots and lifecycle locks; lender adoption is not a loan decision or task acceptance. [V2-02](../v2/04-delivery-and-validation.md#v2-02--borrower-task-dashboard) keeps submission reachable contextually after removing borrower tabs. Existing state transitions remain authoritative.
 
 Dependencies: T10, T12, T16. Read [application lifecycle](../03-domain-and-access.md#application-lifecycle).

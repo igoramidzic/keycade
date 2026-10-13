@@ -1,5 +1,7 @@
 # T10 — Bank application queue and staff workspace
 
+October 12 lending follow-up — **planned, not implemented**: [L02](../lending/04-delivery-and-validation.md#l02-product-choice-and-lender-restructuring) adds the Financing workspace, version comparisons and staff restructuring. L03–L09 adds underwriting/closing ownership, authority, offers and funding state to scoped queue/detail projections. Their acceptance preserves bounded queries, private drafts, lender-only invitations and existing staff handoff behavior; this record validates the baseline only.
+
 V2 amendment — October 8, 2026, **implemented; acceptance recorded in the linked v2 tasks**: [V2-05](../v2/04-delivery-and-validation.md#v2-05--lender-overview-and-evidence-drilldowns), after V2-01/V2-04, owns the richer business/loan/financial overview and stage/evidence drilldowns. Keep the queue, lender tabs and staff-created handoff. V2-01 updates compatible optional prefills; V2-05 adds source-backed financial, group-count and navigation acceptance. The original baseline remains completed.
 
 Dependencies: T07. Read [staff journey](../01-product.md) and [access matrix](../03-domain-and-access.md#access-matrix).

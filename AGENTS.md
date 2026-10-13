@@ -17,6 +17,7 @@
 - The entire application is a demo in every environment, including production. Hosted behavior must match the local demo: use simulated authentication/access and email delivery, synthetic users/data, and fake external providers. Do not add real authentication providers, send real email, or perform real financial/identity/signature operations on production. Use neutral product wording per the October 9 override in D07; keep backend simulation markers and bank/application/resource access guards. Hosted demo parity, including `AUTH_DELIVERY_UNAVAILABLE`, is tracked in [D03](docs/plan/tasks/D03-hosted-demo-parity.md).
 - Use configurable asynchronous delays for demos and injected clocks for tests. Never interpret the word production as authorization to enable real external services.
 - First-release scope is applications through funding. Repayment schedules, balances, payment collection, interest, and collections are deferred by the user's explicit choice.
+- The October 12 lending expansion replaces the fixed-product target: an application represents a financing request with one or more versioned loan facilities. Plan for borrower product choice and lender changes to amounts, products and facility splits after intake; preserve historical submissions, approvals, signatures and funded records. Start with the [lending research and L01–L10 plan](docs/plan/lending/README.md); these tasks are not implemented merely because the baseline is complete.
 - Borrowers must finish a dedicated, resumable initial loan-application setup wizard before entering that application's task portal. Ask one simple question per screen, persist answers and progress on the server, and return unfinished applicants to their saved step. Enforce setup completion in backend workflow guards; see [the borrower journey](docs/plan/01-product.md#initial-setup-wizard-and-portal-entry).
 
 ## Implementation discipline
@@ -38,6 +39,7 @@
 - [Integrations and background jobs](docs/plan/04-integrations-and-jobs.md)
 - [Local development and testing](docs/plan/05-development-and-testing.md)
 - [Decisions, assumptions, and sources](docs/plan/06-decisions-and-sources.md)
+- [Bank lending workflows, product catalog, restructuring, and next build tasks](docs/plan/lending/README.md)
 
 Do not assume that a command described in these documents exists until its implementation task has been completed.
 

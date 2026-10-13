@@ -1,5 +1,7 @@
 # T12 — Task workflows and versioned product requirements
 
+October 12 lending follow-up — **planned, not implemented**: [L03](../lending/04-delivery-and-validation.md#l03-workflow-routing-and-product-diligence), after L02, extends stable requirements to package/facility/person scope and product-specific applicability. Validate shared evidence reuse, affected-only reconciliation, stale results, non-waivable program constraints and preserved manual tasks. Retain the October 9 distinction between client completion and lender review. Baseline acceptance below does not prove facility support.
+
 V2 amendment — October 8, 2026, **implemented; acceptance recorded in the linked v2 tasks**: [V2-02](../v2/04-delivery-and-validation.md#v2-02--borrower-task-dashboard) updates borrower layout without top tabs; [V2-05](../v2/04-delivery-and-validation.md#v2-05--lender-overview-and-evidence-drilldowns) distinguishes lender actions, check results and evidence groups. Retain preloaded task details, unsaved-edit protection, current review rules and restricted scope. New acceptance separates document counts from reviewed requirements and derives timeline stages from the existing lifecycle. No new task is created solely to display an uploaded tax return.
 
 Dependencies: T11. Read [task rules](../03-domain-and-access.md#tasks-and-requirements).

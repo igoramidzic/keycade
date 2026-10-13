@@ -1,5 +1,7 @@
 # T17 — Signature requests and simulated signing
 
+October 12 lending follow-up — **planned, not implemented**: [L06](../lending/04-delivery-and-validation.md#l06-offers-and-approval-amendments) and [L08](../lending/04-delivery-and-validation.md#l08-facility-closing-and-collateral-clearance) bind offers/documents to current structure and facility terms. Validate changed-term invalidation, durable void intent, late callback rejection, legal signer authority separate from portal identity and immutable historical artifacts. Existing multi-signer evidence below is the baseline.
+
 Dependencies: T05, T11, T12, T13. Read [signatures](../04-integrations-and-jobs.md#signatures-and-notifications).
 
 ## Outcome
