@@ -1,4 +1,6 @@
-import { inArray } from "drizzle-orm";
+import { inArray, sql } from "drizzle-orm";
+import { financingPolicyFixtures } from "./financing-fixtures.js";
+import { financingProductPolicies } from "./financing-schema.js";
 import { createDatabase } from "./index.js";
 import { normalizeMoney } from "./money.js";
 import {
@@ -62,6 +64,14 @@ export async function seedDatabase(
               synthetic: true,
             },
           ].filter((row) => isolation || row.id !== seedIds.bankB),
+        )
+        .onConflictDoNothing();
+      await tx
+        .insert(financingProductPolicies)
+        .values(
+          [seedIds.bankA, ...(isolation ? [seedIds.bankB] : [])].flatMap((bankId) =>
+            financingPolicyFixtures.map((policy) => ({ ...policy, bankId, synthetic: true })),
+          ),
         )
         .onConflictDoNothing();
       await tx
@@ -353,6 +363,17 @@ export async function seedDatabase(
           }),
         )
         .onConflictDoNothing();
+      // Seeded applications start as legacy single-product requests, matching upgraded databases.
+      await tx.execute(sql`
+        INSERT INTO financing_facilities (bank_id, application_id, origin, ordinal, legacy_product_id)
+        SELECT a.bank_id, a.id, 'legacy', 1, a.product_id FROM applications a
+        WHERE a.id IN (${sql.join(
+          seededApplications.map((application) => sql`${application.id}::uuid`),
+          sql`, `,
+        )})
+          AND a.financing_mode = 'legacy'
+          AND NOT EXISTS (SELECT 1 FROM financing_facilities f WHERE f.application_id = a.id)
+        ON CONFLICT DO NOTHING`);
     });
   } finally {
     await pool.end();

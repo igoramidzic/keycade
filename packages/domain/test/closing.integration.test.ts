@@ -11,7 +11,9 @@ import {
   checkRuns,
   closingCommands,
   documentVersions,
+  financingFacilities,
   fundingRecords,
+  legacyFacilityLinks,
   loanAccounts,
   notifications,
   productClosingPolicies,
@@ -276,6 +278,11 @@ async function ready() {
 }
 async function rows(id: string) {
   return {
+    links: await database.db
+      .select({ link: legacyFacilityLinks, facility: financingFacilities })
+      .from(legacyFacilityLinks)
+      .innerJoin(financingFacilities, eq(financingFacilities.id, legacyFacilityLinks.facilityId))
+      .where(eq(legacyFacilityLinks.applicationId, id)),
     funding: await database.db
       .select()
       .from(fundingRecords)
@@ -460,6 +467,22 @@ describe("approved closing and immutable simulated funding", () => {
     expect(stored.funding).toHaveLength(1);
     expect(stored.accounts).toHaveLength(1);
     expect(stored.commands).toHaveLength(2);
+    // Each legacy record maps to one legacy facility that keeps the actual product version.
+    expect(stored.links).toHaveLength(4);
+    expect(new Set(stored.links.map((row) => row.facility.id)).size).toBe(1);
+    expect(stored.links[0]?.facility).toMatchObject({
+      origin: "legacy",
+      ordinal: 1,
+      legacyProductId: ids.productA,
+    });
+    expect(stored.links.map((row) => row.link)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ fundingRecordId: stored.funding[0]?.id }),
+        expect.objectContaining({ loanAccountId: stored.accounts[0]?.id }),
+        expect.objectContaining({ closingPackageId: expect.any(String) }),
+        expect.objectContaining({ decisionId: expect.any(String) }),
+      ]),
+    );
     expect(stored.funding[0]?.evidence.conditions).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -535,7 +558,17 @@ describe("approved closing and immutable simulated funding", () => {
     await expect(
       closing().startClosing(officer, ids.bankA, f.id, command(approved.revision), randomUUID()),
     ).rejects.toMatchObject(invalid);
-    expect(await rows(f.id)).toEqual({ funding: [], accounts: [], commands: [] });
+    // Only the approval's legacy decision mapping exists; no closing package was linked.
+    expect(await rows(f.id)).toEqual({
+      funding: [],
+      accounts: [],
+      commands: [],
+      links: [
+        expect.objectContaining({
+          link: expect.objectContaining({ decisionId: expect.any(String), closingPackageId: null }),
+        }),
+      ],
+    });
   });
   it("enforces exact amount, date bounds and explicit human confirmation before any writes", async () => {
     const f = await ready();
@@ -696,6 +729,10 @@ describe("approved closing and immutable simulated funding", () => {
     expect(stored.funding).toEqual([]);
     expect(stored.accounts).toEqual([]);
     expect(stored.commands).toHaveLength(1);
+    expect(stored.links.map((row) => row.link.fundingRecordId ?? row.link.loanAccountId)).toEqual([
+      null,
+      null,
+    ]);
     expect((await closing().read(officer, ids.bankA, f.id)).status).toBe("closing");
     expect(
       (await database.db.select().from(notifications).where(eq(notifications.applicationId, f.id)))

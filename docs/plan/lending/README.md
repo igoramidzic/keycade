@@ -15,9 +15,9 @@ The user's October 12 follow-up replaces the fixed Synthetic Business Credit sel
 
 ## Implementation boundary
 
-This is a completed research deliverable, not completed application functionality. L01–L10 are **Not started**. Historical T01–T22 and V2 acceptance records remain valid for their original scope. The [R01 record](../tasks/R01-lending-workflow-research.md) describes this documentation change and its verification.
+The research is a completed documentation deliverable. **L01 is done locally** (October 13, 2026): the database, contracts, domain commands and both HTTP transports represent an overall request, versioned multi-facility structures and legacy mappings, and structured applications cannot use the legacy approval or funding routes. It adds no screens. L02–L10 are **Not started**. Historical T01–T22 and V2 acceptance records remain valid for their original scope. The [R01 record](../tasks/R01-lending-workflow-research.md) describes the documentation change and its verification; the [L01 record](04-delivery-and-validation.md#l01-validation-record) owns implementation evidence.
 
-Start the next lending implementation with **L01**, then **L02**. That delivers the requested product choice and editable financing structure before adding deeper underwriting. Do not build all catalog entries at once. The proposed first families are SBA 7(a) term lending, conventional business term lending, and equipment term lending. Other entries remain research/reference choices until their workflow exists.
+Continue the lending implementation with **L02**. That delivers the requested product choice and editable financing structure before adding deeper underwriting. Do not build all catalog entries at once. The proposed first families are SBA 7(a) term lending, conventional business term lending, and equipment term lending. Other entries remain research/reference choices until their workflow exists.
 
 All identities, financial evidence, eligibility results, program authorizations, signatures and funding remain synthetic in every environment. Product screens retain neutral wording under D07; simulation provenance remains in backend records and demo tooling. SBA submission, credit bureau, lien filing, email delivery and payment integrations remain simulated.
 

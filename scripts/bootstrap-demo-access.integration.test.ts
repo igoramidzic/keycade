@@ -34,6 +34,27 @@ async function bootstrap() {
     client.release();
   }
 }
+describe("hosted synthetic intake bootstrap on PostgreSQL", () => {
+  it("configures the version 1 financing product policies once for the synthetic bank", async () => {
+    const db = await fixture();
+    const read = async () =>
+      (
+        await db.pool.query(
+          "SELECT p.* FROM financing_product_policies p JOIN banks b ON b.id = p.bank_id WHERE b.slug = 'keybank' ORDER BY p.variant",
+        )
+      ).rows;
+    const first = await read();
+    expect(first.map((row) => [row.variant, row.version, row.synthetic])).toEqual([
+      ["conventional_term_secured", 1, true],
+      ["conventional_term_unsecured", 1, true],
+      ["equipment_term", 1, true],
+      ["sba_7a_small", 1, true],
+      ["sba_7a_standard", 1, true],
+    ]);
+    await db.pool.query(intakeSql);
+    expect(await read()).toEqual(first);
+  });
+});
 describe("hosted synthetic staff bootstrap on PostgreSQL", () => {
   it("is repeatable and preserves existing identity fields and application progress", async () => {
     const db = await fixture();

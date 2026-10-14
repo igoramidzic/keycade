@@ -48,6 +48,11 @@ import { type Actor, type ApplicationAccess, requireApplicationAccess } from "./
 import { lockCheckApplication } from "./checks.js";
 import { DomainError, deny } from "./errors.js";
 import { readApplicationFinancialFacts } from "./financial-facts.js";
+import {
+  assertLegacyFinancingLifecycle,
+  linkLegacyFacilityRecords,
+  readFinancingSubmissionReference,
+} from "./financing.js";
 import { hashIdentityCredential } from "./identity.js";
 import {
   queueApplicationStatusNotifications,
@@ -110,6 +115,8 @@ async function capture(tx: Tx, app: App): Promise<SubmissionSnapshot> {
     .where(and(eq(loanProducts.bankId, app.bankId), eq(loanProducts.id, app.productId ?? app.id)));
   if (!business || !product || !app.businessName || !app.requestedAmount)
     invalid("Complete business and loan details first.");
+  // Structured applications freeze their request/structure revisions instead of claiming the legacy product.
+  const financing = await readFinancingSubmissionReference(tx, app);
   const owners = await tx
     .select({
       id: businessRelationships.id,
@@ -190,7 +197,7 @@ async function capture(tx: Tx, app: App): Promise<SubmissionSnapshot> {
     .orderBy(asc(signatureEnvelopes.id));
   const legacyFacts = {
     businessName: app.businessName,
-    productName: product.name,
+    productName: financing ? "Structured financing request" : product.name,
     requestedAmount: app.requestedAmount,
     currency: "USD" as const,
     purpose: app.purpose,
@@ -205,6 +212,7 @@ async function capture(tx: Tx, app: App): Promise<SubmissionSnapshot> {
     fundingPurposes: app.fundingPurposes,
     purposeCatalogVersion: app.purposeCatalogVersion,
     otherPurposeDetail: app.otherPurposeDetail,
+    ...(financing ? { financing: financing.facts } : {}),
   };
   // Retain the original material hash for historical submissions whose added fields
   // are all absent. Populating any v2 fact becomes material drift, requiring resubmission.
@@ -255,6 +263,7 @@ async function capture(tx: Tx, app: App): Promise<SubmissionSnapshot> {
       identifiers,
       evidence,
       ...(financialFacts.length ? { financialFacts } : {}),
+      ...(financing ? { financing: financing.references } : {}),
     }),
   );
   return {
@@ -295,6 +304,7 @@ async function capture(tx: Tx, app: App): Promise<SubmissionSnapshot> {
         resolutionId: resolution?.id ?? null,
       })),
       signatures,
+      ...(financing ? { financing: financing.references } : {}),
     },
   };
 }
@@ -336,8 +346,8 @@ async function view(tx: Tx, actor: Actor, app: App, access: ApplicationAccess) {
       submit: ["collecting_information", "needs_information"].includes(app.status),
       startReview: staff && app.status === "submitted",
       requestInformation: staff && app.status === "in_review",
-      approve: staff && app.status === "in_review",
-      decline: staff && app.status === "in_review",
+      approve: staff && app.status === "in_review" && app.financingMode === "legacy",
+      decline: staff && app.status === "in_review" && app.financingMode === "legacy",
       withdraw: !terminal.has(app.status),
     },
     readiness,
@@ -524,6 +534,9 @@ export function createReviewService(
           );
         return view(tx, actor, app, access);
       }
+      // Structured packages need L05 authority/package decisions; the legacy amount route cannot decide them.
+      if (action === "approve" || action === "decline")
+        assertLegacyFinancingLifecycle(app, "credit_decision");
       if (app.revision !== data.expectedRevision) conflict();
       const allowed =
         action === "submit"
@@ -624,19 +637,24 @@ export function createReviewService(
               "Approved amount must be within the product bounds and cannot exceed the submitted requested amount.",
             );
         }
-        await tx.insert(applicationDecisions).values({
-          bankId,
-          applicationId,
-          submissionId: currentSubmission.id,
-          applicationRevision: app.revision + 1,
-          outcome: action === "approve" ? "approved" : "declined",
-          approvedAmount: amount,
-          reasonCode: data.reasonCode ?? "demo_criteria_met",
-          privateNote: "privateNote" in data ? (data.privateNote ?? null) : null,
-          decidedByUserId: userId,
-          evidence: snapshot.references,
-          createdAt: now,
-        });
+        const [decision] = await tx
+          .insert(applicationDecisions)
+          .values({
+            bankId,
+            applicationId,
+            submissionId: currentSubmission.id,
+            applicationRevision: app.revision + 1,
+            outcome: action === "approve" ? "approved" : "declined",
+            approvedAmount: amount,
+            reasonCode: data.reasonCode ?? "demo_criteria_met",
+            privateNote: "privateNote" in data ? (data.privateNote ?? null) : null,
+            decidedByUserId: userId,
+            evidence: snapshot.references,
+            createdAt: now,
+          })
+          .returning({ id: applicationDecisions.id });
+        if (!decision) throw new Error("Decision insert failed.");
+        await linkLegacyFacilityRecords(tx, app, { decisionId: decision.id }, now);
       }
       if (action === "request_information") {
         const info = requestInformationSchema.parse(data);

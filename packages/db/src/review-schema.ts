@@ -30,6 +30,14 @@ export type SubmissionSnapshot = {
     otherPurposeDetail?: string | null;
     industryCode: string | null;
     industryTaxonomyVersion: string | null;
+    // Present only for structured financing submissions.
+    financing?: {
+      mode: "structured";
+      requestRevision: number;
+      requestedAmount: string | null;
+      productPreference: string | null;
+      structureSequence: number | null;
+    };
   };
   businessProfile: { id: string; legalName: string; industryCode: string | null; revision: number };
   materialFingerprint: string;

@@ -8,6 +8,7 @@ export * from "./demo-inbox.js";
 export * from "./document-processing.js";
 export * from "./documents.js";
 export * from "./enrichment.js";
+export * from "./financing.js";
 export * from "./industry.js";
 export * from "./intake.js";
 export * from "./participants.js";

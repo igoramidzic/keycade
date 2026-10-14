@@ -189,6 +189,12 @@ export const applications = pgTable(
     industryTaxonomyVersion: text("industry_taxonomy_version"),
     source: applicationSource("source").notNull(),
     status: applicationStatus("status").notNull().default("draft"),
+    // Legacy single-product applications keep their original lifecycle; structured ones use
+    // financing revisions and cannot reach legacy amount-only decisions or funding.
+    financingMode: text("financing_mode")
+      .$type<"legacy" | "structured">()
+      .notNull()
+      .default("legacy"),
     assignedStaffId: uuid("assigned_staff_id"),
     createdByUserId: uuid("created_by_user_id").references(() => users.id),
     revision: integer("revision").notNull().default(1),
@@ -241,6 +247,7 @@ export const applications = pgTable(
       sql`${t.otherPurposeDetail} IS NULL OR 'other' = ANY(${t.fundingPurposes})`,
     ),
     check("applications_revision_positive", sql`${t.revision} > 0`),
+    check("applications_financing_mode_valid", sql`${t.financingMode} IN ('legacy', 'structured')`),
     index("applications_bank_created_id").on(t.bankId, t.createdAt, t.id),
     index("applications_bank_updated_id").on(t.bankId, t.updatedAt, t.id),
   ],

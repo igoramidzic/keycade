@@ -6,7 +6,7 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { expect, it } from "vitest";
 import { assertSchemaReady, migrateDatabase, migrationsFolder } from "./migrate.js";
 import { seedIds as ids, seedDatabase } from "./seed.js";
-import { createTestDatabase } from "./testing.js";
+import { createTestDatabase, seedHistoricalFixtures } from "./testing.js";
 
 it("adds nullable demo recipe manifests without altering existing evidence, applications or grants and repeats safely", async () => {
   const folder = await mkdtemp(join(tmpdir(), "keylend-before-demo-import-"));
@@ -24,7 +24,7 @@ it("adds nullable demo recipe manifests without altering existing evidence, appl
       ),
     );
     await migrate(database.db, { migrationsFolder: folder });
-    await seedDatabase(database.connectionString, { isolationFixtures: true });
+    await seedHistoricalFixtures(database);
     const documentId = randomUUID();
     const versionId = randomUUID();
     await database.pool.query(
@@ -63,7 +63,7 @@ it("adds nullable demo recipe manifests without altering existing evidence, appl
       beforeDocuments,
     );
     expect((await database.pool.query("SELECT * FROM applications ORDER BY id")).rows).toEqual(
-      beforeApplications,
+      beforeApplications.map((row) => ({ ...row, financing_mode: "legacy" })),
     );
     expect(
       (await database.pool.query("SELECT * FROM application_participants ORDER BY id")).rows,
@@ -76,9 +76,12 @@ it("adds nullable demo recipe manifests without altering existing evidence, appl
     expect((await database.pool.query("SELECT * FROM documents ORDER BY id")).rows).toEqual(
       beforeDocuments,
     );
-    expect((await database.pool.query("SELECT * FROM applications ORDER BY id")).rows).toEqual(
-      beforeApplications,
-    );
+    // Seeding adds its missing fixtures but never rewrites existing applications.
+    expect(
+      (await database.pool.query("SELECT * FROM applications ORDER BY id")).rows.filter((row) =>
+        beforeApplications.some((before) => before.id === row.id),
+      ),
+    ).toEqual(beforeApplications.map((row) => ({ ...row, financing_mode: "legacy" })));
   } finally {
     await database.cleanup();
     await rm(folder, { recursive: true, force: true });

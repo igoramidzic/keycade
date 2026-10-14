@@ -13,11 +13,13 @@ import {
   demoInboxMessageSchema,
   demoInboxViewSchema,
   errorSchema,
+  financingViewSchema,
   fundedAccountsViewSchema,
   notificationPreferenceSchema,
   notificationsViewSchema,
   operationCommandSchema,
   operationsViewSchema,
+  publishFinancingDraftSchema,
   readinessViewSchema,
   recordFundingSchema,
   refreshFootprintSchema,
@@ -25,6 +27,8 @@ import {
   resolveCheckSchema,
   retryCheckSchema,
   reviewViewSchema,
+  saveFinancingDraftSchema,
+  saveFinancingRequestSchema,
   signatureActionSchema,
   signatureEventSchema,
   signaturesViewSchema,
@@ -43,6 +47,7 @@ import {
   createClosingService,
   createDemoInboxCipher,
   createDemoInboxService,
+  createFinancingService,
   createIdentifierCipher,
   createNotificationsService,
   createOperationsService,
@@ -95,6 +100,7 @@ export function createWorkflowTransport(
   const notifications = createNotificationsService(db);
   const review = createReviewService(db);
   const closing = createClosingService(db);
+  const financing = createFinancingService(db);
   const activity = createActivityService(db);
   const operations = () => {
     if (!options.encryptionKey)
@@ -139,6 +145,30 @@ export function createWorkflowTransport(
       handle: ({ actor, params: p, input, requestId }) =>
         closing.recordFunding(actor, p.bankId, scope(p).applicationId, input, requestId),
     },
+    {
+      method: "GET",
+      path: `${base}/financing`,
+      params: applicationParamsSchema,
+      response: financingViewSchema,
+      handle: ({ actor, params: p }) => financing.read(actor, p.bankId, scope(p).applicationId),
+    },
+    ...(
+      [
+        ["request", "saveRequest", saveFinancingRequestSchema],
+        ["draft", "saveDraft", saveFinancingDraftSchema],
+        ["draft/publish", "publish", publishFinancingDraftSchema],
+      ] as const
+    ).map(
+      ([path, method, body]): Route => ({
+        method: "POST",
+        path: `${base}/financing/${path}`,
+        params: applicationParamsSchema,
+        body,
+        response: financingViewSchema,
+        handle: ({ actor, params: p, input, requestId }) =>
+          financing[method](actor, p.bankId, scope(p).applicationId, input, requestId),
+      }),
+    ),
     {
       method: "GET",
       path: `${base}/activity`,

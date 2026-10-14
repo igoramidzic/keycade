@@ -1,12 +1,12 @@
 # Lending expansion delivery and validation
 
-All implementation tasks below are **Not started**. Read [the workflow research](01-bank-workflows.md), [product and restructuring contract](02-products-and-restructuring.md) and [code gap map](03-gap-analysis.md) first. The user's product-selection and restructuring request takes priority over the historical fixed-product plan.
+L01 is **done locally** (October 13, 2026); L02–L10 are **Not started**. Read [the workflow research](01-bank-workflows.md), [product and restructuring contract](02-products-and-restructuring.md) and [code gap map](03-gap-analysis.md) first. The user's product-selection and restructuring request takes priority over the historical fixed-product plan.
 
 ## Build sequence
 
 | Task | Outcome | Dependencies | Status |
 | --- | --- | --- | --- |
-| L01 | Product catalog and financing structure foundation | T03, T07, T12, T19, T20, V2-01 | Not started |
+| L01 | Product catalog and financing structure foundation | T03, T07, T12, T19, T20, V2-01 | Done — [local validation](#l01-validation-record) |
 | L02 | Product choice and lender restructuring | L01, T08, T10, T11, T17 | Not started |
 | L03 | Workflow routing and product diligence | L02, T12, T15, T16 | Not started |
 | L04 | Underwriting workspace and credit memo | L03, V2-04, V2-05 | Not started |
@@ -45,7 +45,38 @@ Acceptance criteria:
 - Upgrade unfinished, submitted, approved, closing and funded legacy fixtures without rewriting original snapshots, account IDs or receipts. Repeat migration/initialization is a no-op.
 - Structured approval/funding is unavailable until implemented; direct calls to old routes cannot bypass this boundary.
 
-Validation record: **Not started.** Use migration/upgrade, exact-decimal, foreign-key, rollback, race and replay tests with real PostgreSQL.
+### L01 implementation record
+
+**Done locally — October 13, 2026.** No screens changed; L02 owns the product question, the Financing workspace and borrower presentation. Hosted publication and migration 0026 on Neon are pending. Implementation choices are recorded in [decisions](../06-decisions-and-sources.md#l01-financing-structure-foundation--october-13-2026).
+
+- **Contracts** (`packages/contracts/src/financing.ts`): the 19-entry reference catalog with dated sources, three executable families and five variants, preferences including “Help me choose”, exact-cents helpers, request/draft/publish commands and the financing view. Only the initial families can be selected; reference entries are data, not workflows.
+- **Database** (migration `0026_financing_structures`): `applications.financing_mode`; immutable, bank-scoped product policy versions; append-only request revisions; one mutable draft per application that publication freezes; stable facility identities and per-revision versions; uses, sources and allocations; split/combine/duplicate lineage; command receipts; and additive legacy facility links. Composite keys keep every link inside one bank, application and revision; triggers enforce immutability, the one-way mode change and the legacy-only decision/closing/funding/account rows. Seeding and the explicit hosted intake bootstrap add the same version 1 policies for banks created after the migration.
+- **Domain and transports**: `createFinancingService` provides read, save-request, save-draft and publish with current access, expected revisions, actor-bound idempotency and the application lock shared with review, closing and funding. Variants resolve server-side under pinned policies; findings state whether they block publication, approval or funding. The routes `/financing`, `/financing/request`, `/financing/draft` and `/financing/draft/publish` share one contract in Fastify and the Workers handler. Request starts/revisions and publications appear in the existing activity history; draft saves do not.
+- **Legacy boundary**: existing and newly created applications stay legacy; old approve, decline, closing and funding commands refuse structured applications before any workflow check. Legacy decisions, closing packages, funding records and accounts are linked to the application's legacy facility in the same transaction; migration 0026 backfills existing records. Application-wide closing/funding uniqueness is unchanged (L08/L09).
+
+### L01 validation record
+
+Acceptance criteria and evidence:
+
+| Criterion | Evidence |
+| --- | --- |
+| $9M need with SBA preference and $5M/$4M split round-trips exactly; $6M single 7(a) saveable but blocked from approval | Domain PostgreSQL tests read back `9000000.00`, `5000000.00` and `4000000.00` from the stored numeric columns, the mirrored application need and both HTTP transports. The $6M 7(a) draft saves with `facility_above_maximum` (sourced program restriction) and `program_aggregate_exceeded`; publication, approval and funding readiness are false and publication is refused. |
+| Distinct totals, project cost, contributions and allocations; invalid amounts, duplicate allocation and foreign references fail | Unit and PostgreSQL tests keep requested need, financing, contributions, project cost, gap/excess and unallocated cost separate, including the largest numeric(20,2) amount. Zero, negative and over-precise amounts, a cost allocated twice or beyond its amount, over-allocated funders, another application's facility and another bank's routes fail before writes; direct SQL proves the composite foreign keys reject cross-application, cross-revision, policy-family and legacy/structured mismatches. |
+| Three or more facilities, split/combine lineage, product replacement preserving revisions and evidence | Four published revisions demonstrate $9M as two facilities, a split into three, an $8M revised need with a required reason and a combination, then a product replacement on the same facility identity. Earlier revision rows, the original $9M request and an uploaded document/version are unchanged; triggers reject updates and deletes of published revisions, request history, policies, identities and receipts. |
+| Legacy unfinished, submitted, approved, closing and funded fixtures upgrade without rewriting records; repeat migration/initialization is a no-op | The 0026 upgrade test leaves applications (plus only the `legacy` default), setups, submissions, decisions, closing policies/packages/commands, funding records and accounts identical. Each application, including one on an older product version and one without a product, maps to one legacy facility with its actual product; all seven legacy records are linked. Repeat migration, replaying the backfill SQL and repeated seeding change nothing. Funding regressions verify that new legacy records are linked atomically and that failed funding leaves no link. |
+| Structured approval/funding unavailable; old routes cannot bypass | A structured application is genuinely submitted and placed in review through the HTTP routes; its snapshot records the request and structure revisions under a neutral product label. Approve and decline, then closing start and funding with forced statuses, return `FINANCING_LIFECYCLE_UNAVAILABLE` on both transports and create no records; database triggers also reject direct legacy decision inserts and mode changes. |
+
+Commands and results:
+
+- `pnpm check`: Biome, browser boundaries, all 12 workspace typechecks, root TypeScript and **450 unit tests in 42 files** pass, including new contract, evaluation and resolution tests.
+- `pnpm test:integration`: **505 PostgreSQL cases in 54 files** pass. New: 6 domain financing cases (conversion and activity history, exact round trip, $6M block and route bypass, validation/foreign keys, lineage/immutability, access rules, races, replay and rollback), the 0026 upgrade case, 4 HTTP cases across both transports and a hosted-bootstrap policy case; closing regressions assert legacy links.
+- `KEYLEND_DEPLOYMENT=cloudflare pnpm build`: all 12 workspace builds pass. Wrangler `deploy --dry-run` bundles the API and jobs Workers; this is not a hosted compatibility claim.
+- `pnpm test:e2e tests/e2e/review.spec.ts tests/e2e/closing.spec.ts`: **8 desktop/mobile browser cases pass** (0 skipped, failed or flaky), confirming the legacy review, signing, closing and funding journeys after the guard and link changes.
+- Local development database: `pnpm db:migrate` applied 0026 without reset, giving its 21 existing applications 21 legacy facilities and 10 policy rows (Keybank plus the retained isolation bank). A second migration and two `pnpm db:seed` runs changed no counts; `pnpm db:status` schema checks pass.
+
+Changes to existing tests: four historical upgrade assertions now expect the additive `financing_mode = 'legacy'` column. Two of them previously ran the current seed against an older schema, which cannot work once `applications` gains a column, so they use the shared schema-pinned historical fixtures and compare only pre-existing rows after re-seeding.
+
+Limitations: no UI, notifications or hosted deployment; requirement rules still use the legacy product rule set (L03); existing SBA exposure is reported as unknown rather than reviewed (L03); queue/portal summaries still show the legacy product name for structured applications until L02 changes presentation.
 
 ## L02 Product choice and lender restructuring
 
