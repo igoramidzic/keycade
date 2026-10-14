@@ -6,7 +6,7 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { expect, it } from "vitest";
 import { assertSchemaReady, migrateDatabase, migrationsFolder } from "./migrate.js";
 import { seedIds } from "./seed.js";
-import { createTestDatabase } from "./testing.js";
+import { createTestDatabase, seedHistoricalFixtures } from "./testing.js";
 
 it("adds invitation assignment intent without changing existing grants or assigning legacy invitations", async () => {
   const folder = await mkdtemp(join(tmpdir(), "keylend-before-invite-assignments-"));
@@ -24,7 +24,7 @@ it("adds invitation assignment intent without changing existing grants or assign
       ),
     );
     await migrate(database.db, { migrationsFolder: folder });
-    await seedHistoricalDatabase(database);
+    await seedHistoricalFixtures(database);
     await database.pool.query(
       `INSERT INTO invitations (bank_id, application_id, email, role, scope, inviter_user_id, inviter_kind, inviter_grant_id, inviter_grant_updated_at, expires_at, synthetic)
        SELECT $1, $2, 'legacy-invitation@example.test', 'adviser', 'assigned', user_id, 'staff', id, updated_at, now() + interval '7 days', true FROM bank_memberships WHERE bank_id=$1 LIMIT 1`,
@@ -70,7 +70,7 @@ it("adds closing policies to every existing synthetic business-credit version wi
       ),
     );
     await migrate(database.db, { migrationsFolder: folder });
-    await seedHistoricalDatabase(database);
+    await seedHistoricalFixtures(database);
     const secondVersion = randomUUID(),
       thirdVersion = randomUUID();
     await database.pool.query(
@@ -173,79 +173,6 @@ it("adds closing policies to every existing synthetic business-credit version wi
   }
 });
 
-// Deliberately use only the SQL columns present in migration 0004. Importing the current
-// ORM/seed would silently couple historical fixtures to later schema additions.
-async function seedHistoricalDatabase(database: Awaited<ReturnType<typeof createTestDatabase>>) {
-  await database.pool.query(
-    "INSERT INTO banks (id, slug, name, synthetic) VALUES ($1,'keybank','Synthetic Historical A',true), ($2,'isolation-fixture','Synthetic Historical B',true)",
-    [seedIds.bankA, seedIds.bankB],
-  );
-  await database.pool.query(
-    `INSERT INTO users (id,email,display_name,email_verified_at,synthetic) VALUES
-    ($1,'borrower@example.test','Synthetic Historical Borrower','2026-01-01',true),
-    ($2,'officer-a@example.test','Synthetic Historical Officer','2026-01-01',true),
-    ($3,'adviser@example.test','Synthetic Historical Adviser','2026-01-01',true),
-    ($4,'revoked-owner@example.test','Synthetic Historical Revoked Owner','2026-01-01',true)`,
-    [seedIds.borrower, seedIds.officerA, seedIds.adviser, seedIds.revokedOwner],
-  );
-  await database.pool.query(
-    "INSERT INTO bank_memberships (bank_id,user_id,role,synthetic) VALUES ($1,$2,'officer',true)",
-    [seedIds.bankA, seedIds.officerA],
-  );
-  await database.pool.query(
-    "INSERT INTO applicant_contacts (id,bank_id,email,user_id,synthetic) VALUES ($1,$2,'borrower@example.test',$3,true)",
-    [seedIds.contactA, seedIds.bankA, seedIds.borrower],
-  );
-  await database.pool.query(
-    `INSERT INTO loan_products (id,bank_id,slug,name,minimum_amount,maximum_amount,synthetic) VALUES
-    ($1,$2,'business-credit','Synthetic Business Credit',10000,7500000,true),
-    ($3,$4,'business-credit','Synthetic Business Credit',10000,7500000,true)`,
-    [seedIds.productA, seedIds.bankA, seedIds.productB, seedIds.bankB],
-  );
-  await database.pool.query(
-    `INSERT INTO applications (id,bank_id,product_id,source,status,business_name,synthetic) VALUES
-    ($1,$2,$3,'seed','collecting_information','Synthetic Historical Business',true),
-    ($4,$2,$3,'seed','draft',NULL,true),
-    ($5,$6,$7,'seed','draft','Synthetic Other Isolation fixtureusiness',true)`,
-    [
-      seedIds.applicationSmall,
-      seedIds.bankA,
-      seedIds.productA,
-      seedIds.applicationEmpty,
-      seedIds.applicationOtherBank,
-      seedIds.bankB,
-      seedIds.productB,
-    ],
-  );
-  await database.pool.query(
-    `INSERT INTO application_setups (application_id,bank_id,current_step,completed_steps,skipped_steps,completed_at,completed_by_user_id) VALUES
-    ($1,$2,'review',ARRAY['business_name','product','amount','purpose'],ARRAY['industry'],'2026-01-01',$3),
-    ($4,$2,'business_name',ARRAY[]::text[],ARRAY[]::text[],NULL,NULL),
-    ($5,$6,'business_name',ARRAY[]::text[],ARRAY[]::text[],NULL,NULL)`,
-    [
-      seedIds.applicationSmall,
-      seedIds.bankA,
-      seedIds.borrower,
-      seedIds.applicationEmpty,
-      seedIds.applicationOtherBank,
-      seedIds.bankB,
-    ],
-  );
-  await database.pool.query(
-    `INSERT INTO application_participants (bank_id,application_id,user_id,role,scope,revoked_at,synthetic) VALUES
-    ($1,$2,$3,'applicant_admin','full',NULL,true),
-    ($1,$2,$4,'adviser','assigned',NULL,true),
-    ($1,$2,$5,'owner','assigned','2026-01-01',true)`,
-    [
-      seedIds.bankA,
-      seedIds.applicationSmall,
-      seedIds.borrower,
-      seedIds.adviser,
-      seedIds.revokedOwner,
-    ],
-  );
-}
-
 it("upgrades historical drafts and later lifecycle applications without inventing confirmation", async () => {
   const earlierMigrations = await mkdtemp(join(tmpdir(), "keylend-prior-migrations-"));
   const database = await createTestDatabase(undefined, { migrate: false });
@@ -342,7 +269,7 @@ it("assigns the fixed bank product to legacy drafts and resumes past product sel
       ),
     );
     await migrate(database.db, { migrationsFolder: folder });
-    await seedHistoricalDatabase(database);
+    await seedHistoricalFixtures(database);
     await database.pool.query(
       "UPDATE applications SET product_id = NULL, business_name = 'Synthetic saved draft', revision = 7 WHERE id = $1",
       [seedIds.applicationEmpty],
@@ -403,7 +330,7 @@ it("adds internal staff notes without altering pre-T10 applications and enforces
       ),
     );
     await migrate(database.db, { migrationsFolder: folder });
-    await seedHistoricalDatabase(database);
+    await seedHistoricalFixtures(database);
     const before = (await database.pool.query("SELECT * FROM applications ORDER BY id")).rows;
     await migrateDatabase(database.connectionString);
     await assertSchemaReady(database.connectionString);
@@ -451,7 +378,7 @@ it("upgrades pre-T11 grants and auth deliveries without granting additional acce
       ),
     );
     await migrate(database.db, { migrationsFolder: folder });
-    await seedHistoricalDatabase(database);
+    await seedHistoricalFixtures(database);
     const deliveryId = randomUUID();
     await database.pool.query(
       `INSERT INTO access_delivery_requests (id,bank_id,application_id,contact_id,portal,origin,return_path,expires_at,request_id)
@@ -535,7 +462,7 @@ it("upgrades every unfinished v1 step while preserving answers, optional skips, 
       ),
     );
     await migrate(database.db, { migrationsFolder: folder });
-    await seedHistoricalDatabase(database);
+    await seedHistoricalFixtures(database);
     const completed = (
       await database.pool.query("SELECT * FROM application_setups WHERE completed_at IS NOT NULL")
     ).rows;
@@ -658,7 +585,7 @@ it("adds queued or waiting informational footprint snapshots for frozen and lega
       ),
     );
     await migrate(database.db, { migrationsFolder: folder });
-    await seedHistoricalDatabase(database);
+    await seedHistoricalFixtures(database);
     const address = {
       line1: "123 Synthetic Avenue",
       locality: "Portland",
@@ -681,7 +608,7 @@ it("adds queued or waiting informational footprint snapshots for frozen and lega
     await migrateDatabase(database.connectionString);
     await assertSchemaReady(database.connectionString);
     expect((await database.pool.query("SELECT * FROM applications ORDER BY id")).rows).toEqual(
-      applicationsBefore,
+      applicationsBefore.map((row) => ({ ...row, financing_mode: "legacy" })),
     );
     expect(
       (await database.pool.query("SELECT * FROM application_setups ORDER BY application_id")).rows,
@@ -759,7 +686,7 @@ it("renames the existing synthetic bank without replacing application or evidenc
       ),
     );
     await migrate(database.db, { migrationsFolder: folder });
-    await seedHistoricalDatabase(database);
+    await seedHistoricalFixtures(database);
     await database.pool.query(
       "UPDATE banks SET slug = 'bank-a', name = 'Synthetic Bank A' WHERE id = $1",
       [seedIds.bankA],
@@ -780,7 +707,7 @@ it("renames the existing synthetic bank without replacing application or evidenc
         ).rows,
       ).toEqual([{ id: seedIds.bankA, name: "Keybank", slug: "keybank" }]);
       expect((await database.pool.query("SELECT * FROM applications ORDER BY id")).rows).toEqual(
-        applicationsBefore,
+        applicationsBefore.map((row) => ({ ...row, financing_mode: "legacy" })),
       );
       expect(
         (await database.pool.query("SELECT * FROM application_participants ORDER BY id")).rows,

@@ -183,6 +183,13 @@
       "when": 1791882000000,
       "tag": "0025_keylend_keybank",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1791940421269,
+      "tag": "0026_financing_structures",
+      "breakpoints": true
     }
   ]
 }

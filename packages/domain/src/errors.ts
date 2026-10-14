@@ -13,7 +13,8 @@ export type DomainErrorCode =
   | "AUTH_DELIVERY_UNAVAILABLE"
   | "DOCUMENT_STORAGE_UNAVAILABLE"
   | "DEMO_MESSAGE_UNAVAILABLE"
-  | "ENRICHMENT_UNAVAILABLE";
+  | "ENRICHMENT_UNAVAILABLE"
+  | "FINANCING_LIFECYCLE_UNAVAILABLE";
 
 export class DomainError extends Error {
   constructor(

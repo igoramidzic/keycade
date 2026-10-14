@@ -6,7 +6,7 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { expect, it } from "vitest";
 import { assertSchemaReady, migrateDatabase, migrationsFolder } from "./migrate.js";
 import { seedIds as ids, seedDatabase } from "./seed.js";
-import { createTestDatabase } from "./testing.js";
+import { createTestDatabase, seedHistoricalFixtures } from "./testing.js";
 
 it("upgrades populated pre-workspace evidence without inventing reviewed facts or changing immutable decisions", async () => {
   const folder = await mkdtemp(join(tmpdir(), "keylend-before-document-workspace-"));
@@ -24,7 +24,7 @@ it("upgrades populated pre-workspace evidence without inventing reviewed facts o
       ),
     );
     await migrate(database.db, { migrationsFolder: folder });
-    await seedDatabase(database.connectionString, { isolationFixtures: true });
+    await seedHistoricalFixtures(database);
     const documentId = randomUUID();
     const versionId = randomUUID();
     const runId = randomUUID();
@@ -119,8 +119,16 @@ it("upgrades populated pre-workspace evidence without inventing reviewed facts o
       await assertSchemaReady(database.connectionString);
       await seedDatabase(database.connectionString, { isolationFixtures: true });
       for (const [index, table] of tables.entries())
-        expect((await database.pool.query(`SELECT * FROM ${table} ORDER BY id`)).rows).toEqual(
-          before[index],
+        expect(
+          // Seeding adds its missing fixtures but never rewrites existing rows.
+          (await database.pool.query(`SELECT * FROM ${table} ORDER BY id`)).rows.filter((row) =>
+            before[index]?.some((prior) => prior.id === row.id),
+          ),
+        ).toEqual(
+          // Later migrations only add the legacy financing-mode default to applications.
+          table === "applications"
+            ? before[index]?.map((row) => ({ ...row, financing_mode: "legacy" }))
+            : before[index],
         );
       for (const table of [
         "document_metadata_revisions",

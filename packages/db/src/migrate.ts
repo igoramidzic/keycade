@@ -86,6 +86,24 @@ export async function assertSchemaReady(connectionString: string): Promise<void>
     await pool.query(
       "SELECT application_id, idempotency_key, payload_hash, response FROM financial_fact_commands LIMIT 0",
     );
+    await pool.query(
+      "SELECT a.financing_mode, p.id, p.variant, p.version, p.minimum_principal, p.maximum_principal, p.sources, p.active FROM applications a LEFT JOIN financing_product_policies p ON p.bank_id = a.bank_id LIMIT 0",
+    );
+    await pool.query(
+      "SELECT id, application_id, revision, requested_amount, product_preference, author_kind FROM financing_request_revisions LIMIT 0",
+    );
+    await pool.query(
+      "SELECT id, state, sequence, draft_revision, request_revision_id, based_on_id, published_at FROM financing_structure_revisions LIMIT 0",
+    );
+    await pool.query(
+      "SELECT f.id, f.origin, f.ordinal, f.legacy_product_id, f.introduced_in_structure_id, v.structure_revision_id, v.family, v.security, v.product_policy_id, v.principal FROM financing_facilities f LEFT JOIN financing_facility_versions v ON v.facility_id = f.id LIMIT 0",
+    );
+    await pool.query(
+      "SELECT u.id, u.amount, s.kind, a.use_id, a.facility_version_id, a.source_id, l.kind, l.predecessor_facility_id FROM financing_uses u, financing_sources s, financing_allocations a, financing_facility_lineage l LIMIT 0",
+    );
+    await pool.query(
+      "SELECT c.idempotency_key, c.payload_hash, c.result_id, k.facility_id, k.decision_id, k.closing_package_id, k.funding_record_id, k.loan_account_id FROM financing_commands c, legacy_facility_links k LIMIT 0",
+    );
   } catch {
     throw new Error(
       "Database schema is missing, behind, or unusable. Run pnpm db:migrate against the project local database.",

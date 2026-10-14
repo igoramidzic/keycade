@@ -64,13 +64,15 @@ export async function evaluateReadiness(
   if (!setup?.completedAt)
     add("setup", null, "submission", "Complete initial setup", "initial_setup_incomplete");
   const amount = app.requestedAmount ? BigInt(app.requestedAmount.replace(".", "")) : 0n;
-  if (
-    !app.businessId ||
-    !app.businessName?.trim() ||
-    !product ||
-    amount < BigInt(product.minimumAmount.replace(".", "")) ||
-    amount > BigInt(product.maximumAmount.replace(".", ""))
-  )
+  // A structured request's overall need is independent of any single product's limits;
+  // facility limits are evaluated against the financing structure instead.
+  const amountValid =
+    app.financingMode === "structured"
+      ? amount > 0n
+      : !!product &&
+        amount >= BigInt(product.minimumAmount.replace(".", "")) &&
+        amount <= BigInt(product.maximumAmount.replace(".", ""));
+  if (!app.businessId || !app.businessName?.trim() || !amountValid)
     add(
       "application",
       null,

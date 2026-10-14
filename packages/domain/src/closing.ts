@@ -35,6 +35,7 @@ import { type Actor, type ApplicationAccess, requireApplicationAccess } from "./
 import { lockCheckApplication } from "./checks.js";
 import { readClosingConditions } from "./closing-policy.js";
 import { DomainError, deny } from "./errors.js";
+import { assertLegacyFinancingLifecycle, linkLegacyFacilityRecords } from "./financing.js";
 import { hashIdentityCredential } from "./identity.js";
 import {
   queueApplicationStatusNotifications,
@@ -343,6 +344,8 @@ export function createClosingService(
           );
         return view(tx, actor, app, access);
       }
+      // Structured facilities get per-facility closing and funding in L08/L09, never this shortcut.
+      assertLegacyFinancingLifecycle(app, action === "start" ? "closing" : "funding");
       if (app.revision !== data.expectedRevision) conflict();
       if (app.status !== (action === "start" ? "approved" : "closing"))
         invalid("This closing action is unavailable at the current application stage.");
@@ -382,6 +385,7 @@ export function createClosingService(
           })
           .returning();
         if (!pkg) throw new Error("Closing package insert failed.");
+        await linkLegacyFacilityRecords(tx, app, { closingPackageId: pkg.id }, now);
         const [assignee] = await tx
           .select()
           .from(applicationParticipants)
@@ -570,6 +574,12 @@ export function createClosingService(
           .returning();
         if (!account) throw new Error("Funded account insert failed.");
         accountId = account.id;
+        await linkLegacyFacilityRecords(
+          tx,
+          app,
+          { fundingRecordId: funding.id, loanAccountId: account.id },
+          now,
+        );
       }
       if (!pkg) throw new Error("Closing package unavailable.");
       const [updated] = await tx

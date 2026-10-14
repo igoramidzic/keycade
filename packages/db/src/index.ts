@@ -9,6 +9,7 @@ import * as documentProcessingSchema from "./document-processing-schema.js";
 import * as documentSchema from "./document-schema.js";
 import * as enrichmentSchema from "./enrichment-schema.js";
 import * as financialFactsSchema from "./financial-facts-schema.js";
+import * as financingSchema from "./financing-schema.js";
 import * as jobSchema from "./job-schema.js";
 import * as reviewSchema from "./review-schema.js";
 import * as coreSchema from "./schema.js";
@@ -16,6 +17,7 @@ import * as signatureSchema from "./signature-schema.js";
 import * as taskSchema from "./task-schema.js";
 
 const schema = {
+  ...financingSchema,
   ...financialFactsSchema,
   ...closingSchema,
   ...demoInboxSchema,
@@ -56,6 +58,8 @@ export * from "./document-processing-schema.js";
 export * from "./document-schema.js";
 export * from "./enrichment-schema.js";
 export * from "./financial-facts-schema.js";
+export * from "./financing-fixtures.js";
+export * from "./financing-schema.js";
 export * from "./job-schema.js";
 export { normalizeMoney } from "./money.js";
 export * from "./notification-schema.js";

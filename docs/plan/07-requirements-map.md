@@ -2,21 +2,21 @@
 
 ## Lending research and product restructuring — October 12, 2026
 
-[R01](tasks/R01-lending-workflow-research.md) records the documentation deliverable, continued October 13. **L01–L10 are Not started**; the proof column below is required future evidence, not a passing test claim. The new product-selection and restructuring requirement supersedes fixed-product behavior in the historical records further down.
+[R01](tasks/R01-lending-workflow-research.md) records the documentation deliverable, continued October 13. [L01](lending/04-delivery-and-validation.md#l01-validation-record) is done locally and supplies the foundation evidence noted below; **L02–L10 are Not started**, so the remaining proof is required future evidence, not a passing test claim. The new product-selection and restructuring requirement supersedes fixed-product behavior in the historical records further down.
 
 | Requirement | Coverage | Required proof |
 | --- | --- | --- |
 | Research small/medium/large bank lending from application through funding | [Workflow research](lending/01-bank-workflows.md), R01 | Dated primary sources, handoffs/roles, product complexity, unsuccessful paths and explicit demo assumptions |
-| Research 10–20 other loan types and focus on a few | [19-entry catalog](lending/02-products-and-restructuring.md#product-catalog), L01 | Family/variant distinctions, three executable families, reference-only unsupported entries and versioned policy sources |
-| Borrower chooses loan type including SBA 7(a) | L01, L02 | Saved/resumable product preference plus Help me choose; completed legacy setup remains complete |
-| Restructure an existing request, change amount/products and split/combine facilities | L01, L02, L06 | $9M request → $5M SBA + $4M conventional → three facilities → changed total, with immutable versions and no duplicate applications |
-| Apply product limits separately from total financing need | L01, L03, L05 | Preserve $9M need; block $6M single 7(a) approval; check aggregate exposure and prevent splitting/waiver bypasses |
+| Research 10–20 other loan types and focus on a few | [19-entry catalog](lending/02-products-and-restructuring.md#product-catalog), L01 done locally | Family/variant distinctions, three executable families, reference-only unsupported entries and versioned policy sources. L01: catalog contract tests and immutable, sourced policy fixtures verified in the 0026 upgrade test |
+| Borrower chooses loan type including SBA 7(a) | L01 done locally, L02 | Saved/resumable product preference plus Help me choose; completed legacy setup remains complete. L01: preference saved as an applicant-confirmed request revision through the API; the setup question remains L02 |
+| Restructure an existing request, change amount/products and split/combine facilities | L01 done locally, L02, L06 | $9M request → $5M SBA + $4M conventional → three facilities → changed total, with immutable versions and no duplicate applications. L01: four published revisions with split/combine lineage and product replacement in PostgreSQL; editing workflow and amendments remain L02/L06 |
+| Apply product limits separately from total financing need | L01 done locally, L03, L05 | Preserve $9M need; block $6M single 7(a) approval; check aggregate exposure and prevent splitting/waiver bypasses. L01: $9M need preserved, $6M 7(a) saveable but blocked, package 7(a) total enforced across split facilities |
 | Realistic underwriting and approval handoffs | L03–L05 | Reviewed-source financial spreads, combined debt service, human memo, risk/exception rationale and authority/quorum tests |
 | Changed or reduced terms require an explicit offer and acceptance | L06, L07 | Current version acceptance, expiry/nonacceptance, new request for amount increases and specific synthetic notices |
 | Restructure during approval/closing without reusing stale clearance | L02, L06, L08, L09 | Atomic hold, reapproval/reacceptance, affected signature invalidation, old-route denial and concurrent amendment/funding tests |
 | Product-specific legal/collateral/program closing requirements | L03, L08 | Explicit applicability, current evidence, guarantor versus signer versus portal access, shared collateral and non-waivable gates |
 | Funding per facility and truthful overall status | L09 | Separate accounts, permitted sequential versus atomic group release, partial funding, reconciliation and duplicate/retry protection |
-| Preserve existing records and isolation | L01–L10 | Additive legacy mappings, historical receipts, no synthetic-to-SBA relabelling, cross-bank/resource denial and real PostgreSQL upgrade tests |
+| Preserve existing records and isolation | L01–L10 | Additive legacy mappings, historical receipts, no synthetic-to-SBA relabelling, cross-bank/resource denial and real PostgreSQL upgrade tests. L01: legacy facility links and byte-identical originals verified on upgrade; old routes refuse structured applications on both transports |
 | All-environment demo, neutral wording and no servicing expansion | All L-tasks, D07 | Synthetic adapters/provenance, no external actions, no balances/accruals/repayment/draw engine; actual hosted acceptance separately in L10 |
 
 ## Version 2 requirements — October 8, 2026
